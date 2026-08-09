@@ -75,6 +75,14 @@ func parseTextGad(s string) (node.Stmts, error) {
 	return parseTextGadAt(s, noBase)
 }
 
+// parseTextGadRawAt is like parseTextGadAt but keeps leading and trailing
+// whitespace verbatim (no trimming). It is used for `@text`/`@p`/`@md` body lines
+// where indentation and surrounding spaces are significant content. base points
+// at the first character of s so `{ … }` interpolation keeps its source position.
+func parseTextGadRawAt(s string, base source.Pos) (node.Stmts, error) {
+	return parseGadAt(s, base, true)
+}
+
 // parseTextGadAt parses mixed text/expression content (with {...} interpolation
 // delimiters) beginning at absolute position base, so embedded expressions map
 // back onto the original source. Leading whitespace trimmed from s shifts base

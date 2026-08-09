@@ -845,6 +845,99 @@ func textCall(pos, end source.Pos, values ...gnode.Expr) *gnode.CallExpr {
 	return gadxNew("Text", pos, end, append([]gnode.Expr{tagIdent(pos)}, values...)...)
 }
 
+// convertTextBlock lowers an `@text` block: every source line becomes a literal
+// gadx.Text append, and consecutive lines are separated by a newline write so the
+// original line breaks are preserved. Interpolation (`{ … }`) inside a line keeps
+// its source position because each line reuses convertText.
+func convertTextBlock(t *TextBlockStmt) gnode.Stmts {
+	var out gnode.Stmts
+	for i, stmt := range t.Body {
+		if i > 0 {
+			out.Append(gnode.SExpr(textCall(t.NodePos, t.NodePos, gnode.Str("\n", t.NodePos))))
+		}
+		if ts, ok := stmt.(*TextStmt); ok {
+			out = append(out, convertText(ts)...)
+			continue
+		}
+		out.Append(stmt)
+	}
+	return out
+}
+
+// convertParaBlock lowers an `@p` block: runs of consecutive non-blank lines
+// become a `<p>` element (their text joined by newlines), and blank lines break
+// paragraphs. Interpolation inside a line keeps its source position via
+// convertText.
+func convertParaBlock(t *ParaBlockStmt) gnode.Stmts {
+	var (
+		out  gnode.Stmts
+		para []*TextStmt
+	)
+	flush := func() {
+		if len(para) == 0 {
+			return
+		}
+		ctor := gadxNew("Tag", t.NodePos, t.NodeEnd, tagIdent(t.NodePos), gnode.Str("p", t.NodePos))
+		inner := gnode.Stmts{defineTag(ctor, t.NodePos)}
+		for i, ts := range para {
+			if i > 0 {
+				inner.Append(gnode.SExpr(textCall(t.NodePos, t.NodePos, gnode.Str("\n", t.NodePos))))
+			}
+			inner = append(inner, convertText(ts)...)
+		}
+		out.Append(gnode.SBlock(t.NodePos, t.NodeEnd, inner...))
+		para = nil
+	}
+	for _, stmt := range t.Body {
+		ts, ok := stmt.(*TextStmt)
+		if !ok {
+			continue
+		}
+		if len(ts.Stmts) == 0 { // blank line → paragraph break
+			flush()
+			continue
+		}
+		para = append(para, ts)
+	}
+	flush()
+	return out
+}
+
+// convertMdBlock lowers an `@md` block into a `gadx.Md` container: every body
+// line (literal Markdown text or a nested `@` directive) appends to the Md tag,
+// separated by newlines so the assembled Markdown source keeps its line breaks.
+// The Md element renders its children to Markdown source and converts it to HTML
+// via goldmark at render time. Interpolation and nested directives keep their
+// source positions through convertStmt.
+func convertMdBlock(m *MdBlockStmt) gnode.Stmts {
+	ctor := gadxNew("Md", m.NodePos, m.NodeEnd, tagIdent(m.NodePos))
+	inner := gnode.Stmts{defineTag(ctor, m.NodePos)}
+	nl := func(s string) {
+		inner.Append(gnode.SExpr(textCall(m.NodePos, m.NodePos, gnode.Str(s, m.NodePos))))
+	}
+	for i, stmt := range m.Body {
+		if i > 0 {
+			// A nested `@` directive renders to an HTML block; a raw-HTML block in
+			// Markdown ends at a blank line, so surround directive output with blank
+			// lines to keep it a standalone block (and not swallow following text).
+			if _, prevText := m.Body[i-1].(*TextStmt); isMdText(stmt) && prevText {
+				nl("\n")
+			} else {
+				nl("\n\n")
+			}
+		}
+		inner = append(inner, convertStmt(stmt)...)
+	}
+	return gnode.Stmts{gnode.SBlock(m.Pos(), m.End(), inner...)}
+}
+
+// isMdText reports whether an `@md` body item is a plain Markdown text line (as
+// opposed to a nested `@` directive that renders to an HTML block).
+func isMdText(stmt gnode.Stmt) bool {
+	_, ok := stmt.(*TextStmt)
+	return ok
+}
+
 func convertDoctype(d *DoctypeStmt) gnode.Stmts {
 	raw := gnode.EToRaw(0, gnode.Str(doctypeValue(d.Value), 0))
 	return gnode.Stmts{gnode.SExpr(textCall(d.NodePos, d.NodeEnd, raw))}

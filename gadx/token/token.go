@@ -38,6 +38,9 @@ const (
 	Const
 	Enum
 	Html
+	TextBlock // @text — raw literal-text block
+	Para      // @p — paragraph block
+	Md        // @md — Markdown block
 	tokMax
 )
 
@@ -75,6 +78,9 @@ var tokNames = [...]string{
 	Const:        "CONST",
 	Enum:         "ENUM",
 	Html:         "HTML",
+	TextBlock:    "TEXT_BLOCK",
+	Para:         "PARA",
+	Md:           "MD",
 }
 
 // String returns a human-readable name for a gadx token.

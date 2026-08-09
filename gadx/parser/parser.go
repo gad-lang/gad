@@ -147,6 +147,12 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		return c
 	case gadxtoken.Text:
 		return p.parseText()
+	case gadxtoken.TextBlock:
+		return p.parseTextBlock()
+	case gadxtoken.Para:
+		return p.parseParaBlock()
+	case gadxtoken.Md:
+		return p.parseMdBlock()
 	case gadxtoken.Html:
 		return p.parseHtml()
 	case gadxtoken.Tag:
@@ -345,13 +351,81 @@ func (p *Parser) parseText() *gadxnode.TextStmt {
 		if positions, ok := tokenValuePos(tok); ok && len(positions) > 0 {
 			base = positions[0]
 		}
-		stmts, err := parseTextGadAt(content, base)
+		// `@text`/`@p`/`@md` body lines are scanned in "raw" mode: keep their
+		// whitespace verbatim (indentation is significant content). Normal text is
+		// trimmed as before.
+		parse := parseTextGadAt
+		if stringData(tok, "mode", "") == "raw" {
+			parse = parseTextGadRawAt
+		}
+		stmts, err := parse(content, base)
 		if err == nil {
 			t.Stmts = stmts
 		}
 	}
 
 	return t
+}
+
+// parseTextBlock parses a `@text` directive and its indented body. Every body
+// line was scanned as a literal Text token (see the scanner's force-text mode),
+// so the block's content is verbatim text with `{ … }` interpolation preserved.
+func (p *Parser) parseTextBlock() *gadxnode.TextBlockStmt {
+	tok := p.Token
+	p.expect(gadxtoken.TextBlock)
+
+	tb := &gadxnode.TextBlockStmt{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+	}
+	if p.Token.Token == gadxtoken.Indent {
+		tb.Body = p.parseBlock(tb)
+		if len(tb.Body) > 0 {
+			tb.NodeEnd = tb.Body[len(tb.Body)-1].End()
+		}
+	}
+	return tb
+}
+
+// parseParaBlock parses a `@p` directive and its indented body, which was
+// scanned as literal Text lines (see the scanner's force-text mode). The lowering
+// groups the lines into <p> paragraphs on blank-line boundaries.
+func (p *Parser) parseParaBlock() *gadxnode.ParaBlockStmt {
+	tok := p.Token
+	p.expect(gadxtoken.Para)
+
+	pb := &gadxnode.ParaBlockStmt{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+	}
+	if p.Token.Token == gadxtoken.Indent {
+		pb.Body = p.parseBlock(pb)
+		if len(pb.Body) > 0 {
+			pb.NodeEnd = pb.Body[len(pb.Body)-1].End()
+		}
+	}
+	return pb
+}
+
+// parseMdBlock parses a `@md` directive and its indented body. Body lines are
+// literal Markdown text (scanned via the force-text frame), except `@`-prefixed
+// lines which are parsed as nested directives. The lowering renders the whole
+// block to HTML via goldmark.
+func (p *Parser) parseMdBlock() *gadxnode.MdBlockStmt {
+	tok := p.Token
+	p.expect(gadxtoken.Md)
+
+	mb := &gadxnode.MdBlockStmt{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+	}
+	if p.Token.Token == gadxtoken.Indent {
+		mb.Body = p.parseBlock(mb)
+		if len(mb.Body) > 0 {
+			mb.NodeEnd = mb.Body[len(mb.Body)-1].End()
+		}
+	}
+	return mb
 }
 
 func (p *Parser) parseHtml() *gadxnode.HtmlStmt {

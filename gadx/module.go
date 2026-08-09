@@ -16,6 +16,7 @@ func newModule() gad.Dict {
 		// Tag is a tag element type; Text wraps a value as a text node.
 		"Tag":    TagType,
 		"Text":   TextType,
+		"Md":     MdType,
 		"escape": BuiltinEscape,
 		"attr":   BuiltinAttr,
 		"attrs":  BuiltinAttrs,

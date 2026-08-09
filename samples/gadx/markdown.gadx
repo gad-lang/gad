@@ -1,0 +1,50 @@
+//- @md — a Markdown block, rendered to HTML.
+//-
+//- Lines indented under `@md` are literal Markdown. At render time the block's
+//- content is converted to an HTML fragment by goldmark with the full extension
+//- set enabled (GFM tables/strikethrough/task lists/autolinks, typographer,
+//- definition lists and footnotes) plus auto heading ids. The renderer is the
+//- package-level `gadx.Markdown` variable, so an embedding Go program can
+//- customize or replace it (add extensions, tighten the HTML sanitizer, …).
+//-
+//- Three things make `@md` more than a static Markdown file:
+//-   • `{= expr }` interpolation is evaluated before conversion, so template
+//-     data flows into the Markdown text.
+//-   • Nested `@` directives (a `@`-prefixed line and its indented body) render
+//-     inline; their HTML is spliced into the Markdown and passes through.
+//-   • Indentation deeper than the block body is preserved, so Markdown code
+//-     blocks, nested lists and blockquotes work as written.
+//-
+//- Source positions inside `{ … }` are preserved for accurate diagnostics.
+
+@param (; title = "Gadx", tagline = "fast, embeddable, typed")
+
+@main
+    @md
+        # {= title } release notes
+
+        Gadx is a **template language** for Go with _first-class_ HTML.
+
+        ## Highlights
+
+        | Feature | Ready |
+        | ------- | :---: |
+        | Templates | ✅ |
+        | Markdown  | ✅ |
+
+        In three words: _{= tagline }_.
+
+        A fenced code sample:
+
+        ```gad
+        name := "world"
+        print("hi " + name)
+        ```
+
+        A nested directive rendered inline:
+
+        @p
+            This paragraph is produced by a nested @p directive and then
+            embedded into the surrounding Markdown as HTML.
+
+        > Blockquotes, - lists and other Markdown all work here.

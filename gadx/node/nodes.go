@@ -60,6 +60,68 @@ func (t *TextStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 }
 
 // =============================================================================
+// TextBlockStmt — `@text` literal-text block (children joined by newlines)
+// =============================================================================
+
+type TextBlockStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Body    gnode.Stmts // one TextStmt per source line (position-preserving)
+}
+
+func (t *TextBlockStmt) Pos() source.Pos { return t.NodePos }
+func (t *TextBlockStmt) End() source.Pos { return t.NodeEnd }
+func (t *TextBlockStmt) StmtNode()       {}
+func (t *TextBlockStmt) String() string  { return "gadx.TextBlock" }
+
+func (t *TextBlockStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertTextBlock(t)...)
+}
+
+// =============================================================================
+// ParaBlockStmt — `@p` paragraph block (blank lines split <p> paragraphs)
+// =============================================================================
+
+type ParaBlockStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Body    gnode.Stmts // one TextStmt per source line (empty = blank line)
+}
+
+func (t *ParaBlockStmt) Pos() source.Pos { return t.NodePos }
+func (t *ParaBlockStmt) End() source.Pos { return t.NodeEnd }
+func (t *ParaBlockStmt) StmtNode()       {}
+func (t *ParaBlockStmt) String() string  { return "gadx.ParaBlock" }
+
+func (t *ParaBlockStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertParaBlock(t)...)
+}
+
+// =============================================================================
+// MdBlockStmt — `@md` Markdown block (rendered to HTML via goldmark)
+// =============================================================================
+
+type MdBlockStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	// Body mixes literal Markdown text lines (TextStmt) with nested `@` directives;
+	// on render the whole thing is Markdown source converted to HTML.
+	Body gnode.Stmts
+}
+
+func (t *MdBlockStmt) Pos() source.Pos { return t.NodePos }
+func (t *MdBlockStmt) End() source.Pos { return t.NodeEnd }
+func (t *MdBlockStmt) StmtNode()       {}
+func (t *MdBlockStmt) String() string  { return "gadx.MdBlock" }
+
+func (t *MdBlockStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertMdBlock(t)...)
+}
+
+// =============================================================================
 // TagStmt — HTML/XML tag
 // =============================================================================
 

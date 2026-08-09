@@ -41,6 +41,22 @@ type scanner struct {
 	mode           gadparser.ScanMode
 	mixedDelimiter gadparser.MixedDelimiter
 	errorHandler   []source.ScannerErrorHandler
+
+	// forceStack tracks the nested `@text` / `@p` / `@md` blocks currently in
+	// scope. While a frame is active every deeper-indented line scans as a literal
+	// Text token (no tag parsing) so the body is treated as verbatim text. A frame
+	// is popped when the body dedents back to the directive's own depth. `@md`
+	// frames additionally let `@`-prefixed lines fall through to normal scanning so
+	// nested directives (which push their own frames) work inside Markdown.
+	forceStack []forceFrame
+}
+
+// forceFrame is one entry of scanner.forceStack: the indent depth of a
+// force-text directive (`@text` / `@p` / `@md`) and whether it is a Markdown
+// block (`@md`), where `@`-prefixed lines are nested directives, not text.
+type forceFrame struct {
+	depth int
+	md    bool
 }
 
 // newScanner creates a scanner that reads from r using file for position tracking.
@@ -107,13 +123,44 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 
 	case gadxtoken.ScnNewLine:
 		s.state = gadxtoken.ScnLine
+		// A blank line inside a `@text`/`@p`/`@md` body is kept as an empty text
+		// line so the original paragraph breaks survive; it does not touch the
+		// indent stack, so the block only ends on a non-blank line dedented back to
+		// its own depth.
+		if len(s.forceStack) > 0 && len(s.buffer) == 0 {
+			return s.scanForcedTextLine()
+		}
 		if tok := s.scanIndent(); tok.Valid() {
 			return tok
 		}
 		return s.Scan()
 
 	case gadxtoken.ScnLine:
+		// Inside a `@text`/`@p`/`@md` block every deeper-indented line is literal
+		// text (no tag/directive parsing); frames are popped as the body dedents
+		// back to each directive's own depth. In a `@md` frame an `@`-prefixed line
+		// is a nested directive, so it falls through to normal scanning.
+		for len(s.forceStack) > 0 {
+			top := s.forceStack[len(s.forceStack)-1]
+			if s.indentStack.Len() <= top.depth {
+				s.forceStack = s.forceStack[:len(s.forceStack)-1]
+				continue
+			}
+			if top.md && strings.HasPrefix(s.buffer, "@") {
+				break
+			}
+			return s.scanForcedTextLine()
+		}
 		if tok := s.scanExport(); tok.Valid() {
+			return tok
+		}
+		if tok := s.scanTextBlock(); tok.Valid() {
+			return tok
+		}
+		if tok := s.scanParaBlock(); tok.Valid() {
+			return tok
+		}
+		if tok := s.scanMdBlock(); tok.Valid() {
 			return tok
 		}
 		if tok := s.scanGlobal(); tok.Valid() {
@@ -272,6 +319,15 @@ func (s *scanner) scanIndent() gadparser.PToken {
 	newIndent := rgxIndent.FindString(s.buffer)
 
 	if len(newIndent) != 0 && head == nil {
+		// Inside an already-established force-text frame (`@text`/`@p`/`@md`), a
+		// line indented deeper than the body must NOT open a new block: its extra
+		// leading whitespace is literal content (a Markdown code block, a nested
+		// list, aligned text). Leave it in the buffer so the force-text scan keeps
+		// it, and emit no Indent. The frame's first body line still pushes its one
+		// body indent (there indentStack.Len() == frame.depth, so this is skipped).
+		if n := len(s.forceStack); n > 0 && s.indentStack.Len() > s.forceStack[n-1].depth {
+			return gadparser.PToken{}
+		}
 		s.indentStack.PushBack(regexp.MustCompile(regexp.QuoteMeta(newIndent)))
 		s.consume(len(newIndent))
 		return s.newToken(gadxtoken.Indent, newIndent, newIndent)
@@ -456,6 +512,70 @@ func (s *scanner) scanBlockComment() gadparser.PToken {
 	if doc {
 		pt.Set("doc", "true")
 	}
+	return pt
+}
+
+var rgxTextBlock = regexp.MustCompile(`^@text\s*$`)
+
+// scanTextBlock matches the `@text` directive and switches the scanner into
+// force-text mode for its indented body: every deeper line becomes a literal
+// Text token (see forceTextDepth / scanForcedTextLine).
+func (s *scanner) scanTextBlock() gadparser.PToken {
+	if rgxTextBlock.MatchString(s.buffer) {
+		lit := s.buffer
+		s.consume(len(s.buffer))
+		s.pushForce(false)
+		return s.newToken(gadxtoken.TextBlock, lit, "")
+	}
+	return gadparser.PToken{}
+}
+
+var rgxParaBlock = regexp.MustCompile(`^@p\s*$`)
+
+// scanParaBlock matches the `@p` directive and, like `@text`, switches the
+// scanner into force-text mode for its indented body. The parser groups the
+// resulting text lines into <p> paragraphs separated by blank lines.
+func (s *scanner) scanParaBlock() gadparser.PToken {
+	if rgxParaBlock.MatchString(s.buffer) {
+		lit := s.buffer
+		s.consume(len(s.buffer))
+		s.pushForce(false)
+		return s.newToken(gadxtoken.Para, lit, "")
+	}
+	return gadparser.PToken{}
+}
+
+var rgxMdBlock = regexp.MustCompile(`^@md\s*$`)
+
+// scanMdBlock matches the `@md` directive and switches the scanner into a
+// Markdown force-text frame: body lines are literal Markdown text (with `{ … }`
+// interpolation), but `@`-prefixed lines fall through to normal scanning so
+// nested directives work. The lowering renders the collected Markdown to HTML.
+func (s *scanner) scanMdBlock() gadparser.PToken {
+	if rgxMdBlock.MatchString(s.buffer) {
+		lit := s.buffer
+		s.consume(len(s.buffer))
+		s.pushForce(true)
+		return s.newToken(gadxtoken.Md, lit, "")
+	}
+	return gadparser.PToken{}
+}
+
+// pushForce opens a force-text frame at the current indent depth. md marks a
+// `@md` frame, where `@`-prefixed lines are nested directives instead of text.
+func (s *scanner) pushForce(md bool) {
+	s.forceStack = append(s.forceStack, forceFrame{depth: s.indentStack.Len(), md: md})
+}
+
+// scanForcedTextLine emits the whole current line as a literal Text token (used
+// inside a `@text` body). The valuePos points at the line start so embedded
+// `{ … }` interpolations keep their source positions.
+func (s *scanner) scanForcedTextLine() gadparser.PToken {
+	lit := s.buffer
+	s.consume(len(s.buffer))
+	pt := s.newToken(gadxtoken.Text, lit, lit)
+	pt.Set("mode", "raw")
+	pt.Set("valuePos", []source.Pos{pt.Pos})
 	return pt
 }
 

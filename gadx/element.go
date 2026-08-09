@@ -1,6 +1,7 @@
 package gadx
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -45,9 +46,26 @@ var TagType = gad.NewBuiltinObjType("Tag").WithNew(tagCtor)
 // a text node: gadx.Text(value).
 var TextType = gad.NewBuiltinObjType("Text").WithNew(textCtor)
 
+// MdType is the Gad object type of a `@md` Markdown container. Calling it builds
+// an anonymous markdown tag whose children are rendered as Markdown source and
+// converted to HTML on render: gadx.Md([parent]).
+var MdType = gad.NewBuiltinObjType("Md").WithNew(mdCtor)
+
 func init() {
 	TagType.SetModule(ModuleSpec)
 	TextType.SetModule(ModuleSpec)
+	MdType.SetModule(ModuleSpec)
+}
+
+// mdCtor implements gadx.Md([parent]): an anonymous tag flagged markdown, so on
+// render its collected children become Markdown source converted to HTML.
+func mdCtor(c gad.Call) (gad.Object, error) {
+	parent, _ := parentArg(c)
+	t := &Tag{markdown: true}
+	if parent != nil {
+		parent.Children = append(parent.Children, t)
+	}
+	return t, nil
 }
 
 // =============================================================================
@@ -68,6 +86,10 @@ type Tag struct {
 	// attrOrder preserves the insertion order of Attrs keys, since gad.Dict (a
 	// Go map) is unordered and attribute output order is significant.
 	attrOrder []string
+	// markdown marks a `@md` container (built by gadx.Md): on render its children
+	// are written to a buffer as Markdown source and converted to HTML via
+	// goldmark (see WriteTo). Such a tag is anonymous — it has no wrapper element.
+	markdown bool
 }
 
 // NewTag returns a tag with the given name and children, classifying attrs into
@@ -236,6 +258,9 @@ func (t *Tag) IndexSet(_ *gad.VM, index, value gad.Object) error {
 // attributes, then either self-closes (for void elements) or writes its
 // children and a close tag.
 func (t *Tag) WriteTo(vm *gad.VM, w io.Writer) (n int64, err error) {
+	if t.markdown {
+		return t.writeMarkdown(vm, w)
+	}
 	if t.Name == "" {
 		return t.writeChildren(vm, w)
 	}
@@ -268,6 +293,22 @@ func (t *Tag) WriteTo(vm *gad.VM, w io.Writer) (n int64, err error) {
 
 	wc.writeString(w, "</"+t.Name+">")
 	return wc.n, wc.err
+}
+
+// writeMarkdown renders a `@md` container: its children are written to a buffer
+// as Markdown source (text lines, interpolations and any nested `@` directives'
+// HTML), then converted to an HTML fragment via the package Markdown renderer.
+func (t *Tag) writeMarkdown(vm *gad.VM, w io.Writer) (n int64, err error) {
+	var buf bytes.Buffer
+	if _, err = t.writeChildren(vm, &buf); err != nil {
+		return 0, err
+	}
+	out, err := renderMarkdown(Markdown, buf.Bytes())
+	if err != nil {
+		return 0, err
+	}
+	i, err := w.Write(out)
+	return int64(i), err
 }
 
 func (t *Tag) writeChildren(vm *gad.VM, w io.Writer) (n int64, err error) {
