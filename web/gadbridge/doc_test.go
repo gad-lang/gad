@@ -17,20 +17,24 @@ func TestDocGad(t *testing.T) {
 	}
 	for _, w := range []string{
 		"greetings module.", "## Public API",
-		"hello", "= \"hi\"", "The greeting prefix.",
-		"add", "Adds two numbers.", `data-source-pos="4,1"`,
+		"### hello", "= \"hi\"", "The greeting prefix.",
+		"### add", "Adds two numbers.",
 	} {
 		if !strings.Contains(md, w) {
 			t.Fatalf("gad doc missing %q:\n%s", w, md)
 		}
+	}
+	// The rendered Markdown must be clean — no raw data-source-pos span or comment
+	// markers.
+	if strings.Contains(md, "data-source-pos") {
+		t.Fatalf("gad doc leaked a raw data-source-pos span:\n%s", md)
 	}
 	if strings.Contains(md, "**/") || strings.Contains(md, "/**") {
 		t.Fatalf("gad doc leaked comment markers:\n%s", md)
 	}
 }
 
-// TestDocGadx documents a .gadx template: components with doc text and a
-// data-source-pos anchor.
+// TestDocGadx documents a .gadx template: components with doc text.
 func TestDocGadx(t *testing.T) {
 	src := "/** Reusable widgets. **/\n@comp greeting(name)\n    p hi\n"
 	md, err := Doc(src, "gadx")
@@ -38,8 +42,8 @@ func TestDocGadx(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, w := range []string{
-		"## Components", "+greeting",
-		"Reusable widgets.", `data-source-pos="2,1"`,
+		"## Components", "### +greeting",
+		"Reusable widgets.",
 	} {
 		if !strings.Contains(md, w) {
 			t.Fatalf("gadx doc missing %q:\n%s", w, md)

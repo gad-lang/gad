@@ -87,9 +87,10 @@ func (d *DocData) GadDict() gad.Dict {
 	return gad.Dict{"prose": gad.Str(d.Prose), "sections": secs}
 }
 
-// RenderMarkdown renders a DocData as Markdown (prose, then a `## Title` section
-// per group with a `### name` entry — the gadx entries carry a data-source-pos
-// anchor for navigation).
+// RenderMarkdown renders a DocData as clean Markdown: the prose, then a
+// `## Title` section per group with a `### name` entry per symbol. Source
+// positions are kept in the structured DocSymbol (Line/Column) rather than
+// embedded as raw HTML, so the rendered Markdown/HTML stays clean.
 func RenderMarkdown(d *DocData) string {
 	var b strings.Builder
 	if d.Prose != "" {
@@ -101,11 +102,7 @@ func RenderMarkdown(d *DocData) string {
 		}
 		fmt.Fprintf(&b, "\n## %s\n", sec.Title)
 		for _, s := range sec.Symbols {
-			if s.Line > 0 {
-				fmt.Fprintf(&b, "\n### <span data-source-pos=\"%d,%d\">%s</span>%s\n", s.Line, s.Column, s.Name, s.Signature)
-			} else {
-				fmt.Fprintf(&b, "\n### %s%s\n", s.Name, s.Signature)
-			}
+			fmt.Fprintf(&b, "\n### %s%s\n", s.Name, s.Signature)
 			if s.Doc != "" {
 				b.WriteString("\n" + s.Doc + "\n")
 			}
