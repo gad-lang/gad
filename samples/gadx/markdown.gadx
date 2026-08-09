@@ -15,7 +15,9 @@
 //-   • Indentation deeper than the block body is preserved, so Markdown code
 //-     blocks, nested lists and blockquotes work as written.
 //-
-//- Source positions inside `{ … }` are preserved for accurate diagnostics.
+//- Source positions inside `{ … }` are preserved for accurate diagnostics. A
+//- literal brace in the Markdown text is written `\{` / `\}` (the same escape
+//- used by `@text` and interpolated strings).
 
 @param (; title = "Gadx", tagline = "fast, embeddable, typed")
 

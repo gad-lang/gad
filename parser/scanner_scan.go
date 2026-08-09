@@ -2,12 +2,39 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 )
+
+// unescapeMixedText strips escaping backslashes from mixed (template /
+// interpolated-string / gadx) text. A backslash before the mixed delimiter's
+// start or end rune — `\{` / `\}` for interpolated text, `\{` / `\%` for `{% %}`
+// templates — yields the literal delimiter character, and `\\` yields a single
+// backslash. Any other `\x` is left untouched so ordinary backslashes survive.
+func unescapeMixedText(s string, d *source.StartEndDelimiter) string {
+	if !strings.ContainsRune(s, '\\') {
+		return s
+	}
+	start := byte(d.Start[0])
+	end := byte(d.End[0])
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			if n := s[i+1]; n == start || n == end || n == '\\' {
+				b.WriteByte(n)
+				i++
+				continue
+			}
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
 
 // bytesLitPrefixKey is the PToken data key under which a bytes literal prefix
 // ("b" or "h") is stored when the scanner recognises a b"..."/h"..." literal.
@@ -265,16 +292,21 @@ func (s *Scanner) ScanNow() (t PToken) {
 				t.Pos = source.MustFileSetPos(s.File, start)
 
 				if s.Offset > start {
-					t.Literal = string(s.Src[start:s.Offset])
+					t.Literal = unescapeMixedText(string(s.Src[start:s.Offset]), &s.MixedDelimiter)
 				}
 			}
+			// scape tracks whether the current character is escaped by a preceding
+			// backslash. A `\` before the mixed start delimiter (`\{`) makes the
+			// delimiter literal text instead of opening a code block; `\\` is a
+			// literal backslash. The escaping backslash is stripped from the emitted
+			// text by unescapeMixedText.
+			scape := false
 			for {
-				var scape bool
 				switch int(s.Ch) {
 				case '\\':
-					if scape {
-						scape = false
-					}
+					scape = !scape
+					s.Next()
+					continue
 				case -1:
 					readText()
 					return t
@@ -298,6 +330,7 @@ func (s *Scanner) ScanNow() (t PToken) {
 						continue
 					}
 				}
+				scape = false
 				if s.HandleMixed != nil {
 					s.HandleMixed(&start, func() *PToken {
 						readText()

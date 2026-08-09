@@ -3484,7 +3484,9 @@ func (c *Compiler) compileInterpolatedStringLit(nd *node.InterpolatedStringLit) 
 	var tmplValue string
 	switch t := nd.Value.(type) {
 	case *node.StrLit:
-		tmplValue = t.Value()
+		// Keep `\{` / `\}` escaped so they survive to the interpolation parser as
+		// literal braces instead of being treated as delimiters.
+		tmplValue = t.InterpolationTemplate()
 	case *node.RawStrLit:
 		tmplValue = t.Value()
 	case *node.RawHeredocLit:

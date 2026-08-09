@@ -64,6 +64,10 @@ println(#"""
     {n} + 1 = {n + 1}
     """)                    // hello Gad\n3 + 1 = 4
 
+// A literal brace inside a template heredoc is escaped with \{ / \}, exactly as
+// in an #"…" interpolated string.
+println(#"""set \{ {name} }""")  // set { Gad }
+
 // --- template raw heredoc: #``` ... ``` (interpolated, escapes verbatim) ---
 println(#```path: C:\tmp\{name}```)  // path: C:\tmp\Gad
 

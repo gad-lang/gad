@@ -66,6 +66,33 @@ func TestRenderParaBlock(t *testing.T) {
 	}
 }
 
+// TestRenderTextBlockBraceEscape verifies `\{` / `\}` escape the interpolation
+// delimiters to literal braces inside `@text`/`@md` bodies, while unescaped `{= }`
+// still interpolates.
+func TestRenderTextBlockBraceEscape(t *testing.T) {
+	cases := []struct{ name, src, want string }{
+		{"text", "@main\n    @text\n        a \\{ b } c\n", "a { b } c"},
+		{"text-interp", "@main\n    @text\n        v \\{ {= 1 + 1 } }\n", "v { 2 }"},
+		{"md", "@main\n    @md\n        `x \\{ y }`\n", "x { y }"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			srcPath := filepath.Join(dir, "e.gadx")
+			if err := os.WriteFile(srcPath, []byte(c.src), 0644); err != nil {
+				t.Fatal(err)
+			}
+			out, err := renderString(newTestRender(t, dir), srcPath, gad.Dict{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(out, c.want) {
+				t.Fatalf("want %q in output, got %q", c.want, out)
+			}
+		})
+	}
+}
+
 // TestRenderMdBlock verifies `@md` renders its Markdown body to HTML, supports
 // `{= … }` interpolation and nested `@` directives inline, keeps Markdown after a
 // nested directive as its own block, and preserves indentation for code blocks.
@@ -95,8 +122,8 @@ func TestRenderMdBlock(t *testing.T) {
 	for _, w := range []string{
 		"<h1", "Title 2", "<strong>bold</strong>",
 		"<pre><code>code kept", // 4-space indent preserved as a code block
-		"<p>nested para</p>",    // nested @p rendered inline
-		"<blockquote>",          // Markdown after the nested directive still converts
+		"<p>nested para</p>",   // nested @p rendered inline
+		"<blockquote>",         // Markdown after the nested directive still converts
 	} {
 		if !strings.Contains(out, w) {
 			t.Fatalf("md render missing %q:\n%s", w, out)

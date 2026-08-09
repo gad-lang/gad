@@ -495,7 +495,10 @@ func (s Reader) ReadEscape(quote rune) bool {
 	var n int
 	var base, max uint32
 	switch s.Ch {
-	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
+	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '{', '}', quote:
+		// `\{` and `\}` escape the interpolation delimiters to literal braces; they
+		// are accepted here (so scanning does not fail) and resolved when the string
+		// value is computed / the interpolation template is parsed.
 		s.Next()
 		return true
 	case '0', '1', '2', '3', '4', '5', '6', '7':
@@ -577,7 +580,10 @@ func (s *Reader) readEscape(quote rune) bool {
 	var n int
 	var base, max uint32
 	switch s.Ch {
-	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
+	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '{', '}', quote:
+		// `\{` and `\}` escape the interpolation delimiters to literal braces; they
+		// are accepted here (so scanning does not fail) and resolved when the string
+		// value is computed / the interpolation template is parsed.
 		s.Next()
 		return true
 	case '0', '1', '2', '3', '4', '5', '6', '7':

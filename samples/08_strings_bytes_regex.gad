@@ -24,6 +24,17 @@ The `#` prefix works on the heredoc forms too.
 
 @snippet interp
 
+## Escaping the delimiters
+
+A literal brace in interpolated text is written `\{` or `\}`. Braces inside an
+expression's **own** string literal (`{ "…{…}…" }`) need no escaping — the
+interpolation scanner is brace-balanced and string-aware, so it stops at the
+matching `}`. The `\{` / `\}` escape is consistent across every text form: `#"…"`
+and `#"""…"""`, ordinary `"…"` strings (where it collapses to a literal brace),
+`.gadt` templates (`\{%`) and gadx `@text` / `@md` blocks.
+
+@snippet escape
+
 ## Bytes
 
 `bytes` is a mutable byte slice. A single-letter prefix glued to a string literal
@@ -66,6 +77,16 @@ c := raw "x" + "y" // raw (x + y) -> rawStr "xy"
 name := "Gad"
 [#"Hello {name}!", #"sum = {2 + 3}", #`raw {name}`]
 /**= ["Hello Gad!", "sum = 5", `raw Gad`] **/
+//endsnippet
+
+//snippet escape
+name := "Gad"
+lit := #"literal \{ and \}"          // escaped braces -> literal text
+mix := #"{name} in \{ braces }"      // escape + real interpolation
+js := #"json: \{ {str({a: 1})} }"    // braces in the expr's own literal are fine
+plain := "regular \{ ok"             // works in ordinary strings too
+[lit, mix, js, plain]
+/**= ["literal { and }", "Gad in { braces }", "json: { {a: 1} }", "regular { ok"] **/
 //endsnippet
 
 //snippet bytes
