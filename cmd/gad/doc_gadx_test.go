@@ -26,7 +26,7 @@ func TestGadxDoc(t *testing.T) {
 		"# widgets",
 		"Reusable UI widgets.", // file-level prose
 		"## Components",
-		"+greeting</span>(name; greeting=\"Hello\")",
+		"greeting</span>(name; greeting=\"Hello\")",
 		"Renders a greeting.", // comp doc
 		"## Functions",
 		"label</span>(text)",
@@ -39,7 +39,7 @@ func TestGadxDoc(t *testing.T) {
 
 	// The greeting @comp is on line 4, column 1 → its heading carries that
 	// data-source-pos for source navigation.
-	if !strings.Contains(md, `data-source-pos="4,1">+greeting`) {
+	if !strings.Contains(md, `data-source-pos="4,1">greeting`) {
 		t.Fatalf("missing data-source-pos for greeting:\n%s", md)
 	}
 	// The label @func is on line 8.

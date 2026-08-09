@@ -41,7 +41,7 @@ func gadxDoc(path string, src []byte) (string, error) {
 		case *gadxnode.ExportStmt:
 			exports = append(exports, gadxEntry(f, d.Name, gadxExportValue(d.Value), d.Doc, d.Pos()))
 		case *gadxnode.CompDecl:
-			comps = append(comps, gadxEntry(f, "+"+d.Name, gadxParams(d.ParamsRaw), d.Doc, d.Pos()))
+			comps = append(comps, gadxEntry(f, d.Name, gadxParams(d.ParamsRaw), d.Doc, d.Pos()))
 		case *gadxnode.FuncDecl:
 			funcs = append(funcs, gadxEntry(f, d.Name, gadxParams(d.ParamsRaw), d.Doc, d.Pos()))
 		case *gadxnode.ParamStmt:

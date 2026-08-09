@@ -291,7 +291,7 @@ func gadxDocData(src []byte) (*DocData, error) {
 		case *gadxnode.ExportStmt:
 			exports = append(exports, gadxSym(f, t.Name, gadxExportValue(t.Value), t.Doc, t.Pos()))
 		case *gadxnode.CompDecl:
-			comps = append(comps, gadxSym(f, "+"+t.Name, gadxParams(t.ParamsRaw), t.Doc, t.Pos()))
+			comps = append(comps, gadxSym(f, t.Name, gadxParams(t.ParamsRaw), t.Doc, t.Pos()))
 		case *gadxnode.FuncDecl:
 			funcs = append(funcs, gadxSym(f, t.Name, gadxParams(t.ParamsRaw), t.Doc, t.Pos()))
 		case *gadxnode.ParamStmt:

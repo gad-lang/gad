@@ -42,7 +42,7 @@ func TestDocGadx(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, w := range []string{
-		"## Components", "### +greeting",
+		"## Components", "### greeting",
 		"Reusable widgets.",
 	} {
 		if !strings.Contains(md, w) {
