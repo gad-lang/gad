@@ -324,4 +324,6 @@ func buildGadNamespaceFuncs() {
 		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("stmt").Type(StmtType) }),
 	)
 	gadEvalFn = AddMethod(evalStrFn, evalSourceFileFn, evalStmtsFn, evalStmtFn)
+
+	buildGadQuoteFuncs()
 }

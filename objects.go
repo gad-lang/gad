@@ -355,7 +355,7 @@ func (o RawStr) ToString() string {
 }
 
 func (o RawStr) Quoted() string {
-	return quote.Quote(string(o), "`")
+	return quote.QuoteDelim(string(o), "`")
 }
 
 func (o RawStr) IsFalsy() bool {

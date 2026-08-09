@@ -497,52 +497,19 @@ func (e *StrLit) unquote(keepBraceEscape bool) string {
 	if len(lit) > 0 && lit[0] == '\'' {
 		lit = `"` + strings.ReplaceAll(strings.ReplaceAll(lit[1:len(lit)-1], "\\'", "'"), `"`, `\"`) + `"`
 	}
-	lit = rewriteBraceEscapes(lit, keepBraceEscape)
-	v, err := strconv.Unquote(lit)
+	var (
+		v   string
+		err error
+	)
+	if keepBraceEscape {
+		v, err = quote.InterpolationText(lit)
+	} else {
+		v, err = quote.UnquoteString(lit)
+	}
 	if err != nil {
 		panic(fmt.Sprintf("StrLit can not unquote: %v", err))
 	}
 	return v
-}
-
-// rewriteBraceEscapes rewrites `\{` / `\}` in a double-quoted string literal so
-// strconv.Unquote accepts them (it does not know those escapes). When keep is
-// false the escape collapses to a literal brace (`\{` → `{` → `{`); when
-// true it is preserved as a backslash-brace (`\{` → `\\{` → `\{`) for a later
-// interpolation pass to strip. Other escapes — including `\\` — pass through
-// unchanged, so a literal backslash before a brace (`\\{`) is left intact.
-func rewriteBraceEscapes(lit string, keep bool) string {
-	if !strings.Contains(lit, `\{`) && !strings.Contains(lit, `\}`) {
-		return lit
-	}
-	var b strings.Builder
-	b.Grow(len(lit) + 8)
-	for i := 0; i < len(lit); i++ {
-		c := lit[i]
-		if c == '\\' && i+1 < len(lit) {
-			n := lit[i+1]
-			if n == '{' || n == '}' {
-				if keep {
-					b.WriteString(`\\`)
-					b.WriteByte(n)
-				} else if n == '{' {
-					b.WriteString(`{`)
-				} else {
-					b.WriteString(`}`)
-				}
-				i++
-				continue
-			}
-			// Preserve any other escape verbatim (\\, \t, \", …) so its own escaped
-			// character is not reconsidered as a brace escape.
-			b.WriteByte(c)
-			b.WriteByte(n)
-			i++
-			continue
-		}
-		b.WriteByte(c)
-	}
-	return b.String()
 }
 
 func (e *StrLit) CanIdent() bool {
@@ -604,7 +571,7 @@ func (e *RawStrLit) QuotedValue() string {
 	if e.Quoted {
 		return e.Literal
 	} else {
-		return quote.Quote(e.Literal, "`")
+		return quote.QuoteDelim(e.Literal, "`")
 	}
 }
 
@@ -1899,7 +1866,7 @@ func (s *SymbolLit) String() string {
 func (s *SymbolLit) Value() string {
 	v := s.Lit.Literal[1:]
 	if v[0] == '(' {
-		v = quote.Unquote(v, ")")
+		v = quote.UnquoteDelim(v, ")")
 	}
 	return v
 }

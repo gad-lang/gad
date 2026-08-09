@@ -3,20 +3,29 @@
 
 Part of [Strings, bytes & regex](08_strings_bytes_regex.gad).
 
-## Multiline options per string form
+## Multiline strings and when to use a heredoc
 
-Every string flavour has a single-line and a multiline (heredoc) spelling:
+**Every string form already spans multiple lines** — a single `"…"` or `` `…` ``
+may contain source line breaks, and each break becomes a real newline in the
+value, verbatim. A `"…"` interprets escapes (so `\n` is also a newline and `\t` a
+tab); a `` `…` `` is raw, so `\n` stays the two literal characters while an actual
+line break is still a newline.
 
-| Flavour            | Single line     | Multiline (heredoc)   | Escapes | Interp. |
-|--------------------|-----------------|-----------------------|---------|---------|
-| string             | `"…"`           | `"""…"""`             | yes     | no      |
-| raw string         | `` `…` ``       | `` ```…``` ``         | no      | no      |
-| template string    | `#"…"`          | `#"""…"""`            | yes     | `{…}`   |
-| template raw string| `` #`…` ``      | `` #```…``` ``        | no      | `{…}`   |
+A **heredoc** is not needed just to go multiline. Use it — a fence of **three or
+more** quotes/backticks, PostgreSQL-style — when either:
 
-A plain `"…"` is single-line only (a newline inside it is an error); reach for
-`"""…"""` when the text spans lines. A raw backtick literal `` `…` `` may itself
-span lines, but the `` ```…``` `` heredoc additionally strips common indentation.
+- the body contains the delimiter itself (`"` or `` ` ``): the wider fence lets it
+  appear unescaped, or
+- you want the **common leading indentation stripped** so the block stays aligned
+  with the surrounding code (this stripping is exclusive to the multi-line
+  heredoc; single-delimiter strings keep their indentation verbatim).
+
+| Form                | Single delimiter | Heredoc (3+ fence) | Escapes | Interp. | Strips indent |
+|---------------------|------------------|--------------------|---------|---------|---------------|
+| string              | `"…"`            | `"""…"""`          | yes     | no      | heredoc only  |
+| raw string          | `` `…` ``        | `` ```…``` ``      | no      | no      | heredoc only  |
+| template string     | `#"…"`           | `#"""…"""`         | yes     | `{…}`   | heredoc only  |
+| template raw string | `` #`…` ``       | `` #```…``` ``     | no      | `{…}`   | heredoc only  |
 
 ## Heredocs
 
@@ -45,6 +54,15 @@ declares a variable.
 
 The Example below is a runnable tour of every form.
 **/
+
+// --- multiline single-delimiter strings (verbatim, indentation kept) ---
+// A "…" or `…` may span lines directly; each source line break is a real newline
+// and the text is kept verbatim (no indentation stripping — that is heredoc-only).
+println("first
+second")                    // first<newline>second
+// backtick: \t stays literal, but the line break is still a newline.
+println(`raw \t here
+next`)                      // raw \t here<newline>next
 
 // --- heredoc: single line ---
 // The fence is three quotes, so a doubled quote inside is literal text.

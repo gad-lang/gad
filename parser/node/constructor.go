@@ -542,7 +542,7 @@ func LNil(pos source.Pos) *NilLit {
 
 func LSymbol(pos source.Pos, value string, paren bool) *SymbolLit {
 	if paren {
-		value = "(" + quote.Quote(value, ")")[1:]
+		value = "(" + quote.QuoteDelim(value, ")")[1:]
 	}
 	return &SymbolLit{Lit: TokenLit{Pos: pos, Token: token.Symbol, Literal: "#" + value}}
 }

@@ -37,3 +37,14 @@ func TestRawInterpolatedStringNoEscape(t *testing.T) {
 	testExpectRun(t, "return #`raw \\t {1 + 1}`", nil, RawStr(`raw \t 2`))
 	testExpectRun(t, "name := \"Gad\"; return #```C:\\{name}```", nil, RawStr(`C:\Gad`))
 }
+
+// TestGadQuoteBuiltins verifies the gad.quote / gad.unquote builtins: the str and
+// rawstr overloads pick the cooked vs raw literal form, maxCols switches to a
+// multiline heredoc, and quote/unquote round-trip the value.
+func TestGadQuoteBuiltins(t *testing.T) {
+	testExpectRun(t, `return gad.quote("a\tb")`, nil, Str(`"a\tb"`))
+	testExpectRun(t, "return gad.quote(`a\\tb`)", nil, Str("`a\\tb`"))
+	testExpectRun(t, `return gad.quote("x\ny\nz"; maxCols=5)`, nil, Str("\"\"\"x\ny\nz\"\"\""))
+	testExpectRun(t, `return gad.unquote("\"a\\tb\"")`, nil, Str("a\tb"))
+	testExpectRun(t, `x := "a\tb\nc"; return gad.unquote(gad.quote(x)) == x`, nil, True)
+}

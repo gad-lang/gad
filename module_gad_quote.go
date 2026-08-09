@@ -1,0 +1,98 @@
+package gad
+
+import "github.com/gad-lang/gad/quote"
+
+// gadQuoteFn / gadUnquoteFn are the callable objects exposed as `gad.quote` and
+// `gad.unquote`. Each carries a typed `str` and a `rawstr` overload (added with
+// AddMethod): the argument type selects the cooked (`"…"`) or raw (“ `…` “)
+// string flavour.
+var (
+	gadQuoteFn   Object
+	gadUnquoteFn Object
+)
+
+// buildGadQuoteFuncs builds gad.quote / gad.unquote. Call it once at init, after
+// the builtin type values (TStr, TRawStr, TInt) are registered.
+func buildGadQuoteFuncs() {
+	// gad.quote(s str; maxCols=120) -> str : encode s as a cooked "…" literal,
+	// switching to a """…""" heredoc when a single line would exceed maxCols.
+	quoteStr := NewFunction("quote", gadQuoteStr,
+		FunctionWithModule(gadModuleSpec),
+		FunctionWithUsage("encode a str as a Gad \"…\" string literal (heredoc past maxCols)"),
+		FunctionWithParams(func(p func(name string) *ParamBuilder) {
+			p("s").Type(TStr).Usage("value to quote")
+		}),
+		FunctionWithNamedParams(func(np func(name string) *NamedParamBuilder) {
+			np("maxCols").Type(TInt).Usage("max chars per line before going multiline (default 120)")
+		}),
+	)
+	// gad.quote(s rawstr; maxCols=120) -> str : encode s as a raw `…` literal
+	// (or a ```…``` heredoc when it contains backticks).
+	quoteRaw := NewFunction("quote", gadQuoteRaw,
+		FunctionWithModule(gadModuleSpec),
+		FunctionWithUsage("encode a rawstr as a Gad `…` raw string literal"),
+		FunctionWithParams(func(p func(name string) *ParamBuilder) {
+			p("s").Type(TRawStr).Usage("value to quote")
+		}),
+		FunctionWithNamedParams(func(np func(name string) *NamedParamBuilder) {
+			np("maxCols").Type(TInt).Usage("max chars per line before going multiline (default 120)")
+		}),
+	)
+	gadQuoteFn = AddMethod(quoteStr, quoteRaw)
+
+	// gad.unquote(lit str) -> str : decode any string/heredoc literal to its value.
+	unquoteStr := NewFunction("unquote", gadUnquoteStr,
+		FunctionWithModule(gadModuleSpec),
+		FunctionWithUsage("decode a Gad string literal (\"…\", `…`, heredoc) to its str value"),
+		FunctionWithParams(func(p func(name string) *ParamBuilder) {
+			p("lit").Type(TStr).Usage("string literal to decode")
+		}),
+	)
+	// gad.unquote(lit rawstr) -> rawstr : decode any string/heredoc literal,
+	// returning the value as a rawstr.
+	unquoteRaw := NewFunction("unquote", gadUnquoteRaw,
+		FunctionWithModule(gadModuleSpec),
+		FunctionWithUsage("decode a Gad string literal, returning the value as a rawstr"),
+		FunctionWithParams(func(p func(name string) *ParamBuilder) {
+			p("lit").Type(TRawStr).Usage("string literal to decode")
+		}),
+	)
+	gadUnquoteFn = AddMethod(unquoteStr, unquoteRaw)
+}
+
+// maxColsArg reads the `maxCols` named argument, defaulting to
+// quote.DefaultMaxLineWidth (120) when absent.
+func maxColsArg(c Call) int {
+	if v, ok := c.NamedArgs.GetValueOrNil("maxCols").(Int); ok {
+		return int(v)
+	}
+	return quote.DefaultMaxLineWidth
+}
+
+func gadQuoteStr(c Call) (Object, error) {
+	s, _ := c.Args.Get(0).(Str)
+	return Str(quote.Quote(string(s), quote.Options{MaxLineWidth: maxColsArg(c)})), nil
+}
+
+func gadQuoteRaw(c Call) (Object, error) {
+	s, _ := c.Args.Get(0).(RawStr)
+	return Str(quote.Quote(string(s), quote.Options{MaxLineWidth: maxColsArg(c), Raw: true})), nil
+}
+
+func gadUnquoteStr(c Call) (Object, error) {
+	s, _ := c.Args.Get(0).(Str)
+	v, err := quote.Unquote(string(s))
+	if err != nil {
+		return nil, err
+	}
+	return Str(v), nil
+}
+
+func gadUnquoteRaw(c Call) (Object, error) {
+	s, _ := c.Args.Get(0).(RawStr)
+	v, err := quote.Unquote(string(s))
+	if err != nil {
+		return nil, err
+	}
+	return RawStr(v), nil
+}

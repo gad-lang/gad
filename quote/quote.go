@@ -51,7 +51,11 @@ func (s *scanner) peekV(v []byte) bool {
 	return true
 }
 
-func Quote(s, quote string) string {
+// QuoteDelim wraps s in the delimiter quote, escaping any occurrence of that
+// delimiter with a backslash. It is a low-level, delimiter-generic helper (used
+// for `#(…)` symbols and raw-string display); for encoding Gad string values
+// prefer the form-specific functions (Quote, QuoteString, QuoteRaw, …).
+func QuoteDelim(s, quote string) string {
 	var (
 		scan = newScanner([]byte(s))
 		qs   = []byte(quote)
@@ -83,7 +87,9 @@ loop:
 	return out.String()
 }
 
-func Unquote(s, quote string) string {
+// UnquoteDelim reverses QuoteDelim: it strips the surrounding quote delimiter and
+// unescapes `\<delim>` back to the delimiter.
+func UnquoteDelim(s, quote string) string {
 	var (
 		qb   = []byte(quote)
 		scan = newScanner([]byte(s[len(quote) : len(s)-len(quote)]))
