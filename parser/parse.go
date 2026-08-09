@@ -15,14 +15,26 @@ const MainName = "(main)"
 // it, so the parsed file is based at pos+1 to keep interpolation expression
 // positions mapped back to their location in the original source.
 func ParseInterpolatedString(tmpl string, pos source.Pos) (f *File, err error) {
+	return ParseInterpolatedStringMode(tmpl, pos, false)
+}
+
+// ParseInterpolatedStringMode is ParseInterpolatedString with an explicit raw
+// flag. When raw is true the content is verbatim (a raw interpolated string or
+// heredoc): the `\{` / `\}` delimiter escape is disabled, so a backslash stays
+// literal and `{` always opens interpolation.
+func ParseInterpolatedStringMode(tmpl string, pos source.Pos, raw bool) (f *File, err error) {
 	base := int(pos) + 1
 	fileSet := source.NewFileSet()
 	fileSet.Base = base
 	srcFile := fileSet.AddFileData("template", base, []byte(tmpl))
+	mode := ScanMixed | ScanConfigDisabled
+	if raw {
+		mode |= ScanRawMixed
+	}
 	p := NewParserWithOptions(srcFile, &ParserOptions{
 		Mode: ParseMixed,
 	}, &ScannerOptions{
-		Mode:           ScanMixed | ScanConfigDisabled,
+		Mode:           mode,
 		MixedDelimiter: InterpolatedStringDelimiter,
 	})
 	return p.ParseFile()

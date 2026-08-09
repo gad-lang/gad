@@ -287,12 +287,20 @@ func (s *Scanner) ScanNow() (t PToken) {
 				return
 			}
 		} else {
+			// Raw mixed text (raw interpolated strings/heredocs) is verbatim: the
+			// `\{` / `\}` delimiter escape is disabled, so a backslash stays literal
+			// and `{` always opens interpolation.
+			mixedEscape := !s.mode.Has(ScanRawMixed)
 			readText := func() {
 				t.Token = token.MixedText
 				t.Pos = source.MustFileSetPos(s.File, start)
 
 				if s.Offset > start {
-					t.Literal = unescapeMixedText(string(s.Src[start:s.Offset]), &s.MixedDelimiter)
+					lit := string(s.Src[start:s.Offset])
+					if mixedEscape {
+						lit = unescapeMixedText(lit, &s.MixedDelimiter)
+					}
+					t.Literal = lit
 				}
 			}
 			// scape tracks whether the current character is escaped by a preceding
@@ -304,7 +312,9 @@ func (s *Scanner) ScanNow() (t PToken) {
 			for {
 				switch int(s.Ch) {
 				case '\\':
-					scape = !scape
+					if mixedEscape {
+						scape = !scape
+					}
 					s.Next()
 					continue
 				case -1:

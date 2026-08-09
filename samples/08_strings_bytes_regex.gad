@@ -17,6 +17,21 @@ and `code … end` literals have their own tour in [21_heredocs.gad](21_heredocs
 
 @snippet forms
 
+## Raw strings
+
+A `` `…` `` literal is a **raw** string (`rawStr`): the body is verbatim — no
+escape sequences and no interpolation, so `\t`, `\`, `{` and `}` are all literal
+text. Backtick literals may also **span multiple lines** (the newlines are kept),
+which is the raw multiline form; the `` ```…``` `` raw heredoc in
+[21_heredocs.gad](21_heredocs.gad) additionally strips common indentation.
+
+Prefix a raw form with `#` for its **template** variant (`` #`…` ``): `{expr}`
+interpolation is enabled, but the text stays verbatim — the backslash is *not* an
+escape, so there is no `\{` escape (write `` #"…" `` when you need one). A raw
+template is handy for paths and regex-like text: `` #`C:\Users\{name}` ``.
+
+@snippet rawforms
+
 ## Interpolated strings
 
 `#"…"` (or `` #`…` ``) interpolates `{expr}` and evaluates to a normal string.
@@ -71,6 +86,16 @@ b := `no\tescape`  // rawStr, verbatim
 c := raw "x" + "y" // raw (x + y) -> rawStr "xy"
 [a, b, c, typeName(b)]
 /**= ["tab\there", `no\tescape`, `xy`, "rawstr"] **/
+//endsnippet
+
+//snippet rawforms
+name := "Gad"
+verbatim := `C:\tmp\{x}`     // rawStr: \ and {…} are literal (no escapes/interp)
+lines := `first
+second`                      // backtick literals span lines verbatim
+tmpl := #`path C:\{name}`    // template raw str: \ stays literal, {name} interpolates
+[verbatim, lines, tmpl, typeName(verbatim), typeName(tmpl)]
+/**= [`C:\tmp\{x}`, raw "first\nsecond", `path C:\Gad`, "rawstr", "rawstr"] **/
 //endsnippet
 
 //snippet interp

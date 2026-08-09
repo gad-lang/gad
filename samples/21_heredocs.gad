@@ -3,13 +3,29 @@
 
 Part of [Strings, bytes & regex](08_strings_bytes_regex.gad).
 
+## Multiline options per string form
+
+Every string flavour has a single-line and a multiline (heredoc) spelling:
+
+| Flavour            | Single line     | Multiline (heredoc)   | Escapes | Interp. |
+|--------------------|-----------------|-----------------------|---------|---------|
+| string             | `"…"`           | `"""…"""`             | yes     | no      |
+| raw string         | `` `…` ``       | `` ```…``` ``         | no      | no      |
+| template string    | `#"…"`          | `#"""…"""`            | yes     | `{…}`   |
+| template raw string| `` #`…` ``      | `` #```…``` ``        | no      | `{…}`   |
+
+A plain `"…"` is single-line only (a newline inside it is an error); reach for
+`"""…"""` when the text spans lines. A raw backtick literal `` `…` `` may itself
+span lines, but the `` ```…``` `` heredoc additionally strips common indentation.
+
 ## Heredocs
 
 A heredoc is delimited by a fence of three or more `"` (or `` ` ``):
 
 - `"""…"""` — a `str`: escapes interpreted.
 - `` ```…``` `` — a **raw** `rawStr`: verbatim (no escapes, no interpolation).
-- `#"""…"""` / `` #```…``` `` — the template forms, adding `{expr}` interpolation.
+- `#"""…"""` / `` #```…``` `` — the template forms, adding `{expr}` interpolation
+  (raw templates keep the backslash literal — there is no `\{` escape).
 
 Because the fence is three quotes, a single `"` inside the body is just text. In
 the multi-line form the opening/closing fence lines are dropped and the **common
@@ -67,6 +83,9 @@ println(#"""
 // A literal brace inside a template heredoc is escaped with \{ / \}, exactly as
 // in an #"…" interpolated string.
 println(#"""set \{ {name} }""")  // set { Gad }
+
+// --- template raw string: #`...` (single line, interpolated, escapes verbatim) ---
+println(#`user home: C:\Users\{name}`)  // user home: C:\Users\Gad
 
 // --- template raw heredoc: #``` ... ``` (interpolated, escapes verbatim) ---
 println(#```path: C:\tmp\{name}```)  // path: C:\tmp\Gad

@@ -17,4 +17,9 @@ const (
 	ScanMixedExprAsValue
 	ScanFloatAsDecimal
 	ScanCharAsString
+	// ScanRawMixed marks mixed text as raw (verbatim): the `\{` / `\}` delimiter
+	// escape is disabled, so a backslash is literal and `{` always opens
+	// interpolation. Used for raw interpolated strings/heredocs (`` #`…` ``,
+	// `` #```…``` ``) where escapes are not processed.
+	ScanRawMixed
 )

@@ -27,3 +27,13 @@ func TestRegularStringBraceEscape(t *testing.T) {
 	testExpectRun(t, `return "a \{ b \} c"`, nil, Str("a { b } c"))
 	testExpectRun(t, `return "back \\ slash"`, nil, Str(`back \ slash`))
 }
+
+// TestRawInterpolatedStringNoEscape verifies that raw interpolated forms
+// (“ #`…` “ and “ #```…``` “) are verbatim: a backslash stays literal and
+// `{` always interpolates, so there is no `\{` escape — `\{name}` is a literal
+// backslash followed by the interpolation of name.
+func TestRawInterpolatedStringNoEscape(t *testing.T) {
+	testExpectRun(t, "name := \"Gad\"; return #`path C:\\{name}`", nil, RawStr(`path C:\Gad`))
+	testExpectRun(t, "return #`raw \\t {1 + 1}`", nil, RawStr(`raw \t 2`))
+	testExpectRun(t, "name := \"Gad\"; return #```C:\\{name}```", nil, RawStr(`C:\Gad`))
+}

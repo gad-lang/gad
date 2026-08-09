@@ -3481,7 +3481,12 @@ func (c *Compiler) compileCondExpr(nd *node.CondExpr) error {
 }
 
 func (c *Compiler) compileInterpolatedStringLit(nd *node.InterpolatedStringLit) error {
-	var tmplValue string
+	var (
+		tmplValue string
+		// Raw forms are verbatim: disable the `\{` / `\}` delimiter escape so a
+		// backslash stays literal (e.g. `` #`C:\{name}` `` → `C:\` + interpolation).
+		raw bool
+	)
 	switch t := nd.Value.(type) {
 	case *node.StrLit:
 		// Keep `\{` / `\}` escaped so they survive to the interpolation parser as
@@ -3489,10 +3494,12 @@ func (c *Compiler) compileInterpolatedStringLit(nd *node.InterpolatedStringLit) 
 		tmplValue = t.InterpolationTemplate()
 	case *node.RawStrLit:
 		tmplValue = t.Value()
+		raw = true
 	case *node.RawHeredocLit:
 		// Parse the untrimmed body so interpolation positions map to source;
 		// Build re-applies the heredoc indentation stripping.
 		tmplValue = t.RawContent()
+		raw = true
 	case *node.HeredocLit:
 		// Parse the untrimmed, un-escaped body so interpolation positions map to
 		// source; Build re-applies indentation stripping and escape processing.
@@ -3503,7 +3510,7 @@ func (c *Compiler) compileInterpolatedStringLit(nd *node.InterpolatedStringLit) 
 		return c.Errorf(nd, "expected string for interpolated string literal")
 	}
 
-	file, err := parser.ParseInterpolatedString(tmplValue, nd.StringValuePos())
+	file, err := parser.ParseInterpolatedStringMode(tmplValue, nd.StringValuePos(), raw)
 	if err != nil {
 		return c.Errorf(nd, "interpolated string parse error: %w", err)
 	}
