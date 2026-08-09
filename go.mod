@@ -5,7 +5,6 @@ go 1.26.5
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dustin/go-humanize v1.0.1
-	github.com/gad-lang/gad/gadx v0.0.0-00010101000000-000000000000
 	github.com/google/go-dap v0.12.0
 	github.com/igo9go/go-deepdump v0.0.0-20251127063219-48870f246837
 	github.com/moisespsena-go/command-context v0.0.0-20260630150637-46d849278485
@@ -28,8 +27,3 @@ require (
 	golang.org/x/sys v0.22.0 // indirect
 	mvdan.cc/sh/v3 v3.3.1 // indirect
 )
-
-// The gadx template engine ships in this repository as the ./gadx submodule
-// (its own nested Go module). Build against the working tree so `gad ide` and
-// `gad debug` can compile .gadx files without a published gadx release.
-replace github.com/gad-lang/gad/gadx => ./gadx
