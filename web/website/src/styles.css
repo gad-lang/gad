@@ -1,0 +1,87 @@
+/* Content (rendered Markdown) + PrismJS token colors. Colors follow the logo
+   palette and switch with the pre-paint <html data-theme> attribute. */
+:root {
+  --doc-border: #dbe4ef;
+  --doc-code-bg: #eef3f9;
+  --doc-muted: #5a6b80;
+  --doc-accent: #0e7490;
+  --doc-accent-soft: rgba(8, 145, 178, 0.12);
+  --tok-comment: #6b7b8f;
+  --tok-kw: #c2410c;
+  --tok-fn: #0e7490;
+  --tok-str: #2e8b57;
+  --tok-num: #b45309;
+  --tok-punc: #5a6b80;
+  --tok-op: #0f766e;
+  --tok-regex: #9333ea;
+}
+:root[data-theme="dark"] {
+  --doc-border: #26364f;
+  --doc-code-bg: #0f1d30;
+  --doc-muted: #9fb0c3;
+  --doc-accent: #22d3ee;
+  --doc-accent-soft: rgba(34, 211, 238, 0.14);
+  --tok-comment: #7d8ea3;
+  --tok-kw: #fb923c;
+  --tok-fn: #22d3ee;
+  --tok-str: #6ee7a8;
+  --tok-num: #fbbf24;
+  --tok-punc: #9fb0c3;
+  --tok-op: #5eead4;
+  --tok-regex: #c084fc;
+}
+
+html { scroll-behavior: smooth; }
+
+.content { font-size: 1rem; line-height: 1.7; }
+.content > div > :first-child { margin-top: 0; }
+.content h1 { font-size: 2.1rem; letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 1rem; }
+.content h1, .content h2, .content h3 { line-height: 1.25; scroll-margin-top: 84px; }
+.content h2 { margin-top: 2.2rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--doc-border); }
+.content h3 { margin-top: 1.6rem; }
+.content a { color: var(--doc-accent); text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.content code {
+  background: var(--doc-code-bg);
+  padding: 0.12rem 0.38rem;
+  border-radius: 5px;
+  font-size: 0.88em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border: 1px solid var(--doc-border);
+}
+.content pre {
+  background: var(--doc-code-bg);
+  padding: 1rem 1.1rem;
+  border-radius: 11px;
+  overflow-x: auto;
+  border: 1px solid var(--doc-border);
+  position: relative;
+}
+.content pre code { background: none; padding: 0; border: none; font-size: 0.86rem; line-height: 1.55; }
+.content table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; display: block; overflow-x: auto; }
+.content th, .content td { border: 1px solid var(--doc-border); padding: 0.5rem 0.75rem; text-align: left; }
+.content th { background: var(--doc-code-bg); font-weight: 600; }
+.content blockquote {
+  border-left: 3px solid var(--doc-accent);
+  margin: 1.2rem 0;
+  padding: 0.5rem 1.1rem;
+  color: var(--doc-muted);
+  background: var(--doc-accent-soft);
+  border-radius: 0 10px 10px 0;
+}
+.content img { max-width: 100%; }
+.content hr { border: none; border-top: 1px solid var(--doc-border); margin: 2rem 0; }
+
+/* PrismJS tokens */
+.token.comment, .token.prolog, .token.doctype, .token.cdata { color: var(--tok-comment); font-style: italic; }
+.token.punctuation { color: var(--tok-punc); }
+.token.keyword, .token.atrule, .token.important, .token.tag, .token.selector { color: var(--tok-kw); }
+.token.function, .token.class-name, .token.builtin, .token.function-name { color: var(--tok-fn); }
+.token.string, .token.char, .token.attr-value, .token.inserted { color: var(--tok-str); }
+.token.number, .token.boolean, .token.constant, .token.symbol { color: var(--tok-num); }
+.token.operator, .token.entity, .token.url { color: var(--tok-op); }
+.token.regex { color: var(--tok-regex); }
+.token.deleted { color: #e5534b; }
+.token.namespace { opacity: 0.7; }
+.token.bold { font-weight: 700; }
+.token.italic { font-style: italic; }

@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	cc "github.com/moisespsena-go/command-context"
@@ -108,7 +109,26 @@ func serveCommand() *cc.Command {
 		},
 		Run: func(ctx *cc.CommandContext) error {
 			log.Printf("serving %s on %s", *out, *addr)
-			return http.ListenAndServe(*addr, http.FileServer(http.Dir(*out)))
+			return http.ListenAndServe(*addr, spaHandler(*out))
 		},
 	}
+}
+
+// spaHandler serves static files from dir, falling back to index.html for any
+// non-file, non-asset path so the history-mode SPA's deep links work under local
+// preview (mirroring the deployed GitHub Pages 404.html redirect).
+func spaHandler(dir string) http.Handler {
+	fs := http.FileServer(http.Dir(dir))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clean := filepath.Clean(r.URL.Path)
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(clean))); err == nil {
+			fs.ServeHTTP(w, r)
+			return
+		}
+		if filepath.Ext(clean) == "" {
+			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
 }

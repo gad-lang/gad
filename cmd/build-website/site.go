@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -208,47 +207,16 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 	groups = append(groups, navGroup{Name: "Playground", Pages: []*page{play}})
 	groups = append(groups, navGroup{Name: "Download", Pages: []*page{download}})
 
-	// The home page (index) opens with a hero + a three-path quickstart (CLI,
-	// WASM, Go module) prepended to the rendered README.
-	for _, p := range guide {
-		if p.Slug == "index" {
-			p.BodyHTML = homeIntroHTML(cfg, play.OutFile) + p.BodyHTML
-			break
-		}
-	}
+	// The Download and WASM-embedding guide carry custom bodies; render them into
+	// the page model so they become routed doc pages in the SPA.
+	download.BodyHTML = downloadBody(cfg)
+	wasmEmbed.BodyHTML = wasmEmbedBody(play.OutFile)
 
-	all := append(append([]*page{}, guide...), lang...)
-	all = append(all, ref...)
-	all = append(all, gadxPages...)
-	all = append(all, jsPages...)
-
-	tmpl := template.Must(template.New("layout").Parse(layoutTemplate))
-
-	for _, p := range all {
-		if err := writePage(outDir, tmpl, groups, p, p.BodyHTML, cfg); err != nil {
-			return err
-		}
-	}
-	// Simple in-page playground — only when the full demo is not embedded.
-	if !demoBuilt {
-		if err := writePage(outDir, tmpl, groups, play, template.HTML(playgroundBody), cfg); err != nil {
-			return err
-		}
-	}
-	// Download page (custom body: release banner, notes and asset table).
-	if err := writePage(outDir, tmpl, groups, download, downloadBody(cfg), cfg); err != nil {
-		return err
-	}
-	// WASM-embedding guide (custom body).
-	if err := writePage(outDir, tmpl, groups, wasmEmbed, wasmEmbedBody(play.OutFile), cfg); err != nil {
-		return err
-	}
-
-	if err := writeSearchIndex(outDir, all); err != nil {
-		return err
-	}
-	if err := writeAssets(outDir); err != nil {
-		return err
+	// Build the Vue + Vuetify docs shell (web/website) and drop the doc data,
+	// logo, prism bundle and WASM assets next to it. content.json is written last
+	// so it overwrites the app's bundled development sample.
+	if err := buildWebsiteSPA(repoRoot, outDir); err != nil {
+		return fmt.Errorf("building website app: %w", err)
 	}
 	if err := copyLogo(repoRoot, outDir); err != nil {
 		return err
@@ -257,6 +225,9 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 		if err := buildWASMAssets(repoRoot, outDir); err != nil {
 			return fmt.Errorf("building wasm: %w", err)
 		}
+	}
+	if err := writeContent(outDir, groups, cfg); err != nil {
+		return err
 	}
 	return nil
 }
@@ -545,71 +516,6 @@ func copyTree(src, dst string) error {
 	})
 }
 
-// layoutData is passed to the page template.
-type layoutData struct {
-	Title   string
-	Groups  []navGroup
-	Active  string
-	Content template.HTML
-	TOC     []Heading
-	// Base is the relative prefix from this page's directory back to the site
-	// root ("" for root pages, "../" for pages one level deep like js-modules/*),
-	// so assets and nav links resolve at any base path and any page depth.
-	Base string
-	// Header links / release banner.
-	RepoURL     string
-	PlayHref    string
-	ReleaseName string
-	ReleaseURL  string
-	HasRelease  bool
-	Prism       bool
-}
-
-func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *page, body template.HTML, cfg siteConfig) error {
-	data := layoutData{
-		Title:       p.Title,
-		Groups:      groups,
-		Active:      p.OutFile,
-		Content:     body,
-		TOC:         tocOf(p.Headings),
-		Base:        baseFor(p.OutFile),
-		RepoURL:     cfg.RepoURL,
-		PlayHref:    cfg.playHref,
-		ReleaseName: cfg.releaseName(),
-		ReleaseURL:  cfg.releaseURL(),
-		HasRelease:  cfg.hasRelease(),
-		Prism:       cfg.prism,
-	}
-	outPath := filepath.Join(outDir, filepath.FromSlash(p.OutFile))
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-		return err
-	}
-	f, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return tmpl.Execute(f, data)
-}
-
-// baseFor returns the relative path from a page's directory back to the site
-// root: "" for a root-level OutFile, "../" per directory of depth otherwise.
-func baseFor(outFile string) string {
-	depth := strings.Count(outFile, "/")
-	return strings.Repeat("../", depth)
-}
-
-// tocOf returns the H2 headings of a page for the right-hand table of contents.
-func tocOf(hs []Heading) []Heading {
-	var out []Heading
-	for _, h := range hs {
-		if h.Level == 2 {
-			out = append(out, h)
-		}
-	}
-	return out
-}
-
 func firstHeading(hs []Heading) string {
 	for _, h := range hs {
 		if h.Level == 1 {
@@ -620,29 +526,6 @@ func firstHeading(hs []Heading) string {
 		return hs[0].Text
 	}
 	return ""
-}
-
-// searchDoc is one entry in the client-side search index.
-type searchDoc struct {
-	Title string `json:"title"`
-	URL   string `json:"url"`
-	Text  string `json:"text"`
-}
-
-func writeSearchIndex(outDir string, pages []*page) error {
-	docs := make([]searchDoc, 0, len(pages))
-	for _, p := range pages {
-		text := p.plain
-		if len(text) > 4000 {
-			text = text[:4000]
-		}
-		docs = append(docs, searchDoc{Title: p.Title, URL: p.OutFile, Text: text})
-	}
-	data, err := json.Marshal(docs)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(outDir, "search.json"), data, 0o644)
 }
 
 // plainText strips markdown to plain text for the search index.
@@ -767,56 +650,6 @@ func codeBlock(code, lang string) string {
 	return "<pre" + cls + "><code" + cls + ">" + template.HTMLEscapeString(code) + "</code></pre>"
 }
 
-// homeIntroHTML builds the home page hero + the three-path quickstart (CLI,
-// WASM, Go module) prepended to the rendered README. playHref is the site path
-// of the Playground/demo.
-func homeIntroHTML(cfg siteConfig, playHref string) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="home-hero">`)
-	b.WriteString(`<img class="home-hero-logo" src="gad.svg" alt="Gad logo" width="96" height="96">`)
-	b.WriteString(`<div class="home-hero-text"><h1>Gad</h1>`)
-	b.WriteString(`<p class="tagline">A fast, dynamic scripting language embedded in Go — run it from the CLI, in the browser via WebAssembly, or embedded in your Go application. It shines as a <strong>frontend for Go apps</strong> (Gadx templates served with <code>gadx.Render</code>) and for <strong>generating reports and dynamic content</strong> — Markdown, LaTeX and more, driven by scripts.</p>`)
-	b.WriteString(`<div class="home-cta">`)
-	b.WriteString(`<a class="btn btn-primary" href="getting-started.html">Get started</a>`)
-	fmt.Fprintf(&b, `<a class="btn btn-ghost" href="%s">Playground</a>`, template.HTMLEscapeString(playHref))
-	b.WriteString(`<a class="btn btn-ghost" href="download.html">Download</a>`)
-	fmt.Fprintf(&b, `<a class="btn btn-ghost" href="%s" target="_blank" rel="noopener">GitHub</a>`, template.HTMLEscapeString(cfg.RepoURL))
-	b.WriteString(`</div></div></div>`)
-
-	b.WriteString(`<h2 class="qs-title">Quickstart</h2>`)
-	b.WriteString(`<p class="qs-sub">Three ways to run Gad — pick the one that fits your project.</p>`)
-	b.WriteString(`<div class="cards">`)
-
-	// Card 1 — CLI.
-	b.WriteString(`<div class="card"><h3><span class="card-badge">⌘</span> Command line</h3>`)
-	b.WriteString(`<p>Download the <code>gad</code> binary from the releases, or install it with Go:</p>`)
-	b.WriteString(codeBlock("go install github.com/gad-lang/gad/cmd/gad@latest", "bash"))
-	b.WriteString(`<p>Run, format and document:</p>`)
-	b.WriteString(codeBlock("gad script.gad        # run a script\ngad fmt script.gad    # format in place\ngad doc               # generate workspace docs", "bash"))
-	b.WriteString(`<a class="card-link" href="download.html">Download &amp; run →</a>`)
-	b.WriteString(`</div>`)
-
-	// Card 2 — WebAssembly.
-	b.WriteString(`<div class="card"><h3><span class="card-badge">◈</span> WebAssembly</h3>`)
-	b.WriteString(`<p>Grab <code>gad.wasm</code> + <code>wasm_exec.js</code> and run Gad in any browser:</p>`)
-	b.WriteString(codeBlock("<script src=\"wasm_exec.js\"></script>\n<script>\n  const go = new Go();\n  WebAssembly.instantiateStreaming(\n    fetch(\"gad.wasm\"), go.importObject\n  ).then(r => {\n    go.run(r.instance);\n    const res = JSON.parse(gadRun(\"return 6 * 7\"));\n    console.log(res.result); // \"42\"\n  });\n</script>", "markup"))
-	b.WriteString(`<a class="card-link" href="wasm-embed.html">Embed the WASM →</a>`)
-	b.WriteString(`</div>`)
-
-	// Card 3 — Go module.
-	b.WriteString(`<div class="card"><h3><span class="card-badge">Go</span> Go module</h3>`)
-	b.WriteString(`<p>Embed the compiler and VM in your Go program:</p>`)
-	b.WriteString(codeBlock("go get github.com/gad-lang/gad", "bash"))
-	b.WriteString(codeBlock("builtins := gad.NewBuiltins()\nst := gad.NewSymbolTable(builtins.NameSet)\ncr, _ := gad.Compile(st, []byte(`return 6 * 7`), gad.CompileOptions{})\nret, _ := gad.NewVM(builtins.Build(), cr.Bytecode).Run()\nfmt.Println(ret) // 42", "go"))
-	b.WriteString(`<a class="card-link" href="embedding.html">Embedding guide →</a>`)
-	b.WriteString(`</div>`)
-
-	b.WriteString(`</div>`) // .cards
-
-	b.WriteString(`<p class="muted">Configure a workspace via the <a href="ref-workspace-config.html"><code>GAD_CONFIG_DIR</code> (<code>.gad/</code>)</a> directory.</p>`)
-	return template.HTML(b.String())
-}
-
 // wasmEmbedBody renders the "Embed the WASM" page: how to load the module and
 // the JS API it exposes. playHref is the Playground/demo path (Web Worker note).
 func wasmEmbedBody(playHref string) template.HTML {
@@ -891,22 +724,6 @@ func copyLogo(repoRoot, outDir string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(outDir, "gad.svg"), data, 0o644)
-}
-
-func writeAssets(outDir string) error {
-	files := map[string]string{
-		"styles.css": siteCSS,
-		"search.js":  searchJS,
-		"theme.js":   themeJS,
-		"nav.js":     navJS,
-		"play.js":    playJS,
-	}
-	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(outDir, name), []byte(content), 0o644); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // buildWASMAssets compiles the Gad WASM module (gad.wasm, debugger-enabled) and

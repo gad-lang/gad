@@ -117,6 +117,11 @@ jobs:
           cp -r dist/website/. public/latest/
           # Root index redirects to the latest published build.
           printf '<!DOCTYPE html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./latest/index.html"><title>Gad</title><a href="./latest/index.html">Gad documentation</a>\n' > public/index.html
+          # Root 404 is the SPA deep-link fallback (GitHub Pages serves the root
+          # 404.html for any unmatched path). It keeps one path segment (the
+          # /latest, /<tag> or /<commit> version dir) and hands the rest to that
+          # dir's index.html, which decodes it back into the vue-router route.
+          cp dist/website/404.html public/404.html
 
       # Publish to the org site repo (gad-lang.github.io), served at the root
       # https://gad-lang.github.io/. Cross-repo push uses the ACTIONS_DEPLOY_KEY

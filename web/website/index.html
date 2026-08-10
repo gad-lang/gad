@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="./gad.svg" />
+    <title>Gad — a fast, dynamic scripting language embedded in Go</title>
+    <script>
+      // Pick up the stored/system theme before paint to avoid a flash.
+      (function () {
+        var s = localStorage.getItem("gad-theme");
+        var t = s === "light" || s === "dark" ? s
+          : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.dataset.theme = t;
+      })();
+      // The app's base is the directory that serves index.html (a version dir like
+      // /latest/ on deploy, or / locally). Capture it before the SPA-redirect
+      // decode below rewrites the URL.
+      window.__BASE__ = location.pathname;
+      // Decode a 404.html SPA redirect (`<base>/?/docs/x` -> `<base>/docs/x`).
+      (function (l) {
+        if (l.search[1] === "/") {
+          var decoded = l.search.slice(1).split("&").map(function (s) {
+            return s.replace(/~and~/g, "&");
+          }).join("?");
+          window.history.replaceState(null, "", l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      })(window.location);
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

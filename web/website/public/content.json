@@ -1,0 +1,38 @@
+{
+  "site": {
+    "repoURL": "https://github.com/gad-lang/gad",
+    "playHref": "playground/index.html",
+    "downloadSlug": "download",
+    "releaseName": "v0.0.0-dev",
+    "hasRelease": true,
+    "tagline": "A fast, dynamic scripting language embedded in Go."
+  },
+  "home": "",
+  "groups": [
+    { "name": "Guide", "pages": [
+      { "slug": "intro", "title": "Introduction" },
+      { "slug": "second", "title": "Second page" }
+    ] }
+  ],
+  "pages": {
+    "intro": {
+      "slug": "intro",
+      "title": "Introduction",
+      "html": "<h1 id=\"introduction\">Introduction</h1><p>This is a <strong>sample</strong> docs page used only for local development of the website SPA.</p><h2 id=\"code\">Code</h2><pre><code class=\"language-gad\">a := 1\nb := 2\nreturn a + b</code></pre><p>See the <a href=\"second.html\">second page</a>.</p>",
+      "toc": [
+        { "id": "introduction", "text": "Introduction", "level": 1 },
+        { "id": "code", "text": "Code", "level": 2 }
+      ]
+    },
+    "second": {
+      "slug": "second",
+      "title": "Second page",
+      "html": "<h1 id=\"second\">Second page</h1><p>Another dev page. Back to <a href=\"intro.html\">Introduction</a>.</p>",
+      "toc": [{ "id": "second", "text": "Second page", "level": 1 }]
+    }
+  },
+  "search": [
+    { "slug": "intro", "title": "Introduction", "text": "sample docs page website spa code" },
+    { "slug": "second", "title": "Second page", "text": "another dev page" }
+  ]
+}
