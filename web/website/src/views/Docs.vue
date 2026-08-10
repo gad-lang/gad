@@ -39,6 +39,14 @@ const page = computed<DocPage | null>(() => {
   return c.pages[props.slug] ?? null;
 });
 
+// Link to the backing source file on GitHub at the built commit.
+const githubHref = computed(() => {
+  const c = content.value;
+  const p = page.value;
+  if (!c || !p?.sourcePath) return "";
+  return `${c.site.repoURL}/blob/${c.site.commit || "main"}/${p.sourcePath}`;
+});
+
 // Highlight code blocks with the PrismJS bundle emitted next to content.json.
 function loadPrism(): Promise<void> {
   if (!prismLoaded) {
@@ -88,7 +96,7 @@ function onClick(e: MouseEvent) {
   <v-container fluid class="docs pa-0">
     <div class="docs-grid" :class="{ 'has-toc': lgAndUp && page && page.toc && page.toc.length }">
       <article ref="body" class="content" @click="onClick">
-        <div v-if="page && page.source" class="source-bar mb-4">
+        <div v-if="page && page.source" class="source-bar d-flex align-center mb-4">
           <v-btn
             v-if="!showSource"
             size="small"
@@ -97,13 +105,21 @@ function onClick(e: MouseEvent) {
             prepend-icon="mdi-code-tags"
             @click="showSource = true"
           >View source</v-btn>
-          <v-btn
-            v-else
-            size="small"
-            variant="tonal"
-            prepend-icon="mdi-arrow-left"
-            @click="showSource = false"
-          >Back to docs</v-btn>
+          <template v-else>
+            <v-btn size="small" variant="tonal" prepend-icon="mdi-arrow-left" @click="showSource = false">
+              Back to docs
+            </v-btn>
+            <v-spacer />
+            <v-btn
+              v-if="githubHref"
+              size="small"
+              variant="text"
+              prepend-icon="mdi-github"
+              :href="githubHref"
+              target="_blank"
+              rel="noopener"
+            >View on GitHub</v-btn>
+          </template>
         </div>
         <template v-if="page">
           <div v-if="showSource && page.source" class="source-view">

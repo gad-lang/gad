@@ -20,6 +20,18 @@ const onDocs = computed(() => String(route.name || "").startsWith("docs"));
 const drawer = ref(true);
 watch(mdAndUp, (v) => (drawer.value = v), { immediate: true });
 
+// Collapsible nav sections: keep only the group holding the current page open.
+const openGroups = ref<string[]>([]);
+const activeSlug = computed(() => (onDocs.value ? String(route.params.slug || "") : ""));
+watch(
+  [groups, activeSlug],
+  () => {
+    const g = groups.value.find((gr) => gr.pages.some((p) => p.slug === activeSlug.value));
+    openGroups.value = g ? [g.name] : groups.value[0] ? [groups.value[0].name] : [];
+  },
+  { immediate: true },
+);
+
 // Theme toggle, persisted and mirrored on <html data-theme> (used pre-paint).
 function toggleTheme() {
   const next = theme.global.current.value.dark ? "light" : "dark";
@@ -102,9 +114,15 @@ function go(slug: string) {
       :permanent="mdAndUp"
       width="270"
     >
-      <v-list density="compact" nav>
-        <template v-for="g in groups" :key="g.name">
-          <v-list-subheader class="text-uppercase text-caption font-weight-bold">{{ g.name }}</v-list-subheader>
+      <v-list v-model:opened="openGroups" density="compact" nav>
+        <v-list-group v-for="g in groups" :key="g.name" :value="g.name">
+          <template #activator="{ props }">
+            <v-list-item
+              v-bind="props"
+              :title="g.name"
+              class="group-title text-uppercase text-caption font-weight-bold"
+            />
+          </template>
           <v-list-item
             v-for="p in g.pages"
             :key="p.slug"
@@ -114,7 +132,7 @@ function go(slug: string) {
             color="primary"
             density="compact"
           />
-        </template>
+        </v-list-group>
       </v-list>
     </v-navigation-drawer>
 
@@ -141,5 +159,19 @@ function go(slug: string) {
 }
 .rel-chip {
   font-weight: 700;
+}
+
+/* Nav sections: tint the open group and indent its items to show the hierarchy. */
+:deep(.v-navigation-drawer .v-list-group__items) {
+  background: rgba(var(--v-theme-primary), 0.06);
+  border-radius: 10px;
+  margin: 2px 0 8px;
+  padding: 2px 0;
+}
+:deep(.v-navigation-drawer .v-list-group__items .v-list-item) {
+  padding-inline-start: 22px !important;
+}
+:deep(.v-navigation-drawer .group-title) {
+  opacity: 0.85;
 }
 </style>

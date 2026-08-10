@@ -13,6 +13,7 @@ export interface DocPage {
   toc: TocEntry[];
   source?: string;
   sourceLang?: string;
+  sourcePath?: string;
 }
 
 export interface NavPage {
@@ -34,6 +35,7 @@ export interface SearchDoc {
 
 export interface SiteInfo {
   repoURL: string;
+  commit: string;
   playHref: string;
   downloadSlug: string;
   releaseName: string;

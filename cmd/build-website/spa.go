@@ -15,6 +15,7 @@ import (
 
 type jsonSite struct {
 	RepoURL      string `json:"repoURL"`
+	Commit       string `json:"commit"`
 	PlayHref     string `json:"playHref"`
 	DownloadSlug string `json:"downloadSlug"`
 	ReleaseName  string `json:"releaseName"`
@@ -50,6 +51,7 @@ type jsonDoc struct {
 	// PrismJS language; omitted for pages without a source.
 	Source     string `json:"source,omitempty"`
 	SourceLang string `json:"sourceLang,omitempty"`
+	SourcePath string `json:"sourcePath,omitempty"`
 }
 
 type jsonSearch struct {
@@ -93,6 +95,7 @@ func writeContent(outDir string, groups []navGroup, cfg siteConfig) error {
 	c := jsonContent{
 		Site: jsonSite{
 			RepoURL:      cfg.RepoURL,
+			Commit:       cfg.commit,
 			PlayHref:     cfg.playHref,
 			DownloadSlug: "download",
 			ReleaseName:  cfg.releaseName(),
@@ -112,7 +115,7 @@ func writeContent(outDir string, groups []navGroup, cfg siteConfig) error {
 			jg.Pages = append(jg.Pages, jsonNavPage{Slug: slug, Title: p.Title})
 			c.Pages[slug] = jsonDoc{
 				Slug: slug, Title: p.Title, HTML: string(p.BodyHTML), Toc: tocEntries(p.Headings),
-				Source: p.Source, SourceLang: p.SourceLang,
+				Source: p.Source, SourceLang: p.SourceLang, SourcePath: p.SourcePath,
 			}
 			c.Search = append(c.Search, jsonSearch{Slug: slug, Title: p.Title, Text: p.plain})
 		}

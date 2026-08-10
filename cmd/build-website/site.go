@@ -30,6 +30,19 @@ type siteConfig struct {
 	// prism is set when the PrismJS bundle was built (loads prism.js + enables
 	// syntax highlighting).
 	prism bool
+	// commit is the git commit the site is built from, used for "view source on
+	// GitHub" links; set during the build (git rev-parse), falls back to "main".
+	commit string
+}
+
+// gitCommit returns the HEAD commit of repoRoot for source links, or "main" when
+// it cannot be determined (not a git checkout, git missing, …).
+func gitCommit(repoRoot string) string {
+	out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "HEAD").Output()
+	if s := strings.TrimSpace(string(out)); err == nil && s != "" {
+		return s
+	}
+	return "main"
 }
 
 // releaseName returns the display name for the release banner (name, else tag).
@@ -71,10 +84,12 @@ type page struct {
 	// plain is the searchable plain text of the page.
 	plain string
 	// Source is the sample source file backing a generated chapter page, with
-	// SourceLang its PrismJS highlight language ("gad", "gadt" or "gadx"); empty
-	// for pages without a backing source.
+	// SourceLang its PrismJS highlight language ("gad", "gadt" or "gadx") and
+	// SourcePath its repo-relative path (for a GitHub link); empty for pages
+	// without a backing source.
 	Source     string
 	SourceLang string
+	SourcePath string
 }
 
 // navGroup is a sidebar section.
@@ -124,6 +139,7 @@ var gadxOrder = []string{
 // buildSite renders the whole website into outDir.
 func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 	buildWASM := cfg.BuildWASM
+	cfg.commit = gitCommit(repoRoot)
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err
 	}
@@ -391,6 +407,7 @@ func collectLangPages(dir, samplesDir string) ([]*page, error) {
 			// Attach the runnable sample source that backs this chapter.
 			p.Source = code
 			p.SourceLang = lang
+			p.SourcePath = "samples/" + name + "." + lang
 		}
 		pages = append(pages, p)
 	}
