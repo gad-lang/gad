@@ -23,7 +23,7 @@ var (
 	LocationType = gad.TimeLocationType
 )
 
-func getModule() gad.Dict { return gad.TimeModule() }
+func getModule() gad.Dict { return gad.TimeModule().ToDict() }
 
 // ModuleInit represents time module.
 var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (err error) {

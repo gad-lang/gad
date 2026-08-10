@@ -19,11 +19,11 @@ var stringsModuleSpec = NewModuleSpecFromName("strings")
 
 // StringsModule returns the `strings` builtin namespace. It is also used by the
 // stdlib `strings` importable module.
-func StringsModule() Dict { return newStringsModule() }
+func StringsModule() StdModuleData { return newStringsModule() }
 
 // newStringsModule builds the `strings` builtin namespace (Go's strings).
-func newStringsModule() Dict {
-	return Dict{
+func newStringsModule() StdModuleData {
+	return StdModuleDataFromDict(Dict{
 		// gad:doc
 		// # strings module
 		//
@@ -531,7 +531,7 @@ func newStringsModule() Dict {
 				return stringsTruncFunc(s, limit, emph.Value.ToString()), nil
 			},
 		},
-	}
+	})
 }
 
 func stringsContainsFunc(s, substr string) Object {

@@ -6,7 +6,7 @@ var reflectModuleSpec = NewModuleSpecFromName("reflect")
 
 // ReflectModule returns the `reflect` builtin namespace. It is also the module
 // resolved by import("reflect").
-func ReflectModule() Dict { return newReflectModule() }
+func ReflectModule() StdModuleData { return newReflectModule() }
 
 // newReflectModule builds the `reflect` namespace: raw, delegation-free index
 // access — the functional, JS `Reflect.get`/`Reflect.set` analog.
@@ -16,8 +16,8 @@ func ReflectModule() Dict { return newReflectModule() }
 // stored at key verbatim (a Prop comes back as a Prop, not its getter's result)
 // and reflect.set writes value at key verbatim (overwriting — and thus removing
 // — any Prop stored there, without invoking its setter).
-func newReflectModule() Dict {
-	return Dict{
+func newReflectModule() StdModuleData {
+	return StdModuleDataFromDict(Dict{
 		// gad:doc
 		// # reflect module
 		//
@@ -43,7 +43,7 @@ func newReflectModule() Dict {
 			Module:   reflectModuleSpec,
 			Value:    reflectSetFunc,
 		},
-	}
+	})
 }
 
 // reflectGetFunc implements reflect.get(target, key): the raw value at key, with

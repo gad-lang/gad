@@ -15,7 +15,7 @@ import (
 func TestEval(t *testing.T) {
 	module := NewModule(&ModuleSpec{})
 	gadtime.ModuleInit(module, Call{})
-	gtimeD := module.Data.(Dict)
+	gtimeD := module.Data.ToDict()
 
 	type scriptResult struct {
 		script string
@@ -52,9 +52,8 @@ func TestEval(t *testing.T) {
 				{`time.Second`, gtimeD["Second"]},
 				{`tmp := time.Second`, Nil},
 				{`tmp`, gtimeD["Second"]},
-				{`time.Second = ""`, Nil},
-				{`time.Second`, Str("")},
-				{`time.Second = tmp`, Nil},
+				// time.Second is a read-only module constant: it cannot be set.
+				{`try { time.Second = ""; return false } catch e { return true }`, True},
 				{`time.Second`, gtimeD["Second"]},
 			},
 		},

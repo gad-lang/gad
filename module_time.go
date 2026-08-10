@@ -25,11 +25,11 @@ var TimeZeroTime Object = &Time{}
 
 // TimeModule returns the `time` builtin namespace. It is also used by the stdlib
 // `time` importable module.
-func TimeModule() Dict { return newTimeModule() }
+func TimeModule() StdModuleData { return newTimeModule() }
 
 // newTimeModule builds the `time` builtin namespace (Go's time).
-func newTimeModule() Dict {
-	return Dict{
+func newTimeModule() StdModuleData {
+	return StdModuleDataFromDict(Dict{
 		// gad:doc
 		// # time module
 		// ## Types
@@ -465,7 +465,7 @@ func newTimeModule() Dict {
 			FuncName: "isTime",
 			Value:    funcPORO(TimeIsTimeFunc),
 		},
-	}
+	})
 }
 
 func TimeUtcFunc() Object { return TimeUtcLoc }

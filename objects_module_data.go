@@ -29,6 +29,22 @@ func NewStdModuleData() *StdModuleData {
 	return &StdModuleData{Vars: Dict{}, Consts: Dict{}, Funcs: Dict{}}
 }
 
+// StdModuleDataFromDict builds a StdModuleData from a flat member dict, routing
+// functions to Funcs and every other member (scalar values, types) to the
+// read-only Consts bucket. This is the natural shape for a native module made of
+// functions plus constants, so a Dict-based module migrates with a single wrap.
+func StdModuleDataFromDict(members Dict) StdModuleData {
+	o := StdModuleData{Vars: Dict{}, Consts: make(Dict, len(members)), Funcs: make(Dict, len(members))}
+	for k, v := range members {
+		if isModuleFunc(v) {
+			o.Funcs[k] = v
+		} else {
+			o.Consts[k] = v
+		}
+	}
+	return o
+}
+
 // merged returns a combined view of the variables, functions and constants. The
 // three buckets hold disjoint keys, so the merge order is irrelevant.
 func (o StdModuleData) merged() Dict {

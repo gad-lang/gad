@@ -20,6 +20,7 @@ var base64Module = Dict{
 	"RawStdEncoding": MustNewReflectValue(base64.RawStdEncoding),
 }
 
-// Base64Module returns the `base64` builtin namespace. It is shared (not copied)
-// and is also used by the stdlib `encoding/base64` importable module.
-func Base64Module() Dict { return base64Module }
+// Base64Module returns the `base64` builtin namespace as StdModuleData with its
+// encodings in the read-only Consts bucket. It is also used by the stdlib
+// `encoding/base64` importable module.
+func Base64Module() StdModuleData { return StdModuleDataFromDict(base64Module) }

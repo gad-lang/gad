@@ -173,12 +173,15 @@ try:
 }
 
 func AddressOf(obj Object) unsafe.Pointer {
-	type entry struct {
-		object Object
-	}
 	if !IsPrimitive(obj) {
-		entry := entry{obj}
-		return reflect.ValueOf(entry.object).UnsafePointer()
+		v := reflect.ValueOf(obj)
+		// UnsafePointer is only valid for reference kinds; a value-type Object
+		// (e.g. a struct like StdModuleData) has no address and needs no cycle
+		// tracking, so report nil rather than panicking.
+		switch v.Kind() {
+		case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func, reflect.UnsafePointer:
+			return v.UnsafePointer()
+		}
 	}
 	return nil
 }

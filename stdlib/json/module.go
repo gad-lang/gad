@@ -16,7 +16,7 @@ const ModuleName = "json"
 // ModuleInit represents json module.
 var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err error) {
 	spec := module.Spec
-	module.Data = gad.Dict{
+	module.Data = gad.StdModuleDataFromDict(gad.Dict{
 		// gad:doc
 		// # json module
 		//
@@ -107,7 +107,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			FuncName: "Valid",
 			Value:    stdlib.FuncPb2RO(validFunc),
 		},
-	}
+	})
 
 	return
 }

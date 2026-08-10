@@ -16,11 +16,11 @@ var fmtModuleSpec = NewModuleSpecFromName("fmt")
 
 // FmtModule returns the `fmt` builtin namespace (Print/Printf/Sprint/Scan…). It
 // is also used by the stdlib `fmt` importable module.
-func FmtModule() Dict { return newFmtModule() }
+func FmtModule() StdModuleData { return newFmtModule() }
 
 // newFmtModule builds the `fmt` builtin namespace (Go's fmt: print/scan).
-func newFmtModule() Dict {
-	return Dict{
+func newFmtModule() StdModuleData {
+	return StdModuleDataFromDict(Dict{
 		// gad:doc
 		// # fmt module
 		//
@@ -156,7 +156,7 @@ func newFmtModule() Dict {
 			FuncName: "scanArg",
 			Value:    fmtNewScanArgFunc,
 		},
-	}
+	})
 }
 
 func fmtNewPrint(fn func(...any) (int, error)) CallableFunc {
