@@ -27,6 +27,12 @@ export const gadxGrammar: Grammar = {
       greedy: true,
     },
     {
+      // `/// …` single-line doc comment (attaches to the next declaration).
+      pattern: /\/\/\/.*/,
+      alias: "doc-comment",
+      greedy: true,
+    },
+    {
       // `//` and silent `//-` line comments.
       pattern: /\/\/.*/,
       greedy: true,

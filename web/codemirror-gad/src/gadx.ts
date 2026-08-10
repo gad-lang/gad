@@ -19,6 +19,7 @@ export const gadxTokenTable = {
   gadxKeyword: t.keyword,
   gadxComponent: t.function(t.variableName),
   gadxComment: t.lineComment,
+  gadxDocComment: t.docComment,
   gadxDoctype: t.meta,
   gadxText: t.content,
   gadxFence: t.meta,
@@ -196,6 +197,11 @@ function tokenStart(stream: StringStream, state: GadxState): string | null {
     stream.skipToEnd();
     state.blockComment = true;
     return "gadxComment";
+  }
+  // `/// …` single-line doc comment (attaches to the next declaration).
+  if (stream.match("///")) {
+    stream.skipToEnd();
+    return "gadxDocComment";
   }
   // Comments: `//` and silent `//-`.
   if (stream.match("//")) {
