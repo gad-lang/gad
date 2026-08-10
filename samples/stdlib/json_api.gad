@@ -1,0 +1,63 @@
+/**
+# `json` module
+
+## Important Note
+All numeric types is unmarshaled to `gad.Decimal` type.
+**/
+
+/**
+Returns the JSON encoding v or error.
+**/
+export Marshal(v any) <bytes> => nil
+
+/**
+MarshalIndent is like Marshal but applies IndentCount to format the output.
+**/
+export MarshalIndent(v any, prefix str, indent str) <bytes> => nil
+
+/**
+Returns indented form of the JSON-encoded src or error.
+**/
+export IndentCount(src bytes, prefix str, indent str) <bytes> => nil
+
+/**
+Returns a wrapped bytes to provide raw encoded JSON value to Marshal
+functions.
+**/
+export RawMessage(v bytes) <rawMessage> => nil
+
+/**
+Returns elided insignificant space characters from data or error.
+**/
+export Compact(data bytes, escape bool) <bytes> => nil
+
+/**
+Returns a wrapped object to provide Marshal functions to quote v.
+**/
+export Quote(v any) <encoderOptions> => nil
+
+/**
+Returns a wrapped object to provide Marshal functions not to quote while
+encoding.
+This can be used not to quote all array or map items.
+**/
+export NoQuote(v any) <encoderOptions> => nil
+
+/**
+Returns a wrapped object to provide Marshal functions not to escape html
+while encoding.
+**/
+export NoEscape(v any) <encoderOptions> => nil
+
+/**
+if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to true
+if floatsAsDecimal is true, parses float values as decimal
+if intAsDecimal is true, parses int values as decimal
+Unmarshal parses the JSON-encoded p and returns the result or error.
+**/
+export Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any> => nil
+
+/**
+Reports whether p is a valid JSON encoding.
+**/
+export Valid(p bytes) <bool> => nil

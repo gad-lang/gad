@@ -295,7 +295,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTRO(TimeUntilFunc),
 		},
 		// gad:doc
-		// date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc Location]) <time>
+		// date(year int, month int, day int, hour int, min int, sec int, nsec int, loc Location) <time>
 		// Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
 		// in the appropriate zone for that time in the given location. Zero values
 		// of optional arguments are used if not provided.
@@ -311,7 +311,7 @@ func newTimeModule() Dict {
 			Value:    funcPRO(TimeNowFunc),
 		},
 		// gad:doc
-		// parse(layout str, value str[, loc Location]) <time>
+		// parse(layout str, value str, loc Location) <time>
 		// Parses a formatted string and returns the time value it represents.
 		// If location is not provided, ToInterface's `time.Parse` function is called
 		// otherwise `time.ParseInLocation` is called.
@@ -365,7 +365,7 @@ func newTimeModule() Dict {
 			}),
 		},
 		// gad:doc
-		// unix(sec int[, nsec int]) <time>
+		// unix(sec int, nsec int) <time>
 		// Returns the local time corresponding to the given Unix time,
 		// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
 		// Zero values of optional arguments are used if not provided.

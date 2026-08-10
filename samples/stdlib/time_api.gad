@@ -1,0 +1,302 @@
+/**
+# `time` module
+## Type FuncHeaderObject
+FuncHeaderObject describes a function signature: a name, positional and named
+parameters (each a `typedIdent`) and a return-type list. It is the value of a
+func-header expression `<(params) <return>>`.
+
+Members are read with indexing:
+  - `h.name` -> str
+  - `h.params` -> array of typedIdent
+  - `h.namedParams` -> array of typedIdent
+  - `h.return` -> array of typedIdent
+
+```gad ignore
+h := <(a int, b str) <r bool>>
+h.name           // ""
+len(h.params)    // 2
+h.params[0].name // "a"
+```
+
+## Type Interface
+Interface is the value of an `interface { … }` declaration: a structural
+contract of typed fields, getter/setter properties, required methods and an
+optional `parse { … }` group of signatures. It is compiled to a bytecode
+constant; parameter/field types are stored as symbols and resolved per-VM.
+
+Members are read with indexing:
+  - `i.name`    -> str
+  - `i.fields`  -> array of InterfaceField
+  - `i.props`   -> array of InterfaceProp
+  - `i.methods` -> array of InterfaceMethod
+
+## Type MethodInterface
+MethodInterface is a set of required function headers, produced by a `meti`
+expression: `meti { (), (v) <int> }`. Use `implements(fn, mi)` to test whether
+a callable provides every header, and `mi + mi2` (or `mi ++ [mi2, …]`) to merge.
+
+```gad ignore
+Stringer := meti { () <str> }
+implements((this) => "x", Stringer)   // true if the func matches a header
+```
+
+## Type Prop
+Prop is a named, callable value backed by getter and setter methods.
+
+    Prop(name str, *methods) -> Prop
+
+The trailing methods are dispatched by their signature when the property is
+called:
+  - **getter**: takes no parameters and returns a value (`prop() -> value`).
+    At most one getter may be registered.
+  - **setter**: takes one parameter and returns nothing (`prop(v)`). Any
+    number of setters may be registered; the one whose parameter type matches
+    the argument is selected.
+
+A property may be created with no methods, but calling such a property is an
+error because no matching method exists. New methods can be attached later
+with the `met` statement.
+
+Example — getter/setter pair plus a typed setter:
+
+```gad ignore
+var value
+const p = Prop("x", () => value, (v) => {value = v})
+met p(v int) {
+  value = "int value= " + v
+}
+p()      // nil
+p("a")   // setter: value = "a"
+p()      // "a"
+p(1)     // typed setter selected: value = "int value= 1"
+p()      // "int value= 1"
+```
+
+Example — read-only (getter-only) property:
+
+```gad ignore
+const pi = Prop("pi", () => 3.14)
+pi()        // 3.14
+```
+**/
+
+/**
+Returns Universal Coordinated Time (UTC) location.
+**/
+export utc() <Location> => nil
+
+/**
+Returns the system's local time zone location.
+**/
+export local() <Location> => nil
+
+/**
+Returns English name of the month m ("January", "February", ...).
+**/
+export monthString(m int) <month str> => nil
+
+/**
+Returns English name of the int weekday w, note that 0 is Sunday.
+**/
+export weekdayString(w int) <weekday str> => nil
+
+/**
+Returns a string representing the duration d in the form "72h3m0.5s".
+**/
+export durationString(d int) <str> => nil
+
+/**
+Returns the duration d as an int nanosecond count.
+**/
+export durationNanoseconds(d int) <int> => nil
+
+/**
+Returns the duration d as an int microsecond count.
+**/
+export durationMicroseconds(d int) <int> => nil
+
+/**
+Returns the duration d as an int millisecond count.
+**/
+export durationMilliseconds(d int) <int> => nil
+
+/**
+Returns the duration d as a floating point number of seconds.
+**/
+export durationSeconds(d int) <float> => nil
+
+/**
+Returns the duration d as a floating point number of minutes.
+**/
+export durationMinutes(d int) <float> => nil
+
+/**
+Returns the duration d as a floating point number of hours.
+**/
+export durationHours(d int) <float> => nil
+
+/**
+Pauses the current goroutine for at least the duration.
+**/
+export sleep(duration int) => nil
+
+/**
+Parses duration s and returns duration as int or error.
+**/
+export parseDuration(s str) <duration int> => nil
+
+/**
+Returns the result of rounding duration to the nearest multiple of m.
+**/
+export durationRound(duration int, m int) <duration int> => nil
+
+/**
+Returns the result of rounding duration toward zero to a multiple of m.
+**/
+export durationTruncate(duration int, m int) <duration int> => nil
+
+/**
+Returns a Location that always uses the given zone name and offset
+(seconds east of UTC).
+**/
+export fixedZone(name str, sec int) <Location> => nil
+
+/**
+Returns the Location with the given name.
+**/
+export loadLocation(name str) <Location> => nil
+
+/**
+Reports whether any value is of location type.
+**/
+export isLocation(any) <bool> => nil
+
+/**
+Returns zero time.
+**/
+export time() <time> => nil
+
+/**
+Returns the time elapsed since t.
+**/
+export since(t time) <duration int> => nil
+
+/**
+Returns the duration until t.
+**/
+export until(t time) <duration int> => nil
+
+/**
+Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
+in the appropriate zone for that time in the given location. Zero values
+of optional arguments are used if not provided.
+**/
+export date(year int, month int, day int, hour int, min int, sec int, nsec int, loc Location) <time> => nil
+
+/**
+Returns the current local time.
+**/
+export now() <time> => nil
+
+/**
+Parses a formatted string and returns the time value it represents.
+If location is not provided, ToInterface's `time.Parse` function is called
+otherwise `time.ParseInLocation` is called.
+**/
+export parse(layout str, value str, loc Location) <time> => nil
+
+/**
+Parses a date from "YYYYMMDD" or "YYYY-MM-DD".
+**/
+export strToDate(s str) <date> => nil
+
+/**
+Parses an RFC3339 timestamp or "YYYY-MM-DD[ HH:MM:SS]" (UTC when no
+zone is present).
+**/
+export strToTime(s str) <time> => nil
+
+/**
+Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.
+**/
+export strToCalendarTime(s str) <calendarTime> => nil
+
+/**
+Parses a Go duration string (e.g. "1h30m").
+**/
+export strToDuration(s str) <duration> => nil
+
+/**
+Parses a location from an offset ("-0300"/"-03:00") or an IANA name.
+**/
+export strToLocation(s str) <Location> => nil
+
+/**
+Returns the local time corresponding to the given Unix time,
+sec seconds and nsec nanoseconds since January 1, 1970 UTC.
+Zero values of optional arguments are used if not provided.
+**/
+export unix(sec int, nsec int) <time> => nil
+
+/**
+Deprecated: Use .Add method of time object.
+Returns the time of t+duration.
+**/
+export add(t time, duration int) <time> => nil
+
+/**
+Deprecated: Use .Sub method of time object.
+Returns the duration of t1-t2.
+**/
+export sub(t1 time, t2 time) <int> => nil
+
+/**
+Deprecated: Use .AddDate method of time object.
+Returns the time corresponding to adding the given number of
+years, months, and days to t.
+**/
+export addDate(t time, years int, months int, days int) <time> => nil
+
+/**
+Deprecated: Use .After method of time object.
+Reports whether the time t1 is after t2.
+**/
+export after(t1 time, t2 time) <bool> => nil
+
+/**
+Deprecated: Use .Before method of time object.
+Reports whether the time t1 is before t2.
+**/
+export before(t1 time, t2 time) <bool> => nil
+
+/**
+Deprecated: Use .Format method of time object.
+Returns a textual representation of the time value formatted according
+to layout.
+**/
+export format(t time, layout str) <str> => nil
+
+/**
+Deprecated: Use .AppendFormat method of time object.
+It is like `Format` but appends the textual representation to b and
+returns the extended buffer.
+**/
+export appendFormat(t time, b bytes, layout str) <bytes> => nil
+
+/**
+Deprecated: Use .Round method of time object.
+Round returns the result of rounding t to the nearest multiple of
+duration.
+**/
+export round(t time, duration int) <time> => nil
+
+/**
+Deprecated: Use .Truncate method of time object.
+Truncate returns the result of rounding t down to a multiple of duration.
+**/
+export truncate(t time, duration int) <time> => nil
+
+/**
+Reports whether any value is of time type.
+**/
+export isTime(any) <bool> => nil

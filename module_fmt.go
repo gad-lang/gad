@@ -115,7 +115,7 @@ func newFmtModule() Dict {
 			Value:    fmtNewSprint(fmt.Sprintln),
 		},
 		// gad:doc
-		// sscan(str str, scanArg[, *scanArg]) <int | error>
+		// sscan(str str, *scanArg) <int | error>
 		// Scans the argument str, storing successive space-separated values into
 		// successive scanArg arguments. Newlines count as space. If no error is
 		// encountered, it returns the number of items successfully scanned. If that
@@ -125,7 +125,7 @@ func newFmtModule() Dict {
 			Value:    fmtNewSscan(fmt.Sscan),
 		},
 		// gad:doc
-		// sscanf(str str, format str, scanArg[, *scanArg]) <int | error>
+		// sscanf(str str, format str, *scanArg) <int | error>
 		// Scans the argument str, storing successive space-separated values into
 		// successive scanArg arguments as determined by the format. It returns the
 		// number of items successfully parsed or an error.
@@ -134,7 +134,7 @@ func newFmtModule() Dict {
 			FuncName: "sscanf",
 			Value:    fmtNewSscanf(fmt.Sscanf),
 		},
-		// sscanln(str str, scanArg[, *scanArg]) <int | error>
+		// sscanln(str str, *scanArg) <int | error>
 		// Sscanln is similar to Sscan, but stops scanning at a newline and after
 		// the final item there must be a newline or EOF. It returns the number of
 		// items successfully parsed or an error.

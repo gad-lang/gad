@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad"
@@ -71,6 +72,20 @@ type docgroup struct {
 	// skipDesc skips the gad:doc comment description lines of the current
 	// function because the description is taken from the function's Usage.
 	skipDesc bool
+
+	// Structured capture for the `.gad` API emitter (emitAPIGad). Populated in
+	// parallel with the Markdown buckets so the public API can also be rendered
+	// as documented Gad `export` declarations.
+	api     []apiSym
+	curFunc *apiSym // the function currently accumulating description lines
+}
+
+// apiSym is one documented public-API symbol captured for the `.gad` emitter.
+type apiSym struct {
+	kind string   // "func" | "const"
+	name string   // symbol name
+	sig  string   // func: `name(params) <ret>`; const: the value literal
+	desc []string // description lines (Markdown), trimmed of trailing blanks
 }
 
 func (dg *docgroup) addError(msg string) {
@@ -237,8 +252,32 @@ func (dg *docgroup) processConstBlock(line string) {
 		dg.consts = append(dg.consts, line)
 		return
 	}
-	line = fmt.Sprintf("- `%s`: %s", strings.TrimSpace(line), getModuleItem(dg.module, line))
+	name := strings.TrimSpace(line)
+	// Capture the const for the `.gad` emitter only when it is a real module
+	// member (a bare name that resolves to a value); prose lines are skipped.
+	if lit := valueLiteral(dg.module, name); lit != "" {
+		dg.api = append(dg.api, apiSym{kind: "const", name: name, sig: lit})
+		dg.curFunc = nil // a const ends any function's description accumulation
+	}
+	line = fmt.Sprintf("- `%s`: %s", name, getModuleItem(dg.module, line))
 	dg.consts = append(dg.consts, line)
+}
+
+// valueLiteral returns the Gad source literal of a module const (a quoted str,
+// or the numeric/bool literal), or "" when the name is not a documentable
+// scalar value of the module.
+func valueLiteral(module, name string) string {
+	v := moduleData(module)[name]
+	if v == nil {
+		return ""
+	}
+	switch v.(type) {
+	case gad.Str:
+		return strconv.Quote(string(v.(gad.Str)))
+	case gad.Int, gad.Uint, gad.Float, gad.Bool, gad.Char:
+		return v.ToString()
+	}
+	return ""
 }
 
 func (dg *docgroup) processFuncBlock(line string) {
@@ -246,6 +285,11 @@ func (dg *docgroup) processFuncBlock(line string) {
 		// description line: skip it when the doc comes from the function Usage
 		if !dg.skipDesc {
 			dg.funcs = append(dg.funcs, line)
+		}
+		// Capture the description for the `.gad` emitter regardless of skipDesc:
+		// the API file documents each export with its own `///` doc.
+		if dg.curFunc != nil {
+			dg.curFunc.desc = append(dg.curFunc.desc, line)
 		}
 		return
 	}
@@ -271,6 +315,11 @@ func (dg *docgroup) processFuncBlock(line string) {
 		}
 		usage = strings.TrimSpace(fm.usage)
 	}
+
+	// Start a new structured API entry for the `.gad` emitter. `sig` is the full
+	// `name(params) <ret>` signature; the description accumulates below.
+	dg.api = append(dg.api, apiSym{kind: "func", name: name, sig: sig})
+	dg.curFunc = &dg.api[len(dg.api)-1]
 
 	if dg.funcHLine {
 		dg.funcs = append(dg.funcs, "---\n")
@@ -518,6 +567,18 @@ func extractPackageComments(pkg *ast.Package) ([]string, error) {
 }
 
 func main() {
+	// `gaddoc api <source dir> <output file.gad> <module>` emits the module's
+	// public API as a documented Gad source file (see api.go) instead of Markdown.
+	if len(os.Args) >= 2 && os.Args[1] == "api" {
+		if len(os.Args) < 5 {
+			fmt.Printf("usage: %s api <source dir> <output file.gad> <module>\n"+
+				"single \"-\" can be used as output to write to stdout\n", os.Args[0])
+			os.Exit(1)
+		}
+		checkerr(runAPIMode(os.Args[2], os.Args[3], os.Args[4]))
+		return
+	}
+
 	if len(os.Args) < 3 {
 		fmt.Printf("usage: %s <source dir> <output file>\n"+
 			"single \"-\" can be used to write to stdout", os.Args[0])

@@ -197,7 +197,7 @@ func newStringsModule() Dict {
 			Value:    stringsMapFuncInv,
 		},
 		// gad:doc
-		// padLeft(s str, padLen int[, padWith any]) <str>
+		// padLeft(s str, padLen int, padWith any) <str>
 		// Returns a string that is padded on the left with the string `padWith` until
 		// the `padLen` length is reached. If padWith is not given, a white space is
 		// used as default padding.
@@ -208,7 +208,7 @@ func newStringsModule() Dict {
 			},
 		},
 		// gad:doc
-		// padRight(s str, padLen int[, padWith any]) <str>
+		// padRight(s str, padLen int, padWith any) <str>
 		// Returns a string that is padded on the right with the string `padWith` until
 		// the `padLen` length is reached. If padWith is not given, a white space is
 		// used as default padding.
@@ -229,7 +229,7 @@ func newStringsModule() Dict {
 			Value:    funcPsiRO(stringsRepeatFunc),
 		},
 		// gad:doc
-		// replace(s str, old str, new str[, n int]) <str>
+		// replace(s str, old str, new str, n int) <str>
 		// Returns a copy of the string s with the first n non-overlapping instances
 		// of old replaced by new. If n is not provided or -1, it replaces all
 		// instances.
@@ -238,7 +238,7 @@ func newStringsModule() Dict {
 			Value:    stringsReplaceFunc,
 		},
 		// gad:doc
-		// split(s str, sep str[, n int]) <[str]>
+		// split(s str, sep str, n int) <[str]>
 		// Splits s into substrings separated by sep and returns an array of
 		// the substrings between those separators.
 		//
@@ -252,7 +252,7 @@ func newStringsModule() Dict {
 			Value:    stringsNewSplitFunc(strings.SplitN),
 		},
 		// gad:doc
-		// splitAfter(s str, sep str[, n int]) <[str]>
+		// splitAfter(s str, sep str, n int) <[str]>
 		// Slices s into substrings after each instance of sep and returns an array
 		// of those substrings.
 		//
@@ -296,7 +296,7 @@ func newStringsModule() Dict {
 			Value:    funcPsRO(stringsToUpperFunc),
 		},
 		// gad:doc
-		// toValidUTF8(s str[, replacement str]) <str>
+		// toValidUTF8(s str, replacement str) <str>
 		// Returns a copy of the string s with each run of invalid UTF-8 byte
 		// sequences replaced by the replacement string, which may be empty.
 		"toValidUTF8": &BuiltinFunction{
