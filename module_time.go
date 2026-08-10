@@ -159,7 +159,7 @@ func newTimeModule() StdModuleData {
 			},
 
 			// gad:doc
-			// monthString(m int) <month str>
+			// monthString(m Months) <str>
 			// Returns English name of the month m ("January", "February", ...).
 			"monthString": &BuiltinFunction{
 				FuncName: "monthString",
@@ -167,7 +167,7 @@ func newTimeModule() StdModuleData {
 			},
 
 			// gad:doc
-			// weekdayString(w int) <weekday str>
+			// weekdayString(w Weekdays) <str>
 			// Returns English name of the int weekday w, note that 0 is Sunday.
 			"weekdayString": &BuiltinFunction{
 				FuncName: "weekdayString",
@@ -175,77 +175,77 @@ func newTimeModule() StdModuleData {
 			},
 
 			// gad:doc
-			// durationString(d int) <str>
+			// durationString(d duration) <str>
 			// Returns a string representing the duration d in the form "72h3m0.5s".
 			"durationString": &BuiltinFunction{
 				FuncName: "durationString",
 				Value:    funcPi64RO(TimeDurationStringFunc),
 			},
 			// gad:doc
-			// durationNanoseconds(d int) <int>
+			// durationNanoseconds(d duration) <int>
 			// Returns the duration d as an int nanosecond count.
 			"durationNanoseconds": &BuiltinFunction{
 				FuncName: "durationNanoseconds",
 				Value:    funcPi64RO(TimeDurationNanosecondsFunc),
 			},
 			// gad:doc
-			// durationMicroseconds(d int) <int>
+			// durationMicroseconds(d duration) <int>
 			// Returns the duration d as an int microsecond count.
 			"durationMicroseconds": &BuiltinFunction{
 				FuncName: "durationMicroseconds",
 				Value:    funcPi64RO(TimeDurationMicrosecondsFunc),
 			},
 			// gad:doc
-			// durationMilliseconds(d int) <int>
+			// durationMilliseconds(d duration) <int>
 			// Returns the duration d as an int millisecond count.
 			"durationMilliseconds": &BuiltinFunction{
 				FuncName: "durationMilliseconds",
 				Value:    funcPi64RO(TimeDurationMillisecondsFunc),
 			},
 			// gad:doc
-			// durationSeconds(d int) <float>
+			// durationSeconds(d duration) <float>
 			// Returns the duration d as a floating point number of seconds.
 			"durationSeconds": &BuiltinFunction{
 				FuncName: "durationSeconds",
 				Value:    funcPi64RO(TimeDurationSecondsFunc),
 			},
 			// gad:doc
-			// durationMinutes(d int) <float>
+			// durationMinutes(d duration) <float>
 			// Returns the duration d as a floating point number of minutes.
 			"durationMinutes": &BuiltinFunction{
 				FuncName: "durationMinutes",
 				Value:    funcPi64RO(TimeDurationMinutesFunc),
 			},
 			// gad:doc
-			// durationHours(d int) <float>
+			// durationHours(d duration) <float>
 			// Returns the duration d as a floating point number of hours.
 			"durationHours": &BuiltinFunction{
 				FuncName: "durationHours",
 				Value:    funcPi64RO(TimeDurationHoursFunc),
 			},
 			// gad:doc
-			// sleep(duration int) <nil>
+			// sleep(d duration)
 			// Pauses the current goroutine for at least the duration.
 			"sleep": &BuiltinFunction{
 				FuncName: "sleep",
 				Value:    TimeSleepFunc,
 			},
 			// gad:doc
-			// parseDuration(s str) <duration int>
+			// parseDuration(s str) <duration>
 			// Parses duration s and returns duration as int or error.
 			"parseDuration": &BuiltinFunction{
 				FuncName: "parseDuration",
 				Value:    funcPsROe(TimeParseDurationFunc),
 			},
 			// gad:doc
-			// durationRound(duration int, m int) <duration int>
+			// durationRound(d duration, m duration) <duration>
 			// Returns the result of rounding duration to the nearest multiple of m.
 			"durationRound": &BuiltinFunction{
 				FuncName: "durationRound",
 				Value:    funcPi64i64RO(TimeDurationRoundFunc),
 			},
 			// gad:doc
-			// durationTruncate(duration int, m int) <duration int>
+			// durationTruncate(d duration, m duration) <duration>
 			// Returns the result of rounding duration toward zero to a multiple of m.
 			"durationTruncate": &BuiltinFunction{
 				FuncName: "durationTruncate",
@@ -281,21 +281,21 @@ func newTimeModule() StdModuleData {
 				Value:    funcPRO(TimeZerotimeFunc),
 			},
 			// gad:doc
-			// since(t time) <duration int>
+			// since(t time) <duration>
 			// Returns the time elapsed since t.
 			"since": &BuiltinFunction{
 				FuncName: "since",
 				Value:    FuncPTRO(TimeSinceFunc),
 			},
 			// gad:doc
-			// until(t time) <duration int>
+			// until(t time) <duration>
 			// Returns the duration until t.
 			"until": &BuiltinFunction{
 				FuncName: "until",
 				Value:    FuncPTRO(TimeUntilFunc),
 			},
 			// gad:doc
-			// date(year int, month int, day int, hour int, min int, sec int, nsec int, loc Location) <time>
+			// date(year int, month Months, day int, hour int, min int, sec int, nsec int, loc Location) <time>
 			// Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
 			// in the appropriate zone for that time in the given location. Zero values
 			// of optional arguments are used if not provided.
@@ -374,7 +374,7 @@ func newTimeModule() StdModuleData {
 				Value:    TimeUnixFunc,
 			},
 			// gad:doc
-			// add(t time, duration int) <time>
+			// add(t time, d duration) <time>
 			// Deprecated: Use .Add method of time object.
 			// Returns the time of t+duration.
 			"add": &BuiltinFunction{
@@ -382,7 +382,7 @@ func newTimeModule() StdModuleData {
 				Value:    FuncPTi64RO(TimeAdd),
 			},
 			// gad:doc
-			// sub(t1 time, t2 time) <int>
+			// sub(t1 time, t2 time) <duration>
 			// Deprecated: Use .Sub method of time object.
 			// Returns the duration of t1-t2.
 			"sub": &BuiltinFunction{
@@ -442,7 +442,7 @@ func newTimeModule() StdModuleData {
 				Value:    FuncPTLRO(TimeIn),
 			},
 			// gad:doc
-			// round(t time, duration int) <time>
+			// round(t time, d duration) <time>
 			// Deprecated: Use .Round method of time object.
 			// Round returns the result of rounding t to the nearest multiple of
 			// duration.
@@ -451,7 +451,7 @@ func newTimeModule() StdModuleData {
 				Value:    FuncPTi64RO(TimeRound),
 			},
 			// gad:doc
-			// truncate(t time, duration int) <time>
+			// truncate(t time, d duration) <time>
 			// Deprecated: Use .Truncate method of time object.
 			// Truncate returns the result of rounding t down to a multiple of duration.
 			"truncate": &BuiltinFunction{
@@ -541,15 +541,15 @@ func TimeParseDurationFunc(s string) (Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Int(d), nil
+	return Duration(d), nil
 }
 
 func TimeDurationRoundFunc(d, m int64) Object {
-	return Int(time.Duration(d).Round(time.Duration(m)))
+	return Duration(time.Duration(d).Round(time.Duration(m)))
 }
 
 func TimeDurationTruncateFunc(d, m int64) Object {
-	return Int(time.Duration(d).Truncate(time.Duration(m)))
+	return Duration(time.Duration(d).Truncate(time.Duration(m)))
 }
 
 func TimeFixedZoneFunc(name string, sec int) Object {
@@ -571,9 +571,9 @@ func TimeIsLocationFunc(o Object) Object {
 
 func TimeZerotimeFunc() Object { return TimeZeroTime }
 
-func TimeSinceFunc(t *Time) Object { return Int(time.Since(t.Value)) }
+func TimeSinceFunc(t *Time) Object { return Duration(time.Since(t.Value)) }
 
-func TimeUntilFunc(t *Time) Object { return Int(time.Until(t.Value)) }
+func TimeUntilFunc(t *Time) Object { return Duration(time.Until(t.Value)) }
 
 func TimeDateFunc(c Call) (Object, error) {
 	size := c.Args.Length()

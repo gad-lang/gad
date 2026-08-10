@@ -69,7 +69,7 @@ func (o *Time) Equal(right Object) bool {
 //
 // - `time + int` -> time
 // - `time - int` -> time
-// - `time - time` -> int
+// - `time - time` -> duration
 // - `time < time` -> bool
 // - `time > time` -> bool
 // - `time <= time` -> bool
@@ -96,7 +96,7 @@ func (o *Time) BinOpSub(_ *VM, right Object) (Object, error) {
 	case Duration:
 		return &Time{Value: o.Value.Add(-time.Duration(v))}, nil
 	case *Time:
-		return Int(o.Value.Sub(v.Value)), nil
+		return Duration(o.Value.Sub(v.Value)), nil
 	}
 	return nil, NewOperandTypeError(token.Sub.String(), o.Type().Name(), right.Type().Name())
 }
@@ -196,7 +196,7 @@ func (o *Time) IndexGet(_ *VM, index Object) (Object, error) {
 // | Method                               | Return Type                                 |
 // |:-------------------------------------|:--------------------------------------------|
 // |.Add(duration int)                    | time                                        |
-// |.Sub(t2 time)                         | int                                         |
+// |.Sub(t2 time)                         | duration                                    |
 // |.AddDate(year int, month int, day int)| int                                         |
 // |.After(t2 time)                       | bool                                        |
 // |.Before(t2 time)                      | bool                                        |
@@ -559,7 +559,7 @@ func TimeAdd(t *Time, duration int64) Object {
 }
 
 func TimeSub(t1, t2 *Time) Object {
-	return Int(t1.Value.Sub(t2.Value))
+	return Duration(t1.Value.Sub(t2.Value))
 }
 
 func TimeAddDate(t *Time, years, months, days int) Object {

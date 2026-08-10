@@ -268,7 +268,7 @@ func TestModuleTime(t *testing.T) {
 	since := module["since"].(gad.CallerObject)
 	r, err = gad.MustCall(since, &Time{Value: now})
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, int64(r.(gad.Int)), int64(0))
+	require.GreaterOrEqual(t, int64(r.(gad.Duration)), int64(0))
 	_, err = gad.MustCall(since)
 	require.Error(t, err)
 	_, err = gad.MustCall(since, gad.Str(""))
@@ -277,7 +277,7 @@ func TestModuleTime(t *testing.T) {
 	until := module["until"].(gad.CallerObject)
 	r, err = gad.MustCall(until, &Time{Value: now})
 	require.NoError(t, err)
-	require.LessOrEqual(t, int64(r.(gad.Int)), int64(0))
+	require.LessOrEqual(t, int64(r.(gad.Duration)), int64(0))
 	_, err = gad.MustCall(until)
 	require.Error(t, err)
 	_, err = gad.MustCall(until, gad.Str(""))
@@ -342,7 +342,7 @@ func TestModuleTime(t *testing.T) {
 	sub := module["sub"].(gad.CallerObject)
 	r, err = gad.MustCall(sub, &Time{Value: now}, &Time{Value: now.Add(-time.Hour)})
 	require.NoError(t, err)
-	require.EqualValues(t, time.Hour, r.(gad.Int))
+	require.EqualValues(t, time.Hour, r.(gad.Duration))
 	_, err = gad.MustCall(sub, &Time{Value: now})
 	require.Error(t, err)
 	_, err = gad.MustCall(sub, &Time{Value: now}, gad.Int(0))
@@ -654,7 +654,7 @@ func TestScript(t *testing.T) {
 	t1 := time.now()
 	t2 := t1 + time.Second
 	return t2 - t1
-	`, nil, gad.Int(time.Second))
+	`, nil, gad.Duration(time.Second))
 
 	// methods
 	// .Add
@@ -669,7 +669,7 @@ func TestScript(t *testing.T) {
 	t1 := time.time()
 	t2 := time.time().Add(10*time.Second)
 	return t2.Sub(t1)`,
-		nil, gad.Int(10*time.Second))
+		nil, gad.Duration(10*time.Second))
 	expectRun(t, catch(`time.time().Sub()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.time().Sub(1, 2)`), nil, nwrongArgs(1, -1, 2))
 	expectRun(t, catch(`time.time().Sub(nil)`), nil, typeErr("1st", "time", "nil"))

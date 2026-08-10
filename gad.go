@@ -363,6 +363,10 @@ func ToGoInt64(o Object) (v int64, ok bool) {
 		// A duration is an int64 nanosecond count, so it satisfies the int-typed
 		// time functions (e.g. durationString(time.Second)).
 		v, ok = int64(o), true
+	case *EnumValue:
+		// An enum member stands in for its underlying value, so an int-typed
+		// function accepts it (e.g. monthString(time.Months.January)).
+		return ToGoInt64(o.Value)
 	case Uint:
 		v, ok = int64(o), true
 	case Float:
