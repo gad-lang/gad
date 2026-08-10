@@ -67,7 +67,7 @@ WEBSITE_ADDR ?= :8090
 # Build the docs website (with the WASM playground + the embedded ide-vuetify
 # demo, which needs bun) and serve it locally. Open http://localhost:8090.
 .PHONY: website
-website:
+website: generate-docs
 	go run ./cmd/build-website build --out $(WEBSITE_OUT)
 	@echo "Serving on http://localhost$(WEBSITE_ADDR) (Ctrl-C to stop)"
 	go run ./cmd/build-website serve --out $(WEBSITE_OUT) --addr $(WEBSITE_ADDR)
