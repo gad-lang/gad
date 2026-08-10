@@ -93,13 +93,7 @@ Type is a type of Time Value
 
 ### Weekdays
 
-Sunday
-Monday
-Tuesday
-Wednesday
-Thursday
-Friday
-Saturday
+Weekdays
 
 ### Layouts
 
@@ -155,7 +149,7 @@ type Time struct {
 
 - `time + int` -> time
 - `time - int` -> time
-- `time - time` -> int
+- `time - time` -> duration
 - `time < time` -> bool
 - `time > time` -> bool
 - `time <= time` -> bool
@@ -197,7 +191,7 @@ Dynamically calculated getters for a time value are as follows:
 | Method                               | Return Type                                 |
 |:-------------------------------------|:--------------------------------------------|
 |.Add(duration int)                    | time                                        |
-|.Sub(t2 time)                         | int                                         |
+|.Sub(t2 time)                         | duration                                    |
 |.AddDate(year int, month int, day int)| int                                         |
 |.After(t2 time)                       | bool                                        |
 |.Before(t2 time)                      | bool                                        |
@@ -241,79 +235,76 @@ Returns the system's local time zone location.
 
 ---
 
-`monthString(m int) <month str>`
+`monthString(m Months) <str>`
 
 Returns English name of the month m ("January", "February", ...).
 
 ---
 
-`weekdayString(w int) <weekday str>`
+`weekdayString(w Weekdays) <str>`
 
 Returns English name of the int weekday w, note that 0 is Sunday.
 
 ---
 
-`durationString(d int) <str>`
+`durationString(d duration) <str>`
 
 Returns a string representing the duration d in the form "72h3m0.5s".
 
 ---
 
-`durationNanoseconds(d int) <int>`
+`durationNanoseconds(d duration) <int>`
 
 Returns the duration d as an int nanosecond count.
 
 ---
 
-`durationMicroseconds(d int) <int>`
+`durationMicroseconds(d duration) <int>`
 
 Returns the duration d as an int microsecond count.
 
 ---
 
-`durationMilliseconds(d int) <int>`
+`durationMilliseconds(d duration) <int>`
 
 Returns the duration d as an int millisecond count.
 
 ---
 
-`durationSeconds(d int) <float>`
+`durationSeconds(d duration) <float>`
 
 Returns the duration d as a floating point number of seconds.
 
 ---
 
-`durationMinutes(d int) <float>`
+`durationMinutes(d duration) <float>`
 
 Returns the duration d as a floating point number of minutes.
 
 ---
 
-`durationHours(d int) <float>`
+`durationHours(d duration) <float>`
 
 Returns the duration d as a floating point number of hours.
 
----
-
-`sleep(duration int) <nil>`
-
+sleep(d duration)
 Pauses the current goroutine for at least the duration.
 
 ---
 
-`parseDuration(s str) <duration int>`
+`parseDuration(s str) <duration>`
 
 Parses duration s and returns duration as int or error.
 
 ---
 
-`durationRound(duration int, m int) <duration int>`
+`durationRound(d duration, m duration) <duration>`
 
 Returns the result of rounding duration to the nearest multiple of m.
 
 ---
 
-`durationTruncate(duration int, m int) <duration int>`
+`durationTruncate(d duration, m duration) <duration>`
 
 Returns the result of rounding duration toward zero to a multiple of m.
 
@@ -344,19 +335,19 @@ Returns zero time.
 
 ---
 
-`since(t time) <duration int>`
+`since(t time) <duration>`
 
 Returns the time elapsed since t.
 
 ---
 
-`until(t time) <duration int>`
+`until(t time) <duration>`
 
 Returns the duration until t.
 
 ---
 
-`date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc Location]) <time>`
+`date(year int, month Months, day int, hour int, min int, sec int, nsec int, loc Location) <time>`
 
 Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
 in the appropriate zone for that time in the given location. Zero values
@@ -370,7 +361,7 @@ Returns the current local time.
 
 ---
 
-`parse(layout str, value str[, loc Location]) <time>`
+`parse(layout str, value str, loc Location) <time>`
 
 Parses a formatted string and returns the time value it represents.
 If location is not provided, ToInterface's `time.Parse` function is called
@@ -409,7 +400,7 @@ Parses a location from an offset ("-0300"/"-03:00") or an IANA name.
 
 ---
 
-`unix(sec int[, nsec int]) <time>`
+`unix(sec int, nsec int) <time>`
 
 Returns the local time corresponding to the given Unix time,
 sec seconds and nsec nanoseconds since January 1, 1970 UTC.
@@ -417,14 +408,14 @@ Zero values of optional arguments are used if not provided.
 
 ---
 
-`add(t time, duration int) <time>`
+`add(t time, d duration) <time>`
 
 Deprecated: Use .Add method of time object.
 Returns the time of t+duration.
 
 ---
 
-`sub(t1 time, t2 time) <int>`
+`sub(t1 time, t2 time) <duration>`
 
 Deprecated: Use .Sub method of time object.
 Returns the duration of t1-t2.
@@ -477,7 +468,7 @@ location information set to loc for display purposes.
 
 ---
 
-`round(t time, duration int) <time>`
+`round(t time, d duration) <time>`
 
 Deprecated: Use .Round method of time object.
 Round returns the result of rounding t to the nearest multiple of
@@ -485,7 +476,7 @@ duration.
 
 ---
 
-`truncate(t time, duration int) <time>`
+`truncate(t time, d duration) <time>`
 
 Deprecated: Use .Truncate method of time object.
 Truncate returns the result of rounding t down to a multiple of duration.
