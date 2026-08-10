@@ -40,6 +40,17 @@ func TestRawInterpolatedStringNoEscape(t *testing.T) {
 	testExpectRun(t, "name := \"Gad\"; return #```C:\\{name}```", nil, RawStr(`C:\Gad`))
 }
 
+// TestInterpolatedRawString covers the interpolated raw string “ #`…` “ from
+// the docs "String forms" table: it interpolates `{expr}` and evaluates to a
+// rawStr, next to its cooked `#"…"` counterpart which yields a str.
+func TestInterpolatedRawString(t *testing.T) {
+	testExpectRun(t, `name := "Gad"; return #`+"`hi {name}`", nil, RawStr("hi Gad"))
+	testExpectRun(t, `name := "Gad"; return typeName(#`+"`hi {name}`)", nil, Str("rawstr"))
+	// cooked counterpart is a str
+	testExpectRun(t, `name := "Gad"; return #"hi {name}"`, nil, Str("hi Gad"))
+	testExpectRun(t, `name := "Gad"; return typeName(#"hi {name}")`, nil, Str("str"))
+}
+
 // TestGadQuoteBuiltins verifies the gad.quote / gad.unquote builtins: the str and
 // rawstr overloads pick the cooked vs raw literal form, maxCols switches to a
 // multiline heredoc, and quote/unquote round-trip the value.

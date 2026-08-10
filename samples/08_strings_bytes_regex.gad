@@ -3,12 +3,13 @@
 
 ## String forms
 
-| Form                | Example          | Type     | Escapes? |
-|---------------------|------------------|----------|----------|
-| string              | `"a\tb"`         | `str`    | yes      |
-| raw string          | `` `a\tb` ``     | `rawStr` | no       |
-| `raw` prefix        | `raw "x"`        | `rawStr` | n/a      |
-| interpolated string | `#"hi {name}"`   | `str`    | yes      |
+| Form                    | Example            | Type     | Escapes? | Interp. |
+|-------------------------|--------------------|----------|----------|---------|
+| string                  | `"a\tb"`           | `str`    | yes      | no      |
+| raw string              | `` `a\tb` ``       | `rawStr` | no       | no      |
+| `raw` prefix            | `raw "x"`          | `rawStr` | n/a      | no      |
+| interpolated string     | `#"hi {name}"`     | `str`    | yes      | `{…}`   |
+| interpolated raw string | `` #`hi {name}` `` | `rawStr` | no       | `{…}`   |
 
 `str` and `rawStr` interoperate; mixing them in `+` yields a string. `raw EXPR`
 produces a `rawStr` from any expression (folded at compile time for a string
@@ -93,11 +94,14 @@ the pipe `.|`.
 **/
 
 //snippet forms
-a := "tab\there"   // str with escapes
-b := `no\tescape`  // rawStr, verbatim
-c := raw "x" + "y" // raw (x + y) -> rawStr "xy"
-[a, b, c, typeName(b)]
-/**= ["tab\there", `no\tescape`, `xy`, "rawstr"] **/
+name := "Gad"
+a := "tab\there"    // str with escapes
+b := `no\tescape`   // rawStr, verbatim
+c := raw "x" + "y"  // raw (x + y) -> rawStr "xy"
+d := #"hi {name}"   // interpolated string -> str "hi Gad"
+e := #`hi {name}`   // interpolated raw string -> rawStr "hi Gad" (\ verbatim)
+[a, b, c, d, e, typeName(b), typeName(e)]
+/**= ["tab\there", `no\tescape`, `xy`, "hi Gad", `hi Gad`, "rawstr", "rawstr"] **/
 //endsnippet
 
 //snippet rawforms

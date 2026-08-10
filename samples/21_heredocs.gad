@@ -29,16 +29,30 @@ more** quotes/backticks, PostgreSQL-style — when either:
 
 ## Heredocs
 
-A heredoc is delimited by a fence of three or more `"` (or `` ` ``):
+A heredoc is delimited by a fence of `"` (or `` ` ``):
 
 - `"""…"""` — a `str`: escapes interpreted.
 - `` ```…``` `` — a **raw** `rawStr`: verbatim (no escapes, no interpolation).
 - `#"""…"""` / `` #```…``` `` — the template forms, adding `{expr}` interpolation
   (raw templates keep the backslash literal — there is no `\{` escape).
 
-Because the fence is three quotes, a single `"` inside the body is just text. In
-the multi-line form the opening/closing fence lines are dropped and the **common
-leading indentation is stripped**, so a heredoc stays aligned with the
+### Fence width — an odd count of three or more
+
+The fence is an **odd** number of the delimiter, **three or more**: `"""` (3),
+`"""""` (5), `"""""""` (7), … (and the same in backticks). An even-length fence is
+not a heredoc. A **wider fence lets the body contain shorter runs of the
+delimiter** without closing early — the fence only closes on a run of *exactly*
+the opening width. So inside a `"""` heredoc a single or doubled `"` is just text,
+inside a `"""""` (five) heredoc a literal `"""` is text, and so on:
+
+```
+"""say "hi" now"""            // a single "  → say "hi" now
+""""" a triple """ inside """""  // fence 5, body has """ → a triple """ inside
+`````raw ``` fence`````        // fence 5 backticks, body has ``` → raw ``` fence
+```
+
+In the multi-line form the opening/closing fence lines are dropped and the
+**common leading indentation is stripped**, so a heredoc stays aligned with the
 surrounding code.
 
 ## Code strings (`code … end`)
@@ -72,6 +86,13 @@ println("""abc""de""")      // abc""de
 // escape sequences are interpreted, like a normal "..." string.
 println("""tab\tend""")     // tab<TAB>end
 println("""quote: \"x\"""") // quote: "x"
+
+// --- heredoc: wider odd fence (embed shorter delimiter runs) ---
+// The fence is an odd count of 3+; a wider one closes only on a run of exactly
+// its width, so the body may hold shorter runs of the delimiter.
+println("""say "hi" now""")                  // say "hi" now
+println(""""" a triple """ inside """"")     // a triple """ inside  (fence of 5)
+println(`````raw ``` fence`````)             // raw ``` fence         (fence of 5)
 
 // --- heredoc: multi line (common indentation stripped) ---
 poem := """
@@ -107,6 +128,21 @@ println(#`user home: C:\Users\{name}`)  // user home: C:\Users\Gad
 
 // --- template raw heredoc: #``` ... ``` (interpolated, escapes verbatim) ---
 println(#```path: C:\tmp\{name}```)  // path: C:\tmp\Gad
+
+// multi-line template raw heredoc: interpolated, backslashes verbatim, and the
+// common leading indentation stripped.
+println(#```
+    dir: C:\Users\{name}
+    n+1 = {n + 1}
+    ```)                    // dir: C:\Users\Gad<newline>n+1 = 4
+
+// --- multi-line interpolated heredoc with common indentation removed ---
+// The 4-space body indent is stripped, and {name} is interpolated.
+greeting := #"""
+    Hello, {name}.
+    Welcome aboard.
+    """
+println(greeting)           // Hello, Gad.<newline>Welcome aboard.
 
 // --- code string: verbatim Gad source captured as a str ---
 src := code
