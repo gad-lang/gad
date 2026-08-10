@@ -26,10 +26,22 @@ len(h.params)    // 2
 h.params[0].name // "a"
 ```
 
+## Type Interface
+Interface is the value of an `interface { … }` declaration: a structural
+contract of typed fields, getter/setter properties, required methods and an
+optional `parse { … }` group of signatures. It is compiled to a bytecode
+constant; parameter/field types are stored as symbols and resolved per-VM.
+
+Members are read with indexing:
+  - `i.name`    -> str
+  - `i.fields`  -> array of InterfaceField
+  - `i.props`   -> array of InterfaceProp
+  - `i.methods` -> array of InterfaceMethod
+
 ## Type MethodInterface
 MethodInterface is a set of required function headers, produced by a `meti`
 expression: `meti { (), (v) <int> }`. Use `implements(fn, mi)` to test whether
-a callable provides every header, `mi + mi2` (or `mi ++ [mi2, …]`) to merge.
+a callable provides every header, and `mi + mi2` (or `mi ++ [mi2, …]`) to merge.
 
 ```gad
 Stringer := meti { () <str> }
@@ -120,7 +132,7 @@ Hour
 
 ToInterface Type
 
-```gad
+```go
 // Location represents location values and implements Object interface.
 type Location struct {
    ObjectImpl
@@ -132,7 +144,7 @@ type Location struct {
 
 ToInterface Type
 
-```gad
+```go
 // Time represents time values and implements Object interface.
 type Time struct {
   Value time.Time
@@ -483,7 +495,3 @@ Truncate returns the result of rounding t down to a multiple of duration.
 `isTime(any) <bool>`
 
 Reports whether any value is of time type.
-
-## See also
-
-For a runnable example, see `samples/stdlib/use_time.gad`.

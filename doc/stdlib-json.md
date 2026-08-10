@@ -136,7 +136,3 @@ Unmarshal parses the JSON-encoded p and returns the result or error.
 `Valid(p bytes) <bool>`
 
 Reports whether p is a valid JSON encoding.
-
-## See also
-
-For a runnable example, see `samples/stdlib/use_json.gad`.
