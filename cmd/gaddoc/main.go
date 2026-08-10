@@ -76,16 +76,48 @@ type docgroup struct {
 	// Structured capture for the `.gad` API emitter (emitAPIGad). Populated in
 	// parallel with the Markdown buckets so the public API can also be rendered
 	// as documented Gad `export` declarations.
-	api     []apiSym
-	curFunc *apiSym // the function currently accumulating description lines
+	api        []apiSym
+	curFuncIdx int // index into api of the func accumulating desc/overloads; -1 if none
 }
 
 // apiSym is one documented public-API symbol captured for the `.gad` emitter.
 type apiSym struct {
-	kind string   // "func" | "const"
-	name string   // symbol name
-	sig  string   // func: `name(params) <ret>`; const: the value literal
-	desc []string // description lines (Markdown), trimmed of trailing blanks
+	kind string // "func" | "const"
+	name string // symbol name
+	sig  string // const: the value literal
+	desc []string
+	// overloads holds a function's one-or-more signatures (consecutive gad:doc
+	// signature lines sharing the name); each carries its own description.
+	overloads []apiOverload
+}
+
+// apiOverload is one signature of a (possibly multi-signature) function.
+type apiOverload struct {
+	sig  string   // `name(params) <ret>`
+	desc []string // description lines, trimmed of trailing blanks
+}
+
+// captureFuncSig records a signature line for the API emitter, grouping
+// consecutive signatures that share the function name as overloads of one entry.
+func (dg *docgroup) captureFuncSig(name, sig string) {
+	if dg.curFuncIdx >= 0 && dg.api[dg.curFuncIdx].kind == "func" && dg.api[dg.curFuncIdx].name == name {
+		dg.api[dg.curFuncIdx].overloads = append(dg.api[dg.curFuncIdx].overloads, apiOverload{sig: sig})
+	} else {
+		dg.api = append(dg.api, apiSym{kind: "func", name: name, overloads: []apiOverload{{sig: sig}}})
+		dg.curFuncIdx = len(dg.api) - 1
+	}
+}
+
+// appendFuncDesc attaches a description line to the current function's latest
+// overload.
+func (dg *docgroup) appendFuncDesc(line string) {
+	if dg.curFuncIdx < 0 {
+		return
+	}
+	ovs := dg.api[dg.curFuncIdx].overloads
+	if n := len(ovs); n > 0 {
+		ovs[n-1].desc = append(ovs[n-1].desc, line)
+	}
 }
 
 func (dg *docgroup) addError(msg string) {
@@ -93,6 +125,7 @@ func (dg *docgroup) addError(msg string) {
 }
 
 func (dg *docgroup) process(comments []string) {
+	dg.curFuncIdx = -1
 	dg.types = append(dg.types, "## Types\n")
 	dg.consts = append(dg.consts, "## Constants\n")
 	dg.funcs = append(dg.funcs, "## Functions\n")
@@ -257,7 +290,7 @@ func (dg *docgroup) processConstBlock(line string) {
 	// member (a bare name that resolves to a value); prose lines are skipped.
 	if lit := valueLiteral(dg.module, name); lit != "" {
 		dg.api = append(dg.api, apiSym{kind: "const", name: name, sig: lit})
-		dg.curFunc = nil // a const ends any function's description accumulation
+		dg.curFuncIdx = -1 // a const ends any function's description accumulation
 	}
 	line = fmt.Sprintf("- `%s`: %s", name, getModuleItem(dg.module, line))
 	dg.consts = append(dg.consts, line)
@@ -287,10 +320,9 @@ func (dg *docgroup) processFuncBlock(line string) {
 			dg.funcs = append(dg.funcs, line)
 		}
 		// Capture the description for the `.gad` emitter regardless of skipDesc:
-		// the API file documents each export with its own `///` doc.
-		if dg.curFunc != nil {
-			dg.curFunc.desc = append(dg.curFunc.desc, line)
-		}
+		// the API file documents each export with its own doc, attached to the
+		// current function's latest overload.
+		dg.appendFuncDesc(line)
 		return
 	}
 
@@ -316,10 +348,8 @@ func (dg *docgroup) processFuncBlock(line string) {
 		usage = strings.TrimSpace(fm.usage)
 	}
 
-	// Start a new structured API entry for the `.gad` emitter. `sig` is the full
-	// `name(params) <ret>` signature; the description accumulates below.
-	dg.api = append(dg.api, apiSym{kind: "func", name: name, sig: sig})
-	dg.curFunc = &dg.api[len(dg.api)-1]
+	// Capture the signature for the `.gad` emitter (groups overloads by name).
+	dg.captureFuncSig(name, sig)
 
 	if dg.funcHLine {
 		dg.funcs = append(dg.funcs, "---\n")

@@ -140,21 +140,26 @@ func neutralizeFences(lines []string) []string {
 	return out
 }
 
-// exportParses reports whether `export <decl>` is syntactically valid Gad. The
-// parser may panic (rather than return an error) on some malformed input, so the
-// panic is recovered and reported as "does not parse".
-func exportParses(decl string) (ok bool) {
+// parsesRaw reports whether src is syntactically valid Gad. The parser may panic
+// (rather than return an error) on some malformed input, so the panic is
+// recovered and reported as "does not parse".
+func parsesRaw(src string) (ok bool) {
 	defer func() {
 		if recover() != nil {
 			ok = false
 		}
 	}()
-	src := "export " + decl + "\n"
 	fs := source.NewFileSet()
-	f := fs.AddFileData("api", -1, []byte(src))
+	f := fs.AddFileData("api", -1, []byte(src+"\n"))
 	_, err := gadparser.NewParser(f, nil).ParseFile()
 	return err == nil
 }
+
+// exportParses reports whether `export <decl>` is valid Gad.
+func exportParses(decl string) bool { return parsesRaw("export " + decl) }
+
+// exportParsesRaw reports whether a full export statement source is valid Gad.
+func exportParsesRaw(src string) bool { return parsesRaw(src) }
 
 // emitAPIGad renders the module's public API as a documented Gad source file and
 // returns it together with any warnings (signatures that did not parse and were
@@ -178,24 +183,10 @@ func emitAPIGad(dg *docgroup) (string, []string) {
 	for _, s := range dg.api {
 		switch s.kind {
 		case "func":
-			sig := normalizeSig(s.sig)
-			decl := sig + " => nil"
-			desc := trimBlankEdges(neutralizeFences(s.desc))
-			switch {
-			case exportParses(decl):
-				writeDocBlock(&b, desc)
-				b.WriteString("export " + decl + "\n\n")
-			case exportParses(s.name + "(*args) => nil"):
-				// The typed signature does not parse (a form the grammar cannot
-				// express); fall back to an untyped variadic stub and keep the
-				// real (prose) signature in the doc for the reader.
-				warnings = append(warnings, fmt.Sprintf("%s: signature does not parse: %s", s.name, sig))
-				writeDocBlock(&b, append([]string{"`" + sig + "`", ""}, desc...))
-				b.WriteString("export " + s.name + "(*args) => nil\n\n")
-			default:
-				// Even the bare name does not parse as an export (a reserved
-				// keyword such as `in`); skip it so the file stays valid.
-				warnings = append(warnings, fmt.Sprintf("%s: reserved name, skipped", s.name))
+			if len(s.overloads) > 1 {
+				emitOverloadedFunc(&b, s.name, s.overloads, &warnings)
+			} else if len(s.overloads) == 1 {
+				emitSingleFunc(&b, s.name, s.overloads[0], &warnings)
 			}
 		case "const":
 			writeDocBlock(&b, trimBlankEdges(neutralizeFences(s.desc)))
@@ -204,6 +195,81 @@ func emitAPIGad(dg *docgroup) (string, []string) {
 	}
 
 	return strings.TrimRight(b.String(), "\n") + "\n", warnings
+}
+
+// emitSingleFunc writes a single-signature function export: the typed
+// `export name(params) <ret> => nil` when it parses, an untyped variadic stub
+// (with the real signature kept in the doc) when it does not, or nothing when
+// the name is reserved.
+func emitSingleFunc(b *strings.Builder, name string, ov apiOverload, warnings *[]string) {
+	sig := normalizeSig(ov.sig)
+	decl := sig + " => nil"
+	desc := trimBlankEdges(neutralizeFences(ov.desc))
+	switch {
+	case exportParses(decl):
+		writeDocBlock(b, desc)
+		b.WriteString("export " + decl + "\n\n")
+	case exportParses(name + "(*args) => nil"):
+		*warnings = append(*warnings, fmt.Sprintf("%s: signature does not parse: %s", name, sig))
+		writeDocBlock(b, append([]string{"`" + sig + "`", ""}, desc...))
+		b.WriteString("export " + name + "(*args) => nil\n\n")
+	default:
+		*warnings = append(*warnings, fmt.Sprintf("%s: reserved name, skipped", name))
+	}
+}
+
+// emitOverloadedFunc writes a multi-signature function as
+// `export func NAME { (params) <ret> => nil … }`, one method per overload with
+// its own doc. If the whole declaration does not parse it degrades to a single
+// untyped variadic stub keeping every signature in the doc.
+func emitOverloadedFunc(b *strings.Builder, name string, overloads []apiOverload, warnings *[]string) {
+	headers := make([]string, len(overloads))
+	for i, ov := range overloads {
+		headers[i] = stripSigName(normalizeSig(ov.sig))
+	}
+
+	var body strings.Builder
+	body.WriteString("export func " + name + " {\n")
+	for i, ov := range overloads {
+		for _, d := range trimBlankEdges(neutralizeFences(ov.desc)) {
+			body.WriteString(docLine(d))
+		}
+		body.WriteString(headers[i] + " => nil\n")
+	}
+	body.WriteString("}")
+
+	if exportParsesRaw(body.String()) {
+		b.WriteString(body.String())
+		b.WriteString("\n\n")
+		return
+	}
+
+	// Fallback: an untyped stub documenting each real signature.
+	*warnings = append(*warnings, fmt.Sprintf("%s: overloads do not parse", name))
+	doc := make([]string, 0, len(overloads)*2)
+	for _, ov := range overloads {
+		doc = append(doc, "`"+name+stripSigName(normalizeSig(ov.sig))+"`")
+	}
+	writeDocBlock(b, doc)
+	b.WriteString("export " + name + "(*args) => nil\n\n")
+}
+
+// stripSigName removes the leading function name from a signature, leaving the
+// parenthesized parameter list and return: `f(a int) <int>` -> `(a int) <int>`.
+func stripSigName(sig string) string {
+	if i := strings.IndexByte(sig, '('); i >= 0 {
+		return sig[i:]
+	}
+	return sig
+}
+
+// docLine renders one description line as a `///` doc-comment line (used for a
+// method's doc inside a func-with-methods body).
+func docLine(s string) string {
+	if s == "" {
+		return "///\n"
+	}
+	return "/// " + s + "\n"
 }
 
 // writeDocBlock writes a `/** … **/` block doc comment for the given lines,
