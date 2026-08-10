@@ -17,7 +17,7 @@ func ReflectModule() StdModuleData { return newReflectModule() }
 // and reflect.set writes value at key verbatim (overwriting — and thus removing
 // — any Prop stored there, without invoking its setter).
 func newReflectModule() StdModuleData {
-	return StdModuleDataFromDict(Dict{
+	return StdModuleData{Funcs: Dict{
 		// gad:doc
 		// # reflect module
 		//
@@ -43,7 +43,7 @@ func newReflectModule() StdModuleData {
 			Module:   reflectModuleSpec,
 			Value:    reflectSetFunc,
 		},
-	})
+	}}
 }
 
 // reflectGetFunc implements reflect.get(target, key): the raw value at key, with

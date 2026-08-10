@@ -20,7 +20,7 @@ func FmtModule() StdModuleData { return newFmtModule() }
 
 // newFmtModule builds the `fmt` builtin namespace (Go's fmt: print/scan).
 func newFmtModule() StdModuleData {
-	return StdModuleDataFromDict(Dict{
+	return StdModuleData{Funcs: Dict{
 		// gad:doc
 		// # fmt module
 		//
@@ -156,7 +156,7 @@ func newFmtModule() StdModuleData {
 			FuncName: "scanArg",
 			Value:    fmtNewScanArgFunc,
 		},
-	})
+	}}
 }
 
 func fmtNewPrint(fn func(...any) (int, error)) CallableFunc {

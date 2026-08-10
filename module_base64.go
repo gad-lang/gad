@@ -23,4 +23,4 @@ var base64Module = Dict{
 // Base64Module returns the `base64` builtin namespace as StdModuleData with its
 // encodings in the read-only Consts bucket. It is also used by the stdlib
 // `encoding/base64` importable module.
-func Base64Module() StdModuleData { return StdModuleDataFromDict(base64Module) }
+func Base64Module() StdModuleData { return StdModuleData{Consts: base64Module} }

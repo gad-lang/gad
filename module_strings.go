@@ -23,7 +23,7 @@ func StringsModule() StdModuleData { return newStringsModule() }
 
 // newStringsModule builds the `strings` builtin namespace (Go's strings).
 func newStringsModule() StdModuleData {
-	return StdModuleDataFromDict(Dict{
+	return StdModuleData{Funcs: Dict{
 		// gad:doc
 		// # strings module
 		//
@@ -531,7 +531,7 @@ func newStringsModule() StdModuleData {
 				return stringsTruncFunc(s, limit, emph.Value.ToString()), nil
 			},
 		},
-	})
+	}}
 }
 
 func stringsContainsFunc(s, substr string) Object {
