@@ -96,6 +96,10 @@ type (
 		// are emitted once as a single dict + OpExtendModule after the last export
 		// statement (see compileFileStmts / flushExports).
 		pendingExports []*node.DictElementLit
+		// pendingConstExports accumulates the `export const` entries; they are
+		// emitted as a separate dict + OpExtendModuleConst so the runtime declares
+		// them as read-only module constants (see flushExports).
+		pendingConstExports []*node.DictElementLit
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -1363,7 +1367,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule, OpGlobals,
-		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpSetReturnModule, OpToRawStr,
+		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpExtendModuleConst, OpSetReturnModule, OpToRawStr,
 		OpAssign, OpEnv, OpEnvGet, OpDelete:
 		return buf, nil
 	default:

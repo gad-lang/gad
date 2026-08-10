@@ -55,7 +55,7 @@ func (o StdModuleData) isConst(key string) bool {
 // classes and other callables are not — they are ordinary members.
 func isModuleFunc(v Object) bool {
 	switch v.(type) {
-	case *CompiledFunction, *Function, *BuiltinFunction:
+	case *CompiledFunction, *Function, *BuiltinFunction, *Func:
 		return true
 	}
 	return false
@@ -115,6 +115,13 @@ func (o StdModuleData) IndexSet(vm *VM, index, value Object) error {
 	case o.isConst(key):
 		return ErrNotIndexAssignable.NewError("cannot assign to constant " + key + " (use .@consts)")
 	case o.isFunc(key):
+		// A function may be replaced by another function — this is how
+		// `met mod.f(…)` extends it in place — but it cannot be clobbered by a
+		// non-function value; mutate the bucket via .@funcs for that.
+		if isModuleFunc(value) {
+			o.Funcs[key] = value
+			return nil
+		}
 		return ErrNotIndexAssignable.NewError("cannot assign to function " + key + " (use .@funcs)")
 	}
 	if o.Vars == nil {
@@ -171,4 +178,11 @@ func (o StdModuleData) Items(vm *VM, cb ItemsGetterCallback) error {
 // Iterate implements Iterabler.
 func (o StdModuleData) Iterate(vm *VM, na *NamedArgs) Iterator {
 	return o.merged().Iterate(vm, na)
+}
+
+// Print implements Printabler: the module data renders as its merged dict, so
+// `repr(module)` shows the members transparently (the @vars/@consts/@funcs
+// buckets are reached explicitly).
+func (o StdModuleData) Print(state *PrinterState) error {
+	return o.merged().Print(state)
 }

@@ -3852,7 +3852,11 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 	if err != nil {
 		return err
 	}
-	c.pendingExports = append(c.pendingExports, elems...)
+	if nd.Const {
+		c.pendingConstExports = append(c.pendingConstExports, elems...)
+	} else {
+		c.pendingExports = append(c.pendingExports, elems...)
+	}
 	return nil
 }
 
@@ -3920,16 +3924,24 @@ func (c *Compiler) exportElements(nd *node.ExportStmt) ([]*node.DictElementLit, 
 // followed by one OpExtendModule (merging every entry into the module object).
 // It is a no-op when there are no pending exports.
 func (c *Compiler) flushExports(nd ast.Node) error {
-	if len(c.pendingExports) == 0 {
-		return nil
+	if len(c.pendingExports) > 0 {
+		dict := &node.DictExpr{Elements: c.pendingExports}
+		c.pendingExports = nil
+		if err := c.Compile(dict); err != nil {
+			return err
+		}
+		c.emit(nd, OpExtendModule)
+		c.emit(nd, OpPop)
 	}
-	dict := &node.DictExpr{Elements: c.pendingExports}
-	c.pendingExports = nil
-	if err := c.Compile(dict); err != nil {
-		return err
+	if len(c.pendingConstExports) > 0 {
+		dict := &node.DictExpr{Elements: c.pendingConstExports}
+		c.pendingConstExports = nil
+		if err := c.Compile(dict); err != nil {
+			return err
+		}
+		c.emit(nd, OpExtendModuleConst)
+		c.emit(nd, OpPop)
 	}
-	c.emit(nd, OpExtendModule)
-	c.emit(nd, OpPop)
 	return nil
 }
 

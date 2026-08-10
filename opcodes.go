@@ -102,6 +102,7 @@ const (
 	OpComputedValue
 	OpAddMethod
 	OpExtendModule
+	OpExtendModuleConst
 	OpToRawStr
 	OpAddMethodOverride
 	OpAssign
@@ -188,6 +189,7 @@ var OpcodeNames = [...]string{
 	OpComputedValue:     "COMPUTEDVALUE",
 	OpAddMethod:         "ADDMETHOD",
 	OpExtendModule:      "EXTENDMODULE",
+	OpExtendModuleConst: "EXTENDMODULECONST",
 	OpToRawStr:          "TORAWSTR",
 	OpAddMethodOverride: "ADDMETHODOVERRIDE",
 	OpAssign:            "ASSIGN",
@@ -274,6 +276,7 @@ var OpcodeOperands = [...][]int{
 	OpComputedValue:     {},
 	OpAddMethod:         {1, 1}, // 0: number of selectors, 1: number of funcs
 	OpExtendModule:      {},
+	OpExtendModuleConst: {},
 	OpToRawStr:          {},
 	OpAddMethodOverride: {1, 1}, // 0: number of selectors, 1: number of funcs
 	OpAssign:            {},     // obj :: type -> obj (or throw if not assignable)

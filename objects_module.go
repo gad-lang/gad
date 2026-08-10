@@ -69,7 +69,10 @@ func NewModule(static *ModuleSpec, f ...func(m *Module)) *Module {
 	}
 
 	if m.Data == nil {
-		m.Data = Dict{}
+		// StdModuleData keeps variables, constants and functions apart, so a
+		// compiled module's `export const` is const-enforced and its exported
+		// functions land in the Funcs bucket (see OpExtendModule/OpExtendModuleConst).
+		m.Data = NewStdModuleData()
 	}
 
 	return m
@@ -173,19 +176,45 @@ func (m *Module) IndexSet(vm *VM, index, value Object) error {
 }
 
 func (m *Module) Set(key string, value Object) {
+	m.Data.Set(key, m.moduleScoped(key, value))
+}
+
+// ConstStringIndexSetter is a StringIndexSetter whose members can also be
+// declared as read-only constants. Module.SetConst routes `export const` here;
+// see StdModuleData.
+type ConstStringIndexSetter interface {
+	StringIndexSetter
+	SetConst(key string, value Object)
+}
+
+// SetConst declares a read-only module constant, applying the same module
+// scoping as Set. When the module Data cannot distinguish constants it degrades
+// to a plain Set (the value is present but not const-enforced).
+func (m *Module) SetConst(key string, value Object) {
+	value = m.moduleScoped(key, value)
+	if cs, ok := m.Data.(ConstStringIndexSetter); ok {
+		cs.SetConst(key, value)
+		return
+	}
+	m.Data.Set(key, value)
+}
+
+// moduleScoped qualifies a function/type value with this module's spec so its
+// name reports as `mod.name`; other values pass through unchanged.
+func (m *Module) moduleScoped(_ string, value Object) Object {
 	switch t := value.(type) {
 	case *Function:
 		t = Copy(t)
 		t.SetModule(m.Spec)
-		value = t
+		return t
 	case *Type:
 		t = Copy(t)
 		t.Module = m.Spec
-		value = t
+		return t
 	case ModuleSetter:
 		t.SetModule(m.Spec)
 	}
-	m.Data.Set(key, value)
+	return value
 }
 
 func (m *Module) Print(state *PrinterState) (err error) {

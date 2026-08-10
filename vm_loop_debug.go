@@ -97,6 +97,22 @@ VMLoop:
 				vm.err = err
 				return
 			}
+		case OpExtendModuleConst:
+			data := vm.stack[vm.sp-1]
+			if d, _ := data.(Dict); d != nil {
+				ms := vm.CurrentModuleSpec()
+				module := vm.modulesCache[ms.Index]
+				if module == nil {
+					module = NewModule(ms)
+					vm.modulesCache[ms.Index] = module
+				}
+				for k, v := range d {
+					module.SetConst(k, v)
+				}
+			} else if err := vm.throwGenErr(ErrType.NewErrorf("%s can't extend Module consts", data.Type().FullName())); err != nil {
+				vm.err = err
+				return
+			}
 		case OpSelfAssign:
 			tok := token.Token(vm.curInsts[vm.ip+1])
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
