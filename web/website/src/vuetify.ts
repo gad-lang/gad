@@ -2,6 +2,8 @@ import "vuetify/styles";
 import "@mdi/font/css/materialdesignicons.css";
 import { createVuetify } from "vuetify";
 import type { ThemeDefinition } from "vuetify";
+import * as components from "vuetify/components";
+import * as directives from "vuetify/directives";
 
 // Palette drawn from the Gad logo: cyan #06B6D4 (primary), amber #D97706
 // (secondary/gazelle), navy #0D1B2A / #1B263B (surfaces), slate #415A77.
@@ -47,6 +49,8 @@ export function initialTheme(): "light" | "dark" {
 }
 
 export const vuetify = createVuetify({
+  components,
+  directives,
   theme: {
     defaultTheme: initialTheme(),
     themes: { light, dark },

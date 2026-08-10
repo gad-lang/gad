@@ -14,16 +14,19 @@
         document.documentElement.dataset.theme = t;
       })();
       // The app's base is the directory that serves index.html (a version dir like
-      // /latest/ on deploy, or / locally). Capture it before the SPA-redirect
-      // decode below rewrites the URL.
+      // /latest/ on deploy, or / locally).
       window.__BASE__ = location.pathname;
-      // Decode a 404.html SPA redirect (`<base>/?/docs/x` -> `<base>/docs/x`).
+      // Decode a 404.html SPA redirect (`<base>/?/docs/x`). The route is stashed
+      // for the app to navigate to AFTER it mounts — we must NOT rewrite the URL
+      // here, or the module script's relative `./assets/…` would resolve against
+      // the (deeper) route path and 404 before the app can load.
       (function (l) {
         if (l.search[1] === "/") {
-          var decoded = l.search.slice(1).split("&").map(function (s) {
-            return s.replace(/~and~/g, "&");
-          }).join("?");
-          window.history.replaceState(null, "", l.pathname.slice(0, -1) + decoded + l.hash);
+          window.__SPA_REDIRECT__ = l.search
+            .slice(1)
+            .split("&")
+            .map(function (s) { return s.replace(/~and~/g, "&"); })
+            .join("?") + l.hash;
         }
       })(window.location);
     </script>

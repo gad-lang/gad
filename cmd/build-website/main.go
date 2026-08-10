@@ -114,19 +114,29 @@ func serveCommand() *cc.Command {
 	}
 }
 
-// spaHandler serves static files from dir, falling back to index.html for any
-// non-file, non-asset path so the history-mode SPA's deep links work under local
-// preview (mirroring the deployed GitHub Pages 404.html redirect).
+// spaHandler serves static files from dir. For an unknown, extension-less path
+// (a history-mode SPA deep link) it mirrors the deployed GitHub Pages 404.html
+// redirect: it sends the browser to `/?/<path>` so index.html always loads at the
+// site root — keeping its relative asset URLs and runtime base detection correct
+// — and the app decodes the query back into the route.
 func spaHandler(dir string) http.Handler {
 	fs := http.FileServer(http.Dir(dir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clean := filepath.Clean(r.URL.Path)
+		if clean == "/" {
+			fs.ServeHTTP(w, r)
+			return
+		}
 		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(clean))); err == nil {
 			fs.ServeHTTP(w, r)
 			return
 		}
 		if filepath.Ext(clean) == "" {
-			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+			target := "/?/" + strings.TrimPrefix(clean, "/")
+			if r.URL.RawQuery != "" {
+				target += "&" + strings.ReplaceAll(r.URL.RawQuery, "&", "~and~")
+			}
+			http.Redirect(w, r, target, http.StatusFound)
 			return
 		}
 		fs.ServeHTTP(w, r)
