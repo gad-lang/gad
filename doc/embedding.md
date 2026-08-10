@@ -330,6 +330,94 @@ options. Builtin modules are `map[string]Object`; any value implementing
 (`importers.FileImporter`) that resolves module files along `GADPATH` — see
 [Modules](samples/26_embed.md) for the script-side view.
 
+### Native Go modules with `StdModuleData`
+
+A **native module** is one whose members live in Go. Register a
+`gad.ModuleInitFunc` — called the first time the module is imported — and set the
+module's `Data`:
+
+```go
+func(module *gad.Module, c gad.Call) (err error) { module.Data = …; return }
+```
+
+`Data` is any value implementing `gad.ModuleData`. The standard implementation,
+**`gad.StdModuleData`**, keeps a module's members in three disjoint buckets:
+
+| Field    | Kind      | `module.name = x` (from a script) |
+| -------- | --------- | --------------------------------- |
+| `Vars`   | variables | allowed (reassigns the variable)  |
+| `Consts` | constants | rejected — read-only              |
+| `Funcs`  | functions | rejected — mutate via `@funcs`    |
+
+Reads (`m.name`, `len(m)`, `for k, v in m`) see the merged view; only `Vars` is
+writable through `m.name = x`. Assign the data **by value** — `StdModuleData`
+satisfies `ModuleData` without a pointer, so no `&` is needed.
+
+Because the buckets are plain `gad.Dict`s (Go maps, i.e. reference values), an
+exported function can **close over the very dict the module exposes** and mutate
+shared state the rest of the module observes:
+
+```go
+package counter
+
+import "github.com/gad-lang/gad"
+
+// ModuleInit builds a `counter` module: a read-only Start, a mutable n, and
+// functions that operate on the shared n.
+var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err error) {
+    vars := gad.Dict{"n": gad.Int(0)} // exported, mutable
+
+    funcs := gad.Dict{
+        // inc() closes over `vars`, so it mutates the exported `n`.
+        "inc": &gad.Function{FuncName: "inc", Value: func(gad.Call) (gad.Object, error) {
+            vars["n"] = vars["n"].(gad.Int) + 1
+            return vars["n"], nil
+        }},
+        "get": &gad.Function{FuncName: "get", Value: func(gad.Call) (gad.Object, error) {
+            return vars["n"], nil
+        }},
+    }
+
+    module.Data = gad.StdModuleData{
+        Vars:   vars,
+        Consts: gad.Dict{"Start": gad.Int(0)}, // read-only
+        Funcs:  funcs,
+    }
+    return
+}
+```
+
+Register it in the module map and import it from a script:
+
+```go
+mm := gad.NewModuleMap()
+mm.AddBuiltinModuleInit("counter", counter.ModuleInit)
+opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{ModuleMap: mm}}
+```
+
+```gad
+c := import("counter")
+c.inc(); c.inc()
+c.get()        // 2 — the function sees the exported var
+c.n            // 2 — read the variable directly
+c.n = 10       // ok: `n` is a variable
+c.Start = 1    // error: cannot assign to constant Start (use .@consts)
+```
+
+The three buckets are also reachable as live dicts for reflection or controlled
+mutation: `c.@vars`, `c.@consts`, `c.@funcs`. Writing through them bypasses the
+read-only guard (`c.@consts["Start"] = 1`), so treat them as the deliberate
+escape hatch.
+
+To populate incrementally instead of building the dicts up front, start from
+`gad.NewStdModuleData()` and call `Set(name, value)` (a variable, or a function
+when the value is one) and `SetConst(name, value)` (a constant); each keeps the
+buckets disjoint.
+
+> Prefer `StdModuleData` for new modules. A bare `gad.Dict` still works as
+> `ModuleData` (every member mutable, no const/func distinction) and remains the
+> form some builtin modules use.
+
 ### Source modules and dialects
 
 A source module carries the dialect it must be compiled as. An importer returns

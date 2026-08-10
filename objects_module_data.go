@@ -17,7 +17,12 @@ type StdModuleData struct {
 	Funcs Dict
 }
 
-var _ ModuleData = (*StdModuleData)(nil)
+// StdModuleData satisfies ModuleData by value (its methods have value
+// receivers), so a Go module may assign either `StdModuleData{…}` or a pointer.
+var (
+	_ ModuleData = StdModuleData{}
+	_ ModuleData = (*StdModuleData)(nil)
+)
 
 // NewStdModuleData returns an empty StdModuleData ready to populate.
 func NewStdModuleData() *StdModuleData {
@@ -26,7 +31,7 @@ func NewStdModuleData() *StdModuleData {
 
 // merged returns a combined view of the variables, functions and constants. The
 // three buckets hold disjoint keys, so the merge order is irrelevant.
-func (o *StdModuleData) merged() Dict {
+func (o StdModuleData) merged() Dict {
 	d := make(Dict, len(o.Vars)+len(o.Funcs)+len(o.Consts))
 	for k, v := range o.Vars {
 		d[k] = v
@@ -41,7 +46,7 @@ func (o *StdModuleData) merged() Dict {
 }
 
 // isConst reports whether key names a constant.
-func (o *StdModuleData) isConst(key string) bool {
+func (o StdModuleData) isConst(key string) bool {
 	_, ok := o.Consts[key]
 	return ok
 }
@@ -57,25 +62,25 @@ func isModuleFunc(v Object) bool {
 }
 
 // Type implements Object.
-func (o *StdModuleData) Type() ObjectType { return o.merged().Type() }
+func (o StdModuleData) Type() ObjectType { return o.merged().Type() }
 
 // ToString implements Object.
-func (o *StdModuleData) ToString() string { return o.merged().ToString() }
+func (o StdModuleData) ToString() string { return o.merged().ToString() }
 
 // Equal implements Object.
-func (o *StdModuleData) Equal(right Object) bool { return o.merged().Equal(right) }
+func (o StdModuleData) Equal(right Object) bool { return o.merged().Equal(right) }
 
 // IsFalsy implements Object: the data is falsy when it holds nothing.
-func (o *StdModuleData) IsFalsy() bool {
+func (o StdModuleData) IsFalsy() bool {
 	return len(o.Vars) == 0 && len(o.Funcs) == 0 && len(o.Consts) == 0
 }
 
 // Length implements LengthGetter.
-func (o *StdModuleData) Length() int { return len(o.Vars) + len(o.Funcs) + len(o.Consts) }
+func (o StdModuleData) Length() int { return len(o.Vars) + len(o.Funcs) + len(o.Consts) }
 
 // IndexGet implements IndexGetter: constants shadow variables (they never
 // coexist), then variables are consulted.
-func (o *StdModuleData) IndexGet(vm *VM, index Object) (Object, error) {
+func (o StdModuleData) IndexGet(vm *VM, index Object) (Object, error) {
 	key := index.ToString()
 	switch key {
 	case "@vars":
@@ -96,7 +101,7 @@ func (o *StdModuleData) IndexGet(vm *VM, index Object) (Object, error) {
 }
 
 // isFunc reports whether key names a function.
-func (o *StdModuleData) isFunc(key string) bool {
+func (o StdModuleData) isFunc(key string) bool {
 	_, ok := o.Funcs[key]
 	return ok
 }
@@ -104,7 +109,7 @@ func (o *StdModuleData) isFunc(key string) bool {
 // IndexSet implements IndexSetter: `module.name = x` writes only to a variable.
 // A constant or a function cannot be reassigned this way (mutate them through
 // `module.@consts` / `module.@funcs`, which expose the live dicts).
-func (o *StdModuleData) IndexSet(vm *VM, index, value Object) error {
+func (o StdModuleData) IndexSet(vm *VM, index, value Object) error {
 	key := index.ToString()
 	switch {
 	case o.isConst(key):
@@ -121,7 +126,7 @@ func (o *StdModuleData) IndexSet(vm *VM, index, value Object) error {
 // Set implements StringIndexSetter: it declares (or updates) a member, routing
 // functions to Funcs and everything else to Vars (the three buckets stay
 // disjoint). Use SetConst to declare a constant.
-func (o *StdModuleData) Set(key string, value Object) {
+func (o StdModuleData) Set(key string, value Object) {
 	delete(o.Consts, key)
 	if isModuleFunc(value) {
 		if o.Funcs == nil {
@@ -140,7 +145,7 @@ func (o *StdModuleData) Set(key string, value Object) {
 
 // SetConst declares (or updates) a read-only constant, removing any variable or
 // function of the same name so the three buckets stay disjoint.
-func (o *StdModuleData) SetConst(key string, value Object) {
+func (o StdModuleData) SetConst(key string, value Object) {
 	if o.Consts == nil {
 		o.Consts = Dict{}
 	}
@@ -150,20 +155,20 @@ func (o *StdModuleData) SetConst(key string, value Object) {
 }
 
 // ToDict implements ToDictConverter: the merged view of all members.
-func (o *StdModuleData) ToDict() Dict { return o.merged() }
+func (o StdModuleData) ToDict() Dict { return o.merged() }
 
 // Keys implements KeysGetter.
-func (o *StdModuleData) Keys() Array { return o.merged().Keys() }
+func (o StdModuleData) Keys() Array { return o.merged().Keys() }
 
 // Values implements ValuesGetter.
-func (o *StdModuleData) Values() Array { return o.merged().Values() }
+func (o StdModuleData) Values() Array { return o.merged().Values() }
 
 // Items implements ItemsGetter.
-func (o *StdModuleData) Items(vm *VM, cb ItemsGetterCallback) error {
+func (o StdModuleData) Items(vm *VM, cb ItemsGetterCallback) error {
 	return o.merged().Items(vm, cb)
 }
 
 // Iterate implements Iterabler.
-func (o *StdModuleData) Iterate(vm *VM, na *NamedArgs) Iterator {
+func (o StdModuleData) Iterate(vm *VM, na *NamedArgs) Iterator {
 	return o.merged().Iterate(vm, na)
 }

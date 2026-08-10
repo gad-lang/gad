@@ -58,6 +58,30 @@ func TestStdModuleData(t *testing.T) {
 	}
 }
 
+// TestStdModuleDataClosure documents the intended Go-module pattern: an exported
+// function closes over the same `vars` dict the module exposes, so calling it
+// mutates state the module (and other exports) observe. The data is assigned by
+// value — StdModuleData satisfies ModuleData without a pointer.
+func TestStdModuleDataClosure(t *testing.T) {
+	vars := Dict{"x": Int(2)}
+	incX := &Function{FuncName: "incX", Value: func(Call) (Object, error) {
+		vars["x"] = vars["x"].(Int) + 1 // mutate the shared exported variable
+		return vars["x"], nil
+	}}
+
+	var data ModuleData = StdModuleData{Vars: vars, Funcs: Dict{"incX": incX}}
+
+	if v, _ := data.IndexGet(nil, Str("x")); !v.Equal(Int(2)) {
+		t.Fatalf("x before = %v", v)
+	}
+	if _, err := incX.Value(Call{}); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := data.IndexGet(nil, Str("x")); !v.Equal(Int(3)) {
+		t.Fatalf("x after incX = %v (function should see the exported var)", v)
+	}
+}
+
 // TestStdModuleDataDisjoint verifies a key never lands in two buckets at once as
 // it is redeclared across kinds.
 func TestStdModuleDataDisjoint(t *testing.T) {
