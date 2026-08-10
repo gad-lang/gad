@@ -93,67 +93,65 @@ export local() <Location> => nil
 /**
 Returns English name of the month m ("January", "February", ...).
 **/
-export monthString(m int) <month str> => nil
+export monthString(m Months) <str> => nil
 
 /**
 Returns English name of the int weekday w, note that 0 is Sunday.
 **/
-export weekdayString(w int) <weekday str> => nil
+export weekdayString(w Weekdays) <str> => nil
 
 /**
 Returns a string representing the duration d in the form "72h3m0.5s".
 **/
-export durationString(d int) <str> => nil
+export durationString(d duration) <str> => nil
 
 /**
 Returns the duration d as an int nanosecond count.
 **/
-export durationNanoseconds(d int) <int> => nil
+export durationNanoseconds(d duration) <int> => nil
 
 /**
 Returns the duration d as an int microsecond count.
 **/
-export durationMicroseconds(d int) <int> => nil
+export durationMicroseconds(d duration) <int> => nil
 
 /**
 Returns the duration d as an int millisecond count.
 **/
-export durationMilliseconds(d int) <int> => nil
+export durationMilliseconds(d duration) <int> => nil
 
 /**
 Returns the duration d as a floating point number of seconds.
 **/
-export durationSeconds(d int) <float> => nil
+export durationSeconds(d duration) <float> => nil
 
 /**
 Returns the duration d as a floating point number of minutes.
 **/
-export durationMinutes(d int) <float> => nil
+export durationMinutes(d duration) <float> => nil
 
 /**
 Returns the duration d as a floating point number of hours.
-**/
-export durationHours(d int) <float> => nil
 
-/**
+sleep(d duration)
 Pauses the current goroutine for at least the duration.
 **/
-export sleep(duration int) => nil
+export durationHours(d duration) <float> => nil
 
 /**
 Parses duration s and returns duration as int or error.
 **/
-export parseDuration(s str) <duration int> => nil
+export parseDuration(s str) <duration> => nil
 
 /**
 Returns the result of rounding duration to the nearest multiple of m.
 **/
-export durationRound(duration int, m int) <duration int> => nil
+export durationRound(d duration, m duration) <duration> => nil
 
 /**
 Returns the result of rounding duration toward zero to a multiple of m.
 **/
-export durationTruncate(duration int, m int) <duration int> => nil
+export durationTruncate(d duration, m duration) <duration> => nil
 
 /**
 Returns a Location that always uses the given zone name and offset
@@ -179,19 +177,19 @@ export time() <time> => nil
 /**
 Returns the time elapsed since t.
 **/
-export since(t time) <duration int> => nil
+export since(t time) <duration> => nil
 
 /**
 Returns the duration until t.
 **/
-export until(t time) <duration int> => nil
+export until(t time) <duration> => nil
 
 /**
 Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
 in the appropriate zone for that time in the given location. Zero values
 of optional arguments are used if not provided.
 **/
-export date(year int, month int, day int, hour int, min int, sec int, nsec int, loc Location) <time> => nil
+export date(year int, month Months, day int, hour int, min int, sec int, nsec int, loc Location) <time> => nil
 
 /**
 Returns the current local time.
@@ -242,13 +240,13 @@ export unix(sec int, nsec int) <time> => nil
 Deprecated: Use .Add method of time object.
 Returns the time of t+duration.
 **/
-export add(t time, duration int) <time> => nil
+export add(t time, d duration) <time> => nil
 
 /**
 Deprecated: Use .Sub method of time object.
 Returns the duration of t1-t2.
 **/
-export sub(t1 time, t2 time) <int> => nil
+export sub(t1 time, t2 time) <duration> => nil
 
 /**
 Deprecated: Use .AddDate method of time object.
@@ -288,13 +286,13 @@ Deprecated: Use .Round method of time object.
 Round returns the result of rounding t to the nearest multiple of
 duration.
 **/
-export round(t time, duration int) <time> => nil
+export round(t time, d duration) <time> => nil
 
 /**
 Deprecated: Use .Truncate method of time object.
 Truncate returns the result of rounding t down to a multiple of duration.
 **/
-export truncate(t time, duration int) <time> => nil
+export truncate(t time, d duration) <time> => nil
 
 /**
 Reports whether any value is of time type.
