@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	. "github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/quote"
 )
 
@@ -73,6 +74,28 @@ func TestQuoteCompilerRoundTrip(t *testing.T) {
 			got, err := run("return " + lit)
 			if err != nil || got.ToString() != s {
 				t.Errorf("Quote(%q, %+v)=%q -> compiler err=%v ret=%q", s, o, lit, err, got)
+			}
+		}
+	}
+}
+
+// TestNodeLiteralCodegenRoundTrip verifies a string literal node built from a
+// value (node.Str / node.RawStr) formats to source that the compiler parses back
+// to the original value — including values needing a wider raw fence.
+func TestNodeLiteralCodegenRoundTrip(t *testing.T) {
+	run := func(src string) (Object, error) {
+		cr, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), CompileOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return NewVM(NewBuiltins().Build(), cr.BC()).Run()
+	}
+	for _, v := range []string{"hello", "a\tb", "a`b", "x```y", "with \" quote", "", `c:\path`} {
+		for _, n := range []node.Expr{node.Str(v, 0), node.RawStr(v, 0)} {
+			src := n.String()
+			got, err := run("return " + src)
+			if err != nil || got.ToString() != v {
+				t.Errorf("%T(%q) -> %q -> err=%v ret=%q", n, v, src, err, got)
 			}
 		}
 	}

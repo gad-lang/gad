@@ -560,19 +560,20 @@ func (e *RawStrLit) String() string {
 
 func (e *RawStrLit) Value() string {
 	if e.Quoted {
-		s, _ := strconv.Unquote(e.Literal)
-		return s
-	} else {
-		return e.Literal
+		v, _ := quote.UnquoteRaw(e.Literal)
+		return v
 	}
+	return e.Literal
 }
 
 func (e *RawStrLit) QuotedValue() string {
 	if e.Quoted {
 		return e.Literal
-	} else {
-		return quote.QuoteDelim(e.Literal, "`")
 	}
+	// Format an unquoted value as a valid raw literal (a wider backtick fence when
+	// the value itself contains backticks), so a programmatically-built node emits
+	// real code.
+	return quote.QuoteRaw(e.Literal)
 }
 
 func (e *RawStrLit) WriteCode(ctx *CodeWriteContext) {
@@ -1277,7 +1278,8 @@ func (e *RawHeredocLit) String() string {
 }
 
 func (e *RawHeredocLit) Value() string {
-	return stripHeredocIndent(e.RawContent(), e.StripCount())
+	v, _ := quote.UnquoteRawHeredoc(e.Literal)
+	return v
 }
 
 func (e *RawHeredocLit) WriteCode(ctx *CodeWriteContext) {
@@ -1368,7 +1370,8 @@ func (e *HeredocLit) String() string {
 }
 
 func (e *HeredocLit) Value() string {
-	return unescapeHeredoc(stripHeredocIndent(e.RawContent(), e.StripCount()))
+	v, _ := quote.UnquoteHeredoc(e.Literal)
+	return v
 }
 
 func (e *HeredocLit) WriteCode(ctx *CodeWriteContext) {

@@ -2,7 +2,6 @@ package node
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
@@ -383,12 +382,17 @@ func Decimal(value string, pos source.Pos) *DecimalLit {
 	return &DecimalLit{Value: v, ValuePos: pos}
 }
 
+// Str builds a cooked string literal node from a value; its Literal is the value
+// encoded as a valid `"…"` literal, so formatting the node emits real code.
 func Str(value string, pos source.Pos) *StrLit {
-	return &StrLit{Literal: strconv.Quote(value), ValuePos: pos}
+	return &StrLit{Literal: quote.QuoteString(value), ValuePos: pos}
 }
 
+// RawStr builds a raw string literal node. value may be a raw content string or an
+// already-quoted “ `…` “ / “ ```…``` “ literal (detected by a leading
+// backtick); either way Value decodes and formatting emits a valid raw literal.
 func RawStr(value string, pos source.Pos) *RawStrLit {
-	return &RawStrLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
+	return &RawStrLit{Literal: value, LiteralPos: pos, Quoted: len(value) > 0 && value[0] == '`'}
 }
 
 func RawHeredoc(value string, pos source.Pos) *RawHeredocLit {
