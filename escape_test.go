@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	. "github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/quote"
 )
 
 // TestInterpolatedStringBraceEscape verifies `\{` / `\}` escape the interpolation
@@ -47,4 +48,32 @@ func TestGadQuoteBuiltins(t *testing.T) {
 	testExpectRun(t, `return gad.quote("x\ny\nz"; maxCols=5)`, nil, Str("\"\"\"x\ny\nz\"\"\""))
 	testExpectRun(t, `return gad.unquote("\"a\\tb\"")`, nil, Str("a\tb"))
 	testExpectRun(t, `x := "a\tb\nc"; return gad.unquote(gad.quote(x)) == x`, nil, True)
+}
+
+// TestQuoteCompilerRoundTrip verifies quote.Quote output always parses in the Gad
+// compiler back to the original value, across cooked/raw forms, widths and fence
+// widths — including edge content (empty, boundary quotes/backticks, indentation,
+// delimiter runs).
+func TestQuoteCompilerRoundTrip(t *testing.T) {
+	run := func(src string) (Object, error) {
+		cr, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), CompileOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return NewVM(NewBuiltins().Build(), cr.BC()).Run()
+	}
+	values := []string{
+		"", "hi", "a\tb", "a\nb", "  indent\nb", "has \" q", "ends \"",
+		"\"starts", "l1\nl2\nl3\nl4", "back`tick", "runs```here", "`edge", "edge`",
+	}
+	opts := []quote.Options{{}, {Raw: true}, {MaxLineWidth: 3}, {MaxLineWidth: 3, Fence: 5}, {Raw: true, MaxLineWidth: 3}}
+	for _, s := range values {
+		for _, o := range opts {
+			lit := quote.Quote(s, o)
+			got, err := run("return " + lit)
+			if err != nil || got.ToString() != s {
+				t.Errorf("Quote(%q, %+v)=%q -> compiler err=%v ret=%q", s, o, lit, err, got)
+			}
+		}
+	}
 }

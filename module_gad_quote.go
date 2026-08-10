@@ -24,6 +24,7 @@ func buildGadQuoteFuncs() {
 		}),
 		FunctionWithNamedParams(func(np func(name string) *NamedParamBuilder) {
 			np("maxCols").Type(TInt).Usage("max chars per line before going multiline (default 120)")
+			np("fence").Type(TInt).Usage("heredoc start/end delimiter count, odd >= 3 (default 3)")
 		}),
 	)
 	// gad.quote(s rawstr; maxCols=120) -> str : encode s as a raw `…` literal
@@ -36,6 +37,7 @@ func buildGadQuoteFuncs() {
 		}),
 		FunctionWithNamedParams(func(np func(name string) *NamedParamBuilder) {
 			np("maxCols").Type(TInt).Usage("max chars per line before going multiline (default 120)")
+			np("fence").Type(TInt).Usage("heredoc start/end delimiter count, odd >= 3 (default 3)")
 		}),
 	)
 	gadQuoteFn = AddMethod(quoteStr, quoteRaw)
@@ -60,23 +62,27 @@ func buildGadQuoteFuncs() {
 	gadUnquoteFn = AddMethod(unquoteStr, unquoteRaw)
 }
 
-// maxColsArg reads the `maxCols` named argument, defaulting to
-// quote.DefaultMaxLineWidth (120) when absent.
-func maxColsArg(c Call) int {
+// quoteOptions reads the `maxCols` and `fence` named arguments, defaulting to
+// 120 columns and a fence of 3.
+func quoteOptions(c Call, raw bool) quote.Options {
+	o := quote.Options{MaxLineWidth: quote.DefaultMaxLineWidth, Raw: raw}
 	if v, ok := c.NamedArgs.GetValueOrNil("maxCols").(Int); ok {
-		return int(v)
+		o.MaxLineWidth = int(v)
 	}
-	return quote.DefaultMaxLineWidth
+	if v, ok := c.NamedArgs.GetValueOrNil("fence").(Int); ok {
+		o.Fence = int(v)
+	}
+	return o
 }
 
 func gadQuoteStr(c Call) (Object, error) {
 	s, _ := c.Args.Get(0).(Str)
-	return Str(quote.Quote(string(s), quote.Options{MaxLineWidth: maxColsArg(c)})), nil
+	return Str(quote.Quote(string(s), quoteOptions(c, false))), nil
 }
 
 func gadQuoteRaw(c Call) (Object, error) {
 	s, _ := c.Args.Get(0).(RawStr)
-	return Str(quote.Quote(string(s), quote.Options{MaxLineWidth: maxColsArg(c), Raw: true})), nil
+	return Str(quote.Quote(string(s), quoteOptions(c, true))), nil
 }
 
 func gadUnquoteStr(c Call) (Object, error) {

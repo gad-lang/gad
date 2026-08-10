@@ -24,6 +24,11 @@ import (
 // DefaultMaxLineWidth is the per-line width Quote targets when none is given.
 const DefaultMaxLineWidth = 120
 
+// DefaultHeredocFence is the heredoc start/end delimiter count Quote uses when
+// none is given: three (`"""` / “ ``` “). Fences are widened past any longer
+// run in the body and are always odd, as the Gad scanner requires.
+const DefaultHeredocFence = 3
+
 // Options controls Quote's choice of literal form.
 type Options struct {
 	// MaxLineWidth makes Quote prefer a multi-line (heredoc) form when a
@@ -31,6 +36,10 @@ type Options struct {
 	// content actually spans lines. Zero selects DefaultMaxLineWidth; a negative
 	// value disables the width heuristic (always single-line when possible).
 	MaxLineWidth int
+	// Fence is the heredoc start/end delimiter count (an odd number >= 3). Zero
+	// selects DefaultHeredocFence (3). It is widened past any longer delimiter run
+	// in the body so the fence cannot appear inside it.
+	Fence int
 	// Raw prefers the verbatim (backtick) forms over the cooked (`"…"`) ones.
 	Raw bool
 }
@@ -45,24 +54,23 @@ func (o Options) maxWidth() int {
 // Quote encodes s as the most readable Gad string literal for opts: a
 // single-delimiter form when it fits on one line, or a heredoc when the content
 // spans lines and a single-line literal would exceed the line-width limit
-// (default 120). The result always round-trips through Unquote.
+// (default 120). The result always round-trips through Unquote and parses in Gad.
 func Quote(s string, opts ...Options) string {
 	var o Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	width := o.maxWidth()
 	if o.Raw {
 		// A raw single-backtick string already spans lines verbatim and a heredoc
 		// of the same body is no narrower, so QuoteRaw's choice is the best raw form
 		// regardless of width.
-		return QuoteRaw(s)
+		return QuoteRaw(s, o.Fence)
 	}
 	single := QuoteString(s)
-	if fitsWidth(single, width) || !strings.Contains(s, "\n") {
+	if fitsWidth(single, o.maxWidth()) || !strings.Contains(s, "\n") || !heredocSafeCooked(s) {
 		return single
 	}
-	return QuoteHeredoc(s)
+	return QuoteHeredoc(s, o.Fence)
 }
 
 // Unquote decodes any Gad string literal — cooked or raw, single-delimiter or
@@ -151,14 +159,15 @@ func UnquoteRawString(lit string) (string, error) {
 // Cooked heredoc: """…"""
 // =============================================================================
 
-// QuoteHeredoc encodes s as a cooked heredoc `"""…"""`. Backslashes are escaped
-// (the form interprets escapes) and the fence widens past any run of `"` in the
-// body so it cannot close early. The single-line body form is used, so the value
-// round-trips with no indentation stripping.
-func QuoteHeredoc(s string) string {
+// QuoteHeredoc encodes s as a cooked heredoc `"""…"""`. The optional fence sets
+// the start/end delimiter count (an odd number >= 3, default 3); it is widened
+// past any longer run of `"` in the body so it cannot close early. Backslashes
+// are escaped (the form interprets escapes); the single-line body form is used,
+// so the value round-trips with no indentation stripping.
+func QuoteHeredoc(s string, fence ...int) string {
 	body := strings.ReplaceAll(s, `\`, `\\`)
-	fence := strings.Repeat(`"`, fenceWidth(body, '"'))
-	return fence + body + fence
+	f := strings.Repeat(`"`, widenFence(fenceBase(fence), longestRun(body, '"')))
+	return f + body + f
 }
 
 // UnquoteHeredoc decodes a cooked heredoc `"""…"""`: the fence is removed, the
@@ -166,7 +175,7 @@ func QuoteHeredoc(s string) string {
 // escape sequences are interpreted.
 func UnquoteHeredoc(lit string) (string, error) {
 	n := fenceOf(lit, '"')
-	if n < 3 || !wrappedFence(lit, '"', n) {
+	if n < 3 || n%2 == 0 || !wrappedFence(lit, '"', n) {
 		return "", fmt.Errorf("quote: %q is not a \"\"\" heredoc", lit)
 	}
 	body := stripHeredocIndent(heredocBody(lit, n), heredocStripCount(lit, n))
@@ -179,16 +188,16 @@ func UnquoteHeredoc(lit string) (string, error) {
 
 // QuoteRawHeredoc encodes s as a raw heredoc “ ```…``` “ (verbatim), choosing a
 // fence wider than the longest run of backticks in s so it cannot close early.
-func QuoteRawHeredoc(s string) string {
-	fence := strings.Repeat("`", fenceWidth(s, '`'))
-	return fence + s + fence
+func QuoteRawHeredoc(s string, fence ...int) string {
+	f := strings.Repeat("`", widenFence(fenceBase(fence), longestRun(s, '`')))
+	return f + s + f
 }
 
 // UnquoteRawHeredoc decodes a raw heredoc “ ```…``` “ (verbatim), stripping the
 // fence and the common leading indentation (multi-line form only).
 func UnquoteRawHeredoc(lit string) (string, error) {
 	n := fenceOf(lit, '`')
-	if n < 3 || !wrappedFence(lit, '`', n) {
+	if n < 3 || n%2 == 0 || !wrappedFence(lit, '`', n) {
 		return "", fmt.Errorf("quote: %q is not a ``` heredoc", lit)
 	}
 	return stripHeredocIndent(heredocBody(lit, n), heredocStripCount(lit, n)), nil
@@ -201,11 +210,18 @@ func UnquoteRawHeredoc(lit string) (string, error) {
 // QuoteRaw encodes s in the narrowest raw (verbatim) form: a single-backtick
 // “ `…` “ when s has no backtick, otherwise a raw heredoc with a wide-enough
 // fence. The result always round-trips through UnquoteRaw.
-func QuoteRaw(s string) string {
+func QuoteRaw(s string, fence ...int) string {
 	if !strings.ContainsRune(s, '`') {
+		// A single-backtick string holds any backtick-free content verbatim,
+		// including newlines and boundary characters.
 		return "`" + s + "`"
 	}
-	return QuoteRawHeredoc(s)
+	if heredocSafeRaw(s) {
+		return QuoteRawHeredoc(s, fence...)
+	}
+	// Content has backticks and would collide with a raw heredoc fence at a
+	// boundary; fall back to the always-valid cooked form (same decoded value).
+	return QuoteString(s)
 }
 
 // UnquoteRaw decodes any raw form — “ `…` “ or “ ```…``` “ — dispatching on
@@ -282,15 +298,39 @@ func longestRun(s string, q byte) int {
 	return best
 }
 
-// fenceWidth returns the narrowest valid heredoc fence width for a body: an odd
-// count of at least three that is strictly greater than the longest run of q in
-// the body, so the fence cannot appear inside it.
-func fenceWidth(body string, q byte) int {
-	n := 3
-	for n <= longestRun(body, q) {
-		n += 2
+// fenceBase normalizes an optional requested fence width to a valid base: an odd
+// number of at least three (default DefaultHeredocFence when unset or too small).
+func fenceBase(fence []int) int {
+	n := DefaultHeredocFence
+	if len(fence) > 0 && fence[0] > n {
+		n = fence[0]
+	}
+	if n%2 == 0 {
+		n++
 	}
 	return n
+}
+
+// widenFence returns the smallest odd fence width >= base that is strictly
+// greater than run, so a run of that many delimiters cannot appear in the body.
+func widenFence(base, run int) int {
+	for base <= run {
+		base += 2
+	}
+	return base
+}
+
+// heredocSafeCooked reports whether s can be encoded as a single-body cooked
+// heredoc that parses in Gad and round-trips: it must be non-empty and must not
+// start with `"` or a newline, nor end with `"`, so its boundary characters do
+// not merge with (or get stripped by) the fence.
+func heredocSafeCooked(s string) bool {
+	return s != "" && s[0] != '"' && s[0] != '\n' && s[len(s)-1] != '"'
+}
+
+// heredocSafeRaw is heredocSafeCooked for the backtick (raw) fence.
+func heredocSafeRaw(s string) bool {
+	return s != "" && s[0] != '`' && s[0] != '\n' && s[len(s)-1] != '`'
 }
 
 // heredocBody strips a fence of n delimiters from both ends of lit and, for the

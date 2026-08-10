@@ -38,16 +38,45 @@ func TestQuoteRawRoundTrip(t *testing.T) {
 
 func TestQuoteHeredocRoundTrip(t *testing.T) {
 	for _, s := range roundTripValues {
-		q := QuoteHeredoc(s)
-		got, err := UnquoteHeredoc(q)
-		if err != nil || got != s {
-			t.Errorf("heredoc %q -> %q -> %q, err=%v", s, q, got, err)
+		if heredocSafeCooked(s) {
+			q := QuoteHeredoc(s)
+			got, err := UnquoteHeredoc(q)
+			if err != nil || got != s {
+				t.Errorf("heredoc %q -> %q -> %q, err=%v", s, q, got, err)
+			}
 		}
-		qr := QuoteRawHeredoc(s)
-		gotr, errr := UnquoteRawHeredoc(qr)
-		if errr != nil || gotr != s {
-			t.Errorf("raw heredoc %q -> %q -> %q, err=%v", s, qr, gotr, errr)
+		if heredocSafeRaw(s) {
+			qr := QuoteRawHeredoc(s)
+			gotr, errr := UnquoteRawHeredoc(qr)
+			if errr != nil || gotr != s {
+				t.Errorf("raw heredoc %q -> %q -> %q, err=%v", s, qr, gotr, errr)
+			}
 		}
+	}
+}
+
+// TestUnquoteHeredocRejectsEvenFence verifies an even-width fence (invalid in
+// Gad, where fences are odd) is rejected.
+func TestUnquoteHeredocRejectsEvenFence(t *testing.T) {
+	if _, err := UnquoteHeredoc(`""""abc""""`); err == nil {
+		t.Fatal("expected an even 4-quote fence to be rejected")
+	}
+	if _, err := UnquoteHeredoc(`"""abc"""`); err != nil {
+		t.Fatalf("odd 3-quote fence should decode: %v", err)
+	}
+	if _, err := UnquoteHeredoc(`"""""abc"""""`); err != nil {
+		t.Fatalf("odd 5-quote fence should decode: %v", err)
+	}
+}
+
+// TestQuoteFence honours a requested odd fence width, widening past body runs.
+func TestQuoteFence(t *testing.T) {
+	if got := QuoteHeredoc("a\nb", 5); got != `"""""a`+"\n"+`b"""""` {
+		t.Fatalf("fence=5: %q", got)
+	}
+	// widened past a longer run even if a smaller fence was requested
+	if n := leadingRun(QuoteRawHeredoc("x```y", 3), '`'); n < 5 {
+		t.Fatalf("expected fence widened to >=5, got %d", n)
 	}
 }
 

@@ -54,9 +54,11 @@ and `#"""…"""`, ordinary `"…"` strings (where it collapses to a literal brac
 
 `gad.quote` encodes a value as a Gad string literal and `gad.unquote` decodes one
 back. Each has a `str` and a `rawstr` overload: the argument type selects the
-cooked (`"…"`) or raw (`` `…` ``) form. `gad.quote` takes a named `maxCols`
-argument (default 120) and switches to a multi-line heredoc when a single line
-would exceed it. These map to the `github.com/gad-lang/gad/quote` package.
+cooked (`"…"`) or raw (`` `…` ``) form. `gad.quote` takes named arguments
+`maxCols` (default 120) — switching to a multi-line heredoc when a single line
+would exceed it — and `fence` (default 3) — the heredoc start/end delimiter count
+(an odd number, widened past any longer run in the body). These map to the
+`github.com/gad-lang/gad/quote` package.
 
 @snippet quoting
 
