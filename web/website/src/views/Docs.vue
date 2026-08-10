@@ -86,7 +86,7 @@ function onClick(e: MouseEvent) {
 
 <template>
   <v-container fluid class="docs pa-0">
-    <div class="docs-grid" :class="{ 'has-toc': lgAndUp && page && page.toc.length }">
+    <div class="docs-grid" :class="{ 'has-toc': lgAndUp && page && page.toc && page.toc.length }">
       <article ref="body" class="content" @click="onClick">
         <div v-if="page && page.source" class="source-bar mb-4">
           <v-btn
@@ -116,10 +116,10 @@ function onClick(e: MouseEvent) {
         </template>
         <div v-else class="pa-8 text-center text-medium-emphasis">Loading…</div>
       </article>
-      <aside v-if="lgAndUp && page && page.toc.length" class="toc">
+      <aside v-if="lgAndUp && page && page.toc && page.toc.length" class="toc">
         <div class="text-caption text-uppercase font-weight-bold text-medium-emphasis mb-2">On this page</div>
         <a
-          v-for="t in page.toc"
+          v-for="t in (page.toc || [])"
           :key="t.id"
           :href="'#' + t.id"
           class="toc-link d-block"

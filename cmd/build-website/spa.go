@@ -74,9 +74,10 @@ func slugOf(outFile string) string {
 	return strings.TrimSuffix(outFile, ".html")
 }
 
-// tocEntries collects the level-2/3 headings for a page's on-this-page rail.
+// tocEntries collects the level-2/3 headings for a page's on-this-page rail. It
+// always returns a non-nil slice so the JSON `toc` is an array (never null).
 func tocEntries(hs []Heading) []jsonToc {
-	var out []jsonToc
+	out := []jsonToc{}
 	for _, h := range hs {
 		if h.Level == 2 || h.Level == 3 {
 			out = append(out, jsonToc{ID: h.ID, Text: h.Text, Level: h.Level})
