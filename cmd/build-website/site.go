@@ -218,10 +218,15 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 	wasmEmbed.BodyHTML = wasmEmbedBody(play.OutFile)
 
 	// Build the Vue + Vuetify docs shell (web/website) and drop the doc data,
-	// logo, prism bundle and WASM assets next to it. content.json is written last
-	// so it overwrites the app's bundled development sample.
+	// logo, prism bundle and WASM assets next to it. content.json is written right
+	// after the app is copied — overwriting the app's bundled development sample —
+	// and before the (optional, fallible) WASM build, so a WASM failure can never
+	// leave the site serving the placeholder content.
 	if err := buildWebsiteSPA(repoRoot, outDir); err != nil {
 		return fmt.Errorf("building website app: %w", err)
+	}
+	if err := writeContent(outDir, groups, cfg); err != nil {
+		return err
 	}
 	if err := copyLogo(repoRoot, outDir); err != nil {
 		return err
@@ -230,9 +235,6 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 		if err := buildWASMAssets(repoRoot, outDir); err != nil {
 			return fmt.Errorf("building wasm: %w", err)
 		}
-	}
-	if err := writeContent(outDir, groups, cfg); err != nil {
-		return err
 	}
 	return nil
 }
