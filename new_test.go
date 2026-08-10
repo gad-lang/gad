@@ -1360,9 +1360,9 @@ func TestVMPropStmt(t *testing.T) {
 	prop x { () => 1 }
 	return typeName(x)`, nil, Str("Prop"))
 
-	// single-accessor (brace-less) form
+	// getter-only (parenless) form
 	testExpectRun(t, `
-	prop pi() => 3.14
+	prop pi => 3.14
 	return pi()`, nil, Float(3.14))
 
 	// a typed setter is dispatched by the argument type

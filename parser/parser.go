@@ -1953,12 +1953,25 @@ func (p *Parser) ParsePropExprT(tok PToken) (e node.Expr) {
 // parsePropBody parses a prop's accessor body into prop (whose name, if any, has
 // already been parsed) and returns the completed PropExpr. It accepts:
 //   - `=> expr`  — a read-only getter (prop as a closure);
+//   - `<ret> => expr` — a typed read-only getter (no accessor parens needed);
 //   - `(params) <ret> body` — a single accessor;
 //   - `{ (params) body … }` — several accessors.
 func (p *Parser) parsePropBody(prop *node.PropExpr) (e node.Expr) {
+	// A read-only getter may declare its return type before `=>` without accessor
+	// parens: `prop [name] <ret> => expr` (mirrors `prop [name]() <ret> => expr`).
+	var ret []*node.TypedIdentExpr
+	if p.Token.Token == token.Less {
+		if ret = p.ParseFuncReturnTypes(); p.Failed() {
+			return
+		}
+		if p.Token.Token != token.Lambda {
+			p.ErrorExpectToken(p.Token, token.Lambda)
+			return
+		}
+	}
 	switch p.Token.Token {
 	case token.Lambda:
-		// getter-only prop: `prop [name] => expr` (like a closure).
+		// getter-only prop: `prop [name] [<ret>] => expr` (like a closure).
 		lp := p.Token.Pos
 		p.Next()
 		var body node.Expr
@@ -1970,13 +1983,20 @@ func (p *Parser) parsePropBody(prop *node.PropExpr) (e node.Expr) {
 		if p.Failed() {
 			return
 		}
-		prop.Methods = append(prop.Methods, &node.FuncMethod{LambdaPos: lp, BodyExpr: body})
+		prop.Methods = append(prop.Methods, &node.FuncMethod{LambdaPos: lp, BodyExpr: body, Return: ret})
 		prop.RBrace = body.End()
 		e = prop
 	case token.LParen:
 		// single accessor: prop name(params) <ret> {body}
 		m := p.parsePropMethod()
 		if m == nil || p.Failed() {
+			return
+		}
+		// A read-only getter never needs empty accessor parens: `prop [name]() => e`
+		// is the redundant form of `prop [name] => e`. Reject it (setters and
+		// block-body accessors, which need parens, are untouched).
+		if m.BodyExpr != nil && m.ParamsEmpty() {
+			p.Error(m.Pos(), "empty accessor parens on a read-only getter: write `prop [name] [<type>] => expr` without `()`")
 			return
 		}
 		prop.Methods = append(prop.Methods, m)

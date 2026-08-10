@@ -11,8 +11,11 @@ also available through the `Prop` constructor for building them programmatically
 ## Declaring properties
 
 The `prop` statement declares a named property: the getter takes no params,
-setters take one and may be typed (dispatched by argument type). A
-single-accessor property may drop the braces (`prop pi() => 3.14`).
+setters take one and may be typed (dispatched by argument type). A single
+read-only getter drops both the braces **and the empty accessor parens** — write
+`prop pi => 3.14`, optionally typed as `prop pi <float> => 3.14` (the empty-parens
+form `prop pi() => …` is not accepted). A setter or a block-body accessor keeps
+its parens.
 
 ```gad
 var stored
@@ -26,13 +29,16 @@ value(42);      b := value()         // typed (int) setter
 println("value (str):", a)           // hello
 println("value (int):", b)           // int: 42
 
-prop pi() => 3.14159                 // read-only, braces dropped
+prop pi => 3.14159                   // read-only getter (no parens, no braces)
 println("pi():      ", pi())         // 3.14159
+prop tau <float> => 6.28318          // typed read-only getter
+println("tau():     ", tau())        // 6.28318
 ```
 
 `prop => expr` is a read-only property whose getter is `expr`. It reads **live**
 (re-evaluated on each access) and has no setter, so writing it is an error. It
-works anonymously or named (`prop y => _x`).
+works anonymously or named (`prop y => _x`), and may declare a return type
+(`prop y <float> => _x`).
 
 ```gad
 var _live = 1
@@ -135,8 +141,10 @@ value(42);      b := value()         // typed (int) setter
 println("value (str):", a)           // hello
 println("value (int):", b)           // int: 42
 
-prop pi() => 3.14159                 // read-only, braces dropped
+prop pi => 3.14159                   // read-only getter (no parens, no braces)
 println("pi():      ", pi())         // 3.14159
+prop tau <float> => 6.28318          // typed read-only getter
+println("tau():     ", tau())        // 6.28318
 
 var _live = 1
 ro := prop => _live                  // anonymous, read-only, live

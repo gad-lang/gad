@@ -1855,6 +1855,12 @@ func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
+// ParamsEmpty reports whether the accessor was declared with no parameters (`()`).
+func (m *FuncMethod) ParamsEmpty() bool {
+	return m.Params.Args.Var == nil && len(m.Params.Args.Values) == 0 &&
+		m.Params.NamedArgs.Var == nil && len(m.Params.NamedArgs.Names) == 0
+}
+
 func (m *FuncMethod) Func() *FuncExpr {
 	return &FuncExpr{
 		Type: &FuncType{
@@ -1932,17 +1938,36 @@ func (e *PropExpr) String() string {
 	var b strings.Builder
 	if e.PropToken.Valid() {
 		b.WriteString(e.PropToken.Token.String())
+	}
+	// A getter-only single accessor prints without empty accessor parens:
+	// `prop [name] [<ret>] => expr`.
+	if e.single() {
+		m := e.Methods[0]
+		if m.BodyExpr != nil && m.ParamsEmpty() {
+			if e.NameExpr != nil {
+				b.WriteString(" ")
+				b.WriteString(e.NameExpr.String())
+			}
+			b.WriteString(FormatFuncReturn(m.Return))
+			b.WriteString(" => ")
+			b.WriteString(m.BodyExpr.String())
+			return b.String()
+		}
+		if e.PropToken.Valid() {
+			b.WriteString(" ")
+		}
+		if e.NameExpr != nil {
+			b.WriteString(e.NameExpr.String())
+		}
+		b.WriteString(m.String())
+		return b.String()
+	}
+	if e.PropToken.Valid() {
 		b.WriteString(" ")
 	}
 	if e.NameExpr != nil {
 		b.WriteString(e.NameExpr.String())
-		if !e.single() {
-			b.WriteString(" ")
-		}
-	}
-	if e.single() {
-		b.WriteString(e.Methods[0].String())
-		return b.String()
+		b.WriteString(" ")
 	}
 	b.WriteString("{")
 	for _, m := range e.Methods {
@@ -1957,20 +1982,39 @@ func (e *PropExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
 	if e.PropToken.Pos != source.NoPos {
 		ctx.WriteString(e.PropToken.Token.String())
+	}
+
+	// A getter-only single accessor formats without empty accessor parens:
+	// `prop [name] [<ret>] => expr` (a setter or block-body accessor keeps them).
+	if e.single() {
+		m := e.Methods[0]
+		if m.BodyExpr != nil && m.ParamsEmpty() {
+			if e.NameExpr != nil {
+				ctx.WriteString(" ")
+				ctx.WriteString(e.NameExpr.String())
+			}
+			WriteFuncReturn(ctx, m.Return)
+			ctx.WriteString(" => ")
+			m.BodyExpr.WriteCode(ctx)
+			return
+		}
+		if e.PropToken.Pos != source.NoPos {
+			ctx.WriteString(" ")
+		}
+		if e.NameExpr != nil {
+			ctx.WriteString(e.NameExpr.String())
+		}
+		m.WriteCode(ctx)
+		return
+	}
+
+	if e.PropToken.Pos != source.NoPos {
 		ctx.WriteString(" ")
 	}
 	if e.NameExpr != nil {
 		ctx.WriteString(e.NameExpr.String())
-		if !e.single() {
-			ctx.WriteString(" ")
-		}
+		ctx.WriteString(" ")
 	}
-
-	if e.single() {
-		e.Methods[0].WriteCode(ctx)
-		return
-	}
-
 	ctx.WriteString("{")
 	ctx.WriteItemsSep(ctx.HasPrefix(), len(e.Methods), "; ", "\n", func(i int) {
 		e.Methods[i].WriteCode(ctx)

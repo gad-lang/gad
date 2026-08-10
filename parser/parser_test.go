@@ -3185,7 +3185,8 @@ func TestParseProperty(t *testing.T) {
 	// single-accessor form: prop name(params) {body} (no surrounding braces).
 	test.ExpectParseString(t, "prop x(n int) { v = n }", "prop x(n int) { v = n }")
 	test.ExpectParseString(t, "prop x() { return v }", "prop x() { return v }")
-	test.ExpectParseString(t, "prop x() => v", "prop x() => v")
+	test.ExpectParseString(t, "prop x => v", "prop x => v")
+	test.ExpectParseString(t, "prop x <int> => v", "prop x <int> => v")
 
 	// multi-accessor form: prop name { (params) {body} ... } shares the
 	// func-with-methods body syntax.
