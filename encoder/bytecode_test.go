@@ -75,7 +75,7 @@ v = int(strings.join([v], ""))
 v = srcmod.Incr(v)
 v = srcmod.Decr(v)
 v = int(fmt.sprintf("%d", v))
-return v*time.Second/time.Second // 1
+return int(v*time.Second/time.Second) // 1 (duration/duration is a float ratio)
 `
 
 	opts := gad.DefaultCompilerOptions

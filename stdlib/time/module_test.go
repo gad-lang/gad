@@ -55,9 +55,11 @@ func TestModuleMonthWeekday(t *testing.T) {
 	_, err = gad.MustCall(f, gad.Str(""))
 	require.Error(t, err)
 
+	months := module["Months"].(*gad.Enum)
 	for i := 1; i <= 12; i++ {
-		require.Contains(t, module, time.Month(i).String())
-		require.Equal(t, gad.Int(i), module[time.Month(i).String()])
+		ev := months.Values[time.Month(i).String()]
+		require.NotNil(t, ev, time.Month(i).String())
+		require.Equal(t, gad.Int(i), ev.Value)
 
 		r, err := gad.MustCall(f, gad.Int(i))
 		require.NoError(t, err)
@@ -69,9 +71,11 @@ func TestModuleMonthWeekday(t *testing.T) {
 	require.Error(t, err)
 	_, err = gad.MustCall(f, gad.Str(""))
 	require.Error(t, err)
+	weekdays := module["Weekdays"].(*gad.Enum)
 	for i := 0; i <= 6; i++ {
-		require.Contains(t, module, time.Weekday(i).String())
-		require.Equal(t, gad.Int(i), module[time.Weekday(i).String()])
+		ev := weekdays.Values[time.Weekday(i).String()]
+		require.NotNil(t, ev, time.Weekday(i).String())
+		require.Equal(t, gad.Int(i), ev.Value)
 
 		r, err := gad.MustCall(f, gad.Int(i))
 		require.NoError(t, err)
@@ -100,12 +104,12 @@ func TestModuleFormats(t *testing.T) {
 
 func TestModuleDuration(t *testing.T) {
 	var module = getModule()
-	require.Equal(t, module["Nanosecond"], gad.Int(time.Nanosecond))
-	require.Equal(t, module["Microsecond"], gad.Int(time.Microsecond))
-	require.Equal(t, module["Millisecond"], gad.Int(time.Millisecond))
-	require.Equal(t, module["Second"], gad.Int(time.Second))
-	require.Equal(t, module["Minute"], gad.Int(time.Minute))
-	require.Equal(t, module["Hour"], gad.Int(time.Hour))
+	require.Equal(t, module["Nanosecond"], gad.Duration(time.Nanosecond))
+	require.Equal(t, module["Microsecond"], gad.Duration(time.Microsecond))
+	require.Equal(t, module["Millisecond"], gad.Duration(time.Millisecond))
+	require.Equal(t, module["Second"], gad.Duration(time.Second))
+	require.Equal(t, module["Minute"], gad.Duration(time.Minute))
+	require.Equal(t, module["Hour"], gad.Duration(time.Hour))
 
 	goFnMap := map[string]func(time.Duration) any{
 		"Nanoseconds": func(d time.Duration) any {

@@ -133,6 +133,10 @@ func (o Int) BinOpMul(vm *VM, right Object) (Object, error) {
 		return DecimalFromInt(o).BinOpMul(vm, right)
 	case Bool:
 		return o.BinOpMul(vm, boolInt(v))
+	case Duration:
+		// Multiplication is commutative, so `n * duration` scales the duration
+		// (e.g. `30 * time.Minute`).
+		return v.BinOpMul(vm, o)
 	}
 	return nil, NewOperandTypeError(token.Mul.String(), o.Type().Name(), right.Type().Name())
 }

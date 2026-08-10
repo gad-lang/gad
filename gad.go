@@ -359,6 +359,10 @@ func ToGoInt64(o Object) (v int64, ok bool) {
 	switch o := o.(type) {
 	case Int:
 		v, ok = int64(o), true
+	case Duration:
+		// A duration is an int64 nanosecond count, so it satisfies the int-typed
+		// time functions (e.g. durationString(time.Second)).
+		v, ok = int64(o), true
 	case Uint:
 		v, ok = int64(o), true
 	case Float:
