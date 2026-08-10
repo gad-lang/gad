@@ -116,10 +116,28 @@ var (
 	_ IndexSetter      = new(Buffer)
 	_ NameCallerObject = new(Buffer)
 	_ BytesConverter   = new(Buffer)
+	_ ObjectEnter      = new(Buffer)
+	_ ObjectExit       = new(Buffer)
 )
 
 func (o *Buffer) ToString() string {
 	return o.String()
+}
+
+// Enter makes the buffer the current output target for the enclosing `with`
+// block, so everything print/write emits inside it is captured into the buffer
+// (like obstart with an explicit buffer). Pairs with Exit; `with` yields the
+// resource, so `content := with buffer() { print("hi") }` gives the buffer
+// holding "hi".
+func (o *Buffer) Enter(vm *VM) error {
+	vm.StdOut.Push(o)
+	return nil
+}
+
+// Exit restores the previous output target when the `with` block ends.
+func (o *Buffer) Exit(vm *VM, _ error) (Object, error) {
+	vm.StdOut.Pop()
+	return o, nil
 }
 
 func (o *Buffer) Length() int {

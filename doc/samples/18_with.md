@@ -79,6 +79,22 @@ with 42 as n { println("noop:", n) }
 `gad.enter(resource)`, dispatched through the `gad.enter` / `gad.exit` functions
 in the global `gad` namespace.
 
+## Capturing output with a buffer
+
+A `buffer` is a `with` resource: entering it captures everything `print`/`write`
+emits inside the block (the same output-buffering `obstart`/`obend` do), and —
+since `with` yields the resource — the block evaluates to the buffer holding the
+captured text. So `content := with buffer() { print("hello") }` gives a buffer
+whose `str(content)` is `"hello"`. It is the block-scoped, auto-closed form of the
+`obstart` … `obend` pair.
+
+```gad
+// `buffer()` captures the block's output; `with` yields the buffer with it.
+content := with buffer() { print("hello, "); print("world") }
+[str(content), typeName(content)]
+// => ["hello, world", "buffer"]
+```
+
 ## Example — `18_with.gad`
 
 ```gad
@@ -129,4 +145,8 @@ println("make():", make().items)
 
 // A non-resource value is a silent no-op (the body still runs).
 with 42 as n { println("noop:", n) }
+
+// `buffer()` captures the block's output; `with` yields the buffer with it.
+content := with buffer() { print("hello, "); print("world") }
+[str(content), typeName(content)]
 ```
