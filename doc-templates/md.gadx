@@ -31,9 +31,21 @@ if doc.prose {
 for sec in doc.sections {
     write("\n## " + sec.title + "\n")
     for s in sec.symbols {
-        write("\n### " + s.name + s.signature + "\n")
+        write("\n### " + s.name + "\n")
+        // The typed signature (function params + return, or a const's `= value`)
+        // goes right below the heading, in a fenced code block so it highlights.
+        if s.signature {
+            write("\n```" + doc.lang + "\n" + s.name + s.signature + "\n```\n")
+        }
         if s.doc {
             write("\n" + s.doc + "\n")
+        }
+        // A multi-signature function renders one fenced block + doc per overload.
+        for o in s.overloads {
+            write("\n```" + doc.lang + "\n" + s.name + o.signature + "\n```\n")
+            if o.doc {
+                write("\n" + o.doc + "\n")
+            }
         }
     }
 }

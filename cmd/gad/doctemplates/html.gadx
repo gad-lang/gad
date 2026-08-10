@@ -28,10 +28,19 @@
                     div.symbol[data-line=s.line, data-column=s.column]
                         h3
                             code {s.name}
-                            | {s.signature}
+
+                        @if s.signature
+                            p.signature
+                                code {s.name + s.signature}
 
                         @if s.doc
                             p.doc {s.doc}
+
+                        @for o in s.overloads
+                            p.signature
+                                code {s.name + o.signature}
+                            @if o.doc
+                                p.doc {o.doc}
 
         @if doc.source
             section.doc-example

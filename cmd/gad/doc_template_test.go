@@ -30,7 +30,9 @@ func TestRenderDocTemplateMD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, w := range []string{"# greetings", "greetings module.", "## Public API", "### hello = \"hi\"", "The greeting prefix.", "### add", "Adds two numbers.", "## Example — `greetings.gad`", "```gad"} {
+	// The typed signature now renders in a fenced block right below the heading,
+	// so the heading is the bare name and `hello = "hi"` appears in the block.
+	for _, w := range []string{"# greetings", "greetings module.", "## Public API", "### hello", "hello = \"hi\"", "The greeting prefix.", "### add", "Adds two numbers.", "## Example — `greetings.gad`", "```gad"} {
 		if !strings.Contains(out, w) {
 			t.Fatalf("md template missing %q:\n%s", w, out)
 		}
@@ -98,7 +100,7 @@ func TestDocCommandUsesTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read doc/m.md: %v", err)
 	}
-	if !strings.Contains(string(md), "## Public API") || !strings.Contains(string(md), "### hello = \"hi\"") {
+	if !strings.Contains(string(md), "## Public API") || !strings.Contains(string(md), "### hello") || !strings.Contains(string(md), "hello = \"hi\"") {
 		t.Fatalf("md output not from template:\n%s", md)
 	}
 	html, err := os.ReadFile(filepath.Join(dir, "doc", "m.html"))

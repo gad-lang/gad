@@ -39,10 +39,21 @@ type DocSymbol struct {
 	Signature string `json:"signature,omitempty"`
 	// Doc is the attached doc comment text, or "".
 	Doc string `json:"doc,omitempty"`
+	// Overloads holds the per-signature entries of a multi-signature function
+	// (an `export func NAME { (sig) => … … }`); empty for a plain symbol.
+	Overloads []DocOverload `json:"overloads,omitempty"`
 	// Line/Column locate the declaration in the source (1-based; 0 when unknown),
 	// for editor navigation (e.g. data-source-pos).
 	Line   int `json:"line,omitempty"`
 	Column int `json:"column,omitempty"`
+}
+
+// DocOverload is one signature of a multi-signature function.
+type DocOverload struct {
+	// Signature is the parenthesized parameter list + return, e.g. `(r float) <float>`.
+	Signature string `json:"signature"`
+	// Doc is the overload's own doc comment, or "".
+	Doc string `json:"doc,omitempty"`
 }
 
 // ExtractDoc extracts the structured documentation from a source buffer.
@@ -74,10 +85,18 @@ func (d *DocData) GadDict() gad.Dict {
 	for _, sec := range d.Sections {
 		syms := make(gad.Array, 0, len(sec.Symbols))
 		for _, s := range sec.Symbols {
+			overloads := make(gad.Array, 0, len(s.Overloads))
+			for _, o := range s.Overloads {
+				overloads = append(overloads, gad.Dict{
+					"signature": gad.Str(o.Signature),
+					"doc":       gad.Str(o.Doc),
+				})
+			}
 			syms = append(syms, gad.Dict{
 				"name":      gad.Str(s.Name),
 				"signature": gad.Str(s.Signature),
 				"doc":       gad.Str(s.Doc),
+				"overloads": overloads,
 				"line":      gad.Int(s.Line),
 				"column":    gad.Int(s.Column),
 			})
@@ -113,6 +132,12 @@ func RenderMarkdown(d *DocData) string {
 			}
 			if s.Doc != "" {
 				b.WriteString("\n" + s.Doc + "\n")
+			}
+			for _, o := range s.Overloads {
+				fmt.Fprintf(&b, "\n```gad\n%s%s\n```\n", s.Name, o.Signature)
+				if o.Doc != "" {
+					b.WriteString("\n" + o.Doc + "\n")
+				}
 			}
 		}
 	}
@@ -173,10 +198,30 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 			continue
 		}
 		sym := DocSymbol{Name: name, Doc: gadDocText(es.Doc)}
-		if es.ValueExpr != nil {
-			if _, isFunc := es.ValueExpr.(*gnode.FuncExpr); !isFunc {
-				sym.Signature = " = " + es.ValueExpr.String()
+		switch v := es.ValueExpr.(type) {
+		case *gnode.FuncExpr:
+			// A function export carries its typed signature — the parameter list
+			// and return types, without the name — so `name + signature` reads
+			// `f(a int, b int) <int>`.
+			if v.Type != nil {
+				sym.Signature = v.Type.Params.String() + gnode.FormatFuncReturn(v.Type.Return)
 			}
+		case *gnode.FuncWithMethodsExpr:
+			// A multi-signature export (`export func NAME { (sig) => … … }`): each
+			// method is one overload with its own signature and doc.
+			if v.Doc != nil && sym.Doc == "" {
+				sym.Doc = gadDocText(v.Doc)
+			}
+			for _, m := range v.Methods {
+				sym.Overloads = append(sym.Overloads, DocOverload{
+					Signature: m.Params.String() + gnode.FormatFuncReturn(m.Return),
+					Doc:       gadDocText(m.Doc),
+				})
+			}
+		case nil:
+			// `export const NAME` / `export NAME` with no value: name only.
+		default:
+			sym.Signature = " = " + es.ValueExpr.String()
 		}
 		fp := source.MustFilePosition(f, es.Pos())
 		sym.Line, sym.Column = fp.Line, fp.Column
@@ -259,6 +304,11 @@ func gadExportName(es *gnode.ExportStmt) string {
 	}
 	if fe, ok := es.ValueExpr.(*gnode.FuncExpr); ok && fe.Type.NameExpr != nil {
 		if id, ok := fe.Type.NameExpr.(*gnode.IdentExpr); ok {
+			return id.Name
+		}
+	}
+	if fm, ok := es.ValueExpr.(*gnode.FuncWithMethodsExpr); ok {
+		if id := fm.NameIdent(); id != nil {
 			return id.Name
 		}
 	}
