@@ -26,7 +26,7 @@ once, at the top level; initial values are illegal (a variadic `*x` defaults to
 `[]`, everything else to `nil`). The positional and named lists are separated by
 `;`, following the same rules as [function parameters](03_functions.gad).
 
-```
+```gad ignore
 param (arg0, arg1, *rest)         // positional + variadic
 param (; x, y = 1, **named)        // named only (with defaults)
 param (a, *rest; x, y = 1, **nx)   // mixed

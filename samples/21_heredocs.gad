@@ -45,11 +45,11 @@ delimiter** without closing early — the fence only closes on a run of *exactly
 the opening width. So inside a `"""` heredoc a single or doubled `"` is just text,
 inside a `"""""` (five) heredoc a literal `"""` is text, and so on:
 
-```
+``````gad
 """say "hi" now"""            // a single "  → say "hi" now
 """"" a triple """ inside """""  // fence 5, body has """ → a triple """ inside
 `````raw ``` fence`````        // fence 5 backticks, body has ``` → raw ``` fence
-```
+``````
 
 In the multi-line form the opening/closing fence lines are dropped and the
 **common leading indentation is stripped**, so a heredoc stays aligned with the

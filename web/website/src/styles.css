@@ -71,6 +71,9 @@ html { scroll-behavior: smooth; }
 }
 .content img { max-width: 100%; }
 .content hr { border: none; border-top: 1px solid var(--doc-border); margin: 2rem 0; }
+.content ul, .content ol { padding-left: 1.5rem; margin: 0.8rem 0; }
+.content li { margin: 0.25rem 0; }
+.content li > ul, .content li > ol { margin: 0.25rem 0; }
 
 /* Language Chapters index */
 .content ul.chapter-index {

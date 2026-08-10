@@ -44,6 +44,11 @@ func runDoctest(ctx *cc.CommandContext) error {
 			return err
 		}
 		for _, path := range files {
+			// Only plain-Gad sources carry runnable ```gad examples; template and
+			// Gadx dialects are not parseable as plain Gad (mirrors doc.go).
+			if isGadxFile(path) || sourceTypeFor(path) == "gadTemplate" {
+				continue
+			}
 			src, err := os.ReadFile(path)
 			if err != nil {
 				return err
@@ -126,7 +131,8 @@ func extractExamples(srcFile *source.File, file *parser.File) []docExample {
 	return out
 }
 
-// fencedGadBlocks returns the bodies of ```gad … ``` fenced code blocks in md.
+// fencedGadBlocks returns the bodies of runnable ```gad … ``` fenced code blocks
+// in md (see runnableGadFence for what counts as runnable).
 func fencedGadBlocks(md string) []string {
 	var (
 		blocks  []string
@@ -136,7 +142,7 @@ func fencedGadBlocks(md string) []string {
 	for _, ln := range strings.Split(md, "\n") {
 		t := strings.TrimSpace(ln)
 		switch {
-		case !inBlock && (t == "```gad" || t == "```Gad"):
+		case !inBlock && runnableGadFence(t):
 			inBlock, cur = true, nil
 		case inBlock && t == "```":
 			inBlock = false
@@ -146,6 +152,31 @@ func fencedGadBlocks(md string) []string {
 		}
 	}
 	return blocks
+}
+
+// runnableGadFence reports whether the trimmed fence-open line t starts a
+// runnable ```gad example: an exactly-three-backtick fence whose first info
+// token is "gad"/"Gad" and which carries no "ignore" (or "no-run") modifier.
+//
+// A wider fence (```` ```` `…), a different language, or an ```gad ignore /
+// ```gad no-run info string is skipped — the latter still highlights as Gad on
+// the docs site (the renderer keys off the first token) but is never executed,
+// which is how doc comments show illustrative, non-runnable fragments.
+func runnableGadFence(t string) bool {
+	info, ok := strings.CutPrefix(t, "```")
+	if !ok || strings.HasPrefix(info, "`") { // not exactly three backticks
+		return false
+	}
+	fields := strings.Fields(info)
+	if len(fields) == 0 || (fields[0] != "gad" && fields[0] != "Gad") {
+		return false
+	}
+	for _, f := range fields[1:] {
+		if f == "ignore" || f == "no-run" {
+			return false
+		}
+	}
+	return true
 }
 
 // runExample runs an example's code. A line beginning with `>>> ` asserts that

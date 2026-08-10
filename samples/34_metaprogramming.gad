@@ -42,7 +42,7 @@ The `.gadx` template engine is compiled by Gad itself — no separate compiler:
 and a Go host selects the Gadx front-end by giving `gad.CompileOptions` a
 `.gadx` `ModuleFile` and registering the Gadx builtins.
 
-```
+```go
 builtins := gadx.AppendBuiltins(gad.NewBuiltins())
 opts := gad.CompileOptions{}
 opts.ModuleFile = "page.gadx" // a .gadx ModuleFile parses & lowers as Gadx

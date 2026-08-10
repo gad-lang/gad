@@ -11,7 +11,7 @@ their `exit` hooks run in reverse order.
 
 ## Binding forms
 
-```
+```gad ignore
 with resource { … }         // use an existing value
 with mk() as f { … }        // bind the resource to a block-local `f`
 with x := mk() { … }        // define `x` (visible after the block)
@@ -90,7 +90,10 @@ whose `str(content)` is `"hello"`. It is the block-scoped, auto-closed form of t
 
 ```gad
 // `buffer()` captures the block's output; `with` yields the buffer with it.
-content := with buffer() { print("hello, "); print("world") }
+content := with buffer() {
+    print("hello, ")
+    print("world")
+}
 [str(content), typeName(content)]
 // => ["hello, world", "buffer"]
 ```
@@ -147,6 +150,9 @@ println("make():", make().items)
 with 42 as n { println("noop:", n) }
 
 // `buffer()` captures the block's output; `with` yields the buffer with it.
-content := with buffer() { print("hello, "); print("world") }
+content := with buffer() {
+    print("hello, ")
+    print("world")
+}
 [str(content), typeName(content)]
 ```

@@ -19,6 +19,27 @@ func TestFencedGadBlocks(t *testing.T) {
 	require.Equal(t, "sum(1, 2)\n>>> 3", blocks[0])
 }
 
+func TestRunnableGadFence(t *testing.T) {
+	// Runnable: exactly-three-backtick gad fences, with or without benign flags.
+	require.True(t, runnableGadFence("```gad"))
+	require.True(t, runnableGadFence("```Gad"))
+	// Not runnable: other languages, wider fences, or an ignore/no-run modifier.
+	require.False(t, runnableGadFence("```"))
+	require.False(t, runnableGadFence("```gadx"))
+	require.False(t, runnableGadFence("```go"))
+	require.False(t, runnableGadFence("``````gad"))     // wider fence
+	require.False(t, runnableGadFence("```gad ignore")) // illustrative fragment
+	require.False(t, runnableGadFence("```gad no-run"))
+}
+
+func TestFencedGadBlocksIgnore(t *testing.T) {
+	// A ```gad ignore fence highlights as Gad on the site but is never run.
+	md := "```gad\nrun := 1\n```\n\n```gad ignore\nimport(\"./missing.gad\")\n```\n"
+	blocks := fencedGadBlocks(md)
+	require.Len(t, blocks, 1)
+	require.Equal(t, "run := 1", blocks[0])
+}
+
 func TestRunExamplePass(t *testing.T) {
 	require.NoError(t, runExample("sum := func(a, b) { return a + b }\nsum(2, 3)\n>>> 5"))
 	require.NoError(t, runExample("[1, 2, 3]\n>>> [1, 2, 3]"))

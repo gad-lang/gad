@@ -9,7 +9,7 @@ export, module parameters) is in `samples/modules/` — run
 
 ## Importing and exporting
 
-```
+```gad ignore
 strings := import("strings")   // a builtin module
 m := import("./greet.gad")      // a source module, resolved relative to the file
 
@@ -28,7 +28,7 @@ behind a read/write property, so external writes change the module's variable
 A module may declare `param` like the main script; parameters are supplied as
 **named arguments** to `import` and interpreted **only on the first import**:
 
-```
+```gad ignore
 // greet.gad:  param (; lang = "en"); const msgs = {en: "Hello", br: "Olá"}
 g := import("./greet.gad"; lang = "br")
 ```

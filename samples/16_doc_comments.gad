@@ -55,6 +55,22 @@ collapses back to `SINGLE`. A **detached** (module/section) block always stays a
 documenting the module. Paragraphs are re-wrapped while fenced code, list items,
 headings, blockquotes and table rows are preserved line-for-line.
 
+### Code fences
+
+Always tag a code fence with its language so it highlights correctly: `` ```gad ``
+for Gad, `` ```gadt `` for a template, `` ```gadx `` for a Gadx template, or
+`` ```go `` for a Go-embedding example. A bare `` ``` `` fence is left unhighlighted.
+
+When the fenced code itself contains a run of three or more backticks — a raw
+string or heredoc like `` ```…``` `` — open the fence with **more** backticks than
+the longest run inside it, and close it with the same count (Markdown's escape for
+nested fences). For example, code that uses a five-backtick heredoc goes inside a
+six-backtick fence:
+
+``````gad
+raw := `````he said ``` here`````   // a 5-backtick raw heredoc, verbatim
+``````
+
 ## Runnable examples (doctest)
 
 A `BLOCK` may embed a runnable example in a ```` ```gad ````
@@ -62,6 +78,13 @@ fence. Examples are self-contained; a line beginning with `>>> ` asserts that th
 value produced so far equals the expression after it. `gad doctest PATH…` runs
 every embedded example, and `gad doc` runs them while generating (unless
 `--no-doctest`). See also [Conventions](conventions.md).
+
+Only an **exactly-three-backtick** `` ```gad `` fence is executed. To show an
+**illustrative** Gad fragment that must *not* run — one that references files that
+do not exist, repeats a once-only statement, or is otherwise not self-contained —
+tag the fence `` ```gad ignore `` (or `` ```gad no-run ``). It still highlights as
+Gad on the docs site, but the doctest runner skips it. A wider fence (`` ``````gad ``)
+is likewise never executed.
 **/
 
 //snippet forms
