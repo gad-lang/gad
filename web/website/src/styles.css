@@ -72,6 +72,29 @@ html { scroll-behavior: smooth; }
 .content img { max-width: 100%; }
 .content hr { border: none; border-top: 1px solid var(--doc-border); margin: 2rem 0; }
 
+/* Language Chapters index */
+.content ul.chapter-index {
+  list-style: none;
+  padding: 0;
+  margin: 1.4rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.5rem 1rem;
+}
+.content ul.chapter-index li a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--doc-border);
+  border-radius: 9px;
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 500;
+}
+.content ul.chapter-index li a:hover {
+  border-color: var(--doc-accent);
+  color: var(--doc-accent);
+  text-decoration: none;
+}
+
 /* PrismJS tokens */
 .token.comment, .token.prolog, .token.doctype, .token.cdata { color: var(--tok-comment); font-style: italic; }
 .token.punctuation { color: var(--tok-punc); }

@@ -46,6 +46,10 @@ type jsonDoc struct {
 	Title string    `json:"title"`
 	HTML  string    `json:"html"`
 	Toc   []jsonToc `json:"toc"`
+	// Source is the backing sample source (language chapters), with SourceLang its
+	// PrismJS language; omitted for pages without a source.
+	Source     string `json:"source,omitempty"`
+	SourceLang string `json:"sourceLang,omitempty"`
 }
 
 type jsonSearch struct {
@@ -105,7 +109,10 @@ func writeContent(outDir string, groups []navGroup, cfg siteConfig) error {
 				continue
 			}
 			jg.Pages = append(jg.Pages, jsonNavPage{Slug: slug, Title: p.Title})
-			c.Pages[slug] = jsonDoc{Slug: slug, Title: p.Title, HTML: string(p.BodyHTML), Toc: tocEntries(p.Headings)}
+			c.Pages[slug] = jsonDoc{
+				Slug: slug, Title: p.Title, HTML: string(p.BodyHTML), Toc: tocEntries(p.Headings),
+				Source: p.Source, SourceLang: p.SourceLang,
+			}
 			c.Search = append(c.Search, jsonSearch{Slug: slug, Title: p.Title, Text: p.plain})
 		}
 		c.Groups = append(c.Groups, jg)

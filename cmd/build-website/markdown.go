@@ -99,7 +99,10 @@ func nodeText(n ast.Node, source []byte) string {
 		case *ast.String:
 			b.Write(t.Value)
 		case *ast.CodeSpan:
+			// Write the code span's text and skip its child Text nodes, which the
+			// walk would otherwise emit again (doubling e.g. `in` -> "inin").
 			b.WriteString(string(t.Text(source))) //nolint:staticcheck // fine for leaf code spans
+			return ast.WalkSkipChildren, nil
 		}
 		return ast.WalkContinue, nil
 	})

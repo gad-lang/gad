@@ -11,6 +11,7 @@ const { lgAndUp } = useDisplay();
 
 const content = shallowRef<SiteContent | null>(null);
 const body = ref<HTMLElement | null>(null);
+const showSource = ref(false);
 let prismLoaded: Promise<void> | null = null;
 
 loadContent().then((c) => {
@@ -54,7 +55,7 @@ function loadPrism(): Promise<void> {
   return prismLoaded;
 }
 
-watch([page, body], async () => {
+watch([page, body, showSource], async () => {
   if (!page.value || !body.value) return;
   await nextTick();
   await loadPrism();
@@ -62,7 +63,10 @@ watch([page, body], async () => {
   if (P?.highlightAllUnder && body.value) P.highlightAllUnder(body.value);
 });
 
-watch(() => props.slug, ensureSlug);
+watch(() => props.slug, () => {
+  showSource.value = false;
+  ensureSlug();
+});
 
 // Route internal doc links (`href="foo.html"`) through the SPA instead of a full
 // page load; leave external links and in-page anchors to the browser.
@@ -84,7 +88,32 @@ function onClick(e: MouseEvent) {
   <v-container fluid class="docs pa-0">
     <div class="docs-grid" :class="{ 'has-toc': lgAndUp && page && page.toc.length }">
       <article ref="body" class="content" @click="onClick">
-        <div v-if="page" v-html="page.html" />
+        <div v-if="page && page.source" class="source-bar mb-4">
+          <v-btn
+            v-if="!showSource"
+            size="small"
+            variant="tonal"
+            color="primary"
+            prepend-icon="mdi-code-tags"
+            @click="showSource = true"
+          >View source</v-btn>
+          <v-btn
+            v-else
+            size="small"
+            variant="tonal"
+            prepend-icon="mdi-arrow-left"
+            @click="showSource = false"
+          >Back to docs</v-btn>
+        </div>
+        <template v-if="page">
+          <div v-if="showSource && page.source" class="source-view">
+            <div class="text-caption text-medium-emphasis mb-2">
+              Source · <code>{{ page.slug.replace(/^lang-/, "") }}.{{ page.sourceLang }}</code>
+            </div>
+            <pre><code :class="'language-' + (page.sourceLang || 'gad')">{{ page.source }}</code></pre>
+          </div>
+          <div v-else v-html="page.html" />
+        </template>
         <div v-else class="pa-8 text-center text-medium-emphasis">Loading…</div>
       </article>
       <aside v-if="lgAndUp && page && page.toc.length" class="toc">

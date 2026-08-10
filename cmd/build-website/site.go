@@ -70,6 +70,11 @@ type page struct {
 	Headings []Heading
 	// plain is the searchable plain text of the page.
 	plain string
+	// Source is the sample source file backing a generated chapter page, with
+	// SourceLang its PrismJS highlight language ("gad", "gadt" or "gadx"); empty
+	// for pages without a backing source.
+	Source     string
+	SourceLang string
 }
 
 // navGroup is a sidebar section.
@@ -133,7 +138,7 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 	}
 
 	// Language chapters generated from the samples into doc/samples.
-	lang, err := collectLangPages(filepath.Join(repoRoot, "doc", "samples"))
+	lang, err := collectLangPages(filepath.Join(repoRoot, "doc", "samples"), filepath.Join(repoRoot, "samples"))
 	if err != nil {
 		return err
 	}
@@ -321,7 +326,7 @@ var langLinkRe = regexp.MustCompile(`\]\(([0-9A-Za-z_-]+)\.(?:gad|gadt|gadx|md)(
 // links (to `.gad`/`.gadt`/`.gadx`/`.md` siblings) are rewritten to the prefixed
 // names. langOrder curates the ordering; any other doc/samples page is appended
 // in name order so nothing is dropped. A missing dir yields no pages.
-func collectLangPages(dir string) ([]*page, error) {
+func collectLangPages(dir, samplesDir string) ([]*page, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -353,7 +358,10 @@ func collectLangPages(dir string) ([]*page, error) {
 	sort.Strings(rest)
 	order = append(order, rest...)
 
-	var pages []*page
+	var (
+		pages  []*page
+		readme *page
+	)
 	for _, name := range order {
 		src, err := os.ReadFile(filepath.Join(dir, name+".md"))
 		if err != nil {
@@ -365,10 +373,7 @@ func collectLangPages(dir string) ([]*page, error) {
 		if title == "" {
 			title = name
 		}
-		if name == "README" {
-			title = "Language chapters"
-		}
-		pages = append(pages, &page{
+		p := &page{
 			Slug:     "lang-" + name,
 			Title:    title,
 			OutFile:  "lang-" + name + ".html",
@@ -376,9 +381,53 @@ func collectLangPages(dir string) ([]*page, error) {
 			BodyHTML: template.HTML(body),
 			Headings: headings,
 			plain:    plainText(rewritten),
-		})
+		}
+		if name == "README" {
+			p.Title = "Language Chapters"
+			readme = p
+		} else if code, lang, ok := readSample(samplesDir, name); ok {
+			// Attach the runnable sample source that backs this chapter.
+			p.Source = code
+			p.SourceLang = lang
+		}
+		pages = append(pages, p)
+	}
+	// Replace the auto-generated "samples/Files" README with a clean index that
+	// links each chapter by its title (no filenames, no "samples" heading).
+	if readme != nil {
+		readme.BodyHTML = langIndexHTML(pages)
+		readme.Headings = nil
 	}
 	return pages, nil
+}
+
+// readSample returns the source of the sample file backing a language chapter
+// (samples/<name>.<gad|gadt|gadx>) and its PrismJS language, or ok=false when no
+// source file exists.
+func readSample(samplesDir, name string) (code, lang string, ok bool) {
+	for _, ext := range []string{".gad", ".gadt", ".gadx"} {
+		if data, err := os.ReadFile(filepath.Join(samplesDir, name+ext)); err == nil {
+			return string(data), strings.TrimPrefix(ext, "."), true
+		}
+	}
+	return "", "", false
+}
+
+// langIndexHTML builds the "Language Chapters" landing: a short lead-in and a list
+// of the chapters linked by title.
+func langIndexHTML(pages []*page) template.HTML {
+	var b strings.Builder
+	b.WriteString(`<h1>Language Chapters</h1>`)
+	b.WriteString(`<p>A guided tour of the Gad language, one topic per chapter. Every chapter is a runnable example — open one and use <strong>View source</strong> to read the code it is generated from.</p>`)
+	b.WriteString(`<ul class="chapter-index">`)
+	for _, p := range pages {
+		if p.Slug == "lang-README" {
+			continue
+		}
+		fmt.Fprintf(&b, `<li><a href="%s">%s</a></li>`, p.OutFile, template.HTMLEscapeString(p.Title))
+	}
+	b.WriteString(`</ul>`)
+	return template.HTML(b.String())
 }
 
 // copyGadxAssets copies non-Markdown files (images such as the benchmark SVGs)

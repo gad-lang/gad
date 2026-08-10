@@ -11,6 +11,8 @@ export interface DocPage {
   title: string;
   html: string;
   toc: TocEntry[];
+  source?: string;
+  sourceLang?: string;
 }
 
 export interface NavPage {
