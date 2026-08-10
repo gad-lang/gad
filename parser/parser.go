@@ -4211,6 +4211,21 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			return
 		}
 		stmt.ValueExpr = s
+	case token.Const:
+		// export const NAME [= value] — a read-only module constant. The value is
+		// optional (a documentation stub may omit it); when present it initializes
+		// the exported binding.
+		p.Expect(token.Const)
+		stmt.Const = true
+		stmt.KeyExpr = p.ParseIdent()
+		if p.Failed() {
+			return
+		}
+		if p.Token.Token == token.Assign {
+			p.Next()
+			stmt.ValueExpr = p.ParseExpr()
+		}
+		return
 	case token.Class:
 		classTok := p.ExpectToken(token.Class)
 		var name node.Expr

@@ -1354,7 +1354,10 @@ type ExportStmt struct {
 	TokenPos  source.Pos
 	KeyExpr   Expr
 	ValueExpr Expr
-	Doc       *ast.CommentGroup // doc comment preceding the export; or nil
+	// Const marks an `export const NAME [= value]`: the exported member is a
+	// read-only module constant (assigning to it via the module is rejected).
+	Const bool
+	Doc   *ast.CommentGroup // doc comment preceding the export; or nil
 	// Prelude is compiled before the export itself. It carries the `var name =
 	// init` declaration synthesized for `export prop name = init` (the live
 	// read/write binding), so the module gets a real local the exported prop's
@@ -1405,6 +1408,9 @@ func (s *ExportStmt) String() string {
 		return "export prop " + s.KeyExpr.String() + " = " + init.String()
 	}
 	str := "export "
+	if s.Const {
+		str += "const "
+	}
 	if s.KeyExpr != nil {
 		str += s.KeyExpr.String()
 		if s.ValueExpr != nil {
@@ -1428,6 +1434,9 @@ func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
 		return
 	}
 	ctx.WriteString("export ")
+	if s.Const {
+		ctx.WriteString("const ")
+	}
 	if s.KeyExpr != nil {
 		s.KeyExpr.WriteCode(ctx)
 
