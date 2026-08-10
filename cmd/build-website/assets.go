@@ -114,7 +114,7 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .nav-toggle:hover,.menu-toggle:hover{background:var(--accent-soft);border-color:var(--accent)}
 .nav-backdrop{display:none;position:fixed;inset:0;background:rgba(13,27,42,.45);z-index:25}
 .layout{display:grid;grid-template-columns:230px minmax(0,1fr) 190px;gap:1.8rem;max-width:1480px;margin:0 auto;padding:2rem 1.4rem}
-.sidebar{position:sticky;top:72px;align-self:start;max-height:calc(100vh - 90px);overflow:auto;padding-right:.3rem}
+.sidebar{position:sticky;top:72px;align-self:start;max-height:calc(100vh - 90px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-right:.3rem}
 .nav-group{margin-bottom:1.3rem}
 .nav-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.45rem;font-weight:700}
 .nav-link{display:block;padding:.3rem .6rem;border-radius:8px;color:var(--fg);font-size:.92rem;border-left:2px solid transparent;transition:background .12s,color .12s}
@@ -196,9 +196,11 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
   .layout{grid-template-columns:1fr}
   .toc{position:static;max-height:none;border-left:none;padding-left:0;border-top:1px solid var(--border);padding-top:1rem}
   .nav-toggle{display:inline-flex}
-  .sidebar{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:300px;max-height:none;transform:translateX(-100%);transition:transform .22s ease;background:var(--panel);border-right:1px solid var(--border);box-shadow:0 14px 40px rgba(13,27,42,.35);z-index:35;padding:4.4rem 1.1rem 1.4rem;overflow:auto}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:300px;max-height:none;height:100dvh;transform:translateX(-100%);transition:transform .22s ease;background:var(--panel);border-right:1px solid var(--border);box-shadow:0 14px 40px rgba(13,27,42,.35);z-index:35;padding:4.4rem 1.1rem 1.4rem;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   body.sidebar-open .sidebar{transform:none}
   body.sidebar-open .nav-backdrop{display:block}
+  /* Lock the page behind the open drawer so touch scrolling moves the menu, not the body. */
+  body.sidebar-open{overflow:hidden}
 }
 @media(max-width:700px){
   .home-hero h1{font-size:2rem}
