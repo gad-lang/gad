@@ -182,15 +182,12 @@ ide: web-build
 .PHONY: samples-doc
 .PHONY: generate-api
 # Regenerate the documented public-API stub samples (samples/**/<module>.gad) from
-# the gad:doc comments in the Go source. The stdlib modules (fmt/strings/time/
-# reflect) live in the root package; `builtins` is the root builtin set; json is
-# its own package. samples-doc renders their .md afterwards.
+# the gad:doc comments in the Go source. The stub-generation commands live as
+# //go:generate directives in gaddoc_generate.go (single source of truth); this
+# target runs just those (via `-run gaddoc`), skipping the heavier code
+# generators (mkcallable/update-delve). samples-doc renders their .md afterwards.
 generate-api: version
-	go run ./cmd/gaddoc api . samples/stdlib/fmt.gad fmt
-	go run ./cmd/gaddoc api . samples/stdlib/strings.gad strings
-	go run ./cmd/gaddoc api . samples/stdlib/time.gad time
-	go run ./cmd/gaddoc api ./stdlib/json samples/stdlib/json.gad json
-	go run ./cmd/gaddoc api . samples/builtins.gad builtins
+	go generate -run gaddoc ./...
 
 samples-doc: generate-api
 	cd samples && go run ../cmd/gad doc --out ../doc/samples \

@@ -586,6 +586,40 @@ flush(w writable)
 
 Flushes any buffered output of a `writable`.
 
+### iterator
+
+```gad
+iterator(it iterable) <iterator>
+```
+
+Builds an iterator over any iterable value (the type constructor form of
+`iterate`).
+
+### zip
+
+```gad
+zip(*iterables) <iterator>
+```
+
+Returns an iterator that chains the given iterables end to end: it yields
+every element of the first, then of the second, and so on.
+
+### keyValue
+
+```gad
+keyValue(key any, value any) <keyValue>
+```
+
+Builds a single key/value pair value.
+
+### keyValueArray
+
+```gad
+keyValueArray(*pairs) <keyValueArray>
+```
+
+Builds an ordered key/value collection from `keyValue` pairs.
+
 ## Example — `builtins.gad`
 
 ```gad
@@ -960,4 +994,26 @@ export close(o) => nil
 Flushes any buffered output of a `writable`.
 **/
 export flush(w writable) => nil
+
+/**
+Builds an iterator over any iterable value (the type constructor form of
+`iterate`).
+**/
+export iterator(it iterable) <iterator> => nil
+
+/**
+Returns an iterator that chains the given iterables end to end: it yields
+every element of the first, then of the second, and so on.
+**/
+export zip(*iterables) <iterator> => nil
+
+/**
+Builds a single key/value pair value.
+**/
+export keyValue(key any, value any) <keyValue> => nil
+
+/**
+Builds an ordered key/value collection from `keyValue` pairs.
+**/
+export keyValueArray(*pairs) <keyValueArray> => nil
 ```

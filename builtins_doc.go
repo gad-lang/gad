@@ -8,12 +8,25 @@ package gad
 // (those available without an import). `gaddoc api . samples/builtins.gad builtins`
 // renders it as the documented Gad API stub `samples/builtins.gad`.
 //
-// Documented: the type constructors (str/int/…), the container/iteration/I/O
-// builtins, the type predicates (is*), and the meta builtins (is/cast/wrap/
-// implements/Class/…). Left out: the user-operator dispatch builtins
-// (binOp/unOp/selfAssignOp — see the User Operators chapter), `stdio`, and the
-// internal builtins (namedParamTypeCheck/methodFromArgs/rawCaller/vmPushWriter/
-// vmPopWriter/iteratorInput). `enter`/`exit` live in the `gad` namespace.
+// Documented here (the callable builtins): the type constructors (str/int/…),
+// the container/iteration/I/O builtins, the iterator/keyValue constructors
+// (iterator/zip/keyValue/keyValueArray), the type predicates (is*), and the meta
+// builtins (is/cast/wrap/implements/Class/…).
+//
+// Intentionally left out, by category:
+//   - Behavioural interfaces & the `number` union — value-types, not functions;
+//     documented in the Type Unions sample (samples/35_type_unions.gad):
+//     iterable/callable/lengther/indexable/indexAssignable/indexDeletable/
+//     readable/writable/classInstance/classType, number.
+//   - Predefined error values (TypeError/ZeroDivisionError/WrongNumArgumentsError/
+//     InvalidOperatorError/IndexOutOfBoundsError/NotCallableError/NotIterableError/
+//     NotIndexableError/NotIndexAssignableError/NotImplementedError) and
+//     DISCARD_WRITER — constants, not functions.
+//   - The user-operator dispatch builtins (binOp/unOp/selfAssignOp — see the User
+//     Operators chapter, samples/14_user_operators.gad).
+//   - Internal builtins (namedParamTypeCheck/methodFromArgs/rawCaller/
+//     vmPushWriter/vmPopWriter/iteratorInput). `enter`/`exit` live in the `gad`
+//     namespace, not the root.
 
 // gad:doc
 // # builtins module
@@ -260,3 +273,17 @@ package gad
 //
 // flush(w writable) <nil>
 // Flushes any buffered output of a `writable`.
+//
+// iterator(it iterable) <iterator>
+// Builds an iterator over any iterable value (the type constructor form of
+// `iterate`).
+//
+// zip(*iterables) <iterator>
+// Returns an iterator that chains the given iterables end to end: it yields
+// every element of the first, then of the second, and so on.
+//
+// keyValue(key any, value any) <keyValue>
+// Builds a single key/value pair value.
+//
+// keyValueArray(*pairs) <keyValueArray>
+// Builds an ordered key/value collection from `keyValue` pairs.

@@ -1,149 +1,1019 @@
-# Builtin Functions
 
-[← Back to index](README.md)
+# `builtins` module
 
-Gad ships with a library of builtin functions available without an `import`.
-This page is a categorised overview of the builtins.
+Gad's **builtin functions** are available in every script without an
+`import`. This page documents the builtins whose signatures are settled; the
+remaining conversion, meta and operator builtins are still being typed.
 
-The host can disable any builtin before compilation, so a sandboxed script may
-see a reduced set.
+## Public API
 
-## Type Constructors / Conversions
-
-`int`, `uint`, `float`, `decimal`, `bool`, `flag`, `char`, `string` (alias
-`str`), `bytes`, `array`, `chars`, `error`, `keyValue`, `keyValueArray`.
+### str
 
 ```gad
-int("42")        // 42
-str(42)          // "42"
-float(3)         // 3.0
-bool(1)          // true
-char("X")        // 'X'
-decimal(2)       // 2
-bytes("hi")      // bytes of "hi"
-array(1, 2, 3)   // [1, 2, 3]
+str(v any) <str>
 ```
 
-## Type Inspection
+Converts a value to its str form (never fails).
 
-`typeName`, `typeof`, `is`, `isArray`, `isBool`, `isBytes`, `isCallable`,
-`isChar`, `isDict`, `isError`, `isFloat`, `isFunction`, `isInt`, `isIterable`,
-`isIterator`, `isNil`, `isRawStr`, `isStr`, `isUint`, `isSyncDict`.
+### rawstr
 
 ```gad
-typeName([1, 2])   // "array"
-isInt(5)           // true
-isNil(nil)         // true
-isCallable(println)// true
+rawstr(v any) <rawstr>
 ```
 
-## Sequences and Collections
+Converts a value to a rawstr (an uninterpreted string).
 
-`len`, `copy`, `dcopy`, `repeat`, `contains`, `sort`,
-`sortReverse`, `keys`, `values`, `items`, `zip`, `enumerate`.
-
-Appending and deleting are **operators / statements**, not builtins:
-the `+` / `++` / `+=` / `++=` operators (see [operators](samples/14_user_operators.md)) append, and the
-`delete` statement removes keys.
+### int
 
 ```gad
-len([1, 2, 3])             // 3
-[1, 2] ++ [3, 4]           // [1, 2, 3, 4]  (append/extend operators)
-contains([1, 2, 3], 2)     // true
-repeat([0], 3)             // [0, 0, 0]
-sort([3, 1, 2])            // [1, 2, 3]
-d := {a: 1, b: 2}; delete d.a  // → {b: 2}
+int(v any) <int>
 ```
 
-## Iteration
+Converts a str/number/char/bool to an int; throws otherwise.
 
-`map`, `filter`, `reduce`, `each`, `iterate`, `iterator`, `collect`, `toArray`,
-`zip`, `enumerate`.
-
-Several of these (`map`, `filter`, `keys`, `values`, …) return **lazy
-iterators**. Consume them in a `for in` loop or a comprehension, or materialise
-them with `collect` / `array`:
+### uint
 
 ```gad
-// for-in over a lazy map (callback gets value first)
-for k, v in map([10, 20, 30], func(v, k) { return v * 2 }) {
-    println(k, v)        // 0 20, 1 40, 2 60
-}
-
-// reduce eagerly folds
-reduce([1, 2, 3, 4], func(acc, v, k) { return acc + v }, 0)   // 10
-
-// collect an iterator into an array
-collect(keys({a: 1, b: 2}))   // ["a", "b"]
-collect(filter([10, 11, 12, 13], func(v, k, it) { return v % 2 == 0 }))  // [10, 12]
+uint(v any) <uint>
 ```
 
-Mind the callback argument order: `each` receives `(key, value)`, while
-`map` receives `(value, key)`, `filter` receives `(value, key, iterable)` and
-`reduce` receives `(accumulator, value, key)`. Comprehensions are often clearer
-than `map`/`filter` — see [Collections](samples/04_collections.md).
+Converts a value to a uint; throws otherwise.
 
-## I/O and Formatting
-
-`print`, `println`, `printf`, `sprintf`, `repr`, `read`, `write`, `flush`,
-`stdio`.
+### float
 
 ```gad
-println("a", 1, [2])     // a 1 [2]
-printf("%d-%s\n", 7, "x")// 7-x
-s := sprintf("%v", {a: 1})
-repr("hi")               // a debug representation
+float(v any) <float>
 ```
 
-## Misc
+Converts a str/number to a float; throws otherwise.
 
-`cast`, `wrap`, `addMethod`, `Class`, `userData`.
-
-The host-provided globals object is reached with the `@g` keyword (see
-[Special `@` Keywords](samples/29_special_keywords.md) and
-[Variables → global](samples/33_variables_and_scopes.md)); `Class` and `addMethod`
-support the object/class system.
-
-## Builtin Modules
-
-`time`, `strings`, `fmt` and `base64` are exposed as **builtin namespaces**:
-they are always available, so you can use them **without an `import`**:
+### decimal
 
 ```gad
-println(strings.contains("abcd", "bc"))          // true
-println(fmt.sprintf("%d-%s", 7, "x"))            // 7-x
-println(base64.StdEncoding.EncodeToString(bytes("hi")))  // aGk=
-
-d := time.date(2026, 6, 13, 9, 0, 0, 0, time.utc())
-println(d.Year())                                // 2026
+decimal(v any) <decimal>
 ```
 
-`import(...)` still works for these (and is required for other stdlib modules),
-returning the same members:
+Converts a str/number to an arbitrary-precision decimal; throws otherwise.
+
+### char
 
 ```gad
-strings := import("strings")
-println(strings.toUpper("hi"))   // HI
+char(v any) <char>
 ```
 
-### Member naming
+Converts an int code point or a single-character str to a char; throws
+otherwise.
 
-The **`strings`**, **`fmt`** and **`time`** modules expose their functions with
-**lowerCamelCase** member names, following Gad's [naming
-conventions](conventions.md) (`strings.toUpper`, `strings.contains`,
-`fmt.sprintf`, `time.now`, `time.date`, `time.durationString`, …). The
-**`base64`** module keeps Go-style PascalCase names (`base64.StdEncoding`,
-`base64.RawURLEncoding`), because those members are package-level **constants**.
-For `time`, the value types are `time` and `Location`, and methods on a time
-value stay PascalCase (`t.Add(…)`, `t.Format(…)`).
-
-## Other Standard Library Modules
-
-Further functionality is grouped into importable modules such as `json`, `os`,
-`filepath` and `path`:
+### bool
 
 ```gad
-json := import("json")
+bool(v any) <bool>
 ```
 
-See the generated `stdlib-*.md` files for per-module references. For runnable examples, see `samples/stdlib/` (`use_fmt.gad`, `use_strings.gad`, `use_time.gad`, `use_json.gad`, `use_base64.gad`).
+Returns the truthiness of a value (never fails).
+
+### bytes
+
+```gad
+bytes(v any) <bytes>
+```
+
+Converts a str to its bytes, or builds a bytes of the given int length.
+
+### array
+
+```gad
+array(*args) <array>
+```
+
+Collects its arguments into a new array.
+
+### dict
+
+```gad
+dict(o; **named) <dict>
+```
+
+Builds a dict from named arguments, or from a dict-like value `o`.
+
+### len
+
+```gad
+len(val any; check)
+```
+
+Returns the number of elements of a value that has a length (array, dict,
+str, bytes, …). With `check=yes`, a value that has no length raises
+`ErrNotLengther` instead of returning 0.
+
+### cap
+
+```gad
+cap(o any) <int>
+```
+
+Returns the capacity of an array or bytes value (0 for values without one).
+
+### typeName
+
+```gad
+typeName(o any) <str>
+```
+
+Returns the type name of a value (e.g. "int", "array", "dict").
+
+### typeof
+
+```gad
+typeof(o any) <type>
+```
+
+Returns the type object of a value.
+
+### chars
+
+```gad
+chars(s str|bytes) <array>
+```
+
+Returns the characters of a str/bytes as an array of `char`; throws for an
+unsupported value.
+
+### copy
+
+```gad
+copy(o any) <any>
+```
+
+Returns a shallow copy of a value (a new array/dict with the same elements).
+
+### dcopy
+
+```gad
+dcopy(o any) <any>
+```
+
+Returns a deep copy of a value, cloning nested arrays and dicts recursively.
+
+### repeat
+
+```gad
+repeat(o str|bytes|array, count int) <any>
+```
+
+Returns a value (array/str/bytes) repeated `count` times; throws for an
+unsupported value.
+
+### contains
+
+```gad
+contains(o iterable, val any) <bool>
+```
+
+Reports whether a collection/str contains val (a dict key, an array element
+or a substring); throws for an unsupported value.
+
+### repr
+
+```gad
+repr(o any; indent=no) <str>
+```
+
+Returns the debug representation of a value; `indent=yes` pretty-prints it.
+
+### isNil
+
+```gad
+isNil(o any) <bool>
+```
+
+Reports whether o is nil.
+
+### isInt
+
+```gad
+isInt(o any) <bool>
+```
+
+Reports whether o is an int.
+
+### isUint
+
+```gad
+isUint(o any) <bool>
+```
+
+Reports whether o is a uint.
+
+### isFloat
+
+```gad
+isFloat(o any) <bool>
+```
+
+Reports whether o is a float.
+
+### isChar
+
+```gad
+isChar(o any) <bool>
+```
+
+Reports whether o is a char.
+
+### isBool
+
+```gad
+isBool(o any) <bool>
+```
+
+Reports whether o is a bool.
+
+### isStr
+
+```gad
+isStr(o any) <bool>
+```
+
+Reports whether o is a str.
+
+### isRawStr
+
+```gad
+isRawStr(o any) <bool>
+```
+
+Reports whether o is a rawStr.
+
+### isBytes
+
+```gad
+isBytes(o any) <bool>
+```
+
+Reports whether o is a bytes value.
+
+### isArray
+
+```gad
+isArray(o any) <bool>
+```
+
+Reports whether o is an array.
+
+### isDict
+
+```gad
+isDict(o any) <bool>
+```
+
+Reports whether o is a dict.
+
+### isSyncDict
+
+```gad
+isSyncDict(o any) <bool>
+```
+
+Reports whether o is a syncDict.
+
+### isFunction
+
+```gad
+isFunction(o any) <bool>
+```
+
+Reports whether o is a function value.
+
+### isCallable
+
+```gad
+isCallable(o any) <bool>
+```
+
+Reports whether o can be called.
+
+### isIterable
+
+```gad
+isIterable(o any) <bool>
+```
+
+Reports whether o can be iterated.
+
+### isIterator
+
+```gad
+isIterator(o any) <bool>
+```
+
+Reports whether o is an iterator.
+
+### isError
+
+```gad
+isError(o any) <bool>
+```
+
+Reports whether o is an error value.
+
+### filter
+
+```gad
+filter(it iterable, callback callable) <iterator>
+```
+
+Returns a lazy iterator over the elements of iterable for which callback
+returns a truthy value.
+
+### map
+
+```gad
+map(it iterable, callback callable; update=no, nokey=no) <iterator>
+```
+
+Returns a lazy iterator applying callback to each element of iterable.
+`update=yes` replaces elements in place; `nokey=yes` passes only the value to
+the callback.
+
+### each
+
+```gad
+each(it iterable, callback callable) <any>
+```
+
+Calls callback for every element of iterable (for its side effects) and
+returns the iterable.
+
+### reduce
+
+```gad
+reduce(it iterable, callback callable, initial any) <any>
+```
+
+Folds the elements of iterable with callback into a single value, starting
+from initial (or the first element when initial is omitted).
+
+### keys
+
+```gad
+keys(it iterable) <iterator>
+```
+
+Returns a lazy iterator over the keys of a value.
+
+### values
+
+```gad
+values(it iterable) <iterator>
+```
+
+Returns a lazy iterator over the values of a value.
+
+### items
+
+```gad
+items(it iterable) <iterator>
+```
+
+Returns a lazy iterator over the key/value items of a value.
+
+### iterate
+
+```gad
+iterate(it iterable) <iterator>
+```
+
+Returns an iterator over a value.
+
+### enumerate
+
+```gad
+enumerate(it iterable) <iterator>
+```
+
+Returns a lazy iterator yielding each element paired with its index.
+
+### collect
+
+```gad
+collect(it iterable) <array>
+```
+
+Consumes an iterator or iterable into an array.
+
+### toArray
+
+```gad
+toArray(*args) <array>
+```
+
+Returns its arguments collected into an array.
+
+### sort
+
+```gad
+sort(o any; less=nil) <any>
+```
+
+Returns the collection sorted ascending; `less` is an optional comparator
+function `less(a, b) <bool>`.
+
+### sortReverse
+
+```gad
+sortReverse(o any; less=nil) <any>
+```
+
+Returns the collection sorted descending; `less` is an optional comparator.
+
+### print
+
+```gad
+print(*args) <int>
+```
+
+Writes its arguments to standard output and returns the number of bytes
+written.
+
+### printf
+
+```gad
+printf(format str, *args) <int>
+```
+
+Writes format applied to args to standard output and returns the byte count.
+
+### println
+
+```gad
+println(*args) <int>
+```
+
+Writes its arguments and a trailing newline to standard output.
+
+### sprintf
+
+```gad
+sprintf(format str, *args) <str>
+```
+
+Returns format applied to args as a str.
+
+### is
+
+```gad
+is(type any, *values) <bool>
+```
+
+Reports whether every value is of `type`. `type` may be a single type or an
+array of types, in which case a value matches when it is any of them.
+
+### implements
+
+```gad
+implements(fn callable, mi) <bool>
+```
+
+Reports whether the callable `fn` provides every function header required by
+the method interface `mi` (a `meti { … }` value).
+
+### wrap
+
+```gad
+wrap(caller callable, *args; **named) <function>
+```
+
+Returns a new function that calls `caller` with `args`/`named` prepended —
+a partial application. Calling the wrapper appends its own arguments.
+
+### cast
+
+```gad
+cast(toType type, obj any) <any>
+```
+
+Casts `obj` (an object that supports casting — a class instance or a reflected
+Go value) to the object type `toType`, throwing when incompatible. For the
+general checked cast that also accepts interfaces and unions, use the `::`
+operator.
+
+### userData
+
+```gad
+userData(o any) <any>
+```
+
+Returns the host-attached user data of a value that carries it (a Go value
+implementing UserDataStorage); throws otherwise.
+
+### stdio
+
+```gad
+stdio(which any) <any>
+```
+
+Returns a standard stream of the running VM selected by `which` — "IN"/"OUT"/
+"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`.
+
+### Class
+
+```gad
+Class(name str, define callable) <classType>
+```
+
+Creates a class named `name`; `define` builds its fields, methods and
+properties (see the Classes chapter). Also written with the `class` keyword.
+It returns a `classType`; calling that class type — `classType(…)` — yields a
+`classInstance`.
+
+### addMethod
+
+```gad
+addMethod(target callable, *methods) <any>
+```
+
+Attaches typed method overloads to a callable or type, so the VM dispatches on
+argument types. Returns the target.
+
+### obstart
+
+```gad
+obstart() <buffer>
+```
+
+Starts capturing standard output into a fresh buffer, which it returns.
+Nested calls stack.
+
+### obend
+
+```gad
+obend() <buffer>
+```
+
+Stops the most recent output capture and returns its buffer (the captured
+output).
+
+### read
+
+```gad
+read(r readable) <bytes>
+```
+
+Reads all remaining bytes from a `readable` value.
+
+### write
+
+```gad
+write(w writable, *data) <int>
+```
+
+Writes each data value to a `writable` and returns the number of bytes written.
+
+### close
+
+```gad
+close(o)
+```
+
+Closes a closable value (e.g. a reader/writer).
+
+### flush
+
+```gad
+flush(w writable)
+```
+
+Flushes any buffered output of a `writable`.
+
+### iterator
+
+```gad
+iterator(it iterable) <iterator>
+```
+
+Builds an iterator over any iterable value (the type constructor form of
+`iterate`).
+
+### zip
+
+```gad
+zip(*iterables) <iterator>
+```
+
+Returns an iterator that chains the given iterables end to end: it yields
+every element of the first, then of the second, and so on.
+
+### keyValue
+
+```gad
+keyValue(key any, value any) <keyValue>
+```
+
+Builds a single key/value pair value.
+
+### keyValueArray
+
+```gad
+keyValueArray(*pairs) <keyValueArray>
+```
+
+Builds an ordered key/value collection from `keyValue` pairs.
+
+## Example — `builtins.gad`
+
+```gad
+/**
+Converts a value to its str form (never fails).
+**/
+export str(v any) <str> => nil
+
+/**
+Converts a value to a rawstr (an uninterpreted string).
+**/
+export rawstr(v any) <rawstr> => nil
+
+/**
+Converts a str/number/char/bool to an int; throws otherwise.
+**/
+export int(v any) <int> => nil
+
+/**
+Converts a value to a uint; throws otherwise.
+**/
+export uint(v any) <uint> => nil
+
+/**
+Converts a str/number to a float; throws otherwise.
+**/
+export float(v any) <float> => nil
+
+/**
+Converts a str/number to an arbitrary-precision decimal; throws otherwise.
+**/
+export decimal(v any) <decimal> => nil
+
+/**
+Converts an int code point or a single-character str to a char; throws
+otherwise.
+**/
+export char(v any) <char> => nil
+
+/**
+Returns the truthiness of a value (never fails).
+**/
+export bool(v any) <bool> => nil
+
+/**
+Converts a str to its bytes, or builds a bytes of the given int length.
+**/
+export bytes(v any) <bytes> => nil
+
+/**
+Collects its arguments into a new array.
+**/
+export array(*args) <array> => nil
+
+/**
+Builds a dict from named arguments, or from a dict-like value `o`.
+**/
+export dict(o; **named) <dict> => nil
+
+/**
+Returns the number of elements of a value that has a length (array, dict,
+str, bytes, …). With `check=yes`, a value that has no length raises
+`ErrNotLengther` instead of returning 0.
+**/
+export len(val any; check) => nil
+
+/**
+Returns the capacity of an array or bytes value (0 for values without one).
+**/
+export cap(o any) <int> => nil
+
+/**
+Returns the type name of a value (e.g. "int", "array", "dict").
+**/
+export typeName(o any) <str> => nil
+
+/**
+Returns the type object of a value.
+**/
+export typeof(o any) <type> => nil
+
+/**
+Returns the characters of a str/bytes as an array of `char`; throws for an
+unsupported value.
+**/
+export chars(s str|bytes) <array> => nil
+
+/**
+Returns a shallow copy of a value (a new array/dict with the same elements).
+**/
+export copy(o any) <any> => nil
+
+/**
+Returns a deep copy of a value, cloning nested arrays and dicts recursively.
+**/
+export dcopy(o any) <any> => nil
+
+/**
+Returns a value (array/str/bytes) repeated `count` times; throws for an
+unsupported value.
+**/
+export repeat(o str|bytes|array, count int) <any> => nil
+
+/**
+Reports whether a collection/str contains val (a dict key, an array element
+or a substring); throws for an unsupported value.
+**/
+export contains(o iterable, val any) <bool> => nil
+
+/**
+Returns the debug representation of a value; `indent=yes` pretty-prints it.
+**/
+export repr(o any; indent=no) <str> => nil
+
+/**
+Reports whether o is nil.
+**/
+export isNil(o any) <bool> => nil
+
+/**
+Reports whether o is an int.
+**/
+export isInt(o any) <bool> => nil
+
+/**
+Reports whether o is a uint.
+**/
+export isUint(o any) <bool> => nil
+
+/**
+Reports whether o is a float.
+**/
+export isFloat(o any) <bool> => nil
+
+/**
+Reports whether o is a char.
+**/
+export isChar(o any) <bool> => nil
+
+/**
+Reports whether o is a bool.
+**/
+export isBool(o any) <bool> => nil
+
+/**
+Reports whether o is a str.
+**/
+export isStr(o any) <bool> => nil
+
+/**
+Reports whether o is a rawStr.
+**/
+export isRawStr(o any) <bool> => nil
+
+/**
+Reports whether o is a bytes value.
+**/
+export isBytes(o any) <bool> => nil
+
+/**
+Reports whether o is an array.
+**/
+export isArray(o any) <bool> => nil
+
+/**
+Reports whether o is a dict.
+**/
+export isDict(o any) <bool> => nil
+
+/**
+Reports whether o is a syncDict.
+**/
+export isSyncDict(o any) <bool> => nil
+
+/**
+Reports whether o is a function value.
+**/
+export isFunction(o any) <bool> => nil
+
+/**
+Reports whether o can be called.
+**/
+export isCallable(o any) <bool> => nil
+
+/**
+Reports whether o can be iterated.
+**/
+export isIterable(o any) <bool> => nil
+
+/**
+Reports whether o is an iterator.
+**/
+export isIterator(o any) <bool> => nil
+
+/**
+Reports whether o is an error value.
+**/
+export isError(o any) <bool> => nil
+
+/**
+Returns a lazy iterator over the elements of iterable for which callback
+returns a truthy value.
+**/
+export filter(it iterable, callback callable) <iterator> => nil
+
+/**
+Returns a lazy iterator applying callback to each element of iterable.
+`update=yes` replaces elements in place; `nokey=yes` passes only the value to
+the callback.
+**/
+export map(it iterable, callback callable; update=no, nokey=no) <iterator> => nil
+
+/**
+Calls callback for every element of iterable (for its side effects) and
+returns the iterable.
+**/
+export each(it iterable, callback callable) <any> => nil
+
+/**
+Folds the elements of iterable with callback into a single value, starting
+from initial (or the first element when initial is omitted).
+**/
+export reduce(it iterable, callback callable, initial any) <any> => nil
+
+/**
+Returns a lazy iterator over the keys of a value.
+**/
+export keys(it iterable) <iterator> => nil
+
+/**
+Returns a lazy iterator over the values of a value.
+**/
+export values(it iterable) <iterator> => nil
+
+/**
+Returns a lazy iterator over the key/value items of a value.
+**/
+export items(it iterable) <iterator> => nil
+
+/**
+Returns an iterator over a value.
+**/
+export iterate(it iterable) <iterator> => nil
+
+/**
+Returns a lazy iterator yielding each element paired with its index.
+**/
+export enumerate(it iterable) <iterator> => nil
+
+/**
+Consumes an iterator or iterable into an array.
+**/
+export collect(it iterable) <array> => nil
+
+/**
+Returns its arguments collected into an array.
+**/
+export toArray(*args) <array> => nil
+
+/**
+Returns the collection sorted ascending; `less` is an optional comparator
+function `less(a, b) <bool>`.
+**/
+export sort(o any; less=nil) <any> => nil
+
+/**
+Returns the collection sorted descending; `less` is an optional comparator.
+**/
+export sortReverse(o any; less=nil) <any> => nil
+
+/**
+Writes its arguments to standard output and returns the number of bytes
+written.
+**/
+export print(*args) <int> => nil
+
+/**
+Writes format applied to args to standard output and returns the byte count.
+**/
+export printf(format str, *args) <int> => nil
+
+/**
+Writes its arguments and a trailing newline to standard output.
+**/
+export println(*args) <int> => nil
+
+/**
+Returns format applied to args as a str.
+**/
+export sprintf(format str, *args) <str> => nil
+
+/**
+Reports whether every value is of `type`. `type` may be a single type or an
+array of types, in which case a value matches when it is any of them.
+**/
+export is(type any, *values) <bool> => nil
+
+/**
+Reports whether the callable `fn` provides every function header required by
+the method interface `mi` (a `meti { … }` value).
+**/
+export implements(fn callable, mi) <bool> => nil
+
+/**
+Returns a new function that calls `caller` with `args`/`named` prepended —
+a partial application. Calling the wrapper appends its own arguments.
+**/
+export wrap(caller callable, *args; **named) <function> => nil
+
+/**
+Casts `obj` (an object that supports casting — a class instance or a reflected
+Go value) to the object type `toType`, throwing when incompatible. For the
+general checked cast that also accepts interfaces and unions, use the `::`
+operator.
+**/
+export cast(toType type, obj any) <any> => nil
+
+/**
+Returns the host-attached user data of a value that carries it (a Go value
+implementing UserDataStorage); throws otherwise.
+**/
+export userData(o any) <any> => nil
+
+/**
+Returns a standard stream of the running VM selected by `which` — "IN"/"OUT"/
+"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`.
+**/
+export stdio(which any) <any> => nil
+
+/**
+Creates a class named `name`; `define` builds its fields, methods and
+properties (see the Classes chapter). Also written with the `class` keyword.
+It returns a `classType`; calling that class type — `classType(…)` — yields a
+`classInstance`.
+**/
+export Class(name str, define callable) <classType> => nil
+
+/**
+Attaches typed method overloads to a callable or type, so the VM dispatches on
+argument types. Returns the target.
+**/
+export addMethod(target callable, *methods) <any> => nil
+
+/**
+Starts capturing standard output into a fresh buffer, which it returns.
+Nested calls stack.
+**/
+export obstart() <buffer> => nil
+
+/**
+Stops the most recent output capture and returns its buffer (the captured
+output).
+**/
+export obend() <buffer> => nil
+
+/**
+Reads all remaining bytes from a `readable` value.
+**/
+export read(r readable) <bytes> => nil
+
+/**
+Writes each data value to a `writable` and returns the number of bytes written.
+**/
+export write(w writable, *data) <int> => nil
+
+/**
+Closes a closable value (e.g. a reader/writer).
+**/
+export close(o) => nil
+
+/**
+Flushes any buffered output of a `writable`.
+**/
+export flush(w writable) => nil
+
+/**
+Builds an iterator over any iterable value (the type constructor form of
+`iterate`).
+**/
+export iterator(it iterable) <iterator> => nil
+
+/**
+Returns an iterator that chains the given iterables end to end: it yields
+every element of the first, then of the second, and so on.
+**/
+export zip(*iterables) <iterator> => nil
+
+/**
+Builds a single key/value pair value.
+**/
+export keyValue(key any, value any) <keyValue> => nil
+
+/**
+Builds an ordered key/value collection from `keyValue` pairs.
+**/
+export keyValueArray(*pairs) <keyValueArray> => nil
+```

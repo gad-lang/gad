@@ -1,592 +1,293 @@
-# TASK: Docs-from-samples — template-driven `gad doc` generation
+# TASK: gaddoc `*_api.gad` + tipos (interfaces/unions) + fixes de VM
 
-> Created: 2026-08-06 | Updated: 2026-08-06
+> Created: 2026-08-10 | Updated: 2026-08-11
 
-- [x] create examples and docs for enum in func param/interface etc
-  Added an "Enums as types" section + `as_types` snippet to samples/20_enum.gad
-  (self-contained `enum Acl`, since the file already owns `Perm`): enum as a
-  function parameter type (dispatch rejects a non-member), as an interface field
-  type (`interface User { name str; perm Acl }`), verified via `/**<` output at
-  doc generation. `make samples-doc` exit 0; renders as lang-20_enum.html#enums-as-types.
-  
 ## Goal
-Make the samples the single source of truth for language documentation. Move
-language-feature docs into `samples/*.{gad,gadt,gadx}` as doc comments, and
-generate the site docs from them via `gad doc` with customizable templates. No
-more doc/sample drift.
+Fazer `cmd/gaddoc` gerar arquivos `.gad` que documentam a API pública de cada
+módulo com `export` de funções tipadas (params + retorno) e doc comments. Rodar
+`gad doc <api>.gad` produz a documentação. Saída: `samples/stdlib/<mod>_api.gad`
+(fmt, strings, time, json) e `samples/api.gad` (builtins root). Ligar ao
+`go generate`.
+
+## Decisões do usuário
+- Builtins root: **adicionar gad:doc tipado no source Go** e depois gerar.
+- ~11 sigs com notação `[opcional]`: **corrigir no source gad:doc** (Gad válido).
+- Assinatura renderizada como bloco ```` ```gad ```` abaixo do header (não inline).
+- Ligar geração ao `go generate` (//go:generate).
 
 ## Plan
-- [x] Dialect-aware doc templates: `--doc-template-md/html PATH` (.gad/.gadt/.gadx;
-      .gad/.gadt write STDOUT, .gadx renders a tag tree); `--html` opt-in HTML;
-      `--no-template` escapes to the built-in Go Markdown renderer
-- [x] `go:embed` default templates (cmd/gad/doctemplates) + repo `./doc-templates`
-      copies, guarded by a drift test; embedded md is the default so `gad doc`
-      is template-driven out of the box
-- [x] `@snippet NAME` incorporation from `//snippet NAME … //endsnippet` regions,
-      fenced with the source dialect; `/**= EXPR **/` (value) and `/**< TEXT **/`
-      (stdout) results verified at generation (fail on mismatch), then rendered
-- [x] Per-directory index generation: README.md (+ index.html with --html) via
-      md-index.gadx / html-index.gadx, listing files and linking subdir indexes
-- [x] Fixed a real compiler panic: selector in a `{%= … %}` mixed island
-- [x] Made the Go doc renderer mixed-aware (.gadt) and fixed samples/09_template.gad
-- [x] Shebang `#!…` on line 1 of .gad (round-trips through `gad fmt`) and .gadt
-      (ignored at run time)
-- [x] Makefile `samples-doc` → `doc/samples/`; `generate-docs` depends on it
-- [x] Migrate all 18 language docs into the samples, remove from doc/, repoint
-      doc/README.md (index → sample + generated doc)
-- [x] Incorporate doc/samples into the website (cmd/build-website "Language"
-      section: lang-<name>.html, link rewriting)
-- [x] JSON/YAML doc output: `--json` / `--yaml` encode the doc structure per file
-      (name/file/lang/prose/sections/source, snippets expanded) following all the
-      generator rules — mirrored tree, per-dir README.json/.yaml indexes; `--out -`
-      streams the whole nested tree to stdout. Tests TestDocCommandJSONYAML,
-      TestDocCommandStdoutTree. Commits c0d8a80, fd0f204.
-- [x] Shebang round-trip on format for all dialects: FormatSource / `gad fmt`
-      split off a leading `#!…` line, format the rest and prepend it, so `.gad`,
-      `.gadt` and `.gadx` all preserve the shebang (runtime already ignores it).
-      Test TestFormatSourceShebang.
-- [x] `.gadt` module prose: the doc lives inside the leading code island
-      (`{%-- /*** … ***/ --%}`, also `/** **/` or a normal `/* */`), captured as
-      prose by leadingRootBlock without leaking into template output.
-      23_template.gadt updated; test TestExtractDocGadtModuleProse.
+- [x] Validar fluxo `export nome(params) <ret> => nil` → `gad doc`.
+- [x] Assinatura tipada abaixo do header (gadbridge + md.gadx/html.gadx x2).
+- [x] Gerador `gaddoc api <src> <out.gad> <module>` (extração + emissão tipada).
+- [x] Corrigir 12 sigs `[opcional]` no source (module_fmt/strings/time*.go).
+- [x] Gerar samples/stdlib/{fmt,strings,time,json}_api.gad + `gad doc` verde.
+- [x] Root builtins (44 documentados) → samples/builtins_api.gad.
+- [x] Overloads no gerador (`export func NAME { … }`).
+- [x] export const + runtime const (StdModuleData).
+- [x] Interfaces builtin + type union + sintaxe `type <…>`.
+- [x] Testes + regenerar doc/samples/stdlib + go test ./... verde.
+- [x] //go:generate + Makefile wiring (gaddoc_generate.go + `go generate -run gaddoc`).
+- [x] Auditar sigs dos builtins root restantes (~31) — classificados; 4 construtores
+      documentados; interfaces/erros/internos categorizados no header.
 
 ## Log
-### 2026-08-07 (compile dialects: remove GadxOptions + add SourceCode)
-- Removed the empty `GadxOptions` struct + `CompilerOptions.GadxOptions` field.
-  The Gadx front-end is now selected by a `.gadx` `ModuleFile` extension
-  (CompileModule). Updated all callers (gadx/render, cmd/gad, web/gadbridge,
-  web/ide), the two gadx native tests, and every doc (gadx docs, CLAUDE.md,
-  sample 34 regenerated). `go test ./...` (core+cmd+gadx+web) exit 0.
-- Dialect-aware module imports: `SourceKind uint8` (SourceKindGad/Gadt/Gadx) got
-  `String()` ("GAD"/"GADT"/"GADX") and keeps `Ext()`; new `SourceCode{Data []byte;
-  Kind SourceKind}`. `compileImportExpr` handles `SourceCode` (and a bare []byte
-  as GAD, back-compat); `compileSourceModule` parses per kind (mixed for gadt,
-  Gadx front-end for gadx — the fork inherits the always-installed gadx fallback).
-  `importers.FileImporter.Import` and `ModuleMap.SourceModule`/`AddSourceModuleKind`
-  now return SourceCode with the kind from the extension. web/gadbridge maps its
-  "gad"/"gadTemplate"/"gadx" strings to gad.SourceKind (bridge sourceKind()).
-  Tests: TestSourceKindStringExt, TestSourceCodeImportDialects (.gadt exports 42;
-  wrong kind fails to parse; .gadx compiles under GADX only),
-  TestSourceCodePlainByteBackCompat, TestFileImporterSourceCode. Documented in
-  doc/embedding.md ("Source modules and dialects"). All module suites exit 0.
+### 2026-08-10
+- gadbridge/doc.go: export func expõe `Params.String()+FormatFuncReturn` (sem o
+  nome) — validado (`add(a int, b int) <int>` abaixo do header).
+- md.gadx + html.gadx (repo + embutidas): assinatura em bloco ```gad abaixo do
+  h3/###. Validado via probe.
+- cmd/gaddoc/api.go: modo `gaddoc api <srcdir> <out.gad> <module>`. Captura
+  estruturada (func sig+desc, const name+value) no docgroup (main.go). normalizeSig
+  converte o dialeto de doc p/ Gad válido: `->`→`<>`, `<nil>` dropado, `<[x]>`→
+  `<array>`, união `<a|b>`→`<_ a|b>`, param tipo-função sem tipo, `on/off`→bool.
+  Fallback `(*args)` + warning p/ sig não-parseável; skip p/ nome reservado (`in`).
+  Doc de cada export em bloco `/** **/`.
+- Corrigidas 12 sigs `[opcional]` no source (module_fmt/strings/time*.go).
+- GERADOS e validados por `gad doc` (EXIT 0): samples/stdlib/{fmt,strings,time,
+  json}_api.gad. 1 warning só: time `in` (keyword) pulado.
 
-### 2026-08-07 (website md renderer: underscores in links)
-- "Language chapters" table (doc/samples/README.md → lang-README.html) rendered
-  every sample link corrupted: renderInlineNoCode applied `_emphasis_` BEFORE
-  resolving links and matched intra-word underscores, so
-  `[01_hello](lang-01_hello.html)` → `<a href="lang-01</em>hello.html">01<em>hello</a>`
-  (broken href + text). Fix: resolve links first via segment-walk (URLs never
-  emphasized) + italicRe now requires non-word flanking (CommonMark intra-word
-  rule). Zero real `_emphasis_` in docs, so no regression. Test
-  TestRenderLinkUnderscores. `go test ./...` exit 0. Committed 76d3da8 → pushed
-  → website.yml deploy success. Live lang-README.html verified: 0 hrefs with a
-  stray <em>, 34 clean chapter links (CDN propagated on 2nd poll).
+## Unverified / Pending
+- **Consts NÃO capturados**: causa = source gad:doc quebrado. Em module_time.go
+  o bloco `## Constants`/`### Months` (linha ~47) está SEM `// gad:doc` (nunca
+  extraído); Weekdays/Layouts caem no bucket Types (falta header `## Constants` no
+  grupo). Precisa reestruturar o gad:doc no source.
+- **Assinaturas corretas por tipo real** (pedido do usuário): auditar cada função
+  rastreando a impl `func(c Call){…}` + testes VM (*_test.go). NÃO feito.
+- **Múltiplas assinaturas (overloads)**: usuário quer `met`/multi-sig. Precisa (a)
+  sintaxe de export overload que gadbridge renderize, (b) suporte no gadbridge
+  (hoje só ExportStmt→FuncExpr/escalar), (c) captura no gerador. NÃO feito.
+- **Builtins root → samples/api.gad**: 354 builtins sem gad:doc/Header. Usuário
+  quer adicionar gad:doc tipado no source (rastreando impl+testes). NÃO feito.
+- go:generate + Makefile wiring. NÃO feito.
+- Sync test TestDocTemplatesInSyncWithEmbedded (cópias iguais) — NÃO rodado.
+- Regenerar doc/samples + doc/stdlib com novo layout (assinatura em bloco) —
+  pendente; muda muitos .md. `go test ./...` — NÃO rodado após mudanças.
 
-### 2026-08-07 (website md renderer: width-aware fences)
-- The corrupted "forms" section persisted on the live site: the fence fix was in
-  the `.md` (cmd/gad), but the SITE has its own minimal md→HTML renderer
-  (cmd/build-website/markdown.go) that treated any ```-prefixed line as a fence
-  boundary — so the 4-backtick outer fence was closed early by the inner ```gad
-  doctest, and ```` opened a block with lang="`gad". Fix: backtickRun +
-  isClosingFence track the opening width; close only on a run of >= that width
-  alone on the line (CommonMark). Test TestRenderNestedFence. `go test ./...`
-  exit 0. Committed 2c85b00, pushed to main → website.yml deploy success. Live
-  page verified: `grep 'language-\`gad'` = 0, clean `language-gad` = 3 (CDN took
-  ~25s to propagate). Root cause was md→HTML, not the .md itself.
+### 2026-08-10 (cont.)
+- Overloads: DocSymbol.Overloads + DocOverload em gadbridge/doc.go; gadDocData trata
+  `export func NAME { (sig)=>… }` (FuncWithMethodsExpr) e `export const` (nil val);
+  gadExportName trata FuncWithMethodsExpr. RenderMarkdown + md.gadx/html.gadx (4
+  cópias) renderizam 1 bloco ```gad + doc por overload. Validado.
+- `export const NAME [= value]`: NOVO no parser (ParseExportStmt case token.Const) +
+  ExportStmt.Const + String/WriteCode. Parseia e documenta (Pi=3.14, Answer=42).
+  Compilador ignora o flag Const por ora (runtime const-enforcement NÃO feito).
+- Gerador emite `export const NAME = value`. 4 arquivos stdlib regerados, `gad doc`
+  EXIT 0.
+- Testes golden atualizados (doc_template_test.go: assinatura agora em bloco abaixo
+  do header). `go test ./...` TODO VERDE. `go build ./...` OK.
 
-### 2026-08-07 (fence-nesting fix in generated docs)
-- Generated doc pages corrupted when a snippet/Example source embedded a ```
-  run (a doctest fence inside a `/** **/` doc comment in 16_doc_comments; a raw
-  ```…``` heredoc in 21_heredocs): the inner run closed the outer ```gad fence
-  early. Fix: `fenceFor(content…)` returns a backtick run one longer than the
-  longest run in the content (min 3); renderSnippet + the Example (doc.fence in
-  md.gadx) size fences dynamically. Test TestSnippetEmbeddedFence (`go test
-  ./cmd/gad/ -run TestSnippetEmbeddedFence` → PASS). All 35 doc/samples/*.md
-  verified fence-balanced by a CommonMark nesting check. `go test ./...` exit 0.
-  Committed 723d460.
-- NOTE (not acted on): `gad fmt FILE` formats **in place by default** (prints the
-  path to stdout) — a read-only-looking `gad fmt f >/dev/null` still rewrites f.
-  And `gadbridge.FormatSource` uses `CodeWriteContextFlagFormat` (force-multiline)
-  not `CodeNewLineCalc` (column-aware), so it explodes every multi-arg call / array
-  literal onto one-item-per-line, comma-less. Accidentally mangled all samples this
-  way during a parse check; reverted via `git checkout -- samples/`. Worth a
-  follow-up: switch `gad fmt` to NEW_LINE_CALC so short lists stay inline.
+## Requisitos novos do usuário (pendentes)
+- **Estrutura API**: overloads via `export func NAME { (sig)=>nil … }`; consts via
+  `export const NAME`. [parse+doc PRONTO; gerador ainda emite single-sig p/ funcs]
+- **Runtime const**: alterar ModuleData p/ suportar constantes e REJEITAR IndexSet
+  em const. (ModuleData é interface; data padrão Dict{}.) NÃO feito.
+- **Exemplos de uso dentro do gad:doc**: mover os samples/stdlib/use_*.gad p/ dentro
+  dos comentários gad:doc, com validação de resultado/output (doctests `>>>`), de
+  modo que use_*.gad fiquem obsoletos e a doc seja automatizada. NÃO feito.
+- **Assinaturas corretas por tipo real**: auditar cada função (impl `func(c Call)` +
+  testes VM) e escrever sigs corretas + overloads no gad:doc. NÃO feito.
+- **354 builtins root → samples/api.gad**: gad:doc tipado no source. NÃO feito.
+- **Fix consts capture**: gad:doc do source quebrado (## Constants sem gad:doc etc).
+- **go:generate + Makefile**; regenerar doc/ com novo layout.
 
-### 2026-08-07 (interface funcs { … } section)
-- Interface context-function checks moved from the `:FnExpr <header>` prefix to a
-  `funcs { FnExpr <header>; … }` section (2ee234b). The `:` prefix no longer
-  parses (no back-compat, per user). Parser: parseContextFuncHeaders helper;
-  AST InterfaceContextFuncExpr dropped ColonPos, WriteCode emits without a colon,
-  the interface groups entries into `funcs { … }`. samples/24_interfaces.gad +
-  prose updated; parser (`funcs {…}` round-trip) + VM (single/several/block/mixed)
-  tests. `go test ./...` + gadx + make samples-doc exit 0. Plugins unchanged
-  (`funcs` is a contextual keyword like get/set, not in the global keyword list).
+### 2026-08-10 (cont. 2) — COMMITADO
+- fc51f89 feat(export): `export const`. 32804a9 feat(doc): sigs+overloads abaixo do
+  header. 98858d2 feat(gaddoc): gera *_api.gad + fixes de sig. 12c0191 feat(module):
+  StdModuleData (Vars/Consts/Funcs; IndexSet só Vars; @vars/@consts/@funcs vivos;
+  Set roteia por tipo; SetConst). Testes verdes, go test ./... verde.
 
-### 2026-08-07 (unified doc-comment grammar: /** **/ everywhere)
-- File/section-level docs now use the same two-star `/** … **/` form as statement
-  docs, distinguished only by context: a block glued directly above a statement
-  documents it; a block followed by a blank line (or at EOF) documents the
-  module/section. Three-star `/*** … ***/` deprecated (still parsed).
-- Extraction (4e2fbcb): gadbridge.ExtractDoc derives module prose from a DETACHED
-  leading block; all 33 sample headers converted `/*** ***/`→`/** **/`;
-  dropLeadingModuleDoc matches either fence on its own line; 16_doc_comments.gad
-  documents the new rule. Tests TestExtractDocModuleProseBlank.
-- Formatter (84011f6): the comment emitter preserves the blank line separating a
-  detached doc from the next statement (else fmt would re-attach the module doc);
-  `/***`→`/**` normalized (normalizeDocFence for floating comments, renderDocLines
-  unified). Test TestFormatDetachedModuleDoc.
-- Editors (cab78be): prism/codemirror/vscode require a doc block's opening fence
-  ALONE on its line, so `/** inline **/` and the `/**= … **/` / `/**< … **/`
-  markers are ordinary comments; runtime-verified, typechecks clean.
-- EVIDENCE: `go build ./...`, `go test ./...` (root), gadx, every sample runs,
-  `make samples-doc` — all exit 0; plugin typechecks clean; VSCode JSON valid.
+## Próximos (pós-StdModuleData)
+- Compilador: `export const` → SetConst; módulos compilados usarem StdModuleData e
+  rotear const/func/var. (Hoje StdModuleData é opt-in; default ainda Dict{}.)
+- Migrar módulos Go stdlib p/ popular Vars/Consts/Funcs.
+- (demais itens grandes já listados: use-examples no gad:doc, builtins root, sigs
+  corretas por tipo, fix consts capture, go:generate, gerador emitir overloads.)
 
-### 2026-08-07 (migration COMPLETE + website + link repointing)
-- ALL 18 language docs now live in the samples; every doc/*.md language chapter
-  removed. Final chapters: strings-bytes-regex→08/21 (ff15c00), values-and-types
-  →02 + new variables-and-scopes→33 (e7306e4), method-interfaces→12 +
-  interfaces→24 (4351864), classes→11/19 (2392bea), operators→13/14/15/17/28
-  (5d684e3), modules→26 + templates→09/23 + metaprogramming→new 34 (31d9691).
-- doc/README.md repointed to the sample chapters (source + doc/samples/*.md).
-- WEBSITE (8a47e48): cmd/build-website gained a "Language" nav section rendering
-  doc/samples/*.md as lang-<name>.html with intra-sample link rewriting; verified
-  `build --no-wasm` emits 35 lang-*.html pages, cross-links resolve, no stale
-  `.gad` hrefs.
-- LINKS (683ac77): repointed the tooling/stdlib docs' cross-links to
-  samples/NN_name.md; site rewriteLink maps `samples/NN.md`→`lang-NN.html`.
-  Verified embedding.html → lang-14_user_operators.html.
-- EVIDENCE: `go build ./...` + `go test ./...` (root/parser/cmd/gad/
-  build-website) exit 0; `make samples-doc` regenerates doc/samples cleanly.
-- STILL OPEN: JSON/YAML doc output; gadt/gadx shebang format round-trip.
+### 2026-08-10 (cont. 3) — módulos stdlib + time enums/durations
+- 8c646b0 stdlib modules build StdModuleData (const buckets); registerBuiltinModule
+  recebe StdModuleData; Base64Module→StdModuleData; AddressOf robusto (valor).
+- ae5b83c compilador: export const → SetConst (OpExtendModuleConst); NewModule
+  default = StdModuleData.
+- 61c2e05 time: Months/Weekdays viram enum; durations viram tipo Duration;
+  StdModuleData{Consts,Funcs} explícito; Int*Duration comutativo; ToGoInt64 aceita
+  Duration.
+- fd383a0 fmt/strings/reflect/json/base64: buckets explícitos StdModuleData{Funcs|Consts}.
+- 64b877e time: assinaturas gad:doc com duration/Months/Weekdays; parseDuration/
+  round/truncate/since/until/sub/`time-time` retornam Duration; ToGoInt64 aceita
+  EnumValue. 81d0b33 regenera doc/stdlib-time.md.
+- go test ./... VERDE após cada passo.
 
-### 2026-08-07 (content migration + 2 compiler bug fixes)
-- MIGRATED into sample `/*** … ***/` headers (prose + @snippet regions with
-  verified `/**= **/` / `/**< **/` results), doc/*.md removed, doc/samples
-  regenerated. Commits: 1245013 (enums 20, error-handling 07), 19b09cb
-  (doc-comments 16, special-keywords 29), 56ea81e (control-flow → 06+18),
-  b2ae3c7 (properties 31), c1cbea4 (functions → 03+10), 515c81a (collections
-  core → 04). b70f770 reverted snippet result rendering to Python-docs inline
-  `// =>` / `Output:` (per user).
-- COMPILER FIX (in c1cbea4): a call with a non-trailing positional spread
-  (`f(*a, b)`, `f(1,*a,2,*b)`, incl. the arrow `func(*a;**k)=> …` form) recursed
-  forever in the Gadx compile fallback and overflowed the stack — but only with
-  the fallback installed, which CompileFile does by default for every .gad file
-  run by the CLI (pure-compiler tests never hit it). Bounded the fallback
-  recursion (compiler_gadx.go fallbackDepth cap). Regression
-  TestCallManySpreadsWithGadxFallback. `go test ./...` exit 0.
-- Verified API facts the result-markers surfaced (documented correctly now):
-  `delete` is a STATEMENT (`delete m.a`), `arr += x` APPENDS x as one element
-  (concat is `arr + x`), a keyValue array indexes by int (not key selector).
-- REMAINING to migrate: collections comprehensions→05, keyValue→22,
-  destructuring→27 (then rm collections.md); values-and-types→02,
-  variables-and-scopes, operators (→14/15/17), classes→11/19,
-  method-interfaces→12, interfaces→24, strings-bytes-regex→08, modules,
-  templates→09/23, metaprogramming. Then repoint doc/README.md and wire
-  doc/samples into cmd/build-website. Plus JSON/YAML doc output.
+### 2026-08-10 (cont. 4) — gaddoc overloads
+- 4a13c6d gaddoc emite `export func NAME { (sig)=>nil … }` p/ assinaturas múltiplas
+  (agrupa linhas consecutivas de mesmo nome); single-sig mantém forma flat;
+  fallback stub se não parseia. apiSym.overloads + captureFuncSig/appendFuncDesc.
+  Testes: TestEmitAPIOverloads, TestGroupOverloadsCapture. gad doc renderiza 1
+  bloco+doc por overload. 3d274e8 regenera time_api.gad.
+- Nenhum gad:doc de módulo tem overloads hoje (feature p/ builtins root/futuro).
 
-### 2026-08-06 (docs-from-samples infrastructure)
-- Flags/renderer: `--doc-template-md/html`, `--html`, `--no-template` added
-  (cmd/gad/doc_cmd.go); renderDocTemplate is now dialect-aware by template
-  extension (cmd/gad/doc_template.go). `go test ./cmd/gad -run TestRenderDocTemplateDialects`
-  → PASS (t.gad/t.gadt/t.gadx all render)
-- Embedded defaults cmd/gad/doctemplates/{md,html,md-index,html-index}.gadx via
-  go:embed + repo ./doc-templates copies; TestDocTemplatesInSyncWithEmbedded PASS
-- Snippets + results: cmd/gad/doc_snippet.go; TestExtractSnippets,
-  TestExpandSnippetsRunsAndVerifies, TestExpandSnippetsResultMismatchFails,
-  TestExampleSourceStripsMarkersAndModuleDoc, TestDocCommandExpandsAndVerifiesSnippets
-  all PASS
-- Per-dir indexes: cmd/gad/doc_index.go; TestBuildIndexTree +
-  TestDocCommandGeneratesIndexes PASS (root→sub links, nested)
-- Compiler panic fix: mixed `{%= x.y %}` compiled the synthetic write() off the
-  stack → pushSelector read c.stack[-1]. Fixed by pushing the call via atDo +
-  guarding pushSelector (compiler.go, compiler_nodes.go). Regression test
-  TestCompilerMixedSelectorInValueStmt PASS; `go test .` PASS
-- Shebang: parser/scanner_scan.go scans a first-line `#!…` as a comment (normal
-  mode, round-trips) and skips/keeps it in mixed mode. TestScanner_Shebang PASS.
-  Verified via bridge: `#!/usr/bin/env gad\nx:=1\nprintln(x)` runs → "1\n"; fmt
-  preserves the shebang on line 1; a mid-file `#!` stays an error
-- samples/09_template.gad: removed the leading space before `# gad: mixed` so the
-  config directive is honoured (prose captured, parses); Go renderer FromContent
-  made mixed-aware for .gadt (doc.go)
-- Makefile: `samples-doc` now `cd samples && gad doc --out ../doc/samples
-  --doc-template-md ../doc-templates/md.gadx .` (flags BEFORE the positional, or
-  Go's flag pkg ignores them); `generate-docs: … samples-doc`. Removed legacy
-  samples/.gad/doc-templates and stale samples/doc
-- EVIDENCE (full suite): `go build ./...` exit 0; `go test ./...` (root) exit 0;
-  `go test ./...` in gadx exit 0; `go vet` clean; `gofmt -l` clean. `make
-  samples-doc` → 33 files in doc/samples (32 samples + README.md index);
-  doc/samples/09_template.md has prose, README.md lists all files
+### 2026-08-10 (cont. 5) — builtins root (lote 1)
+- e179777 pipeline: gaddoc moduleData caso "builtins" (enumera NewBuiltins);
+  builtins_doc.go com `# builtins module` gad:doc. `gaddoc api . samples/
+  builtins_api.gad builtins` gera 27 exports (len/cap/typeName/typeof/chars/copy/
+  dcopy/repeat/contains/repr + 17 is*). gad doc valida.
+- Nota: `len` tem Header runtime que sobrepõe o gad:doc (perde `<int>`); menor.
+- 161a2ac lote 2: iteração (filter/map/each/reduce/keys/values/items/iterate/
+  enumerate/collect/toArray) + sort/sortReverse + IO (print/printf/println/sprintf).
+  Total 44 exports. gad doc valida.
+- FALTAM: conversões (str/int/uint/float/bool/char/bytes/decimal/array/dict/…),
+  meta (cast/wrap/is/implements/Class/addMethod/rawCaller/typeof/enter/exit/close/
+  read/write/flush/stdio/obstart/obend/userData), operadores (binOp/unOp/selfAssignOp).
 
-## Previous task — Vuetify/React IDE + release/site ops (history)
-Rework @gad-lang/ide-vuetify: resizable/movable dockview panels; a Settings
-dialog (Panels/Formatter/Transpile/Template); two independent v-models —
-`layoutConfig` (dockview layout) and `config` (settings) — persisted to
-LocalStorage by the demo; hover-locals like `gad ide`. Apply the layout
-save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
-.vue/.jsx: keeps full TS typing, matches the React package).
+### 2026-08-10 (cont. 6) — interfaces builtin + type union
+- 5709ed4 `iterable` interface (Interface.Native predicate). 7272afa callable/
+  lengther/indexable/indexAssignable/indexDeletable (+ fix lastBuiltinType).
+  67d473c callback callable em filter/map/each/reduce.
+- 76a7d69 TypeUnion + builtin `number` (int|uint|float|decimal). Funciona como
+  param/return/`::`; nested `str|number`. members preenchidos em init (ordem de
+  var-init). Testes: TestNumberTypeUnion.
 
-## Log
-### 2026-08-04
-- TSX toolchain validated — added @vitejs/plugin-vue-jsx + tsconfig
-  jsxImportSource:"vue"; vue-tsc canary passed
-- Extracted controller.ts (framework-agnostic state/actions), provided via
-  inject; 5 dockview panels (Explorer/Editor/CallStack/Locals/Output) inject it
-- GadIde.tsx: top toolbar (Format/Doc/Run/Debug/Settings + step controls) +
-  DockviewVue; v-model:layoutConfig (toJSON/fromJSON, echo-guarded) and
-  v-model:config; Settings + Doc dialogs
-- Vuetify+TSX friction (native onClick/title/onKeyup not typed) → contained in
-  src/vuetify.ts (permissive re-exports); our own types stay strict
-- dockview theme CSS is the consumer's import (like Vuetify) → removed from the
-  lib, added to the demo; externalized /^dockview/ and /^vuetify/ in the lib build
-- Hover-locals wired (editor getLocals ← paused frame); inspect icons + tree
-  dialog retained
-- React `<Ide>`: added optional `layoutConfig` + `onLayoutConfigChange`
-  (additive, ref-based) restoring/saving the dockview layout
-- Verified: ide-vuetify typecheck + lib build; demo typecheck + production build
-  (dockview + Vuetify + worker); ide-react + app typecheck — all clean
+## Pedidos PENDENTES do usuário (type union feature)
+- **Sintaxe `type <int|uint>`** — FEITO (4ff424a). Expr `type <int|uint>` +
+  stmt `type NAME <int|uint>` (sugar p/ const). Keyword contextual (`type`+`<`);
+  nó TypeUnionExpr; OpMakeTypeUnion. `type` segue ident normal (.type/type=/:=).
+  Round-trip fmt corrige `< >`. Testes parser+VM. (Sintaxe final: `< >`, não bare.)
+- **Documentar definição de interfaces/unions por Go** — FEITO (b211e48).
+  doc/embedding.md seção "Type unions and interfaces from Go": NewTypeUnion +
+  &Interface{Native:...} via globals, param/return/`::`. Snippets verificados.
+- **Exemplos bem documentados** dessas features (sample .gad + gad:doc). NÃO feito.
+- **Usar interfaces nas assinaturas** dos builtins — FEITO (adc9d09).
+  contains(o iterable), chars(s str|bytes), repeat(o str|bytes|array). len/cap/
+  sort ficam `any` (toleram tudo / Sorter custom). Callbacks já eram callable,
+  iteração já era iterable. Nota: builtins root não têm Header → gad:doc é
+  documentação (não valida runtime); interfaces tornam a doc precisa.
 
-### 2026-08-05
-- Editor font-size controls — GadEditorView fontComp compartment + setFontSize();
-  GadIde `fontSize` v-model (clamped 8–32 in controller); A−/A+ on the right of
-  the editor status bar (flex row, path ellipsis w/ min-width:0 so a long path
-  never triggers horizontal scroll); demo persists size to LocalStorage
-- gad SVG icon (gad-24.svg) beside the "GAD" title in the demo app bar
-- Verified: `bun run typecheck` (pkg + demo) exit 0; `bun run build` (pkg,
-  ide-vuetify.js 95.47 kB) + `bunx vite build` (demo) both built ok →
-  commit de87d28
+### 2026-08-10 (cont. 7) — protocolo iterator + bug de dispatch
+- Confirmado: interface `iterable` JÁ reconhece o protocolo de overload por classe
+  (met iterator(T) / iterator(T,state)) — isIterable(Range())=true, for-in ok.
+- f0920fe: ToIterator usa vm.Call (não NewInvoker); ParamType.AcceptResolve
+  resolve símbolos de tipo free contra o closure da função (não vm.curFrame).
+  Suíte verde.
+- **BUG CORRIGIDO** (74667f6) "expected Range, found Range": iterar instância de
+  classe (values/collect/for-in) após passar por PARÂMETRO de função. Causa raiz:
+  o símbolo de tipo `Range` do `met iterator` é compilado como ScopeLocal (não
+  promovido a free var — resolução de tipo-param roda no escopo EXTERNO, não no da
+  função), então re-valida contra o frame do caller (errado). Fix: ToIterator
+  chama start/next/len com SafeArgs (dispatch já casou por tipo → re-validação é
+  redundante). Fix de compilador (resolver tipos no escopo da função) foi tentado
+  mas quebra registro de método de classe (`this cls` vira closure) — revertido.
+  Regressões em TestVMIterator.
 
-- Playground Output pane moved to the right (editor left) → commit 593b216
-- Playground sourceType not reaching execution — the ide-vuetify demo runner
-  dropped the 2nd arg on run/diagnose (and format didn't take one). Runner now
-  forwards sourceType on all three; `GadRunner`/Playground already passed it
-- `gad.Compile` always lowers Gadx nodes — CompileFile installs
-  gadxCompileFallback by default when FallbackFunc is nil (works even with
-  GadxOptions nil); removed the now-redundant default in the GadxOptions branch
-- `gadbridge.FormatSource(src, sourceType)` + wasm `gadFormat(src[, sourceType])`
-  + client `format(src, sourceType)`: gadx→Gadx syntax, gadTemplate→mixed,
-  gad/""→plain Gad
-- Verified: `go test ./...` (root) + `go test ./...` (gadx submodule) no failures;
-  `go build ./...` ok; new bridge tests TestFormatSource{Template,Gadx,
-  GadxParseError} pass (`go test ./web/gadbridge -run TestFormat` → ok);
-  rebuilt demo gad.wasm; ide-vuetify pkg + demo `bun run typecheck` exit 0;
-  demo `bunx vite build` ok → commit 8cf228b
+### 2026-08-11 — doc do protocolo iterator
+- 163e57b: seção "Custom iterables (the iterator protocol)" em
+  samples/06_control_flow.gad com exemplo runnable (class Range com met
+  iterator start/next; forma key/value `[(k)=v]`; for-in, collect(values),
+  func(x iterable)). gad doc valida, outputs conferidos. 7703cd4 regenera índice.
 
-- Two WASM builds via `gadwasmdebug` tag: gad.wasm (no debugger) +
-  gad_debug.wasm (gadDebug* protocol). web/wasm/debug.go (tagged) /
-  debug_off.go (no-op) split; main.go calls registerDebug(). Shared
-  scripts/build-wasm.sh (normal|debug|both). app/demo scripts build the debug
-  variant (their IDE needs it). Makefile build-wasm→./dist both; dist deps on it
-- Docs Download page: release banner (name highlighted) + rendered notes + asset
-  table (linux/windows amd64/arm64 archives, both WASMs local, checksums).
-  build-website flags --repo-url/--tasks-url/--release-*. Header links on every
-  page: Repo, Tasks (TASK.md), Download + release chip. website.yml passes
-  release fields via env (injection-safe)
-- goreleaser: CLI restricted to linux+windows × amd64+arm64; gad.wasm/
-  gad_debug.wasm/wasm_exec.js attached via release.extra_files (before hook
-  builds them into ./wasm-assets)
-- Verified: `go build ./...` ok; both `GOOS=js GOARCH=wasm go build` (normal +
-  -tags gadwasmdebug) compile; `go test ./cmd/build-website` ok; full site build
-  with --release-tag emits gad.wasm+gad_debug.wasm+wasm_exec.js, /ide embedded,
-  Download page has highlighted release name + local wasm download links + header
-  Repo/Tasks/Download; no-release build falls back to "Latest" (no chip); YAML of
-  .goreleaser.yml + website.yml parse; gofmt clean → commit 2940bba
-- Installed goreleaser v2 (`go install github.com/goreleaser/goreleaser/v2@latest`)
-  and ran `goreleaser check` → "1 configuration file(s) validated" (exit 0)
-- `goreleaser release --snapshot --clean` → "release succeeded after 29s" (exit 0):
-  built 4 binaries (linux/windows × amd64/arm64), 4 archives
-  (dist/gad_0.0.4-next_{linux_amd64.tar.gz,linux_arm64.tar.gz,windows_amd64.zip,
-  windows_arm64.zip}) + checksums.txt; the WASM before-hook produced
-  ./wasm-assets/{gad.wasm 20.5MB, gad_debug.wasm 20.6MB, wasm_exec.js} — the
-  extra_files that attach on a real release (upload skipped in snapshot mode)
-- DISCOVERED pre-existing goreleaser bug (present at HEAD~3, NOT from this task):
-  archives `files: doc/**/*` and `gadx/docs/**/*` match zero files (goreleaser
-  fileglob needs `doc/**`, not `doc/**/*`, to include files directly in doc/ —
-  all 31 doc files are top-level, no subdirs), so release archives ship without
-  the docs (only LICENSE, README.md, gad). RESOLVED by user direction: docs are
-  not shipped in the CLI archives at all (Pages only), so the doc globs were
-  removed from archives.files rather than fixed (commit e1f4e60)
+## Current State (o Log abaixo detalha cada passo; este bloco é o resumo do AGORA)
+`go test ./...` VERDE. Muitos commits locais (NADA PUSHED — usuário revisa/pushe).
+Estado consolidado (ver Log cont.1..5 para detalhes/hashes):
 
-### 2026-08-05 (afternoon — website/wasm overhaul)
-- Collapsed WASM to a single debugger-enabled gad.wasm (the two builds were the
-  same size). Removed the gadwasmdebug split (debug_off.go deleted; debug.go
-  always compiled). scripts/build-wasm.sh, app/demo scripts, Makefile,
-  build-website, goreleaser all build/ship one gad.wasm → commit e1f4e60
-- goreleaser extra_files = gad.wasm + wasm_exec.js (docs out of archives)
-- Website "Playground" menu now hosts the full ide-vuetify demo (built into
-  /playground; simple playground is the bun-missing fallback); redundant "IDE"
-  menu removed. website.yml gained bun setup
-- Modern layout keyed to the logo palette (navy/cyan #06B6D4/amber #D97706): logo
-  in header + favicon (from assets/identity/gad.svg), gradient accents, cards,
-  restyled nav/code/tables/hero
-- Home hero + 3-path quickstart (CLI run/fmt/doc, WASM embed, Go module) +
-  GAD_CONFIG_DIR link; new "Embed the WASM" page (JS API table). GAD_CONFIG_DIR
-  is already the "Workspace Configuration" reference page, now linked from home
-- Docs API refresh (commit 526fc66): embedding examples used a pre-refactor API
-  (Compile→3 returns, NewVM 1-arg, Run(globals,args), gad.Map/SyncMap,
-  gad.String, `exports = {}`). Fixed embedding.md/metaprogramming.md/README.md +
-  rewrote doc/tutorial.md snippets to Compile→*CompileResult/.Bytecode,
-  NewVM(builtins.Build(), bc), Run/RunOpts, gad.Dict/SyncDict, gad.Str, `export`
-- Verified: `go build ./...` ok; single wasm compiles; build-website renders home
-  hero+cards, /playground demo (full build), wasm-embed page, logo, one gad.wasm;
-  every rewritten embedding example compiled+run: [2,4,6,8], fib(35)=9227465,
-  "big", {fn1:1,fn2:1}. gofmt clean; YAML parses
-  Unverified: live GitHub Pages deploy + a real goreleaser release; site not
-  opened in a real browser
+- **gaddoc**: `gaddoc api <src> <out.gad> <mod>` gera exports tipados + doc
+  `/** **/`; overloads `export func NAME { … }`; consts `export const`. gad doc
+  renderiza assinatura/overloads em blocos ```gad abaixo do header. Arquivos:
+  samples/stdlib/{fmt,strings,time,json}.gad + samples/builtins.gad (**66 builtins
+  root documentados**, incl. construtores str/int/…). Target Makefile `generate-api`
+  (samples-doc depende).
+- **`export const`** → runtime const-enforcement via **StdModuleData** (Vars/Consts/
+  Funcs; OpExtendModuleConst; default do NewModule). Módulos stdlib em buckets
+  explícitos. time: Months/Weekdays enums, durations tipo Duration.
+- **10 interfaces builtin** (Interface.Native): iterable/callable/lengther/indexable/
+  indexAssignable/indexDeletable/classInstance/classType/readable/writable. Usadas
+  nas assinaturas (read/write/flush → readable/writable). `readable`/`writable` (não
+  reader/writer, que são tipos builtin estreitos). Commit 81bd499.
+- **TypeUnion + `number`** + sintaxe **`type <int|uint>`** (expr) / `type NAME <…>`
+  (stmt). OpMakeTypeUnion. classType→classInstance documentado.
+- **fmt scan (sscan/sscanf/sscanln) PROPAGA erro (throw)**, não retorna &Error{};
+  idem chars/repeat/contains/sort → sigs sem `| error`.
+- **BUG corrigido** (74667f6): iterar instância de classe passada por parâmetro.
+- **Docs/samples**: doc/embedding.md (módulos/interfaces/unions por Go); protocolo
+  iterator em 06_control_flow.gad; **samples/35_type_unions.gad** (unions+interfaces,
+  runnable/doctested, no langOrder).
 
-### 2026-08-05 (evening — Prism highlighting + fence sourceTypes)
-- Header: Tasks link → repo /issues (57f3740); Playground added to header nav
-  before Download, theme toggle stays right-most (644e58f)
-- `make website` / `make website-fast` targets (57a7fcf); tested by serving +
-  curl (/ 200, download/gad.svg/styles.css 200)
-- PrismJS highlighting: web/prism-gad/site-bundle.mjs bundles Prism core +
-  go/json/bash/yaml + gad/gadt/gadx grammars; build-website builds it best-effort
-  with bun into prism.js (buildPrismBundle; abs outfile path), loads it, and adds
-  palette-matched token colors. Verified the bundle registers gad/gadt/gadx/go
-  and highlights (runtime eval test)
-- Fence sourceTypes: reclassified doc/*.md — 282 `go`→`gad` (real Go embedding
-  kept `go` via markers: package/import/func main/gad.<Sym>/interface/[]byte);
-  embedding.md/metaprogramming.md Go untouched. gadx/docs `gadx`→(temporarily
-  gad-gadx then) `gadx`; templates.md mixed-template blocks → `gadt`. Final
-  decision: fences use plain gad/gadt/gadx (Prism registers those natively; no
-  gad-gadt/gad-gadx aliases)
-- Caught + fixed misfires: gadx docs `go`→`gad` (11 blocks were real Go using
-  `gadx.`/aliased imports/go.mod — reverted, only gadx→gadx normalized);
-  metaprogramming block with `{%` inside a string literal (kept `gad`, not gadt)
-- Added templates.md to the Guide nav ("coloque templates no site")
-- Verified: build-website renders functions.html=24×language-gad,
-  embedding.html=10×language-go, templates.html=6×language-gadt,
-  gadx-syntax=31×language-gadx, ref-workspace-config gad/gadx/sh/yaml; no gad-gad
-  left; `go build ./cmd/build-website` ok; gofmt clean. NOTE: gadx is NOT a
-  submodule (no gadx/.git) — its files are tracked directly in this repo; all
-  commits landed here
+### 2026-08-11 (cont.) — MODULE.gad rename + fmt scan throw
+- a53fbfc/bfeee4c: renomeou *_api.gad → MODULE.gad (samples/stdlib/{fmt,strings,
+  time,json}.gad, samples/builtins.gad); target `generate-api` no Makefile
+  (samples-doc depende dele). 63590ae: fmt Scan Examples ```go→```gad ignore.
+- d7d25a9: **fmt scan agora PROPAGA erro (throw)** em vez de retornar &Error{}
+  como valor. sscan/sscanf/sscanln sig `<int>` (não `<int|error>`); exemplos
+  try/catch; fmtPostScan retorna o erro; partial scan preservado; testes do fmt
+  reescritos (try/catch + str(err.cause)).
+- 6a68aad: mesmo bug em chars/repeat/contains/sort/sortReverse — throw, não
+  error-value → sigs sem `| error`, descrições "throws". + is/implements/wrap
+  documentados.
 
-### 2026-08-05 (test release v0.0.4-test1)
-- Pushed main (65 commits) to origin, tagged v0.0.4-test1 (prerelease)
-- 1st release run FAILED: before-hook `make goreleaser-setup`→web-build errored
-  on a clean checkout — web/app imports @gad-lang/* as workspace:* (need their
-  dist/.d.ts) and src/samples.gen.ts is git-ignored (generated). My earlier local
-  `--snapshot` passed only because those artifacts were already on disk
-- Fix (commit 79d9034): web-build runs `bun run plugins:build` first; app gained
-  gen-samples + pre(dev|build) hooks. Verified from a simulated-clean state
-  (removed dists + samples.gen): `make web-build` AND full `make goreleaser-setup`
-  (incl. VS Code vsix) → exit 0
-- Deleted+recreated the tag at the fixed HEAD; 2nd release run SUCCEEDED:
-  https://github.com/gad-lang/gad/releases/tag/v0.0.4-test1 (prerelease) with
-  assets: checksums.txt, gad.wasm, wasm_exec.js, and gad_0.0.4-test1_{linux_amd64,
-  linux_arm64,windows_amd64,windows_arm64}.{tar.gz,zip}
+### 2026-08-11 (cont. 2) — builtins root lote 3
+- 6a68aad: is/implements/wrap. 7291838: Class/addMethod/obstart/obend/read/write/
+  close/flush. 54 builtins root documentados. enter/exit ficam de fora (namespace
+  gad, não top-level; usados pelo `with`). `Class` sem return (`<class>` não
+  parseia — keyword). stdio pulado (identifiers incertos).
+- FALTAM builtins root: conversões (str/int/uint/float/bool/char/bytes/decimal/
+  array/dict — são TIPOS, não funcs), operadores (binOp/unOp/selfAssignOp — doc no
+  sample 14), cast/stdio/userData + internos (namedParamTypeCheck/methodFromArgs/
+  rawCaller/vmPushWriter/vmPopWriter/iteratorInput).
 
-### 2026-08-05 (release notes docs link + live-site fixes)
-- Release footer: goreleaser `release.footer` links the docs — leads with
-  /<tag>/ (· latest). Republished v0.0.4-test1 (deleted release+tag, recreated at
-  HEAD) so its notes carry the footer. Verified via `gh release view`:
-  "📖 Documentation: https://gad-lang.github.io/gad/v0.0.4-test1/ · latest"
-- website.yml: token-created releases don't fire the `release` event, so /latest
-  (root redirect target) went stale & had no banner. Now every main push refreshes
-  /latest AND publishes under the resolved release tag dir (/<tag>/), and resolves
-  the newest release via `gh release list` to fill the banner. Verified on
-  gh-pages: /latest + /v0.0.4-test1 have home-hero + rel-chip "v0.0.4-test1"
-- Two CI-only best-effort failures found + fixed (worked locally only because
-  artifacts were on disk):
-  1. website.yml set up bun but never `bun install` → prism bundle (no prismjs)
-     and demo (no vite) both failed. Added `cd web && bun install --frozen-lockfile`
-  2. buildEmbeddedIDE ran `bunx vite build` skipping the demo's samples.gen.ts
-     regen (git-ignored) → "Could not resolve ./samples.gen". Prepended
-     `bun run samples`
-- Verified live (gh-pages/latest, bypassing CDN cache): prism.js present +
-  functions.html loads it with 24×language-gad; playground/ is the full demo dir
-  (nav → playground/index.html); templates/download/wasm-embed/gad.svg all
-  published; final website run has zero warnings
+### 2026-08-11 (cont. 3) — classInstance/classType interfaces
+- 66afc59: interface native `classInstance` (casa *ClassInstance — instância de
+  classe). ae23b65: interface `classType` (casa *Class — a classe); Class typed
+  `<classType>`; doc `classType(…) <classInstance>` (chamar classe→instância).
+  Confirmado: Class(...) retorna *Class (a classe), não instância.
 
-### 2026-08-05 (migrate Pages to the org root site)
-- Moved docs publishing from gad repo gh-pages (/gad/) to the org site repo
-  gad-lang/gad-lang.github.io, served at root https://gad-lang.github.io/
-- Deploy key: generated ed25519 keypair; public → write deploy key on
-  gad-lang.github.io (id 159365775); private → secret ACTIONS_DEPLOY_KEY on gad;
-  local private key shredded. website.yml deploys via peaceiris deploy_key +
-  external_repository=gad-lang/gad-lang.github.io, publish_branch=main
-- goreleaser footer URL dropped /gad → https://gad-lang.github.io/<tag>/
-- Verified: website run exit 0; gad-lang.github.io/main got index.html(redirect)
-  + latest/ (51 files incl prism.js/gad.wasm/playground) + <sha>/; live root
-  https://gad-lang.github.io/ → 200 (redirects to ./latest/), /latest/ → 200
-- gad repo Pages still serves the stale /gad/ snapshot. API disable is blocked
-  (422 "not allowed" — legacy branch source). User will disable it manually via
-  Settings → Pages (Source: None); if org policy blocks that, fall back to a
-  gh-pages redirect to the root site. Left gh-pages untouched. commit a37d0e2
+### 2026-08-11 (cont. 4) — sample de type unions
+- 9760399: samples/35_type_unions.gad (runnable, doctested): type unions (`type
+  <…>` expr/stmt, builtin number, nesting, type-como-ident), 8 interfaces
+  behavioural com tabela, classType→classInstance. No langOrder após 24_interfaces.
+  Snippets validados por gad doc.
 
-### 2026-08-05 (ide-react parity with ide-vuetify — IN PROGRESS)
-- Goal: make @gad-lang/ide-react an identical replica of ide-vuetify, running
-  with OR without a backend; cmd/gad ide lets the user pick server/server-less but
-  its explorer stays real files. Decisions: add features to existing (already
-  dockview-based, MUI) Ide.tsx; gad ide = hybrid (Go serves real files always,
-  flag chooses compute Go-vs-WASM); port Playground+Notebook too; reusable
-  components like vuetify; similar layout
-- DONE: GadPlayground + GadNotebook as reusable React components (commit 70cce4f);
-  upload.ts + fileTypes.ts (FileTypeRegistry) + UploadedFile type foundations
-  (commit 82aa931). Both typecheck+build green
-- DONE (more): reusable MUI dialogs DirTree/UrlImportDialog/UploadReviewDialog/
-  PromptDialog+ConfirmDialog (commit 9772d45); wired upload button + drag-drop +
-  URL import + in-app prompt into <Ide> (readonly + onUpload props; upload/
-  uploadUrl/archiveKind/pathExists) (commit e43091b); editor read-only via
-  readonly prop (commit 9069077). All typecheck+build green
-- DONE (#57 hybrid): `gad ide --serverless` — Go Server.Compute field + flag;
-  /api/ide/workspace reports compute "server"|"wasm"; web/app main.tsx builds a
-  hybrid IdeApi (files→httpIdeApi, compute→localIdeApi/WASM) when wasm. Verified
-  end to end: workspace endpoint = wasm under --serverless, server by default; go
-  build+vet ok; ide-react + web/app typecheck. Run/debug/format/diagnose already
-  pass `source` (editor content, saved to the real file first), so WASM compute
-  needs no local FS. Known limit: cross-file imports need server mode (WASM can't
-  read real files for imports) — same as the pure webide. commit 1c88ae9
-- DONE (#56 polish, commit 5733ab6): autosave prop (false|true debounced|number
-  interval ms); tabNameMax prop (truncate + full-name tooltip); font-size moved to
-  a thin editor status bar (path ellipsis, no h-scroll, A−/A+ right); dirty tabs
-  colored name + ●/✕ close; active-file explorer highlight already present;
-  rename/remove tree actions (menu + F2/Delete) hidden when readonly. ide-react
-  build + web/app typecheck green
-- ALL THREE PHASES DONE: #55 Playground/Notebook, #56 upload/dialogs/readonly/
-  polish parity, #57 hybrid gad ide --serverless. ide-react is now a
-  feature-parity replica of ide-vuetify (MUI), runs with backend or server-less,
-  and cmd/gad ide offers both modes with a real-file explorer
-- Note: ide-react is MUI-based (not Vuetify); icons via @mui/icons-material, so
-  fileTypes mdi-* icon strings aren't used for React icons (language part is)
+### 2026-08-11 (cont. 5) — construtores de tipo
+- 5b1b4fc: documentados os 11 construtores/conversões (str/rawstr/int/uint/float/
+  decimal/char/bool/bytes/array/dict) sob ## Functions (header próprio não é
+  reconhecido pelo docgroup). Throw em conversão inválida. 66 builtins root
+  documentados. gad doc valida.
 
-### 2026-08-05 (ModuleSpec.Flags + raw argv)
-- Replaced ModuleSpec `Main bool` → `Flags ModuleFlags` bitmask
-  (ModuleMain/ModuleRawArgv) + IsMain()/IsRawArgv()/Has(). Name chosen by user:
-  ModuleFlags/ModuleMain/ModuleRawArgv
-- Compiler sets ModuleRawArgv when params are a lone variadic `param (*argv)`
-  (Params.Len()==1 && Variadic() && NamedParams.Len()==0); independent of
-  ModuleMain (user: "não precisa ser main")
-- cmd/gad: for a ModuleRawArgv module, pass args straight through, argv[0]=module
-  path (s.modulePath), no ParseArgs; when main, drop the first bare `--` options
-  terminator (dropFirstOptionsTerminator). A CLI-run script is now flagged
-  ModuleMain
-- Encoder: Flags serialized as int (no bytecode compat, per user)
-- Verified: go build ./... + go test ./... (root) + gadx submodule all green; vet
-  + gofmt clean; manual E2E: `gad a/b/s.gad x --y=1 -- z` → argv
-  ["a/b/s.gad","x","--y=1","z"]; normal `param (name; count=0)` still parses
-  --count=5→int. Tests: module_flags_test.go, cmd/gad/argv_test.go. Docs:
-  getting-started.md; sample 32_raw_argv.gad. commit cfbf6f8
-- `@main` now consistent (commit 172de86): was folding to false in main modules
-  because the optimizer built its OpIsMain-folding spec from name+URL only,
-  dropping Flags. Fixed by copying c.module.Flags in compiler.optimize(). With
-  cmd/gad flagging CLI scripts ModuleMain, `@main` is now true in the entry module
-  (incl. `param (*argv)`) and false in imports. Regression test added
+### 2026-08-11 (cont. 6) — readable/writable + cast/userData
+- 81bd499: interfaces `readable`/`writable` (native, ReaderFrom/WriterFrom;
+  read/write/flush tipados). Nomes adjetivos pois reader/writer são tipos builtin
+  estreitos. 7fead71: cast/userData documentados. **68 builtins root documentados.**
+  Header de builtins_doc.go atualizado.
 
-### 2026-08-05 (gadx tag-encode JSON/YAML)
-- Bug: running a .gadx echoed `⇦ gadx.Tag()` instead of rendering. Root cause was
-  the return (a gadx.Element) not being rendered: cmd/gad execute() discarded it
-  (printed nothing) and web/ide server run set res.Result=ret.ToString(). Both
-  fixed to render the Element to stdout
-- Feature: tag-encode mode. gadx.ElementData(el)→gad.Object tree {tag,attrs,
-  children}; gadx.EncodeElement(el,"json"|"yaml") marshals it (shared). Instead of
-  HTML render, encode the returned tag as JSON/YAML
-- Backend: gadbridge.RunSourceArgs + wasm gadRun gain a tagEncode arg; web/ide
-  runRequest gains tagEncode; cmd/gad `--tag-encode json|yaml` flag. commit 32487ed
-  (+ server fix 2abdf58)
-- Frontend selector (Render|JSON|YAML), gadx-only: ide-react (RunConfig/RunProfile
-  + Run/Debug dialog + GadPlayground/GadNotebook) commit 0500e4b; ide-vuetify
-  (RunProfile/RunTarget + RunProfileDialog + GadPlayground/GadNotebook, VSelect
-  added) commit bf1937c. GadRunner.run + all wasm clients (app + both demos) take
-  tagEncode
-- Verified: go build ./... + wasm build; go test (root/cmd/gad/gadbridge/ide/gadx)
-  green; CLI E2E: gad p.gadx → HTML, -tag-encode json/yaml → encoded; ide-react +
-  ide-vuetify + both demos typecheck+build; demo gad.wasm rebuilt. Tests:
-  bridge (html/json/yaml), cmd/gad (render+encode)
+### 2026-08-11 (cont. 7) — stdio + tabela sample 35
+- 8e728b5: stdio documentado (IN/OUT/ERR → readable/writable). **69 builtins root
+  documentados.** Tabela de interfaces do sample 35 inclui readable/writable (10).
 
-### 2026-08-05 (interface context-function members `:Expr <header>`)
-- New interface member `:Expr <(params)>` / `:Expr { … }` validating a free
-  function in scope handles the interface's object. `@self` = interface type
-  (a type placeholder in a positional param); >=1 `@self` per header (compile
-  error otherwise); block headers all required; each `:Expr` checked
-  independently. Expr captured BY VALUE where declared (supports locals +
-  selectors) via new opcode OpInterfaceBind
-- Phase 1 (parser/AST/coder) commit 9a08c13; Phase 2 (runtime Interface.
-  ContextFuncs + InterfaceContextFunc + TypedIdent.Self, compiler build+bind,
-  CanAssignVM check via SplitCaller, OpInterfaceBind + delve regen, encoder,
-  tests) commit 5daabb8. Docs doc/method-interfaces.md + sample
-  samples/24_interfaces.gad
-- Interface can be built directly in Go (no symbols): set ContextFuncs Fn +
-  resolved Types + Self; tested (TestInterfaceContextFuncGoBuilt)
-- DONE: runtime interface-satisfaction cache (commit 87bfa9c). Memoized on the
-  root VM keyed by (interface, value's ObjectType); shared by sub-VMs via
-  pool.root; GC'd with the VM. Only class instances + reflected Go values cached
-  (dict keys vary → never cached). Exported InterfaceSatCache +
-  NewInterfaceSatCache + (*VM).SetInterfaceSatCache (build/inject/pre-warm
-  outside the VM). Tests: cacheability, short-circuit, dict exclusion, sub-VM
-  sharing, injection
-- DONE: gadx.Render reuses the cache per compiled template + resets on recompile
-  (commit b344b67); docs gadx/docs/api.md + doc/method-interfaces.md; test
-  TestRenderInterfaceCacheReused
-- Plugins (web/): no change needed — prism/codemirror already highlight the new
-  syntax (verified by tokenizing: interface=keyword, :=operator, @self=class-name
-  type). The updated samples/24_interfaces.gad is served by both plugin demos
-- Verified: go test ./... (root) + gadx submodule + encoder + parser green; vet
-  + gofmt clean; check-delve up to date; sample runs
+### 2026-08-11 (cont. 8) — go:generate wiring + audit dos builtins restantes
+- **go:generate wiring**: gaddoc_generate.go (root, package gad) com 5 //go:generate
+  `go run ./cmd/gaddoc api …` (fonte única). Makefile `generate-api` agora roda
+  `go generate -run gaddoc ./...` (só as directives de gaddoc, pula mkcallable/
+  update-delve). Prova: `go generate -n -run gaddoc ./...` lista as 5; `go generate
+  -run gaddoc ./...` EXIT 0, regenera só os stubs.
+- **Audit dos ~31 builtins não-documentados** (rastreado por probe na VM + fonte):
+  - 4 construtores CHAMÁVEIS documentados em ## Functions: `iterator(it iterable)
+    <iterator>`, `zip(*iterables) <iterator>` (ENCADEIA iteráveis — confirmado por
+    probe: itera o 1º todo, depois o 2º), `keyValue(key,value) <keyValue>`,
+    `keyValueArray(*pairs) <keyValueArray>`. **73 builtins documentados.**
+  - 10 interfaces + `number`: value-types (não funcs) → sample 35. 10 erros
+    predefinidos + DISCARD_WRITER: consts. binOp/unOp/selfAssignOp: sample 14.
+    Internos (namedParamTypeCheck/methodFromArgs/rawCaller/vmPushWriter/
+    vmPopWriter/iteratorInput). Tudo categorizado no header de builtins_doc.go.
+  - PROVAS: `go run ./cmd/gaddoc api . samples/builtins.gad builtins` EXIT 0 (73
+    exports); `gad doc samples/builtins.gad` EXIT 0; `make samples-doc` EXIT 0
+    (builtins.md renderiza os 4); `go test ./...` VERDE; check-delve up to date;
+    go build/vet EXIT 0.
 
-### 2026-08-06 (release/site ops)
-- CI `test` was failing on staticcheck ST1003 (pre-existing __crN vars from the
-  b7c307e refactor). Renamed __crN→crN across 23 test files (commit 1cdd87a); test
-  workflow green
-- Notebook (react+vuetify) opens with one example per source type GAD/GADt/GADx
-  (commit b56b4ac); Playground already had per-dialect samples. Samples verified
-  to compile+run via the bridge
-- Released v0.1.0-rc.1 (prerelease). Site: cleaned gad-lang.github.io (orphan
-  commit, ~380MB of accumulated per-SHA/latest dirs dropped, kept README+.nojekyll)
-  then republished; /latest + /v0.1.0-rc.1 live (HTTP 200), banner shows the tag
-- release.yml now dispatches website.yml after publishing (commit 53a12f1):
-  actions: write + `gh workflow run website.yml` — workflow_dispatch is the
-  exception where GITHUB_TOKEN may trigger a run, so /<tag> auto-publishes on each
-  release (previously needed a manual dispatch)
-
-## Errors & Fixes
-| Error | Cause | Fix | Evidence |
-|-------|-------|-----|----------|
-| JSX.IntrinsicElements missing | no Vue JSX types | tsconfig jsxImportSource:"vue" | canary tc exit 0 |
-| Vuetify props reject onClick/title/onKeyup | Vuetify types omit native attrs in TSX | src/vuetify.ts permissive re-exports | pkg tc exit 0 |
-| Rollup can't resolve dockview-core css (lib) | lib shouldn't bundle theme css | consumer imports it; externalize dockview | pkg build ok |
-| demo can't resolve dockview-core css | not a direct demo dep (bun isolation) | add dockview-core to demo deps | demo build ok |
-
-## Current State
-The docs-from-samples INFRASTRUCTURE is complete and fully tested; the content
-MIGRATION and website wiring are not yet done.
-
-`gad doc` is now template-driven by default: it renders each source through an
-embedded (or workspace/flag-overridden) template that may be written in any Gad
-dialect. Templates receive `param (doc dict)` = `{name, file, lang, source,
-prose, sections}` and can incorporate real code via `@snippet NAME` placeholders
-resolved from `//snippet … //endsnippet` regions; a region may assert a value
-(`/**= EXPR **/`) or STDOUT (`/**< TEXT **/`) that is executed and verified at
-generation time. Each output directory also gets an index (README.md, plus
-index.html under --html). The official templates live in ./doc-templates and are
-byte-identical to the go:embed defaults (drift-tested). `make samples-doc`
-generates doc/samples/*.md (+ README.md) from samples/*, and `generate-docs`
-depends on it. All of root+parser+gadx+cmd/gad tests pass, vet/gofmt clean, and a
-pre-existing mixed-mode compiler panic (selector inside `{%= … %}`) was fixed
-with a regression test. Shebang `#!` lines are ignored at run time and preserved
-by `gad fmt` for .gad.
-
-NOT done yet: (1) JSON/YAML doc output; (2) moving the language-feature prose out
-of doc/*.md into the sample doc comments and removing those doc/*.md (repointing
-doc/README.md); (3) incorporating doc/samples into cmd/build-website; (4) gadt/
-gadx shebang round-trip on format. These are the next steps.
-
-## Previous Current State — IDE work (history)
-@gad-lang/ide-vuetify is now a TSX package: a `controller.ts` holds all reactive
-state/actions and is provided via inject to five dockview-vue panels (Explorer,
-Editor, Call Stack, Locals, Output) that are resizable, movable, dockable and
-tabbable. GadIde.tsx adds a top toolbar (Run/Debug/Format/Doc/Settings + step
-controls) and exposes two independent v-models — `layoutConfig` (dockview
-toJSON/fromJSON) and `config` (the Settings document: Panels/Formatter/Transpile/
-Template). Hovering an identifier while paused shows its value; Locals/Evaluate
-rows have an inspect icon opening the value tree navigator. Vuetify+TSX native-
-attribute friction is contained in src/vuetify.ts (permissive re-exports) so our
-own code stays fully typed. The demo (App.tsx) binds both v-models to
-LocalStorage (and seeds config from the backend). The dockview theme CSS is
-imported by the host (demo main.ts), like Vuetify's. The React `<Ide>` gained
-additive `layoutConfig`/`onLayoutConfigChange` props that restore/persist its
-dockview layout. Everything typechecks and builds (package lib, demo production,
-ide-react, app). The editor now has a `fontSize` v-model (A−/A+ controls on the
-right of the status bar, clamped 8–32px, persisted in the demo) and the demo app
-bar shows the gad SVG icon. NOT verified live in a browser — dockview-vue
-rendering, provide/inject teleport, Vuetify interactions and the new font/icon UI
-need a browser check (run `make ide-vuetify-demo`).
+## Restam (não feitos)
+- **Builtins root: só faltam os NÃO-user-facing**: operadores `binOp`/`unOp`/
+  `selfAssignOp` (já no sample 14_user_operators), internos `namedParamTypeCheck`/
+  `methodFromArgs`/`rawCaller`/`vmPushWriter`/`vmPopWriter`/`iteratorInput`.
+  `enter`/`exit` vivem no namespace `gad`. Doc de builtins essencialmente COMPLETA.
+- **use_*.gad → gad:doc c/ doctests** — usuário mandou IGNORAR/pular.
+- **Bug de fundo (não-blocker)**: tipo-param que referencia local externo compila
+  como ScopeLocal (não free var) → afeta função tipada chamada de outro frame. Fix
+  do compilador quebra registro de método de classe (`this cls` vira closure);
+  precisa de eager type binding (mudança maior). Contornado no protocolo iterator
+  via SafeArgs (74667f6).
+- **Revisar/pushar** os commits locais desta sessão (fc51f89..5b1b4fc, ~25 commits).
