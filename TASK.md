@@ -279,15 +279,44 @@ Estado consolidado (ver Log cont.1..5 para detalhes/hashes):
     (builtins.md renderiza os 4); `go test ./...` VERDE; check-delve up to date;
     go build/vet EXIT 0.
 
-## Restam (não feitos)
-- **Builtins root: só faltam os NÃO-user-facing**: operadores `binOp`/`unOp`/
-  `selfAssignOp` (já no sample 14_user_operators), internos `namedParamTypeCheck`/
-  `methodFromArgs`/`rawCaller`/`vmPushWriter`/`vmPopWriter`/`iteratorInput`.
-  `enter`/`exit` vivem no namespace `gad`. Doc de builtins essencialmente COMPLETA.
+## Restam — checklist acionável (2026-08-11 cont. 9)
+- [x] **Bug de fundo do compilador** — REPRODUZIDO e ROOT-CAUSED (assessment feito,
+      ver abaixo). Fix NÃO é cirúrgico → decisão do usuário (não landeei nada).
+- [ ] **Revisar/pushar** os commits locais desta sessão (fc51f89..8924557, ~42
+      commits). Ação EXTERNA → confirmar antes de `git push`.
+
+### Assessment do bug de fundo (2026-08-11 cont. 9)
+- **Repro mínimo** (`.__tmp/bug1.gad`):
+  ```gad
+  outer := func() { MyInt := type <int|uint>; return func(v MyInt) => v + 1 }
+  outer()(41)   // TypeError: expected MyInt, found int  — falha até na chamada DIRETA
+  ```
+  Isolado: falha SÓ quando o tipo é um **local capturado (free var)** usado como
+  param-type E a função roda noutro frame. Casos que FUNCIONAM: tipo global (A),
+  tipo local mesmo-escopo (B), tipo builtin em closure retornado (C).
+- **Raiz**: `compiler_nodes.go:1954` `compileFunc` resolve os símbolos de tipo via
+  `nameSymbolsOfTypedIdent`→`requireSymbol`→`c.symbolTable.Resolve` no **compilador
+  EXTERNO `c`** (antes do fork `st`). Logo `MyInt` vira ScopeLocal do escopo externo.
+  Em runtime `CompiledFunction.paramTypeSymbolValue` (bytecode.go:529) só trata
+  ScopeFree lendo `o.Free`; ScopeLocal cai em `vm.GetSymbolValue`→`vm.curFrame`
+  (frame ERRADO). O tipo nunca é promovido a free var da função.
+- **Por que o fix ingênuo regride** (resolver tipos em `st`): promove `MyInt` a free
+  → `freeSymbols>0` (compiler_nodes.go:2050) → função vira **closure** (OpClosure) e
+  `AllowMethods=false`. Métodos de classe cujo param-type referencia a própria classe
+  (`this cls`, ou o nome da classe) viram closures anônimos → `objects_class.go:1052`
+  `ErrClassMethodRegister: method N: is anonymous`. Foi tentado e revertido antes.
+- **Fix real (não-cirúrgico)**: PARTICIONAR capturas de free "de-tipo" das de "corpo"
+  — capturar o valor do tipo em `o.Free` sem flipar a função p/ closure-mode que
+  quebra registro de método. Toca: compileFunc (coleta separada), emissão OpClosure/
+  layout de `o.Free`, paramTypeSymbolValue/ParamTypes, serialização de bytecode
+  (Fprint/Equal) e **re-sync do delve** (vm_loop_debug.go). Blast radius alto no path
+  mais quente do compilador/VM, p/ um edge case JÁ contornado (SafeArgs, 74667f6,
+  cobre o caminho user-facing de iterators). **Não landeado** — aguarda decisão.
+
+### Excluídos por decisão (não são pendências)
+- **Builtins internos NÃO-user-facing** — permanecem sem gad:doc de propósito
+  (documentar como API pública seria incorreto): `binOp`/`unOp`/`selfAssignOp`
+  (sample 14_user_operators), `namedParamTypeCheck`/`methodFromArgs`/`rawCaller`/
+  `vmPushWriter`/`vmPopWriter`/`iteratorInput`. `enter`/`exit` → namespace `gad`.
+  Categorizados no header de builtins_doc.go (commit 8924557). DECISÃO FINAL.
 - **use_*.gad → gad:doc c/ doctests** — usuário mandou IGNORAR/pular.
-- **Bug de fundo (não-blocker)**: tipo-param que referencia local externo compila
-  como ScopeLocal (não free var) → afeta função tipada chamada de outro frame. Fix
-  do compilador quebra registro de método de classe (`this cls` vira closure);
-  precisa de eager type binding (mudança maior). Contornado no protocolo iterator
-  via SafeArgs (74667f6).
-- **Revisar/pushar** os commits locais desta sessão (fc51f89..5b1b4fc, ~25 commits).
