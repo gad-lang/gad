@@ -221,8 +221,21 @@ func exampleDoc(sf *sampleFile, name string) []string {
 	if len(snip) == 0 {
 		return nil
 	}
-	out := []string{"", "## Example", "", "```gad ignore"}
-	out = append(out, snip...)
+	// Emit a runnable ```gad fence so `gad doc` executes the example when it
+	// renders the final documentation. The snippet's `//= EXPR` value markers are
+	// translated to the fence doctest form `>>> EXPR` so the value is verified
+	// there too; `//< TEXT` (fences have no output assertion) is kept as a comment.
+	out := []string{"", "## Example", "", "```gad"}
+	for _, ln := range snip {
+		t := strings.TrimSpace(ln)
+		if rest, ok := strings.CutPrefix(t, "//="); ok {
+			out = append(out, ">>> "+strings.TrimSpace(rest))
+		} else if rest, ok := strings.CutPrefix(t, "//<"); ok {
+			out = append(out, "// output: "+strings.TrimSpace(rest))
+		} else {
+			out = append(out, ln)
+		}
+	}
 	return append(out, "```")
 }
 

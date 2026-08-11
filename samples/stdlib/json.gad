@@ -10,10 +10,10 @@ Returns the JSON encoding v or error.
 
 ## Example
 
-```gad ignore
+```gad
 json := import("json")
 str(json.Marshal({a: 1, b: [2, 3]}))
-//= "{\"a\":1,\"b\":[2,3]}"
+>>> "{\"a\":1,\"b\":[2,3]}"
 ```
 **/
 export Marshal(v any) <bytes> => nil
@@ -23,10 +23,10 @@ MarshalIndent is like Marshal but applies IndentCount to format the output.
 
 ## Example
 
-```gad ignore
+```gad
 json := import("json")
 str(json.MarshalIndent({a: 1}, "", "  "))
-//= "{\n  \"a\": 1\n}"
+>>> "{\n  \"a\": 1\n}"
 ```
 **/
 export MarshalIndent(v any, prefix str, indent str) <bytes> => nil
@@ -73,10 +73,10 @@ Unmarshal parses the JSON-encoded p and returns the result or error.
 
 ## Example
 
-```gad ignore
+```gad
 json := import("json")
 json.Unmarshal(`{"a":1,"b":[2,3]}`).a
-//= 1
+>>> 1
 ```
 **/
 export Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any> => nil
@@ -86,10 +86,10 @@ Reports whether p is a valid JSON encoding.
 
 ## Example
 
-```gad ignore
+```gad
 json := import("json")
 [json.Valid(`{"x":1}`), json.Valid("bad")]
-//= [true, false]
+>>> [true, false]
 ```
 **/
 export Valid(p bytes) <bool> => nil
