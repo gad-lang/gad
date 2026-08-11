@@ -64,6 +64,58 @@ for i, c in "ab" {
 }
 ```
 
+## Custom iterables (the iterator protocol)
+
+Any type becomes iterable by providing two overloads of the `iterator` method,
+added with `met`:
+
+- **start** — `met iterator(self)` returns the first `[state, entry]` pair, or a
+  non-two-element value (e.g. `nil`) when the value is empty.
+- **next** — `met iterator(self, state)` takes the previous `state` and returns
+  the next `[state, entry]`, or `nil` to stop.
+
+`entry` is the value yielded to a single loop variable. To yield a **key** and a
+**value**, make `entry` a one-element key-value array `[(key)=value]`; then
+`for k, v in …` binds both. Once a type has these methods, everything that
+iterates works on it: `for … in`, `iterate`, `values`, `keys`, `collect`,
+`map`/`filter`, and it satisfies the `iterable` type (`isIterable(x)` is `yes`,
+and it is accepted by a `func(x iterable)` parameter) — even after the value is
+passed through a function.
+
+```gad
+// A `Range` counts Start..End. The two `iterator` overloads make it iterable.
+Range := class {
+    Start = 0
+    End = 0
+}
+
+/// start: yield the first [state, entry], or nil when empty.
+met iterator(r Range) => r.Start >= r.End ? nil : [r.Start, r.Start]
+
+/// next: given the previous state, yield the next [state, entry], or nil to stop.
+met iterator(r Range, state) => state+1 >= r.End ? nil : [state+1, state+1]
+
+// for-in yields each entry; the same works through a function typed `iterable`.
+sum := func(xs iterable) {
+    total := 0
+    for v in xs { total += v }
+    return total
+}
+r := Range(; Start=0, End=4)
+println("isIterable:", isIterable(r))        // yes
+println("collect:", str(collect(values(r)))) // [0, 1, 2, 3]
+println("sum via param:", sum(r))            // 6
+
+// Yield key/value pairs by making the entry a key-value array `[(k)=v]`.
+Letters := class { n = 0 }
+met iterator(l Letters) => l.n <= 0 ? nil : [0, [(0)=str('a' + 0)]]
+met iterator(l Letters, i) => i+1 >= l.n ? nil : [i+1, [(i+1)=str('a' + i+1)]]
+
+for k, v in Letters(; n=3) {
+    println("letter", k, "=", v) // letter 0 = a, 1 = b, 2 = c
+}
+```
+
 ## Match
 
 `match` (PHP 8-style) compares a subject against arms and yields the first
@@ -144,6 +196,38 @@ for k, v in {a: 1, b: 2} {
 }
 for i, c in "ab" {
     println(i, c) // 0 'a', 1 'b'
+}
+
+// A `Range` counts Start..End. The two `iterator` overloads make it iterable.
+Range := class {
+    Start = 0
+    End = 0
+}
+
+/// start: yield the first [state, entry], or nil when empty.
+met iterator(r Range) => r.Start >= r.End ? nil : [r.Start, r.Start]
+
+/// next: given the previous state, yield the next [state, entry], or nil to stop.
+met iterator(r Range, state) => state+1 >= r.End ? nil : [state+1, state+1]
+
+// for-in yields each entry; the same works through a function typed `iterable`.
+sum := func(xs iterable) {
+    total := 0
+    for v in xs { total += v }
+    return total
+}
+r := Range(; Start=0, End=4)
+println("isIterable:", isIterable(r))        // yes
+println("collect:", str(collect(values(r)))) // [0, 1, 2, 3]
+println("sum via param:", sum(r))            // 6
+
+// Yield key/value pairs by making the entry a key-value array `[(k)=v]`.
+Letters := class { n = 0 }
+met iterator(l Letters) => l.n <= 0 ? nil : [0, [(0)=str('a' + 0)]]
+met iterator(l Letters, i) => i+1 >= l.n ? nil : [i+1, [(i+1)=str('a' + i+1)]]
+
+for k, v in Letters(; n=3) {
+    println("letter", k, "=", v) // letter 0 = a, 1 = b, 2 = c
 }
 
 return fact
