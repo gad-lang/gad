@@ -277,12 +277,23 @@ const (
 	// BuiltinIterable is the builtin `iterable` interface: the structural type of
 	// values that can be iterated (see IsIterable / Iterabler).
 	BuiltinIterable
+	// Builtin behavioural interfaces backed by a native predicate (see the
+	// respective Go interface): callable, lengther, indexable (IndexGetter),
+	// indexAssignable (IndexSetter) and indexDeletable (IndexDeleter).
+	BuiltinCallable
+	BuiltinLengther
+	BuiltinIndexable
+	BuiltinIndexAssignable
+	BuiltinIndexDeletable
 
 	BuiltinEnd_
 )
 
 var (
-	lastBuiltinType = BuiltinEnvType
+	// lastBuiltinType seeds NewBuiltinType for dynamically-registered types; it
+	// must be the last statically-numbered builtin so dynamic types never reuse a
+	// static slot.
+	lastBuiltinType = BuiltinIndexDeletable
 	lastBuiltinMux  = sync.Mutex{}
 )
 
@@ -365,18 +376,23 @@ var BuiltinsMap = map[string]BuiltinType{
 	":makeArrayRest": BuiltinMakeArrayRest,
 	"cap":            BuiltinCap,
 
-	"iterate":       BuiltinIterate,
-	"keys":          BuiltinKeys,
-	"values":        BuiltinValues,
-	"items":         BuiltinItems,
-	"collect":       BuiltinCollect,
-	"enumerate":     BuiltinEnumerate,
-	"iterator":      BuiltinIterator,
-	"iterable":      BuiltinIterable,
-	"iteratorInput": BuiltinIteratorInput,
-	"zip":           BuiltinZipIterator,
-	"keyValue":      BuiltinKeyValue,
-	"keyValueArray": BuiltinKeyValueArray,
+	"iterate":         BuiltinIterate,
+	"keys":            BuiltinKeys,
+	"values":          BuiltinValues,
+	"items":           BuiltinItems,
+	"collect":         BuiltinCollect,
+	"enumerate":       BuiltinEnumerate,
+	"iterator":        BuiltinIterator,
+	"iterable":        BuiltinIterable,
+	"callable":        BuiltinCallable,
+	"lengther":        BuiltinLengther,
+	"indexable":       BuiltinIndexable,
+	"indexAssignable": BuiltinIndexAssignable,
+	"indexDeletable":  BuiltinIndexDeletable,
+	"iteratorInput":   BuiltinIteratorInput,
+	"zip":             BuiltinZipIterator,
+	"keyValue":        BuiltinKeyValue,
+	"keyValueArray":   BuiltinKeyValueArray,
 
 	"vmPushWriter":   BuiltinVMPushWriter,
 	"vmPopWriter":    BuiltinVMPopWriter,
@@ -1037,6 +1053,11 @@ func init() {
 	}
 	BuiltinObjects[BuiltinIterator] = TIterator
 	BuiltinObjects[BuiltinIterable] = IterableInterface
+	BuiltinObjects[BuiltinCallable] = CallableInterface
+	BuiltinObjects[BuiltinLengther] = LengtherInterface
+	BuiltinObjects[BuiltinIndexable] = IndexableInterface
+	BuiltinObjects[BuiltinIndexAssignable] = IndexAssignableInterface
+	BuiltinObjects[BuiltinIndexDeletable] = IndexDeletableInterface
 	BuiltinObjects[BuiltinZipIterator] = TZipIterator
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{
 		FuncName: "iteratorInput",

@@ -18,27 +18,65 @@ import "strings"
 // TInterface is the builtin `Interface` object type. It has no constructor.
 var TInterface = RegisterBuiltinType(BuiltinInterface, "Interface", Interface{}, nil)
 
-// IterableInterface is the builtin `iterable` interface: a value satisfies it
-// when it can be iterated. Its satisfaction is native — it delegates to
-// IsIterable (an iterator, a Go Iterabler, or a type with an `iterator` method)
-// rather than probing structural members — so it matches built-in iterables such
-// as arrays and dicts. It is used to type iteration-builtin arguments, e.g.
-// `filter(it iterable, callback)`.
-var IterableInterface = &Interface{
-	IName: "iterable",
-	Native: func(vm *VM, obj Object) (bool, error) {
-		if vm != nil {
-			return Iterable(vm, obj), nil
-		}
-		// Without a VM only the Go-level check is available (the iterator-method
-		// case needs the builtins).
-		switch obj.(type) {
-		case Iterator, Iterabler:
-			return true, nil
-		}
-		return false, nil
-	},
+// nativeInterface builds a builtin interface whose satisfaction is a native
+// predicate over the object (see Interface.Native), rather than a structural
+// member check. Such interfaces name a behaviour a Go type provides — being
+// iterable, callable, indexable, … — and are usable as parameter/`::` types.
+func nativeInterface(name string, pred func(vm *VM, obj Object) bool) *Interface {
+	return &Interface{
+		IName:  name,
+		Native: func(vm *VM, obj Object) (bool, error) { return pred(vm, obj), nil },
+	}
 }
+
+// Builtin behavioural interfaces. Each matches the values that provide the named
+// behaviour (the corresponding Go interface / predicate), so they can type the
+// arguments of the builtins that require it, e.g. `filter(it iterable, …)`.
+var (
+	// IterableInterface (`iterable`) matches values that can be iterated: an
+	// iterator, a Go Iterabler, or a type with an `iterator` method (IsIterable).
+	IterableInterface = nativeInterface("iterable", func(vm *VM, obj Object) bool {
+		if vm != nil {
+			return Iterable(vm, obj)
+		}
+		switch obj.(type) { // no VM: the Go-level check only
+		case Iterator, Iterabler:
+			return true
+		}
+		return false
+	})
+
+	// CallableInterface (`callable`) matches values that can be called.
+	CallableInterface = nativeInterface("callable", func(_ *VM, obj Object) bool {
+		return Callable(obj)
+	})
+
+	// LengtherInterface (`lengther`) matches values that have a length.
+	LengtherInterface = nativeInterface("lengther", func(_ *VM, obj Object) bool {
+		_, ok := obj.(LengthGetter)
+		return ok
+	})
+
+	// IndexableInterface (`indexable`) matches values that support `obj[i]`.
+	IndexableInterface = nativeInterface("indexable", func(_ *VM, obj Object) bool {
+		_, ok := obj.(IndexGetter)
+		return ok
+	})
+
+	// IndexAssignableInterface (`indexAssignable`) matches values that support
+	// `obj[i] = v`.
+	IndexAssignableInterface = nativeInterface("indexAssignable", func(_ *VM, obj Object) bool {
+		_, ok := obj.(IndexSetter)
+		return ok
+	})
+
+	// IndexDeletableInterface (`indexDeletable`) matches values that support
+	// deleting an index.
+	IndexDeletableInterface = nativeInterface("indexDeletable", func(_ *VM, obj Object) bool {
+		_, ok := obj.(IndexDeleter)
+		return ok
+	})
+)
 
 // Object types for the interface members. They are internal representations
 // carried inside an Interface constant, not user-constructible.
