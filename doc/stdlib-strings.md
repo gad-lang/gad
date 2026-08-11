@@ -158,7 +158,7 @@ character is dropped from the string with no replacement.
 
 ---
 
-`padLeft(s str, padLen int[, padWith any]) <str>`
+`padLeft(s str, padLen int, padWith any) <str>`
 
 Returns a string that is padded on the left with the string `padWith` until
 the `padLen` length is reached. If padWith is not given, a white space is
@@ -166,7 +166,7 @@ used as default padding.
 
 ---
 
-`padRight(s str, padLen int[, padWith any]) <str>`
+`padRight(s str, padLen int, padWith any) <str>`
 
 Returns a string that is padded on the right with the string `padWith` until
 the `padLen` length is reached. If padWith is not given, a white space is
@@ -183,7 +183,7 @@ Returns a new string consisting of count copies of the string s.
 
 ---
 
-`replace(s str, old str, new str[, n int]) <str>`
+`replace(s str, old str, new str, n int) <str>`
 
 Returns a copy of the string s with the first n non-overlapping instances
 of old replaced by new. If n is not provided or -1, it replaces all
@@ -191,7 +191,7 @@ instances.
 
 ---
 
-`split(s str, sep str[, n int]) <[str]>`
+`split(s str, sep str, n int) <[str]>`
 
 Splits s into substrings separated by sep and returns an array of
 the substrings between those separators.
@@ -204,7 +204,7 @@ n determines the number of substrings to return:
 
 ---
 
-`splitAfter(s str, sep str[, n int]) <[str]>`
+`splitAfter(s str, sep str, n int) <[str]>`
 
 Slices s into substrings after each instance of sep and returns an array
 of those substrings.
@@ -243,7 +243,7 @@ Returns s with all Unicode letters mapped to their upper case.
 
 ---
 
-`toValidUTF8(s str[, replacement str]) <str>`
+`toValidUTF8(s str, replacement str) <str>`
 
 Returns a copy of the string s with each run of invalid UTF-8 byte
 sequences replaced by the replacement string, which may be empty.

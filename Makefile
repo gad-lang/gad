@@ -180,7 +180,19 @@ ide: web-build
 # results are executed and verified during generation. `.` (non-recursive) keeps
 # it to the top-level numbered samples, not the sub-workspaces.
 .PHONY: samples-doc
-samples-doc:
+.PHONY: generate-api
+# Regenerate the documented public-API stub samples (samples/**/<module>.gad) from
+# the gad:doc comments in the Go source. The stdlib modules (fmt/strings/time/
+# reflect) live in the root package; `builtins` is the root builtin set; json is
+# its own package. samples-doc renders their .md afterwards.
+generate-api: version
+	go run ./cmd/gaddoc api . samples/stdlib/fmt.gad fmt
+	go run ./cmd/gaddoc api . samples/stdlib/strings.gad strings
+	go run ./cmd/gaddoc api . samples/stdlib/time.gad time
+	go run ./cmd/gaddoc api ./stdlib/json samples/stdlib/json.gad json
+	go run ./cmd/gaddoc api . samples/builtins.gad builtins
+
+samples-doc: generate-api
 	cd samples && go run ../cmd/gad doc --out ../doc/samples \
 		--doc-template-md ../doc-templates/md.gadx .
 

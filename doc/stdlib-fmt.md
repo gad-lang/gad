@@ -93,7 +93,7 @@ is appended.
 
 ---
 
-`sscan(str str, scanArg[, *scanArg]) <int | error>`
+`sscan(str str, *scanArg) <int | error>`
 
 Scans the argument str, storing successive space-separated values into
 successive scanArg arguments. Newlines count as space. If no error is
@@ -102,7 +102,7 @@ is less than the number of arguments, error will report why.
 
 ---
 
-`sscanf(str str, format str, scanArg[, *scanArg]) <int | error>`
+`sscanf(str str, format str, *scanArg) <int | error>`
 
 Scans the argument str, storing successive space-separated values into
 successive scanArg arguments as determined by the format. It returns the
