@@ -1017,6 +1017,26 @@ func TestVMIterator(t *testing.T) {
 	testExpectRun(t, `return isIterable(1.2)`, nil, False)
 	testExpectRun(t, `return isIterable(1.2d)`, nil, False)
 
+	// Regression: a class instance iterated (values/collect) after it has passed
+	// through a function parameter. The class's `met iterator(r Range)` method is
+	// dispatched by exact type, so it must run without re-validating its param
+	// type against the caller's frame (which previously raised a spurious
+	// "expected Range, found Range").
+	testExpectRun(t, rg+`
+			met iterator(r Range) => [r.Start, str('a' + r.Start)]
+			met iterator(r Range, state) => state >= r.End ? nil : [state+1, str('a' + state+1)]
+
+			f := func(x iterable) => collect(values(x))
+			return str(f(Range()))
+		`, nil, Str(`["a", "b", "c"]`))
+	testExpectRun(t, rg+`
+			met iterator(r Range) => [r.Start, [(r.Start)=str('a' + r.Start)]]
+			met iterator(r Range, state) => state >= r.End ? nil : [state+1, [(state+1)=str('a' + state+1)]]
+
+			g := func(x) { ret := []; for k, v in x { ret += [k, v] }; return ret }
+			return str(g(Range()))
+		`, nil, Str(`[[0, "a"], [1, "b"], [2, "c"]]`))
+
 	testExpectRun(t, `return isIterator(values({}))`, nil, True)
 	testExpectRun(t, `return isIterator(values([]))`, nil, True)
 	testExpectRun(t, `return isIterator(values((;)))`, nil, True)

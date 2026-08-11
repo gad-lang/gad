@@ -5,6 +5,19 @@ import (
 	"math"
 )
 
+// callDispatchedMethod invokes a method obtained from CallerMethodOfArgsTypes
+// with SafeArgs so its parameter types are not re-validated: the dispatch
+// already matched them by the argument types. This also avoids re-resolving a
+// method's type symbols (e.g. `met iterator(r Range)`) against the current frame,
+// which would be wrong when iteration is driven from a different frame.
+func callDispatchedMethod(vm *VM, method CallerObject, args Array, na *NamedArgs) (Object, error) {
+	c := Call{VM: vm, Args: Args{args}, SafeArgs: true}
+	if na != nil {
+		c.NamedArgs = *na
+	}
+	return DoCall(method, c)
+}
+
 func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err error) {
 	l = -1
 	switch t := obj.(type) {
@@ -38,7 +51,7 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 			if nextMethod := mc.CallerMethodOfArgsTypes(ObjectTypeArray{obj.Type(), TAny}); nextMethod != nil {
 				if lenMethod := vm.Builtins.Get(BuiltinLen).(MethodCaller).CallerMethodOfArgsTypes(ObjectTypeArray{obj.Type()}); lenMethod != nil {
 					var lenValue Object
-					if lenValue, err = vm.Call(lenMethod, Args{Array{obj}}, Dict{"check": Yes}.ToNamedArgs()); err == nil {
+					if lenValue, err = callDispatchedMethod(vm, lenMethod, Array{obj}, Dict{"check": Yes}.ToNamedArgs()); err == nil {
 						switch t := lenValue.(type) {
 						case Int:
 							if t > math.MaxInt32 {
@@ -81,7 +94,7 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 					func(vm *VM) (state *IteratorState, err error) {
 						state = &IteratorState{}
 						var val Object
-						if val, err = vm.Call(startMethod, Args{Array{obj}}, nil); err == nil {
+						if val, err = callDispatchedMethod(vm, startMethod, Array{obj}, nil); err == nil {
 							if arr, ok := val.(Array); ok && len(arr) == 2 {
 								state.Value = arr[0]
 								if e, _ := arr[1].(*KeyValue); e != nil {
@@ -99,7 +112,7 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 					func(vm *VM, state *IteratorState) (err error) {
 						nextArgs[1] = state.Value
 						var val Object
-						if val, err = vm.Call(nextMethod, Args{nextArgs}, nil); err == nil {
+						if val, err = callDispatchedMethod(vm, nextMethod, nextArgs, nil); err == nil {
 							if val == Nil {
 								state.Mode = IteratorStateModeDone
 							} else if arr, ok := val.(Array); ok && len(arr) == 2 {
