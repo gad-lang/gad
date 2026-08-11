@@ -5,12 +5,15 @@
 package gad
 
 // This file carries the `gad:doc` documentation for the root builtin functions
-// (those available without an import). `gaddoc api . samples/builtins_api.gad
-// builtins` renders it as the documented Gad API stub `samples/builtins_api.gad`.
+// (those available without an import). `gaddoc api . samples/builtins.gad builtins`
+// renders it as the documented Gad API stub `samples/builtins.gad`.
 //
-// It is a work in progress: the type-conversion builtins (str/int/…) and the
-// meta/operator builtins (cast/wrap/is/implements/Class/binOp/…) are still to be
-// documented from their implementations and VM tests.
+// Documented: the type constructors (str/int/…), the container/iteration/I/O
+// builtins, the type predicates (is*), and the meta builtins (is/cast/wrap/
+// implements/Class/…). Left out: the user-operator dispatch builtins
+// (binOp/unOp/selfAssignOp — see the User Operators chapter), `stdio`, and the
+// internal builtins (namedParamTypeCheck/methodFromArgs/rawCaller/vmPushWriter/
+// vmPopWriter/iteratorInput). `enter`/`exit` live in the `gad` namespace.
 
 // gad:doc
 // # builtins module
