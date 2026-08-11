@@ -41,7 +41,12 @@ import (
 //   - `/**< TEXT **/` — the region's STDOUT must equal TEXT. The rendered block
 //     is followed by an `Output:` block with the captured output.
 //
-// The `/**= … **/` / `/**< … **/` markers may be single- or multi-line.
+// The `/**= … **/` / `/**< … **/` markers may be single- or multi-line. A terse
+// single-line form is also accepted, where the whole line is the marker and the
+// rest of it is the expected text:
+//
+//   - `//= EXPR`  — value assertion (like `/**= EXPR **/`).
+//   - `//< TEXT`  — output assertion (like `/**< TEXT **/`).
 //
 // A snippet runs standalone, so it must be self-contained. To reuse another
 // snippet's definitions without repeating them, list it as an execution context
@@ -109,6 +114,17 @@ func splitSnippetResult(body []string) (code []string, kind snippetResultKind, e
 	kind = snippetNoResult
 	for i := 0; i < len(body); i++ {
 		t := strings.TrimSpace(body[i])
+		// Simple single-line inline markers: `//= EXPR` (value) and `//< TEXT`
+		// (output). They are the terse form of the `/**= … **/` / `/**< … **/`
+		// blocks — no closing token, the rest of the line is the expected text.
+		if rest, ok := strings.CutPrefix(t, "//="); ok {
+			kind, expected = snippetValue, strings.TrimSpace(rest)
+			continue
+		}
+		if rest, ok := strings.CutPrefix(t, "//<"); ok {
+			kind, expected = snippetOutput, strings.TrimSpace(rest)
+			continue
+		}
 		var sigil string
 		switch {
 		case strings.HasPrefix(t, "/**="):

@@ -164,7 +164,109 @@ func exportParsesRaw(src string) bool { return parsesRaw(src) }
 // emitAPIGad renders the module's public API as a documented Gad source file and
 // returns it together with any warnings (signatures that did not parse and were
 // emitted with a fallback, so the source gad:doc can be fixed).
-func emitAPIGad(dg *docgroup) (string, []string) {
+// --- gad:samples usage examples ------------------------------------------
+
+// reSnippetOpen matches the `//snippet NAME …` opening of a doctest region (the
+// same regions `gad doc` validates via `/**= … **/`), keyed here by member name.
+var reSnippetOpen = regexp.MustCompile(`^\s*//snippet\s+(\w+)`)
+
+// sampleFile holds the usage snippets parsed from a `gad:samples` file, keyed by
+// the exported member name. Each member's example lives in a
+// `//snippet NAME … //endsnippet` region — the standard doctest snippet form, so
+// the file is validated by `gad doc` (its `/**= … **/` results are checked) and
+// no new format is introduced.
+type sampleFile struct {
+	path     string
+	snippets map[string][]string
+}
+
+// parseSampleFile reads path into per-member snippets. A missing file yields an
+// empty set (it is created on demand when auto-scaffolding).
+func parseSampleFile(path string) (*sampleFile, error) {
+	sf := &sampleFile{path: path, snippets: map[string][]string{}}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return sf, nil
+		}
+		return nil, err
+	}
+	cur := ""
+	var buf []string
+	for _, ln := range strings.Split(string(data), "\n") {
+		t := strings.TrimSpace(ln)
+		if cur == "" {
+			if m := reSnippetOpen.FindStringSubmatch(t); m != nil {
+				cur, buf = m[1], nil
+			}
+			continue
+		}
+		if t == "//endsnippet" {
+			sf.snippets[cur] = trimBlankEdges(buf)
+			cur = ""
+			continue
+		}
+		buf = append(buf, ln)
+	}
+	return sf, nil
+}
+
+// exampleDoc returns the `## Example` doc lines (a non-running fenced `gad`
+// block) for a member's snippet, or nil when the file has no snippet for it.
+func exampleDoc(sf *sampleFile, name string) []string {
+	if sf == nil {
+		return nil
+	}
+	snip := sf.snippets[name]
+	if len(snip) == 0 {
+		return nil
+	}
+	out := []string{"", "## Example", "", "```gad ignore"}
+	out = append(out, snip...)
+	return append(out, "```")
+}
+
+// scaffoldMissingSamples appends a `/** ### Name **/` stub for every exported
+// member that has no section yet, so `auto` files grow to cover the whole API.
+// Existing snippets are left untouched. It creates the file with a header when
+// absent.
+func scaffoldMissingSamples(module string, dg *docgroup, sf *sampleFile) error {
+	var missing []string
+	seen := map[string]bool{}
+	for _, s := range dg.api {
+		if seen[s.name] {
+			continue
+		}
+		seen[s.name] = true
+		if _, ok := sf.snippets[s.name]; !ok {
+			missing = append(missing, s.name)
+		}
+	}
+
+	existing, err := os.ReadFile(sf.path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if len(missing) == 0 && err == nil {
+		return nil
+	}
+
+	var b strings.Builder
+	if os.IsNotExist(err) {
+		b.WriteString("// Samples of module " + module + ": one `//snippet NAME ... //endsnippet`\n// region per exported member. These are standard doctest snippets, run and\n// checked by `gad doc`, and merged into the module API as `## Example`\n// sections by gaddoc (the `gad:samples` directive).\n")
+	} else {
+		b.Write(existing)
+		if !strings.HasSuffix(string(existing), "\n") {
+			b.WriteByte('\n')
+		}
+	}
+	for _, name := range missing {
+		b.WriteString("\n//snippet " + name + "\n//endsnippet\n")
+	}
+	return os.WriteFile(sf.path, []byte(b.String()), 0o644)
+}
+
+func emitAPIGad(dg *docgroup, sf *sampleFile) (string, []string) {
 	var (
 		b        strings.Builder
 		warnings []string
@@ -184,12 +286,14 @@ func emitAPIGad(dg *docgroup) (string, []string) {
 		switch s.kind {
 		case "func":
 			if len(s.overloads) > 1 {
-				emitOverloadedFunc(&b, s.name, s.overloads, &warnings)
+				emitOverloadedFunc(&b, s.name, s.overloads, sf, &warnings)
 			} else if len(s.overloads) == 1 {
-				emitSingleFunc(&b, s.name, s.overloads[0], &warnings)
+				emitSingleFunc(&b, s.name, s.overloads[0], sf, &warnings)
 			}
 		case "const":
-			writeDocBlock(&b, trimBlankEdges(neutralizeFences(s.desc)))
+			desc := trimBlankEdges(neutralizeFences(s.desc))
+			desc = append(desc, exampleDoc(sf, s.name)...)
+			writeDocBlock(&b, desc)
 			b.WriteString("export const " + s.name + " = " + s.sig + "\n\n")
 		}
 	}
@@ -201,10 +305,11 @@ func emitAPIGad(dg *docgroup) (string, []string) {
 // `export name(params) <ret> => nil` when it parses, an untyped variadic stub
 // (with the real signature kept in the doc) when it does not, or nothing when
 // the name is reserved.
-func emitSingleFunc(b *strings.Builder, name string, ov apiOverload, warnings *[]string) {
+func emitSingleFunc(b *strings.Builder, name string, ov apiOverload, sf *sampleFile, warnings *[]string) {
 	sig := normalizeSig(ov.sig)
 	decl := sig + " => nil"
 	desc := trimBlankEdges(neutralizeFences(ov.desc))
+	desc = append(desc, exampleDoc(sf, name)...)
 	switch {
 	case exportParses(decl):
 		writeDocBlock(b, desc)
@@ -222,10 +327,15 @@ func emitSingleFunc(b *strings.Builder, name string, ov apiOverload, warnings *[
 // `export func NAME { (params) <ret> => nil … }`, one method per overload with
 // its own doc. If the whole declaration does not parse it degrades to a single
 // untyped variadic stub keeping every signature in the doc.
-func emitOverloadedFunc(b *strings.Builder, name string, overloads []apiOverload, warnings *[]string) {
+func emitOverloadedFunc(b *strings.Builder, name string, overloads []apiOverload, sf *sampleFile, warnings *[]string) {
 	headers := make([]string, len(overloads))
 	for i, ov := range overloads {
 		headers[i] = stripSigName(normalizeSig(ov.sig))
+	}
+
+	// The usage example is per-member, so it leads the whole func-with-methods.
+	if ex := exampleDoc(sf, name); len(ex) > 0 {
+		writeDocBlock(b, trimBlankEdges(ex))
 	}
 
 	var body strings.Builder
@@ -306,7 +416,28 @@ func runAPIMode(srcDir, outFile, module string) error {
 	if err != nil {
 		return err
 	}
-	src, warnings := emitAPIGad(dg)
+
+	// A `gad:samples [flags] <path>` directive links the module to a file of
+	// per-member usage examples that are merged into each export's doc as an
+	// `## Example` section. With the `auto` flag, members without a section yet
+	// are scaffolded into the file so coverage grows over time.
+	var sf *sampleFile
+	if dg.samplesPath != "" {
+		if dg.samplesAuto {
+			pre, err := parseSampleFile(dg.samplesPath)
+			if err != nil {
+				return fmt.Errorf("read samples %q: %w", dg.samplesPath, err)
+			}
+			if err := scaffoldMissingSamples(module, dg, pre); err != nil {
+				return fmt.Errorf("scaffold samples %q: %w", dg.samplesPath, err)
+			}
+		}
+		if sf, err = parseSampleFile(dg.samplesPath); err != nil {
+			return fmt.Errorf("read samples %q: %w", dg.samplesPath, err)
+		}
+	}
+
+	src, warnings := emitAPIGad(dg, sf)
 	for _, w := range warnings {
 		fmt.Fprintf(os.Stderr, "gaddoc api: %s: %s\n", module, w)
 	}

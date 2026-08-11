@@ -53,6 +53,9 @@ var (
 	reFuncAnnot    = regexp.MustCompile(`^\s*(\w+)\(.*\)\s*(?:<[^>]*>|->\s+\S.*)\s*$`)
 	reLevel2header = regexp.MustCompile(`^\s*##\s`)
 	reWordStart    = regexp.MustCompile(`^\s*\w+`)
+	// A `gad:samples [flags] <path>` directive links a module to a `.gad` file of
+	// usage examples (see api.go). flags is a comma list (e.g. `module,auto`).
+	reSamplesDir = regexp.MustCompile(`^\s*gad:samples\s+\[([^\]]*)\]\s+(\S+)`)
 )
 
 type docgroup struct {
@@ -72,6 +75,13 @@ type docgroup struct {
 	// skipDesc skips the gad:doc comment description lines of the current
 	// function because the description is taken from the function's Usage.
 	skipDesc bool
+
+	// samplesPath is the usage-examples file linked by a `gad:samples [flags]
+	// <path>` directive in the module doc (path is repo-relative). samplesAuto is
+	// set when the flags include `auto`: missing exported members are scaffolded
+	// into that file so every member gets an Example section over time.
+	samplesPath string
+	samplesAuto bool
 
 	// Structured capture for the `.gad` API emitter (emitAPIGad). Populated in
 	// parallel with the Markdown buckets so the public API can also be rendered
@@ -224,6 +234,17 @@ func (dg *docgroup) processBlocks(lines []string) {
 		line := lines[i]
 		line = strings.ReplaceAll(line, "\r", "")
 		line = strings.ReplaceAll(line, "\t", "    ")
+		// A `gad:samples [flags] <path>` directive links the module to a usage
+		// examples file; capture it and drop it from the rendered doc.
+		if m := reSamplesDir.FindStringSubmatch(line); m != nil {
+			dg.samplesPath = strings.TrimSpace(m[2])
+			for _, fl := range strings.Split(m[1], ",") {
+				if strings.TrimSpace(fl) == "auto" {
+					dg.samplesAuto = true
+				}
+			}
+			continue
+		}
 		switch block {
 		case unknown:
 			if reTypeHeader.MatchString(line) {

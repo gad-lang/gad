@@ -307,6 +307,27 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
   anon/closure validam tudo. return types <T> não são runtime-enforced (nem
   diretos). Type params se comportam idêntico a escrever a constraint direto.
 
+## 2026-08-11 cont. 14 — gad:samples (exemplos de uso no MODULE.gad) + doctest inline
+- **Diretiva** `// gad:samples [module,auto] <path>` (usuário adicionou em
+  module_time.go) → gaddoc captura path+flags (reSamplesDir em main.go).
+- **Gerador** (api.go): parseSampleFile lê regiões `//snippet NAME … //endsnippet`
+  (formato doctest EXISTENTE, não inventa novo) → snippet por membro. `auto`:
+  scaffoldMissingSamples cria a samples file com um `//snippet NAME`/`//endsnippet`
+  por membro exportado sem exemplo. emitAPIGad/emitSingleFunc/emitOverloadedFunc:
+  para cada item exportado, mescla o exemplo como subseção `## Example` (bloco
+  ```gad ignore) JUNTO da assinatura `export … => nil`.
+- **Doctest inline** (novo, cmd/gad/doc_snippet.go): `//= EXPR` (valor) e `//< TEXT`
+  (saída) — forma terse de `/**= … **/` / `/**< … **/`. Teste
+  TestExtractSnippetsInlineMarkers. `//` é só comentário em Gad (sem conflito).
+- **stdlib/time/samples.gad**: criado (auto-scaffold, 41 membros); semeados 6
+  exemplos determinísticos com `//= VALOR`; **validado por `gad doc` (doctest EXIT
+  0)**. time.gad regenerado com `## Example` por membro.
+- PROVAS: `go build/test ./...` VERDE; vet limpo; `gad doc stdlib/time/samples.gad`
+  EXIT 0; merge visível (monthString → `## Example` + `time.monthString(1)` +
+  `//= "January"`). make samples-doc EXIT 0.
+- RESTA (rollout): estender a fmt/strings/json (diretiva + samples file + dobrar
+  use_*.gad) e REMOVER use_*.gad; minerar testes dos módulos p/ mais exemplos.
+
 ## 2026-08-11 cont. 13 — stdlib refs: sig em ```gad, doc/stdlib/, submenu Stdlib
 - **Assinaturas de função** em stdlib-*.md saíam inline (`` `local() <Location>` ``);
   agora em bloco ```gad (cmd/gaddoc/main.go processFuncBlock).

@@ -25,7 +25,7 @@ func TestEmitAPIOverloads(t *testing.T) {
 		},
 	}
 
-	src, warnings := emitAPIGad(dg)
+	src, warnings := emitAPIGad(dg, nil)
 	require.Empty(t, warnings, src)
 
 	for _, want := range []string{

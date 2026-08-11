@@ -14,11 +14,25 @@ export local() <Location> => nil
 
 /**
 Returns English name of the month m ("January", "February", ...).
+
+## Example
+
+```gad ignore
+time.monthString(1)   // 1 = January
+//= "January"
+```
 **/
 export monthString(m Months) <str> => nil
 
 /**
 Returns English name of the int weekday w, note that 0 is Sunday.
+
+## Example
+
+```gad ignore
+time.weekdayString(0)
+//= "Sunday"
+```
 **/
 export weekdayString(w Weekdays) <str> => nil
 
@@ -57,11 +71,25 @@ Returns the duration d as a floating point number of hours.
 
 sleep(d duration)
 Pauses the current goroutine for at least the duration.
+
+## Example
+
+```gad ignore
+time.durationHours(3 * time.Hour)
+//= 3
+```
 **/
 export durationHours(d duration) <float> => nil
 
 /**
 Parses duration s and returns duration as int or error.
+
+## Example
+
+```gad ignore
+time.parseDuration("2h30m") == 2 * time.Hour + 30 * time.Minute
+//= true
+```
 **/
 export parseDuration(s str) <duration> => nil
 
@@ -127,6 +155,13 @@ export parse(layout str, value str, loc Location) <time> => nil
 
 /**
 Parses a date from "YYYYMMDD" or "YYYY-MM-DD".
+
+## Example
+
+```gad ignore
+time.strToDate("2026-01-31").year()
+//= 2026
+```
 **/
 export strToDate(s str) <date> => nil
 

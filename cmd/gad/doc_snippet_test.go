@@ -45,6 +45,32 @@ func TestExtractSnippets(t *testing.T) {
 	require.Equal(t, "HELLO", snips["shout"].expected)
 }
 
+// TestExtractSnippetsInlineMarkers checks the terse single-line result markers
+// `//= EXPR` (value) and `//< TEXT` (output), the compact form of the
+// `/**= … **/` / `/**< … **/` blocks.
+func TestExtractSnippetsInlineMarkers(t *testing.T) {
+	src := "//snippet greet\n" +
+		"greet := \"hi \" + \"Gad\"\n" +
+		"greet\n" +
+		"//= \"hi Gad\"\n" +
+		"//endsnippet\n\n" +
+		"//snippet shout\n" +
+		"println(\"HELLO\")\n" +
+		"//< HELLO\n" +
+		"//endsnippet\n"
+
+	snips := extractSnippets([]byte(src))
+	require.Len(t, snips, 2)
+
+	require.Equal(t, "greet := \"hi \" + \"Gad\"\ngreet", snips["greet"].code)
+	require.Equal(t, snippetValue, snips["greet"].kind)
+	require.Equal(t, `"hi Gad"`, snips["greet"].expected)
+
+	require.Equal(t, "println(\"HELLO\")", snips["shout"].code)
+	require.Equal(t, snippetOutput, snips["shout"].kind)
+	require.Equal(t, "HELLO", snips["shout"].expected)
+}
+
 func TestExpandSnippetsRunsAndVerifies(t *testing.T) {
 	snips := extractSnippets([]byte(snippetSrc))
 

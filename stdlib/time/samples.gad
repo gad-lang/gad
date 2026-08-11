@@ -1,0 +1,134 @@
+// Samples of module time: one `//snippet NAME ... //endsnippet`
+// region per exported member. These are standard doctest snippets, run and
+// checked by `gad doc`, and merged into the module API as `## Example`
+// sections by gaddoc (the `gad:samples` directive).
+
+//snippet utc
+//endsnippet
+
+//snippet local
+//endsnippet
+
+//snippet monthString
+time.monthString(1)   // 1 = January
+//= "January"
+//endsnippet
+
+//snippet weekdayString
+time.weekdayString(0)
+//= "Sunday"
+//endsnippet
+
+//snippet durationString
+//endsnippet
+
+//snippet durationNanoseconds
+//endsnippet
+
+//snippet durationMicroseconds
+//endsnippet
+
+//snippet durationMilliseconds
+//endsnippet
+
+//snippet durationSeconds
+//endsnippet
+
+//snippet durationMinutes
+//endsnippet
+
+//snippet durationHours
+time.durationHours(3 * time.Hour)
+//= 3
+//endsnippet
+
+//snippet parseDuration
+time.parseDuration("2h30m") == 2 * time.Hour + 30 * time.Minute
+//= true
+//endsnippet
+
+//snippet durationRound
+//endsnippet
+
+//snippet durationTruncate
+//endsnippet
+
+//snippet fixedZone
+//endsnippet
+
+//snippet loadLocation
+//endsnippet
+
+//snippet isLocation
+//endsnippet
+
+//snippet time
+//endsnippet
+
+//snippet since
+//endsnippet
+
+//snippet until
+//endsnippet
+
+//snippet date
+//endsnippet
+
+//snippet now
+//endsnippet
+
+//snippet parse
+//endsnippet
+
+//snippet strToDate
+time.strToDate("2026-01-31").year()
+//= 2026
+//endsnippet
+
+//snippet strToTime
+//endsnippet
+
+//snippet strToCalendarTime
+//endsnippet
+
+//snippet strToDuration
+//endsnippet
+
+//snippet strToLocation
+//endsnippet
+
+//snippet unix
+//endsnippet
+
+//snippet add
+//endsnippet
+
+//snippet sub
+//endsnippet
+
+//snippet addDate
+//endsnippet
+
+//snippet after
+//endsnippet
+
+//snippet before
+//endsnippet
+
+//snippet format
+//endsnippet
+
+//snippet appendFormat
+//endsnippet
+
+//snippet in
+//endsnippet
+
+//snippet round
+//endsnippet
+
+//snippet truncate
+//endsnippet
+
+//snippet isTime
+//endsnippet
