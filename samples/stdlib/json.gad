@@ -33,22 +33,56 @@ export MarshalIndent(v any, prefix str, indent str) <bytes> => nil
 
 /**
 Returns indented form of the JSON-encoded src or error.
+
+## Example
+
+```gad
+json := import("json")
+str(json.IndentCount(bytes(`{"a":1}`), "", "  "))
+>>> "{\n  \"a\": 1\n}"
+```
 **/
 export IndentCount(src bytes, prefix str, indent str) <bytes> => nil
 
 /**
 Returns a wrapped bytes to provide raw encoded JSON value to Marshal
 functions.
+
+## Example
+
+```gad
+json := import("json")
+// RawMessage embeds pre-encoded JSON verbatim.
+str(json.Marshal({wrapped: json.RawMessage(bytes(`{"x":1}`))}))
+>>> "{\"wrapped\":{\"x\":1}}"
+```
 **/
 export RawMessage(v bytes) <rawMessage> => nil
 
 /**
 Returns elided insignificant space characters from data or error.
+
+## Example
+
+```gad
+json := import("json")
+str(json.Compact(bytes(`{ "a" : 1 }`), false))
+>>> "{\"a\":1}"
+```
 **/
 export Compact(data bytes, escape bool) <bytes> => nil
 
 /**
 Returns a wrapped object to provide Marshal functions to quote v.
+
+## Example
+
+```gad
+json := import("json")
+// Quote forces a value to be encoded as a quoted string.
+str(json.Marshal(json.Quote(42)))
+>>> "\"42\""
+```
 **/
 export Quote(v any) <encoderOptions> => nil
 
@@ -56,12 +90,30 @@ export Quote(v any) <encoderOptions> => nil
 Returns a wrapped object to provide Marshal functions not to quote while
 encoding.
 This can be used not to quote all array or map items.
+
+## Example
+
+```gad
+json := import("json")
+// NoQuote keeps the value in its natural (unquoted) JSON form.
+str(json.Marshal(json.NoQuote(42)))
+>>> "42"
+```
 **/
 export NoQuote(v any) <encoderOptions> => nil
 
 /**
 Returns a wrapped object to provide Marshal functions not to escape html
 while encoding.
+
+## Example
+
+```gad
+json := import("json")
+// NoEscape leaves <, > and & unescaped.
+str(json.Marshal(json.NoEscape("a<b>c")))
+>>> "\"a<b>c\""
+```
 **/
 export NoEscape(v any) <encoderOptions> => nil
 

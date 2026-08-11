@@ -16,21 +16,43 @@ str(json.MarshalIndent({a: 1}, "", "  "))
 //endsnippet
 
 //snippet IndentCount
+json := import("json")
+str(json.IndentCount(bytes(`{"a":1}`), "", "  "))
+//= "{\n  \"a\": 1\n}"
 //endsnippet
 
 //snippet RawMessage
+json := import("json")
+// RawMessage embeds pre-encoded JSON verbatim.
+str(json.Marshal({wrapped: json.RawMessage(bytes(`{"x":1}`))}))
+//= "{\"wrapped\":{\"x\":1}}"
 //endsnippet
 
 //snippet Compact
+json := import("json")
+str(json.Compact(bytes(`{ "a" : 1 }`), false))
+//= "{\"a\":1}"
 //endsnippet
 
 //snippet Quote
+json := import("json")
+// Quote forces a value to be encoded as a quoted string.
+str(json.Marshal(json.Quote(42)))
+//= "\"42\""
 //endsnippet
 
 //snippet NoQuote
+json := import("json")
+// NoQuote keeps the value in its natural (unquoted) JSON form.
+str(json.Marshal(json.NoQuote(42)))
+//= "42"
 //endsnippet
 
 //snippet NoEscape
+json := import("json")
+// NoEscape leaves <, > and & unescaped.
+str(json.Marshal(json.NoEscape("a<b>c")))
+//= "\"a<b>c\""
 //endsnippet
 
 //snippet Unmarshal
