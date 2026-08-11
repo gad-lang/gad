@@ -214,6 +214,16 @@ package gad
 // Returns a new function that calls `caller` with `args`/`named` prepended —
 // a partial application. Calling the wrapper appends its own arguments.
 //
+// cast(toType type, obj any) <any>
+// Casts `obj` (an object that supports casting — a class instance or a reflected
+// Go value) to the object type `toType`, throwing when incompatible. For the
+// general checked cast that also accepts interfaces and unions, use the `::`
+// operator.
+//
+// userData(o any) <any>
+// Returns the host-attached user data of a value that carries it (a Go value
+// implementing UserDataStorage); throws otherwise.
+//
 // Class(name str, define callable) <classType>
 // Creates a class named `name`; `define` builds its fields, methods and
 // properties (see the Classes chapter). Also written with the `class` keyword.

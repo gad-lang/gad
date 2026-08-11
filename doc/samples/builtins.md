@@ -487,6 +487,26 @@ wrap(caller callable, *args; **named) <function>
 Returns a new function that calls `caller` with `args`/`named` prepended —
 a partial application. Calling the wrapper appends its own arguments.
 
+### cast
+
+```gad
+cast(toType type, obj any) <any>
+```
+
+Casts `obj` (an object that supports casting — a class instance or a reflected
+Go value) to the object type `toType`, throwing when incompatible. For the
+general checked cast that also accepts interfaces and unions, use the `::`
+operator.
+
+### userData
+
+```gad
+userData(o any) <any>
+```
+
+Returns the host-attached user data of a value that carries it (a Go value
+implementing UserDataStorage); throws otherwise.
+
 ### Class
 
 ```gad
@@ -865,6 +885,20 @@ Returns a new function that calls `caller` with `args`/`named` prepended —
 a partial application. Calling the wrapper appends its own arguments.
 **/
 export wrap(caller callable, *args; **named) <function> => nil
+
+/**
+Casts `obj` (an object that supports casting — a class instance or a reflected
+Go value) to the object type `toType`, throwing when incompatible. For the
+general checked cast that also accepts interfaces and unions, use the `::`
+operator.
+**/
+export cast(toType type, obj any) <any> => nil
+
+/**
+Returns the host-attached user data of a value that carries it (a Go value
+implementing UserDataStorage); throws otherwise.
+**/
+export userData(o any) <any> => nil
 
 /**
 Creates a class named `name`; `define` builds its fields, methods and
