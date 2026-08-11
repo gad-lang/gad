@@ -68,13 +68,28 @@ const (
 	snippetOutput                     // /**< TEXT **/
 )
 
-// snippet is one `//snippet NAME … //endsnippet` region: its code (dedented, with
-// any result marker removed) and its optional expected result.
-type snippet struct {
-	name     string
-	code     string
+// snippetCheck is one assertion inside a snippet: the region code up to lineEnd
+// (whose last line is the statement under test) must produce expected. A snippet
+// may hold several, so successive statements can each be verified — e.g.
+// `1\n//= 1\n\n"x"\n//= "x"` checks two statements.
+type snippetCheck struct {
+	lineEnd  int // the check tests code lines[:lineEnd]
 	kind     snippetResultKind
-	expected string // raw expected text from the marker (an EXPR or STDOUT text)
+	expected string
+}
+
+// snippet is one `//snippet NAME … //endsnippet` region: its code (dedented, with
+// result markers removed), the lines that code splits into, and its ordered
+// result checks.
+type snippet struct {
+	name   string
+	code   string
+	lines  []string // code split into lines (indices match snippetCheck.lineEnd)
+	checks []snippetCheck
+	// kind/expected mirror the last check, for the single-result consumers
+	// (templates/JSON); snippetNoResult when there is no check.
+	kind     snippetResultKind
+	expected string
 	// uses names other snippets whose code is prepended as an execution context
 	// (so this snippet can reuse their definitions), declared on the open line as
 	// `//snippet NAME uses A B C`. The context code runs but is NOT rendered and
@@ -97,8 +112,14 @@ func extractSnippets(src []byte) map[string]*snippet {
 				name, uses, body = n, u, nil
 			}
 		case snippetClose(t):
-			code, kind, expected := splitSnippetResult(body)
-			out[name] = &snippet{name: name, code: dedent(code), kind: kind, expected: expected, uses: uses}
+			lines, checks := parseSnippetChecks(body)
+			lines, checks = trimSnippetBlankEdges(lines, checks)
+			lines = removeCommonIndent(lines)
+			s := &snippet{name: name, code: strings.Join(lines, "\n"), lines: lines, checks: checks, uses: uses}
+			if n := len(checks); n > 0 {
+				s.kind, s.expected = checks[n-1].kind, checks[n-1].expected
+			}
+			out[name] = s
 			name = ""
 		default:
 			body = append(body, ln)
@@ -107,24 +128,24 @@ func extractSnippets(src []byte) map[string]*snippet {
 	return out
 }
 
-// splitSnippetResult separates the code lines of a region from an optional
-// `/**= … **/` (value) or `/**< … **/` (output) result marker. It returns the
-// code lines (marker removed), the result kind and the raw expected text.
-func splitSnippetResult(body []string) (code []string, kind snippetResultKind, expected string) {
-	kind = snippetNoResult
+// parseSnippetChecks separates a region's code lines from its result markers,
+// returning the code (markers removed) and the ordered checks. A marker asserts
+// the value/output of the code up to that point (its last line being the
+// statement under test), so several markers verify successive statements. Both
+// the terse single-line forms (`//= EXPR`, `//< TEXT`) and the block forms
+// (`/**= … **/`, `/**< … **/`, single- or multi-line) are recognized.
+func parseSnippetChecks(body []string) (code []string, checks []snippetCheck) {
 	for i := 0; i < len(body); i++ {
 		t := strings.TrimSpace(body[i])
-		// Simple single-line inline markers: `//= EXPR` (value) and `//< TEXT`
-		// (output). They are the terse form of the `/**= … **/` / `/**< … **/`
-		// blocks — no closing token, the rest of the line is the expected text.
 		if rest, ok := strings.CutPrefix(t, "//="); ok {
-			kind, expected = snippetValue, strings.TrimSpace(rest)
+			checks = append(checks, snippetCheck{len(code), snippetValue, strings.TrimSpace(rest)})
 			continue
 		}
 		if rest, ok := strings.CutPrefix(t, "//<"); ok {
-			kind, expected = snippetOutput, strings.TrimSpace(rest)
+			checks = append(checks, snippetCheck{len(code), snippetOutput, strings.TrimSpace(rest)})
 			continue
 		}
+		var kind snippetResultKind
 		var sigil string
 		switch {
 		case strings.HasPrefix(t, "/**="):
@@ -135,37 +156,69 @@ func splitSnippetResult(body []string) (code []string, kind snippetResultKind, e
 			code = append(code, body[i])
 			continue
 		}
-		// Collect the marker body across lines until the closing `**/`.
+		// Collect the block marker body across lines until the closing `**/`.
 		var parts []string
-		first := strings.TrimPrefix(t, sigil)
-		j := i
+		cur := strings.TrimPrefix(t, sigil)
 		for {
-			ln := parts0(first, j == i, body, j)
-			if idx := strings.LastIndex(ln, "**/"); idx >= 0 {
-				parts = append(parts, ln[:idx])
-				i = j
+			if idx := strings.LastIndex(cur, "**/"); idx >= 0 {
+				parts = append(parts, cur[:idx])
 				break
 			}
-			parts = append(parts, ln)
-			j++
-			if j >= len(body) {
-				i = j
+			parts = append(parts, cur)
+			if i++; i >= len(body) {
 				break
 			}
-			first = body[j]
+			cur = body[i]
 		}
-		expected = strings.TrimSpace(strings.Join(parts, "\n"))
+		checks = append(checks, snippetCheck{len(code), kind, strings.TrimSpace(strings.Join(parts, "\n"))})
 	}
-	return code, kind, expected
+	return code, checks
 }
 
-// parts0 returns the working text for a marker line: for the first line it is the
-// already-stripped sigil remainder, otherwise the raw body line.
-func parts0(first string, isFirst bool, body []string, j int) string {
-	if isFirst {
-		return first
+// trimSnippetBlankEdges drops leading and trailing blank code lines, shifting the
+// checks' line indices so they keep pointing at the same statements.
+func trimSnippetBlankEdges(lines []string, checks []snippetCheck) ([]string, []snippetCheck) {
+	lead := 0
+	for lead < len(lines) && strings.TrimSpace(lines[lead]) == "" {
+		lead++
 	}
-	return body[j]
+	lines = lines[lead:]
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	for i := range checks {
+		if checks[i].lineEnd -= lead; checks[i].lineEnd < 0 {
+			checks[i].lineEnd = 0
+		}
+		if checks[i].lineEnd > len(lines) {
+			checks[i].lineEnd = len(lines)
+		}
+	}
+	return lines, checks
+}
+
+// removeCommonIndent strips the common leading indentation shared by the non-blank
+// lines, without changing the line count (so check indices stay valid).
+func removeCommonIndent(lines []string) []string {
+	indent := -1
+	for _, ln := range lines {
+		if strings.TrimSpace(ln) == "" {
+			continue
+		}
+		n := len(ln) - len(strings.TrimLeft(ln, " \t"))
+		if indent < 0 || n < indent {
+			indent = n
+		}
+	}
+	if indent <= 0 {
+		return lines
+	}
+	for i, ln := range lines {
+		if len(ln) >= indent {
+			lines[i] = ln[indent:]
+		}
+	}
+	return lines
 }
 
 // snippetOpen reports whether the trimmed line opens a snippet region and returns
@@ -275,24 +328,26 @@ func collectSnippets(src []byte, run bool) ([]snippetInfo, error) {
 		}
 		info := snippetInfo{Name: s.name, Uses: s.uses, Code: s.code, Expected: s.expected}
 		prelude := snippetPrelude(s, snips)
-		switch s.kind {
-		case snippetValue:
-			info.Kind = "value"
-			if run {
-				got, err := evalGadExample(withPrelude(prelude, s.code))
-				if err != nil {
-					return nil, fmt.Errorf("snippet %q: %w", s.name, err)
-				}
-				info.Result = objectStr(got)
+		if len(s.checks) > 0 {
+			switch s.kind {
+			case snippetValue:
+				info.Kind = "value"
+			case snippetOutput:
+				info.Kind = "output"
 			}
-		case snippetOutput:
-			info.Kind = "output"
 			if run {
-				_, stdout, err := evalGadExampleCapture(withPrelude(prelude, s.code))
+				// Verify every check; report the last one's result/output (the
+				// single-result view exposed to templates and --json/--yaml).
+				values, outputs, err := runSnippetChecks(s, prelude)
 				if err != nil {
-					return nil, fmt.Errorf("snippet %q: %w", s.name, err)
+					return nil, err
 				}
-				info.Output = strings.TrimRight(stdout, "\n")
+				last := s.checks[len(s.checks)-1]
+				if last.kind == snippetValue {
+					info.Result = values[last.lineEnd]
+				} else {
+					info.Output = outputs[last.lineEnd]
+				}
 			}
 		}
 		infos = append(infos, info)
@@ -399,49 +454,88 @@ func fenceFor(content ...string) string {
 // Python-docs style — the value inline as a `// => …` line inside the same code
 // block, and STDOUT in an `Output:` text block below it. Fence widths adapt to
 // any backticks inside the code/result so an embedded ``` never closes them.
-func renderSnippet(snip *snippet, prelude, lang string, run bool) ([]string, error) {
-	switch snip.kind {
-	case snippetValue:
-		shown := snip.expected
-		if run {
-			got, err := evalGadExample(withPrelude(prelude, snip.code))
+// runSnippetChecks verifies every check of the snippet against the code up to it
+// (with the `uses` prelude prepended) and returns, keyed by the check's lineEnd,
+// the shown value (value checks) and captured output (output checks). A mismatch
+// or run error aborts.
+func runSnippetChecks(snip *snippet, prelude string) (values, outputs map[int]string, err error) {
+	values, outputs = map[int]string{}, map[int]string{}
+	for i, c := range snip.checks {
+		code := strings.Join(snip.lines[:c.lineEnd], "\n")
+		switch c.kind {
+		case snippetValue:
+			got, err := evalGadExample(withPrelude(prelude, code))
 			if err != nil {
-				return nil, fmt.Errorf("snippet %q: %w", snip.name, err)
+				return nil, nil, fmt.Errorf("snippet %q: %w", snip.name, err)
 			}
-			exp, err := evalGadExample(withPrelude(prelude, "return "+snip.expected))
+			exp, err := evalGadExample(withPrelude(prelude, "return "+c.expected))
 			if err != nil {
-				return nil, fmt.Errorf("snippet %q: evaluating expected %q: %w", snip.name, snip.expected, err)
+				return nil, nil, fmt.Errorf("snippet %q: evaluating expected %q: %w", snip.name, c.expected, err)
 			}
 			if !objectsEqual(got, exp) {
-				return nil, fmt.Errorf("snippet %q: result mismatch: got %s, want %s",
-					snip.name, objectStr(got), objectStr(exp))
+				return nil, nil, fmt.Errorf("snippet %q: result mismatch at check %d: got %s, want %s",
+					snip.name, i+1, objectStr(got), objectStr(exp))
 			}
-			shown = objectStr(got)
-		}
-		fence := fenceFor(snip.code, shown)
-		return []string{fence + lang, snip.code, "// => " + shown, fence}, nil
-
-	case snippetOutput:
-		shown := snip.expected
-		if run {
-			_, stdout, err := evalGadExampleCapture(withPrelude(prelude, snip.code))
+			values[c.lineEnd] = objectStr(got)
+		case snippetOutput:
+			_, stdout, err := evalGadExampleCapture(withPrelude(prelude, code))
 			if err != nil {
-				return nil, fmt.Errorf("snippet %q: %w", snip.name, err)
+				return nil, nil, fmt.Errorf("snippet %q: %w", snip.name, err)
 			}
-			if strings.TrimRight(stdout, "\n") != strings.TrimRight(snip.expected, "\n") {
-				return nil, fmt.Errorf("snippet %q: output mismatch:\n got: %q\nwant: %q",
-					snip.name, stdout, snip.expected)
+			if strings.TrimRight(stdout, "\n") != strings.TrimRight(c.expected, "\n") {
+				return nil, nil, fmt.Errorf("snippet %q: output mismatch at check %d:\n got: %q\nwant: %q",
+					snip.name, i+1, stdout, c.expected)
 			}
-			shown = strings.TrimRight(stdout, "\n")
+			outputs[c.lineEnd] = strings.TrimRight(stdout, "\n")
 		}
-		codeFence := fenceFor(snip.code)
-		textFence := fenceFor(shown)
-		return []string{codeFence + lang, snip.code, codeFence, "", "Output:", "", textFence + "text", shown, textFence}, nil
+	}
+	return values, outputs, nil
+}
 
-	default:
+func renderSnippet(snip *snippet, prelude, lang string, run bool) ([]string, error) {
+	if len(snip.checks) == 0 {
 		fence := fenceFor(snip.code)
 		return []string{fence + lang, snip.code, fence}, nil
 	}
+
+	// Resolve each check's shown value/output — verified when run, else the
+	// declared expected text.
+	values, outputs := map[int]string{}, map[int]string{}
+	if run {
+		var err error
+		if values, outputs, err = runSnippetChecks(snip, prelude); err != nil {
+			return nil, err
+		}
+	} else {
+		for _, c := range snip.checks {
+			if c.kind == snippetValue {
+				values[c.lineEnd] = c.expected
+			} else {
+				outputs[c.lineEnd] = c.expected
+			}
+		}
+	}
+
+	// Value results render inline as `// => …` right after their statement;
+	// output results become `Output:` blocks after the code fence, in order.
+	var codeOut, outBlocks []string
+	for i, ln := range snip.lines {
+		codeOut = append(codeOut, ln)
+		if v, ok := values[i+1]; ok {
+			codeOut = append(codeOut, "// => "+v)
+		}
+		if o, ok := outputs[i+1]; ok {
+			outBlocks = append(outBlocks, o)
+		}
+	}
+	codeStr := strings.Join(codeOut, "\n")
+	fence := fenceFor(codeStr)
+	res := []string{fence + lang, codeStr, fence}
+	for _, o := range outBlocks {
+		tf := fenceFor(o)
+		res = append(res, "", "Output:", "", tf+"text", o, tf)
+	}
+	return res, nil
 }
 
 // snippetRef reports whether a line is a `@snippet NAME` placeholder (ignoring

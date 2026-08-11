@@ -71,6 +71,35 @@ func TestExtractSnippetsInlineMarkers(t *testing.T) {
 	require.Equal(t, "HELLO", snips["shout"].expected)
 }
 
+// TestExtractSnippetsMultipleChecks checks that a snippet may hold several result
+// markers, each verifying the statement before it.
+func TestExtractSnippetsMultipleChecks(t *testing.T) {
+	src := "//snippet multi\n" +
+		"1\n" +
+		"//= 1\n" +
+		"\n" +
+		"\"x\"\n" +
+		"//= \"x\"\n" +
+		"//endsnippet\n"
+
+	s := extractSnippets([]byte(src))["multi"]
+	require.NotNil(t, s)
+	require.Len(t, s.checks, 2)
+	require.Equal(t, snippetValue, s.checks[0].kind)
+	require.Equal(t, "1", s.checks[0].expected)
+	require.Equal(t, 1, s.checks[0].lineEnd) // tests the first line (`1`)
+	require.Equal(t, snippetValue, s.checks[1].kind)
+	require.Equal(t, `"x"`, s.checks[1].expected)
+
+	// Running verifies both against the code up to each marker.
+	// values hold the display form of each verified result (objectStr: strings
+	// unquoted).
+	values, _, err := runSnippetChecks(s, "")
+	require.NoError(t, err)
+	require.Equal(t, "1", values[s.checks[0].lineEnd])
+	require.Equal(t, "x", values[s.checks[1].lineEnd])
+}
+
 func TestExpandSnippetsRunsAndVerifies(t *testing.T) {
 	snips := extractSnippets([]byte(snippetSrc))
 

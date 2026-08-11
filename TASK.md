@@ -325,6 +325,12 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
 - PROVAS: `go build/test ./...` VERDE; vet limpo; `gad doc stdlib/time/samples.gad`
   EXIT 0; merge visível (monthString → `## Example` + `time.monthString(1)` +
   `//= "January"`). make samples-doc EXIT 0.
+- **Múltiplos doctests por snippet** (cont. 15): um snippet pode ter vários
+  `//= VALOR`/`//< OUT`, cada um verifica o statement ANTERIOR (o valor/saída do
+  código cumulativo até a linha). snippetCheck{lineEnd,kind,expected} +
+  parseSnippetChecks + runSnippetChecks; renderSnippet insere `// => valor` inline
+  após cada statement verificado. Testes TestExtractSnippetsMultipleChecks +
+  TestExtractSnippetsInlineMarkers. Ex.: `1\n//= 1\n\n"x"\n//= "x"` → 2 checks.
 - RESTA (rollout): estender a fmt/strings/json (diretiva + samples file + dobrar
   use_*.gad) e REMOVER use_*.gad; minerar testes dos módulos p/ mais exemplos.
 
