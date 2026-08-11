@@ -153,9 +153,10 @@ func TestScript(t *testing.T) {
 		a1 := fmt.scanArg()
 		a2 := fmt.scanArg()
 		a3 := fmt.scanArg()
-		ret := fmt.sscan("abc xyz", a1, a2, a3)
+		err := nil
+		try { fmt.sscan("abc xyz", a1, a2, a3) } catch e { err = e }
 		return [
-			str(ret),
+			str(err.cause),
 			[bool(a1), a1.Value],
 			[bool(a2), a2.Value],
 			[bool(a3), a3.Value],
@@ -173,9 +174,10 @@ func TestScript(t *testing.T) {
 		a1 := fmt.scanArg("str")
 		a2 := fmt.scanArg("int")
 		a3 := fmt.scanArg("int")
-		ret := fmt.sscanf("abc 3 15", "%s%d", a1, a2, a3)
+		err := nil
+		try { fmt.sscanf("abc 3 15", "%s%d", a1, a2, a3) } catch e { err = e }
 		return [
-			str(ret),
+			str(err.cause),
 			[bool(a1), a1.Value],
 			[bool(a2), a2.Value],
 			[bool(a3), a3.Value],
@@ -193,9 +195,10 @@ func TestScript(t *testing.T) {
 		a1 := fmt.scanArg("str")
 		a2 := fmt.scanArg("int")
 		a3 := fmt.scanArg("float")
-		ret := fmt.sscanln("abc 3\n1.5", a1, a2, a3)
+		err := nil
+		try { fmt.sscanln("abc 3\n1.5", a1, a2, a3) } catch e { err = e }
 		return [
-			str(ret),
+			str(err.cause),
 			[bool(a1), a1.Value],
 			[bool(a2), a2.Value],
 			[bool(a3), a3.Value],

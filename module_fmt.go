@@ -26,37 +26,37 @@ func newFmtModule() StdModuleData {
 		//
 		// ## Scan Examples
 		//
+		// A scan function returns the number of items scanned and **throws** on a
+		// scan error, so handle failures with `try`/`catch`. Every arg scanned
+		// before the error is still populated (a partial scan).
+		//
 		// ```gad ignore
 		// arg1 := fmt.scanArg("str")
 		// arg2 := fmt.scanArg("int")
-		// ret := fmt.sscanf("abc123", "%3s%d", arg1, arg2)
-		// if isError(ret) {
-		//   // handle error
-		//   fmt.println(err)
-		// } else {
-		//   fmt.println(ret)            // 2, number of scanned items
-		//   fmt.println(arg1.Value)     // abc
-		//   fmt.println(bool(arg1))     // true, reports whether arg1 is scanned
-		//   fmt.println(arg2.Value)     // 123
-		//   fmt.println(bool(arg2))     // true, reports whether arg2 is scanned
-		// }
+		// n := fmt.sscanf("abc123", "%3s%d", arg1, arg2)
+		// fmt.println(n)              // 2, number of scanned items
+		// fmt.println(arg1.Value)     // abc
+		// fmt.println(bool(arg1))     // true, reports whether arg1 is scanned
+		// fmt.println(arg2.Value)     // 123
+		// fmt.println(bool(arg2))     // true, reports whether arg2 is scanned
 		// ```
 		//
 		// ```gad ignore
-		// arg1 = fmt.scanArg("str")
-		// arg2 = fmt.scanArg("int")
-		// arg3 = fmt.scanArg("float")
-		// ret = fmt.sscanf("abc 123", "%s%d%f", arg1, arg2, arg3)
-		// fmt.println(ret)         // error: EOF
+		// arg1 := fmt.scanArg("str")
+		// arg2 := fmt.scanArg("int")
+		// arg3 := fmt.scanArg("float")
+		// try {
+		//   fmt.sscanf("abc 123", "%s%d%f", arg1, arg2, arg3)  // throws: EOF
+		// } catch err {
+		//   fmt.println(err)            // the scan error
+		// }
+		// // the partial scan is still readable on the args
 		// fmt.println(arg1.Value)  // abc
 		// fmt.println(bool(arg1))  // true
 		// fmt.println(arg2.Value)  // 123
 		// fmt.println(bool(arg2))  // true
 		// fmt.println(arg3.Value)  // nil
-		// fmt.println(bool(arg2))  // false, not scanned
-		//
-		// // Use if statement or a ternary expression to get the scanned value or a default value.
-		// v := arg1 ? arg1.Value : "default value"
+		// fmt.println(bool(arg3))  // false, not scanned
 		// ```
 
 		// gad:doc
@@ -115,29 +115,29 @@ func newFmtModule() StdModuleData {
 			Value:    fmtNewSprint(fmt.Sprintln),
 		},
 		// gad:doc
-		// sscan(str str, *scanArg) <int | error>
+		// sscan(str str, *scanArg) <int>
 		// Scans the argument str, storing successive space-separated values into
 		// successive scanArg arguments. Newlines count as space. If no error is
 		// encountered, it returns the number of items successfully scanned. If that
-		// is less than the number of arguments, error will report why.
+		// is less than the number of arguments, a scan error is thrown.
 		"sscan": &BuiltinFunction{
 			FuncName: "sscan",
 			Value:    fmtNewSscan(fmt.Sscan),
 		},
 		// gad:doc
-		// sscanf(str str, format str, *scanArg) <int | error>
+		// sscanf(str str, format str, *scanArg) <int>
 		// Scans the argument str, storing successive space-separated values into
 		// successive scanArg arguments as determined by the format. It returns the
-		// number of items successfully parsed or an error.
+		// number of items successfully parsed, and throws on a scan error.
 		// Newlines in the input must match newlines in the format.
 		"sscanf": &BuiltinFunction{
 			FuncName: "sscanf",
 			Value:    fmtNewSscanf(fmt.Sscanf),
 		},
-		// sscanln(str str, *scanArg) <int | error>
+		// sscanln(str str, *scanArg) <int>
 		// Sscanln is similar to Sscan, but stops scanning at a newline and after
 		// the final item there must be a newline or EOF. It returns the number of
-		// items successfully parsed or an error.
+		// items successfully parsed, and throws on a scan error.
 		"sscanln": &BuiltinFunction{
 			FuncName: "sscanln",
 			Value:    fmtNewSscan(fmt.Sscanln),
@@ -208,7 +208,7 @@ func fmtNewSscan(fn func(string, ...any) (int, error)) CallableFunc {
 			return Nil, err
 		}
 		n, err := fn(c.Args.Get(0).ToString(), vargs...)
-		return fmtPostScan(1, n, err, c), nil
+		return fmtPostScan(1, n, err, c)
 	}
 }
 
@@ -225,7 +225,7 @@ func fmtNewSscanf(
 			return Nil, err
 		}
 		n, err := fn(c.Args.Get(0).ToString(), c.Args.Get(1).ToString(), vargs...)
-		return fmtPostScan(2, n, err, c), nil
+		return fmtPostScan(2, n, err, c)
 	}
 }
 
@@ -254,20 +254,19 @@ func fmtToPrintArgs(offset int, c Call) []any {
 }
 
 // args are always of scanArg interface type.
-func fmtPostScan(offset, n int, err error, c Call) Object {
+// fmtPostScan marks the successfully-scanned args (so their .Value/bool reflect
+// the partial scan) and returns the number scanned. A scan error is propagated
+// (thrown in the VM) rather than returned as a value, so callers handle it with
+// try/catch; the partial results remain readable on the scan args.
+func fmtPostScan(offset, n int, err error, c Call) (Object, error) {
 	for i := offset; i < n+offset; i++ {
 		c.Args.Get(i).(FmtScanArg).Set(true)
 	}
 	if err != nil {
 		if s := reflect.TypeOf(err).String(); s == "*errors.errorString" {
-			return &Error{
-				Message: err.Error(),
-			}
+			return Nil, &Error{Message: err.Error()}
 		}
-		return &Error{
-			Message: err.Error(),
-			Cause:   err,
-		}
+		return Nil, &Error{Message: err.Error(), Cause: err}
 	}
-	return Int(n)
+	return Int(n), nil
 }
