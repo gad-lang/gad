@@ -291,6 +291,10 @@ const (
 	// BuiltinClassType is the builtin `classType` interface: a user-defined class
 	// object (calling it yields a classInstance).
 	BuiltinClassType
+	// BuiltinReadable/BuiltinWritable are the `readable`/`writable` interfaces: any
+	// value that can be read from / written to (ReaderFrom/WriterFrom).
+	BuiltinReadable
+	BuiltinWritable
 	// BuiltinNumberTypeUnion is the builtin `number` type union: int|uint|float|decimal.
 	BuiltinNumberTypeUnion
 
@@ -399,6 +403,8 @@ var BuiltinsMap = map[string]BuiltinType{
 	"indexDeletable":  BuiltinIndexDeletable,
 	"classInstance":   BuiltinClassInstance,
 	"classType":       BuiltinClassType,
+	"readable":        BuiltinReadable,
+	"writable":        BuiltinWritable,
 	"number":          BuiltinNumberTypeUnion,
 	"iteratorInput":   BuiltinIteratorInput,
 	"zip":             BuiltinZipIterator,
@@ -1071,6 +1077,8 @@ func init() {
 	BuiltinObjects[BuiltinIndexDeletable] = IndexDeletableInterface
 	BuiltinObjects[BuiltinClassInstance] = ClassInstanceInterface
 	BuiltinObjects[BuiltinClassType] = ClassTypeInterface
+	BuiltinObjects[BuiltinReadable] = ReadableInterface
+	BuiltinObjects[BuiltinWritable] = WritableInterface
 	BuiltinObjects[BuiltinNumberTypeUnion] = newNumberTypeUnion()
 	BuiltinObjects[BuiltinZipIterator] = TZipIterator
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{

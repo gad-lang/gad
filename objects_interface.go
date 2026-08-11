@@ -91,6 +91,21 @@ var (
 		_, ok := obj.(*Class)
 		return ok
 	})
+
+	// ReadableInterface (`readable`) matches any value that can be read from — the
+	// check `read` uses (ReaderFrom). Named `readable` (not `reader`) because the
+	// latter is the narrow builtin reader type; a buffer is readable but is not a
+	// `reader`.
+	ReadableInterface = nativeInterface("readable", func(_ *VM, obj Object) bool {
+		return ReaderFrom(obj) != nil
+	})
+
+	// WritableInterface (`writable`) matches any value that can be written to — the
+	// check `write` uses (WriterFrom). Named `writable` for the same reason as
+	// `readable` (the `writer` builtin type is narrower).
+	WritableInterface = nativeInterface("writable", func(_ *VM, obj Object) bool {
+		return WriterFrom(obj) != nil
+	})
 )
 
 // Object types for the interface members. They are internal representations

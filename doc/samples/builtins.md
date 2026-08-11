@@ -528,18 +528,18 @@ output).
 ### read
 
 ```gad
-read(reader) <bytes>
+read(r readable) <bytes>
 ```
 
-Reads all remaining bytes from a reader.
+Reads all remaining bytes from a `readable` value.
 
 ### write
 
 ```gad
-write(writer, *data) <int>
+write(w writable, *data) <int>
 ```
 
-Writes each data value to a writer and returns the number of bytes written.
+Writes each data value to a `writable` and returns the number of bytes written.
 
 ### close
 
@@ -552,10 +552,10 @@ Closes a closable value (e.g. a reader/writer).
 ### flush
 
 ```gad
-flush(writer)
+flush(w writable)
 ```
 
-Flushes any buffered output of a writer.
+Flushes any buffered output of a `writable`.
 
 ## Example — `builtins.gad`
 
@@ -893,14 +893,14 @@ output).
 export obend() <buffer> => nil
 
 /**
-Reads all remaining bytes from a reader.
+Reads all remaining bytes from a `readable` value.
 **/
-export read(reader) <bytes> => nil
+export read(r readable) <bytes> => nil
 
 /**
-Writes each data value to a writer and returns the number of bytes written.
+Writes each data value to a `writable` and returns the number of bytes written.
 **/
-export write(writer, *data) <int> => nil
+export write(w writable, *data) <int> => nil
 
 /**
 Closes a closable value (e.g. a reader/writer).
@@ -908,7 +908,7 @@ Closes a closable value (e.g. a reader/writer).
 export close(o) => nil
 
 /**
-Flushes any buffered output of a writer.
+Flushes any buffered output of a `writable`.
 **/
-export flush(writer) => nil
+export flush(w writable) => nil
 ```

@@ -114,6 +114,26 @@ func TestClassTypeInterface(t *testing.T) {
 	require.Equal(t, "classType", ct.Name())
 }
 
+// TestReadableWritableInterfaces checks the `readable`/`writable` interfaces:
+// they match any value that can be read from / written to (a buffer), and reject
+// non-I/O values.
+func TestReadableWritableInterfaces(t *testing.T) {
+	require.Same(t, ReadableInterface, BuiltinObjects[BuiltinReadable])
+	require.Same(t, WritableInterface, BuiltinObjects[BuiltinWritable])
+	require.Equal(t, "readable", ReadableInterface.Name())
+	require.Equal(t, "writable", WritableInterface.Name())
+
+	testExpectRun(t, `b := buffer(); f := func(w writable) { write(w, "hi"); return str(w) }
+		return f(b)`, nil, Str("hi"))
+	testExpectRun(t, `f := func(w writable) => 1
+		try { f(5); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
+	testExpectRun(t, `b := buffer(); write(b, "data")
+		f := func(r readable) => str(read(r))
+		return f(b)`, nil, Str("data"))
+	testExpectRun(t, `f := func(r readable) => 1
+		try { f(5); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
+}
+
 // TestNumberTypeUnion checks the builtin `number` type union (int|uint|float|
 // decimal): direct assignability, use as a parameter/return type, the `::` cast,
 // and nesting inside another union (`str|number`).

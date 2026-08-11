@@ -232,14 +232,14 @@ package gad
 // Stops the most recent output capture and returns its buffer (the captured
 // output).
 //
-// read(reader) <bytes>
-// Reads all remaining bytes from a reader.
+// read(r readable) <bytes>
+// Reads all remaining bytes from a `readable` value.
 //
-// write(writer, *data) <int>
-// Writes each data value to a writer and returns the number of bytes written.
+// write(w writable, *data) <int>
+// Writes each data value to a `writable` and returns the number of bytes written.
 //
 // close(o) <nil>
 // Closes a closable value (e.g. a reader/writer).
 //
-// flush(writer) <nil>
-// Flushes any buffered output of a writer.
+// flush(w writable) <nil>
+// Flushes any buffered output of a `writable`.
