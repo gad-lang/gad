@@ -7,6 +7,95 @@ remaining conversion, meta and operator builtins are still being typed.
 
 ## Public API
 
+### str
+
+```gad
+str(v any) <str>
+```
+
+Converts a value to its str form (never fails).
+
+### rawstr
+
+```gad
+rawstr(v any) <rawstr>
+```
+
+Converts a value to a rawstr (an uninterpreted string).
+
+### int
+
+```gad
+int(v any) <int>
+```
+
+Converts a str/number/char/bool to an int; throws otherwise.
+
+### uint
+
+```gad
+uint(v any) <uint>
+```
+
+Converts a value to a uint; throws otherwise.
+
+### float
+
+```gad
+float(v any) <float>
+```
+
+Converts a str/number to a float; throws otherwise.
+
+### decimal
+
+```gad
+decimal(v any) <decimal>
+```
+
+Converts a str/number to an arbitrary-precision decimal; throws otherwise.
+
+### char
+
+```gad
+char(v any) <char>
+```
+
+Converts an int code point or a single-character str to a char; throws
+otherwise.
+
+### bool
+
+```gad
+bool(v any) <bool>
+```
+
+Returns the truthiness of a value (never fails).
+
+### bytes
+
+```gad
+bytes(v any) <bytes>
+```
+
+Converts a str to its bytes, or builds a bytes of the given int length.
+
+### array
+
+```gad
+array(*args) <array>
+```
+
+Collects its arguments into a new array.
+
+### dict
+
+```gad
+dict(o; **named) <dict>
+```
+
+Builds a dict from named arguments, or from a dict-like value `o`.
+
 ### len
 
 ```gad
@@ -471,6 +560,62 @@ Flushes any buffered output of a writer.
 ## Example — `builtins.gad`
 
 ```gad
+/**
+Converts a value to its str form (never fails).
+**/
+export str(v any) <str> => nil
+
+/**
+Converts a value to a rawstr (an uninterpreted string).
+**/
+export rawstr(v any) <rawstr> => nil
+
+/**
+Converts a str/number/char/bool to an int; throws otherwise.
+**/
+export int(v any) <int> => nil
+
+/**
+Converts a value to a uint; throws otherwise.
+**/
+export uint(v any) <uint> => nil
+
+/**
+Converts a str/number to a float; throws otherwise.
+**/
+export float(v any) <float> => nil
+
+/**
+Converts a str/number to an arbitrary-precision decimal; throws otherwise.
+**/
+export decimal(v any) <decimal> => nil
+
+/**
+Converts an int code point or a single-character str to a char; throws
+otherwise.
+**/
+export char(v any) <char> => nil
+
+/**
+Returns the truthiness of a value (never fails).
+**/
+export bool(v any) <bool> => nil
+
+/**
+Converts a str to its bytes, or builds a bytes of the given int length.
+**/
+export bytes(v any) <bytes> => nil
+
+/**
+Collects its arguments into a new array.
+**/
+export array(*args) <array> => nil
+
+/**
+Builds a dict from named arguments, or from a dict-like value `o`.
+**/
+export dict(o; **named) <dict> => nil
+
 /**
 Returns the number of elements of a value that has a length (array, dict,
 str, bytes, …). With `check=yes`, a value that has no length raises

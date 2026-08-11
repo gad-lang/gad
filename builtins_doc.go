@@ -21,6 +21,43 @@ package gad
 //
 // ## Functions
 //
+// Type constructors — each named type is also a conversion function: it coerces
+// a value to that type, throwing when the value cannot be converted.
+//
+// str(v any) <str>
+// Converts a value to its str form (never fails).
+//
+// rawstr(v any) <rawstr>
+// Converts a value to a rawstr (an uninterpreted string).
+//
+// int(v any) <int>
+// Converts a str/number/char/bool to an int; throws otherwise.
+//
+// uint(v any) <uint>
+// Converts a value to a uint; throws otherwise.
+//
+// float(v any) <float>
+// Converts a str/number to a float; throws otherwise.
+//
+// decimal(v any) <decimal>
+// Converts a str/number to an arbitrary-precision decimal; throws otherwise.
+//
+// char(v any) <char>
+// Converts an int code point or a single-character str to a char; throws
+// otherwise.
+//
+// bool(v any) <bool>
+// Returns the truthiness of a value (never fails).
+//
+// bytes(v any) <bytes>
+// Converts a str to its bytes, or builds a bytes of the given int length.
+//
+// array(*args) <array>
+// Collects its arguments into a new array.
+//
+// dict(o; **named) <dict>
+// Builds a dict from named arguments, or from a dict-like value `o`.
+//
 // len(val any; check=no) <int>
 // Returns the number of elements of a value that has a length (array, dict,
 // str, bytes, …). With `check=yes`, a value that has no length raises
