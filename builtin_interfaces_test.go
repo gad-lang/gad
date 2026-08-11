@@ -72,3 +72,35 @@ func TestBehaviouralInterfaces(t *testing.T) {
 	testExpectRun(t, `f := func(x callable) => 1
 try { f(5); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
 }
+
+// TestNumberTypeUnion checks the builtin `number` type union (int|uint|float|
+// decimal): direct assignability, use as a parameter/return type, the `::` cast,
+// and nesting inside another union (`str|number`).
+func TestNumberTypeUnion(t *testing.T) {
+	for _, n := range []Object{Int(1), Uint(2), Float(3.5), DecimalFromInt(4)} {
+		ok, err := NumberTypeUnion.CanAssign(n)
+		require.NoError(t, err)
+		require.True(t, ok, n.Type().Name())
+	}
+	for _, notN := range []Object{Str("x"), Bool(true), Array{}} {
+		ok, err := NumberTypeUnion.CanAssign(notN)
+		require.NoError(t, err)
+		require.False(t, ok, notN.Type().Name())
+	}
+	require.Same(t, NumberTypeUnion, BuiltinObjects[BuiltinNumberTypeUnion])
+	require.Equal(t, "number", NumberTypeUnion.ToString())
+
+	// As a parameter type, a return type and the `::` cast.
+	testExpectRun(t, `f := func(v number) => v + 1; return [f(1), f(2.5), f(3u)]`,
+		nil, Array{Int(2), Float(3.5), Uint(4)})
+	testExpectRun(t, `f := func(v number) <number> => v + 1; return f(4)`, nil, Int(5))
+	testExpectRun(t, `return 1 :: number`, nil, Int(1))
+	testExpectRun(t, `try { "x" :: number; return "cast" } catch e { return "rejected" }`,
+		nil, Str("rejected"))
+
+	// A union nests inside another union: `str|number` accepts strings and numbers.
+	testExpectRun(t, `f := func(a str|number) => 1; return [f("x"), f(5), f(1.5)]`,
+		nil, Array{Int(1), Int(1), Int(1)})
+	testExpectRun(t, `f := func(v number) => 1
+try { f("x"); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
+}

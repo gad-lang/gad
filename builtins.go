@@ -285,6 +285,8 @@ const (
 	BuiltinIndexable
 	BuiltinIndexAssignable
 	BuiltinIndexDeletable
+	// BuiltinNumberTypeUnion is the builtin `number` type union: int|uint|float|decimal.
+	BuiltinNumberTypeUnion
 
 	BuiltinEnd_
 )
@@ -293,7 +295,7 @@ var (
 	// lastBuiltinType seeds NewBuiltinType for dynamically-registered types; it
 	// must be the last statically-numbered builtin so dynamic types never reuse a
 	// static slot.
-	lastBuiltinType = BuiltinIndexDeletable
+	lastBuiltinType = BuiltinNumberTypeUnion
 	lastBuiltinMux  = sync.Mutex{}
 )
 
@@ -389,6 +391,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"indexable":       BuiltinIndexable,
 	"indexAssignable": BuiltinIndexAssignable,
 	"indexDeletable":  BuiltinIndexDeletable,
+	"number":          BuiltinNumberTypeUnion,
 	"iteratorInput":   BuiltinIteratorInput,
 	"zip":             BuiltinZipIterator,
 	"keyValue":        BuiltinKeyValue,
@@ -1058,6 +1061,7 @@ func init() {
 	BuiltinObjects[BuiltinIndexable] = IndexableInterface
 	BuiltinObjects[BuiltinIndexAssignable] = IndexAssignableInterface
 	BuiltinObjects[BuiltinIndexDeletable] = IndexDeletableInterface
+	BuiltinObjects[BuiltinNumberTypeUnion] = newNumberTypeUnion()
 	BuiltinObjects[BuiltinZipIterator] = TZipIterator
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{
 		FuncName: "iteratorInput",
