@@ -371,6 +371,15 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
   não mineráveis como snippets gad com valores limpos.
 - RESTA (menor): time since/until (não-determinísticos, scaffold), strings dict.
 
+### 2026-08-11 cont. 20 — `gad gomod init MODULE_NAME`
+- Novo comando (cmd/gad/gomod.go): scaffolda um novo módulo Go gad. Gera
+  MODULE_NAME/module.go (StdModuleData ModuleInit documentado com gad:doc header +
+  diretiva gad:samples + função exemplo `hello`) e MODULE_NAME/samples.gad (snippet
+  doctest). Valida nome (snake_case), não sobrescreve, gofmt-limpo, imprime próximos
+  passos (registro via AddBuiltinModuleInit). Flag --dir. Registrado em buildRootCommand.
+- PROVAS: módulo gerado COMPILA (go build/vet EXIT 0) e é gofmt-limpo. Testes
+  TestScaffoldGoModule + TestGomodInitNameValidation. `go test ./...` VERDE.
+
 ## 2026-08-11 cont. 13 — stdlib refs: sig em ```gad, doc/stdlib/, submenu Stdlib
 - **Assinaturas de função** em stdlib-*.md saíam inline (`` `local() <Location>` ``);
   agora em bloco ```gad (cmd/gaddoc/main.go processFuncBlock).
