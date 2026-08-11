@@ -280,10 +280,30 @@ Estado consolidado (ver Log cont.1..5 para detalhes/hashes):
     go build/vet EXIT 0.
 
 ## Restam — checklist acionável (2026-08-11 cont. 9)
-- [x] **Bug de fundo do compilador** — REPRODUZIDO e ROOT-CAUSED (assessment feito,
-      ver abaixo). Fix NÃO é cirúrgico → decisão do usuário (não landeei nada).
-- [ ] **Revisar/pushar** os commits locais desta sessão (fc51f89..8924557, ~42
-      commits). Ação EXTERNA → confirmar antes de `git push`.
+- [x] **Bug de fundo do compilador** — CORRIGIDO (fix particionado, ver cont.10).
+- [ ] **Revisar/pushar** os commits locais desta sessão. Usuário pediu NÃO pushar
+      agora (revisar antes). Ação EXTERNA → aguarda ok explícito.
+
+### 2026-08-11 (cont. 10) — FIX do bug de fundo (partição free-de-tipo × free-de-corpo)
+- **compiler_nodes.go compileFunc**: após `fork.Compile(body)`, capturo símbolos de
+  tipo de param/named/return com Scope Local/Free (referenciam escopo externo) para
+  os free vars DESTA função via `st.Resolve(sym.Name)` — assim
+  `paramTypeSymbolValue` os lê de `o.Free` (frame certo), não de `vm.curFrame`.
+  `AllowMethods` passa a ser gated por `bodyFreeCount` (frees ANTES da captura de
+  tipos), não por `len(freeSymbols)` — capturas só-de-tipo não desabilitam registro
+  de método. O receptor `this` injetado (`compiler_class.go thisParam`, tipado com
+  o `cls` externo) é PULADO na captura: métodos de classe despacham com SafeArgs →
+  o tipo nunca é lido em runtime; capturá-lo tornava o método um closure anônimo.
+- PROVA repro (`.__tmp/bug1.gad`): antes `TypeError: expected MyInt, found int`;
+  agora `outer()(41)`→42 e `apply(outer(),41)`→42. Sample 06 (protocolo iterator
+  real com `met`) segue EXIT 0.
+- **Teste de regressão**: `TestParamTypeFromEnclosingLocal` (builtin_interfaces_test.go)
+  — union em local capturado usado como param-type de closure retornado (direto e
+  via apply), rejeição de valor inválido do frame errado, e método de classe cujo
+  `this cls` referencia o local do define permanece registrável. PASS.
+- PROVAS: `go test ./...` VERDE; `go run ./cmd/update-delve check` = up to date;
+  `go build ./...`/`go vet` EXIT 0; `gofmt -l` limpo. SafeArgs (74667f6) mantido —
+  otimização ortogonal (pula re-validação redundante pós-dispatch), ainda válida.
 
 ### Assessment do bug de fundo (2026-08-11 cont. 9)
 - **Repro mínimo** (`.__tmp/bug1.gad`):

@@ -191,3 +191,43 @@ func TestTypeUnionSyntax(t *testing.T) {
 	// `type` remains an ordinary identifier when not followed by `<`.
 	testExpectRun(t, `type := 5; return type + 1`, nil, Int(6))
 }
+
+// TestParamTypeFromEnclosingLocal covers a parameter type that names a local of
+// an enclosing scope: the type must be captured into the function's closure so it
+// resolves correctly even when the function runs in a different frame (regression
+// for the ScopeLocal type-symbol read from the wrong frame).
+func TestParamTypeFromEnclosingLocal(t *testing.T) {
+	// A type union held in an enclosing local, used as a parameter type of a
+	// returned closure: the closure is called from the top-level frame, unrelated
+	// to the frame where the union local lives.
+	testExpectRun(t, `outer := func() {
+			MyInt := type <int|uint>
+			return func(v MyInt) => v + 1
+		}
+		g := outer()
+		return g(41)`, nil, Int(42))
+
+	// The same closure invoked indirectly (through another function's frame).
+	testExpectRun(t, `outer := func() {
+			MyInt := type <int|uint>
+			return func(v MyInt) => v + 1
+		}
+		apply := func(fn callable, x) => fn(x)
+		return apply(outer(), 41)`, nil, Int(42))
+
+	// The captured type still rejects a non-matching value from the wrong frame.
+	testExpectRun(t, `outer := func() {
+			MyInt := type <int|uint>
+			return func(v MyInt) => 1
+		}
+		g := outer()
+		try { g("x"); return "accepted" } catch e { return "rejected" }`,
+		nil, Str("rejected"))
+
+	// A class method whose injected `this cls` receiver names the enclosing
+	// define-callback local stays registrable (not turned into an anonymous
+	// closure) — the receiver type is left uncaptured.
+	testExpectRun(t, `C := Class("C", (cls, def) => def(; fields=(; x=(=0)),
+			methods=(; get=(self) => self.x)))
+		return C(; x=7).get()`, nil, Int(7))
+}

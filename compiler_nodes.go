@@ -2021,6 +2021,54 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	if err := fork.Compile(body); err != nil {
 		return err
 	}
+
+	// A parameter/return type may name an enclosing local (or free) variable —
+	// e.g. `f := func(v MyType) …` where MyType is a local of the outer scope, or
+	// a class method whose type names its own class. Such a type symbol was
+	// resolved above against the outer compiler `c`, so it carries ScopeLocal/
+	// ScopeFree relative to the *caller's* frame; at call time ParamTypes would
+	// read it from the wrong frame. Capture it into THIS function's free
+	// variables (via st) so paramTypeSymbolValue reads it from o.Free instead.
+	//
+	// Only free variables referenced by the body gate method eligibility: a
+	// closure that captures live body state cannot be registered as a class
+	// method. Type-only captures do not carry such state, so they must not flip
+	// AllowMethods — otherwise a method typing its own class becomes anonymous.
+	bodyFreeCount := len(st.FreeSymbols())
+	captureTypeSymbol := func(sym *SymbolInfo) *SymbolInfo {
+		if sym == nil || (sym.Scope != ScopeLocal && sym.Scope != ScopeFree) {
+			return sym
+		}
+		if s, ok := st.Resolve(sym.Name); ok {
+			return &s.SymbolInfo
+		}
+		return sym
+	}
+	for _, p := range params {
+		// The compiler-injected `this` receiver of a class method is the class
+		// instance itself — deducible from dispatch, so its type never needs
+		// runtime validation (methods also dispatch with SafeArgs). Its declared
+		// type names the enclosing `cls` (define-callback) local; capturing that
+		// would needlessly turn the method into a closure and make it
+		// unregistrable (an anonymous method). Leave the receiver uncaptured.
+		if p.Name == "this" {
+			continue
+		}
+		for i, sym := range p.TypesSymbols {
+			p.TypesSymbols[i] = captureTypeSymbol(sym)
+		}
+	}
+	for _, p := range namedParams {
+		for i, sym := range p.TypesSymbols {
+			p.TypesSymbols[i] = captureTypeSymbol(sym)
+		}
+	}
+	for _, rt := range returnTypes {
+		for i, sym := range rt.TypesSymbols {
+			rt.TypesSymbols[i] = captureTypeSymbol(sym)
+		}
+	}
+
 	freeSymbols := fork.symbolTable.FreeSymbols()
 	for _, s := range freeSymbols {
 		switch s.Scope {
@@ -2047,7 +2095,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 
 	c.constants = bc.Constants
 
-	if len(freeSymbols) > 0 {
+	if bodyFreeCount > 0 {
 		bc.Main.AllowMethods = false
 	}
 
