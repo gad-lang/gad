@@ -44,11 +44,11 @@ Returns the type object of a value.
 ### chars
 
 ```gad
-chars(s str|bytes) <_ array|error>
+chars(s str|bytes) <array>
 ```
 
-Returns the characters of a str/bytes as an array of `char`, or an error for
-an unsupported value.
+Returns the characters of a str/bytes as an array of `char`; throws for an
+unsupported value.
 
 ### copy
 
@@ -69,20 +69,20 @@ Returns a deep copy of a value, cloning nested arrays and dicts recursively.
 ### repeat
 
 ```gad
-repeat(o str|bytes|array, count int) <_ any|error>
+repeat(o str|bytes|array, count int) <any>
 ```
 
-Returns a value (array/str/bytes) repeated `count` times, or an error for an
+Returns a value (array/str/bytes) repeated `count` times; throws for an
 unsupported value.
 
 ### contains
 
 ```gad
-contains(o iterable, val any) <_ bool|error>
+contains(o iterable, val any) <bool>
 ```
 
 Reports whether a collection/str contains val (a dict key, an array element
-or a substring), or an error for an unsupported value.
+or a substring); throws for an unsupported value.
 
 ### repr
 
@@ -324,7 +324,7 @@ Returns its arguments collected into an array.
 ### sort
 
 ```gad
-sort(o any; less=nil) <_ any|error>
+sort(o any; less=nil) <any>
 ```
 
 Returns the collection sorted ascending; `less` is an optional comparator
@@ -333,7 +333,7 @@ function `less(a, b) <bool>`.
 ### sortReverse
 
 ```gad
-sortReverse(o any; less=nil) <_ any|error>
+sortReverse(o any; less=nil) <any>
 ```
 
 Returns the collection sorted descending; `less` is an optional comparator.
@@ -371,6 +371,33 @@ sprintf(format str, *args) <str>
 
 Returns format applied to args as a str.
 
+### is
+
+```gad
+is(type any, *values) <bool>
+```
+
+Reports whether every value is of `type`. `type` may be a single type or an
+array of types, in which case a value matches when it is any of them.
+
+### implements
+
+```gad
+implements(fn callable, mi) <bool>
+```
+
+Reports whether the callable `fn` provides every function header required by
+the method interface `mi` (a `meti { … }` value).
+
+### wrap
+
+```gad
+wrap(caller callable, *args; **named) <function>
+```
+
+Returns a new function that calls `caller` with `args`/`named` prepended —
+a partial application. Calling the wrapper appends its own arguments.
+
 ## Example — `builtins.gad`
 
 ```gad
@@ -397,10 +424,10 @@ Returns the type object of a value.
 export typeof(o any) <type> => nil
 
 /**
-Returns the characters of a str/bytes as an array of `char`, or an error for
-an unsupported value.
+Returns the characters of a str/bytes as an array of `char`; throws for an
+unsupported value.
 **/
-export chars(s str|bytes) <_ array|error> => nil
+export chars(s str|bytes) <array> => nil
 
 /**
 Returns a shallow copy of a value (a new array/dict with the same elements).
@@ -413,16 +440,16 @@ Returns a deep copy of a value, cloning nested arrays and dicts recursively.
 export dcopy(o any) <any> => nil
 
 /**
-Returns a value (array/str/bytes) repeated `count` times, or an error for an
+Returns a value (array/str/bytes) repeated `count` times; throws for an
 unsupported value.
 **/
-export repeat(o str|bytes|array, count int) <_ any|error> => nil
+export repeat(o str|bytes|array, count int) <any> => nil
 
 /**
 Reports whether a collection/str contains val (a dict key, an array element
-or a substring), or an error for an unsupported value.
+or a substring); throws for an unsupported value.
 **/
-export contains(o iterable, val any) <_ bool|error> => nil
+export contains(o iterable, val any) <bool> => nil
 
 /**
 Returns the debug representation of a value; `indent=yes` pretty-prints it.
@@ -578,12 +605,12 @@ export toArray(*args) <array> => nil
 Returns the collection sorted ascending; `less` is an optional comparator
 function `less(a, b) <bool>`.
 **/
-export sort(o any; less=nil) <_ any|error> => nil
+export sort(o any; less=nil) <any> => nil
 
 /**
 Returns the collection sorted descending; `less` is an optional comparator.
 **/
-export sortReverse(o any; less=nil) <_ any|error> => nil
+export sortReverse(o any; less=nil) <any> => nil
 
 /**
 Writes its arguments to standard output and returns the number of bytes
@@ -605,4 +632,22 @@ export println(*args) <int> => nil
 Returns format applied to args as a str.
 **/
 export sprintf(format str, *args) <str> => nil
+
+/**
+Reports whether every value is of `type`. `type` may be a single type or an
+array of types, in which case a value matches when it is any of them.
+**/
+export is(type any, *values) <bool> => nil
+
+/**
+Reports whether the callable `fn` provides every function header required by
+the method interface `mi` (a `meti { … }` value).
+**/
+export implements(fn callable, mi) <bool> => nil
+
+/**
+Returns a new function that calls `caller` with `args`/`named` prepended —
+a partial application. Calling the wrapper appends its own arguments.
+**/
+export wrap(caller callable, *args; **named) <function> => nil
 ```

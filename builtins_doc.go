@@ -35,9 +35,9 @@ package gad
 // typeof(o any) <type>
 // Returns the type object of a value.
 //
-// chars(s str|bytes) <array | error>
-// Returns the characters of a str/bytes as an array of `char`, or an error for
-// an unsupported value.
+// chars(s str|bytes) <array>
+// Returns the characters of a str/bytes as an array of `char`; throws for an
+// unsupported value.
 //
 // copy(o any) <any>
 // Returns a shallow copy of a value (a new array/dict with the same elements).
@@ -45,13 +45,13 @@ package gad
 // dcopy(o any) <any>
 // Returns a deep copy of a value, cloning nested arrays and dicts recursively.
 //
-// repeat(o str|bytes|array, count int) <any | error>
-// Returns a value (array/str/bytes) repeated `count` times, or an error for an
+// repeat(o str|bytes|array, count int) <any>
+// Returns a value (array/str/bytes) repeated `count` times; throws for an
 // unsupported value.
 //
-// contains(o iterable, val any) <bool | error>
+// contains(o iterable, val any) <bool>
 // Reports whether a collection/str contains val (a dict key, an array element
-// or a substring), or an error for an unsupported value.
+// or a substring); throws for an unsupported value.
 //
 // repr(o any; indent=no) <str>
 // Returns the debug representation of a value; `indent=yes` pretty-prints it.
@@ -145,11 +145,11 @@ package gad
 // toArray(*args) <array>
 // Returns its arguments collected into an array.
 //
-// sort(o any; less=nil) <any | error>
+// sort(o any; less=nil) <any>
 // Returns the collection sorted ascending; `less` is an optional comparator
 // function `less(a, b) <bool>`.
 //
-// sortReverse(o any; less=nil) <any | error>
+// sortReverse(o any; less=nil) <any>
 // Returns the collection sorted descending; `less` is an optional comparator.
 //
 // print(*args) <int>
@@ -164,3 +164,15 @@ package gad
 //
 // sprintf(format str, *args) <str>
 // Returns format applied to args as a str.
+//
+// is(type any, *values) <bool>
+// Reports whether every value is of `type`. `type` may be a single type or an
+// array of types, in which case a value matches when it is any of them.
+//
+// implements(fn callable, mi) <bool>
+// Reports whether the callable `fn` provides every function header required by
+// the method interface `mi` (a `meti { … }` value).
+//
+// wrap(caller callable, *args; **named) <function>
+// Returns a new function that calls `caller` with `args`/`named` prepended —
+// a partial application. Calling the wrapper appends its own arguments.
