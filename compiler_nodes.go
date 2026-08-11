@@ -2489,6 +2489,20 @@ func (c *Compiler) compileFuncHeaderExpr(nd *node.FuncHeaderExpr) error {
 	return nil
 }
 
+// compileTypeUnionExpr compiles a `type <T1|T2|…>` value: each member type is
+// compiled to the value it names (a named type resolves to its ObjectType; an
+// `interface`/`meti` literal to its structural value), then OpMakeTypeUnion pops
+// them and builds a *TypeUnion at run time.
+func (c *Compiler) compileTypeUnionExpr(nd *node.TypeUnionExpr) error {
+	for _, t := range nd.Types {
+		if err := c.Compile(t.Expr); err != nil {
+			return err
+		}
+	}
+	c.emit(nd, OpMakeTypeUnion, len(nd.Types))
+	return nil
+}
+
 // buildFuncHeaderObject compiles a func-header AST node into a *FuncHeaderObject,
 // with param/return types stored as compile-time symbols. Shared by
 // compileFuncHeaderExpr and the `meti` compiler (whose headers are these

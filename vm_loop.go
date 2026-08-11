@@ -435,6 +435,19 @@ VMLoop:
 
 			vm.sp++
 			vm.ip += 2
+		case OpMakeTypeUnion:
+			// Pop the top n member types and build a *TypeUnion (an anonymous
+			// `type <T1|T2|…>` value).
+			numItems := int(vm.curInsts[vm.ip+1])
+			members := make([]Object, numItems)
+			copy(members, vm.stack[vm.sp-numItems:vm.sp])
+			vm.sp -= numItems
+			for i := vm.sp; i < vm.sp+numItems; i++ {
+				vm.stack[i] = nil
+			}
+			vm.stack[vm.sp] = NewTypeUnion(members...)
+			vm.sp++
+			vm.ip++
 		case OpInterfaceBind:
 			// Stack: [iface, fn0, …, fn(n-1)]. Pop the n captured context-function
 			// values and the interface below them; push the interface with those

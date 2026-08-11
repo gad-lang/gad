@@ -1081,6 +1081,14 @@ func (p *Parser) ParseOperand() node.Expr {
 		defer untracep(tracep(p, "Operand"))
 	}
 
+	// Contextual `type` keyword: `type <T1|T2|…>` is a first-class type-union
+	// value. `type` is otherwise an ordinary identifier (a `.type` selector, a
+	// `type=` named argument, `type := …`), so it is only special when immediately
+	// followed by the `<` that opens the union.
+	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.Less {
+		return p.parseTypeUnionExpr()
+	}
+
 	if isPrimiteValue(p.Token.Token) {
 		return p.ParseLiteral()
 	} else {
@@ -2440,6 +2448,60 @@ func (p *Parser) isTypeStart() bool {
 	return false
 }
 
+// parseTypeUnionExpr parses a first-class type-union value `type <T1|T2|…>`. The
+// current token is the contextual `type` identifier.
+func (p *Parser) parseTypeUnionExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "TypeUnionExpr"))
+	}
+	typePos := p.Token.Pos
+	p.Next()             // consume `type`
+	p.Expect(token.Less) // consume `<`
+	types := p.ParseTypes()
+	if len(types) == 0 {
+		p.Error(p.Token.Pos, "expected a type after `type <`")
+	}
+	p.Expect(token.Greater) // consume `>`
+	return &node.TypeUnionExpr{TypePos: typePos, Types: types}
+}
+
+// isTypeUnionDeclStart reports whether the current `type` identifier begins a
+// `type NAME <…>` declaration (contextual: `type` followed by a name and `<`).
+func (p *Parser) isTypeUnionDeclStart() bool {
+	name := p.Peek()
+	if name.Token != token.Ident {
+		return false
+	}
+	return p.PeekC(2)[1].Token == token.Less
+}
+
+// parseTypeUnionDeclStmt parses `type NAME <T1|T2|…>`, sugar for
+// `const NAME = type <T1|T2|…>`.
+func (p *Parser) parseTypeUnionDeclStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "TypeUnionDeclStmt"))
+	}
+	tokPos := p.Token.Pos
+	p.Next() // consume `type`
+	name := p.ParseIdent()
+	p.Expect(token.Less)
+	types := p.ParseTypes()
+	if len(types) == 0 {
+		p.Error(p.Token.Pos, "expected a type after `type "+name.Name+" <`")
+	}
+	greater := p.Expect(token.Greater)
+	value := &node.TypeUnionExpr{TypePos: tokPos, Types: types}
+	return &node.DeclStmt{Decl: &node.GenDecl{
+		TokPos: tokPos,
+		Tok:    token.Const,
+		Specs: []node.Spec{&node.ValueSpec{
+			Idents: []*node.IdentExpr{name},
+			Values: []node.Expr{value},
+		}},
+		Rparen: greater,
+	}}
+}
+
 func (p *Parser) parseType() (t *node.TypeExpr) {
 	switch p.Token.Token {
 	case token.Meti:
@@ -2508,6 +2570,11 @@ do:
 	// statement start; as a member (`obj.delete(…)`) it stays an ordinary name.
 	if p.Token.Token == token.Ident && p.Token.Literal == "delete" && p.isDeleteStmtStart() {
 		return p.ParseDeleteStmt()
+	}
+	// `type NAME <T1|T2|…>` — a named type-union declaration, sugar for
+	// `const NAME = type <…>`. `type` is contextual (see isTypeUnionDeclStart).
+	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.isTypeUnionDeclStart() {
+		return p.parseTypeUnionDeclStmt()
 	}
 	switch p.Token.Token {
 	case token.ConfigStart:

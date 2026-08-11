@@ -104,6 +104,7 @@ const (
 	OpExtendModule
 	OpExtendModuleConst
 	OpToRawStr
+	OpMakeTypeUnion
 	OpAddMethodOverride
 	OpAssign
 	OpEnv
@@ -191,6 +192,7 @@ var OpcodeNames = [...]string{
 	OpExtendModule:      "EXTENDMODULE",
 	OpExtendModuleConst: "EXTENDMODULECONST",
 	OpToRawStr:          "TORAWSTR",
+	OpMakeTypeUnion:     "MAKETYPEUNION",
 	OpAddMethodOverride: "ADDMETHODOVERRIDE",
 	OpAssign:            "ASSIGN",
 	OpEnv:               "ENV",
@@ -278,6 +280,7 @@ var OpcodeOperands = [...][]int{
 	OpExtendModule:      {},
 	OpExtendModuleConst: {},
 	OpToRawStr:          {},
+	OpMakeTypeUnion:     {1},    // number of member types on the stack
 	OpAddMethodOverride: {1, 1}, // 0: number of selectors, 1: number of funcs
 	OpAssign:            {},     // obj :: type -> obj (or throw if not assignable)
 	OpEnv:               {},     // push the VM env object

@@ -389,6 +389,39 @@ func (e *TypeExpr) Ident() *IdentExpr {
 	return walk(e.Expr)
 }
 
+// TypeUnionExpr is a first-class type-union value written `type T1|T2|…`
+// (e.g. `type int|uint`). It evaluates to a TypeUnion at run time; a value
+// satisfies it when it satisfies any member. Members are the same type forms a
+// parameter type accepts: named types, interfaces, method interfaces and
+// func-header types.
+type TypeUnionExpr struct {
+	TypePos source.Pos  // position of the `type` keyword
+	Types   []*TypeExpr // the union members (at least one)
+}
+
+func (e *TypeUnionExpr) ExprNode() {}
+
+func (e *TypeUnionExpr) Pos() source.Pos { return e.TypePos }
+
+func (e *TypeUnionExpr) End() source.Pos {
+	if n := len(e.Types); n > 0 {
+		return e.Types[n-1].End()
+	}
+	return e.TypePos
+}
+
+func (e *TypeUnionExpr) String() string {
+	parts := make([]string, len(e.Types))
+	for i, t := range e.Types {
+		parts[i] = t.String()
+	}
+	return "type <" + strings.Join(parts, "|") + ">"
+}
+
+func (e *TypeUnionExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
 type TypedIdentExpr struct {
 	Ident *IdentExpr
 	Type  []*TypeExpr

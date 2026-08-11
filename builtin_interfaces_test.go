@@ -104,3 +104,29 @@ func TestNumberTypeUnion(t *testing.T) {
 	testExpectRun(t, `f := func(v number) => 1
 try { f("x"); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
 }
+
+// TestTypeUnionSyntax checks the `type <T1|T2|…>` first-class type-union value
+// (expression form) and the `type NAME <…>` declaration (statement form).
+func TestTypeUnionSyntax(t *testing.T) {
+	// Expression form: build a union and use it as a parameter type and `::` cast.
+	testExpectRun(t, `n := type <int|uint>; return typeName(n)`, nil, Str("typeUnion"))
+	testExpectRun(t, `const num = type <int|uint|float>
+		f := func(v num) => v + 1
+		return [f(1), f(2u), f(3.5)]`, nil, Array{Int(2), Uint(3), Float(4.5)})
+	testExpectRun(t, `const num = type <int|uint>; return 1 :: num`, nil, Int(1))
+	testExpectRun(t, `const num = type <int|uint>
+		try { "x" :: num; return "cast" } catch e { return "rejected" }`, nil, Str("rejected"))
+
+	// Statement form: `type NAME <…>` is sugar for `const NAME = type <…>`.
+	testExpectRun(t, `type num <int|uint|float|decimal>
+		f := func(v num) => v + 1
+		return f(4)`, nil, Int(5))
+
+	// A named union nests inside an inline union in a parameter type.
+	testExpectRun(t, `type num <int|uint>
+		f := func(a str|num) => 1
+		return [f("x"), f(5)]`, nil, Array{Int(1), Int(1)})
+
+	// `type` remains an ordinary identifier when not followed by `<`.
+	testExpectRun(t, `type := 5; return type + 1`, nil, Int(6))
+}

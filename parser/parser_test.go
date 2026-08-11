@@ -5258,3 +5258,17 @@ func TestParseEnum(t *testing.T) {
 	test.New(t, "x := enum { _, Read, Write }").
 		Code("x := enum {_, Read, Write}")
 }
+
+func TestParseTypeUnion(t *testing.T) {
+	// expression form: `type <T1|T2|…>`
+	test.New(t, "x := type <int|uint>").
+		Code("x := type <int|uint>")
+	test.New(t, "const number = type <int|uint|float|decimal>").
+		Code("const number = type <int|uint|float|decimal>")
+	// statement form desugars to `const NAME = type <…>`
+	test.New(t, "type num <str|int>").
+		Code("const num = type <str|int>")
+	// `type` stays an ordinary identifier when not followed by `<`
+	test.New(t, "type := 5").Code("type := 5")
+	test.New(t, "return x.type").Code("return x.type")
+}
