@@ -279,6 +279,34 @@ Estado consolidado (ver Log cont.1..5 para detalhes/hashes):
     (builtins.md renderiza os 4); `go test ./...` VERDE; check-delve up to date;
     go build/vet EXIT 0.
 
+## Nova feature: tipos paramétricos (generics com constraints) — 2026-08-11 cont. 11
+Sintaxe: `func mySet[T indexable, K int|uint, V number](target T, k K, v V) <T> { }`.
+Lista `[IDENT TYPE, ...]` após `func` (e após nome se houver), antes de `(`. TYPE é
+"como param type" (pode ser união/interface). Deve valer em: func nomeada/anônima,
+`const f = func [T ...](...)`, header, meti, e method shorthand em dict/named params.
+**Design**: type param = ALIAS de constraint resolvido por SUBSTITUIÇÃO em
+compile-time (`T`→exprs da constraint). Sem opcodes/runtime novos. Reusa
+nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da constraint).
+- [x] AST: FuncHeader.TypeParams + ClosureExpr.TypeParams + String/WriteCode
+      (FormatTypeParams). Round-trip por gad fmt confirmado.
+- [x] Parser: parseTypeParams (ParseTypedIdent) + peekTypeParamsAfterLBrack
+      (desambigua `[` index × type params por `[IDENT IDENT`).
+- [x] Parser: wired em func nomeada/anon (ParseFuncExprT), meti+header
+      (parseInterfaceHeader/ParseFuncHeaderExpr), dict method shorthand
+      (ParseFuncDefLit/ParseDictElementLit).
+- [x] Compiler: c.typeParams map + withTypeParams helper; typeExprSymbols expande
+      type-param→símbolos da constraint (com guard de recursão); aplicado em
+      compileFunc/buildFuncHeaderObject/buildCtxFuncHeaderObject; refatorado
+      nameSymbolsOfTypedIdent + returnTypesOf.
+- [x] Testes: type_params_test.go (VM, 5 funcs) + parser/type_params_test.go
+      (round-trip 6 contextos). docs: samples/36_type_parameters.gad (doctested,
+      no langOrder após 35). PROVAS: go test ./... VERDE; make samples-doc EXIT 0
+      (5 doctests); delve up to date; vet limpo.
+  NOTA semântica (pré-existente, não do feature): named-func dispatch é permissivo
+  p/ tipos interface/união (só concretos como int|uint são checados no dispatch);
+  anon/closure validam tudo. return types <T> não são runtime-enforced (nem
+  diretos). Type params se comportam idêntico a escrever a constraint direto.
+
 ## Restam — checklist acionável (2026-08-11 cont. 9)
 - [x] **Bug de fundo do compilador** — CORRIGIDO (fix particionado, ver cont.10).
 - [ ] **Revisar/pushar** os commits locais desta sessão. Usuário pediu NÃO pushar

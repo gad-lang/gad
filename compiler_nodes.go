@@ -1937,7 +1937,7 @@ func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
 	} else {
 		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: nd.Body}})
 	}
-	return c.compileFunc(nd, &node.FuncType{FuncHeader: node.FuncHeader{Params: nd.Params, Return: nd.Return}}, &node.BlockStmt{Stmts: stmts})
+	return c.compileFunc(nd, &node.FuncType{FuncHeader: node.FuncHeader{TypeParams: nd.TypeParams, Params: nd.Params, Return: nd.Return}}, &node.BlockStmt{Stmts: stmts})
 }
 
 func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.BlockStmt) (err error) {
@@ -1949,6 +1949,10 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	)
 
 	if typ != nil {
+		// Make the signature's type parameters available while its parameter and
+		// return types are resolved, so `T`/`K`/`V` expand to their constraints.
+		defer c.withTypeParams(typ.TypeParams)()
+
 		for _, ident := range typ.Params.Args.Values {
 			p := &Param{}
 			if p.Name, p.TypesSymbols, err = c.nameSymbolsOfTypedIdent(nd, ident); err != nil {
@@ -2422,6 +2426,7 @@ func isSelfType(ti *node.TypedIdentExpr) bool {
 // TypedIdent with Self=true (no symbol resolution); other params resolve types
 // normally. hasSelf reports whether the header has at least one `@self` param.
 func (c *Compiler) buildCtxFuncHeaderObject(nd *node.FuncHeaderExpr) (_ *FuncHeaderObject, hasSelf bool, err error) {
+	defer c.withTypeParams(nd.TypeParams)()
 	build := func(allowSelf bool, idents ...*node.TypedIdentExpr) (Array, error) {
 		out := make(Array, 0, len(idents))
 		for _, ti := range idents {
@@ -2556,6 +2561,7 @@ func (c *Compiler) compileTypeUnionExpr(nd *node.TypeUnionExpr) error {
 // compileFuncHeaderExpr and the `meti` compiler (whose headers are these
 // objects). Anonymous headers get an incremented `fh#N` name.
 func (c *Compiler) buildFuncHeaderObject(nd *node.FuncHeaderExpr) (*FuncHeaderObject, error) {
+	defer c.withTypeParams(nd.TypeParams)()
 	build := func(idents ...*node.TypedIdentExpr) (Array, error) {
 		out := make(Array, 0, len(idents))
 		for _, ti := range idents {
@@ -4057,34 +4063,89 @@ func (c *Compiler) returnTypesOf(nd ast.Node, rets []*node.TypedIdentExpr) (type
 
 	types = make([]*ReturnVar, len(rets))
 	for i, ti := range rets {
-		var (
-			rt        = &ReturnVar{}
-			typeNames []string
-		)
+		rt := &ReturnVar{}
 
+		var typeExprs []*node.TypeExpr
 		if len(ti.Type) == 0 {
-			typeNames = []string{ti.Ident.Name}
+			// A bare entry ("<int>") names the type with the ident itself.
+			typeExprs = []*node.TypeExpr{node.EType(node.EIdent(ti.Ident.Name, ti.Ident.Pos()))}
 		} else {
 			rt.Name = ti.Ident.Name
-			typeNames = make([]string, len(ti.Type))
-			for j, t := range ti.Type {
-				typeNames[j] = t.Ident().Name
-			}
+			typeExprs = ti.Type
 		}
 
-		rt.TypesSymbols = make(ParamType, len(typeNames))
-		for j, name := range typeNames {
-			var symbol *Symbol
-			if symbol, err = c.requireSymbol(nd, name); err != nil {
+		for _, t := range typeExprs {
+			var syms []*SymbolInfo
+			if syms, err = c.typeExprSymbols(t); err != nil {
 				return
 			}
-			rt.TypesSymbols[j] = &symbol.SymbolInfo
+			rt.TypesSymbols = append(rt.TypesSymbols, syms...)
 		}
 
 		types[i] = rt
 	}
 
 	return
+}
+
+// withTypeParams installs the type parameters of a signature so that its
+// parameter and return types resolve their names to the corresponding
+// constraints (see typeExprSymbols). It returns a restore function to be
+// deferred: `defer c.withTypeParams(nd.TypeParams)()`.
+func (c *Compiler) withTypeParams(tps []*node.TypedIdentExpr) func() {
+	if len(tps) == 0 {
+		return func() {}
+	}
+	saved := c.typeParams
+	c.typeParams = make(map[string][]*node.TypeExpr, len(tps))
+	for _, tp := range tps {
+		c.typeParams[tp.Ident.Name] = tp.Type
+	}
+	return func() { c.typeParams = saved }
+}
+
+// typeExprSymbols resolves a single type expression to its symbol(s). A type
+// expression that names a type parameter of the signature currently being
+// compiled (Compiler.typeParams) expands to the symbols of its constraint types;
+// a structural type (meti/interface literal) compiles to a constant; any other
+// type name resolves in the enclosing scope.
+func (c *Compiler) typeExprSymbols(t *node.TypeExpr) ([]*SymbolInfo, error) {
+	return c.typeExprSymbolsV(t, nil)
+}
+
+func (c *Compiler) typeExprSymbolsV(t *node.TypeExpr, visiting map[string]bool) (symbols []*SymbolInfo, err error) {
+	if id := t.Ident(); id != nil {
+		// Expand a type-parameter reference to its constraint types. `visiting`
+		// guards against a constraint that (transitively) names itself.
+		if c.typeParams != nil && !visiting[id.Name] {
+			if constraint, ok := c.typeParams[id.Name]; ok {
+				if visiting == nil {
+					visiting = map[string]bool{}
+				}
+				visiting[id.Name] = true
+				for _, ct := range constraint {
+					var syms []*SymbolInfo
+					if syms, err = c.typeExprSymbolsV(ct, visiting); err != nil {
+						return
+					}
+					symbols = append(symbols, syms...)
+				}
+				delete(visiting, id.Name)
+				return
+			}
+		}
+		var symbol *Symbol
+		if symbol, err = c.requireSymbol(id, id.Name); err != nil {
+			return
+		}
+		return []*SymbolInfo{&symbol.SymbolInfo}, nil
+	}
+	// A structural type literal (meti / interface / met<…>).
+	var s *SymbolInfo
+	if s, err = c.structuralTypeSymbol(t.Expr); err != nil {
+		return
+	}
+	return []*SymbolInfo{s}, nil
 }
 
 func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr) (name string, symbols []*SymbolInfo, err error) {
@@ -4094,26 +4155,14 @@ func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr)
 		ti.Type = append(ti.Type, node.EType(node.EIdent("any", ti.Pos())))
 	}
 
-	symbols = make([]*SymbolInfo, len(ti.Type))
-
-	for i2, t := range ti.Type {
-		id := t.Ident()
-		if id == nil {
-			// A structural type literal (meti / interface / met<…>): compile it to
-			// a constant and reference it with a ScopeConstant symbol so the
-			// runtime can resolve the interface and check structurally.
-			if symbols[i2], err = c.structuralTypeSymbol(t.Expr); err != nil {
-				return
-			}
-			continue
-		}
-		var symbol *Symbol
-		// Resolve against the type identifier so an unresolved-reference error
-		// points at the type, not at the enclosing declaration node.
-		if symbol, err = c.requireSymbol(id, id.Name); err != nil {
+	// Each declared type resolves to one symbol, except a type-parameter name,
+	// which expands to the symbols of its constraint types (see typeExprSymbols).
+	for _, t := range ti.Type {
+		var syms []*SymbolInfo
+		if syms, err = c.typeExprSymbols(t); err != nil {
 			return
 		}
-		symbols[i2] = &symbol.SymbolInfo
+		symbols = append(symbols, syms...)
 	}
 
 	return

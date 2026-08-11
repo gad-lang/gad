@@ -121,7 +121,7 @@ var langOrder = []string{
 	"03_functions", "10_functions_with_methods", "31_properties",
 	"04_collections", "05_comprehensions", "22_key_value_array", "27_destructuring",
 	"11_classes", "19_class_syntax",
-	"12_method_interfaces", "24_interfaces", "35_type_unions", "20_enum",
+	"12_method_interfaces", "24_interfaces", "35_type_unions", "36_type_parameters", "20_enum",
 	"08_strings_bytes_regex", "21_heredocs", "07_error_handling",
 	"26_embed", "09_template", "23_template",
 	"16_doc_comments", "29_special_keywords", "34_metaprogramming",

@@ -1800,14 +1800,26 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 		f.NameExpr = p.ParseIdent()
 
 		switch p.Token.Token {
-		case token.Period, token.LBrack:
+		case token.Period:
 			f.NameExpr = p.ParseSimpleSelectorExpr(f.NameExpr)
+		case token.LBrack:
+			// `name[…]` is a type-parameter list when it has the `[IDENT TYPE …]`
+			// shape (handled below); otherwise it is an index/selector on the name.
+			if !p.peekTypeParamsAfterLBrack() {
+				f.NameExpr = p.ParseSimpleSelectorExpr(f.NameExpr)
+			}
 		case token.LParen, token.LBrace:
 		default:
 			pos := p.Token.Pos
 			p.ExpectLits(token.Period, token.LBrack, token.LParen, token.LBrace)
 			return &node.BadExpr{From: pos, To: p.Token.Pos}
 		}
+	}
+
+	// Optional type parameters, after the name (or after `func` for an anonymous
+	// function): `func mySet[T indexable](…)`, `func [T indexable](…)`.
+	if p.Token.Token == token.LBrack {
+		f.TypeParams = p.parseTypeParams()
 	}
 
 	switch p.Token.Token {
@@ -2130,7 +2142,7 @@ func (p *Parser) ParseMethodInterfaceExprT(tok PToken) (e node.Expr) {
 	p.ExprLevel++
 	skipSeps()
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
-		if p.Token.Token != token.LParen {
+		if p.Token.Token != token.LParen && p.Token.Token != token.LBrack {
 			p.ExprLevel--
 			p.ErrorExpectToken(p.Token, token.LParen)
 			return
@@ -2194,9 +2206,14 @@ func (p *Parser) parseMetShortcut() node.Expr {
 	return mi
 }
 
-// parseInterfaceHeader parses a bracket-less func header `(params) <return>`.
+// parseInterfaceHeader parses a bracket-less func header
+// `[typeparams] (params) <return>`.
 func (p *Parser) parseInterfaceHeader() *node.FuncHeaderExpr {
 	doc := p.leadComment
+	var typeParams []*node.TypedIdentExpr
+	if p.Token.Token == token.LBrack {
+		typeParams = p.parseTypeParams()
+	}
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 	if paren == nil || p.Errors.Len() != 0 {
 		return nil
@@ -2208,7 +2225,7 @@ func (p *Parser) parseInterfaceHeader() *node.FuncHeaderExpr {
 	}
 	return &node.FuncHeaderExpr{
 		Doc:        doc,
-		FuncHeader: node.FuncHeader{Params: params, Return: p.ParseFuncReturnTypes()},
+		FuncHeader: node.FuncHeader{TypeParams: typeParams, Params: params, Return: p.ParseFuncReturnTypes()},
 	}
 }
 
@@ -2219,6 +2236,10 @@ func (p *Parser) ParseFuncHeaderExpr() node.Expr {
 	}
 
 	h := &node.FuncHeaderExpr{OpenPos: p.Expect(token.Less)}
+
+	if p.Token.Token == token.LBrack {
+		h.TypeParams = p.parseTypeParams()
+	}
 
 	if p.Token.Token == token.LParen {
 		paren := p.ParseParemExpr(token.LParen, token.RParen)
@@ -2319,6 +2340,51 @@ func (p *Parser) ParseTypedIdent() *node.TypedIdentExpr {
 		Ident: p.ParseIdent(),
 		Type:  p.ParseTypes(),
 	}
+}
+
+// parseTypeParams parses a type-parameter list `[T indexable, K int|uint, …]`.
+// The opening '[' must be the current token. Each entry is a typed identifier
+// (a name followed by its constraint type), mirroring a parameter type.
+func (p *Parser) parseTypeParams() (out []*node.TypedIdentExpr) {
+	if p.Trace {
+		defer untracep(tracep(p, "TypeParams"))
+	}
+	p.Expect(token.LBrack)
+	p.SkipSpace()
+	for p.Token.Token != token.RBrack && p.Token.Token != token.EOF {
+		out = append(out, p.ParseTypedIdent())
+		p.SkipSpace()
+		if p.Token.Token != token.Comma {
+			break
+		}
+		p.Next() // consume ','
+		p.SkipSpace()
+	}
+	p.Expect(token.RBrack)
+	return
+}
+
+// peekTypeParamsAfterLBrack reports whether the current '[' begins a
+// type-parameter list `[IDENT TYPE …]` rather than an index expression. A type
+// parameter is a name followed by a constraint type, so the distinguishing shape
+// is '[' IDENT (IDENT | a structural-type start). No tokens are consumed.
+func (p *Parser) peekTypeParamsAfterLBrack() bool {
+	var toks []PToken
+	p.PeekCb(func(t PToken) bool {
+		if t.IsSpace() {
+			return true
+		}
+		toks = append(toks, t)
+		return len(toks) < 2
+	})
+	if len(toks) < 2 || toks[0].Token != token.Ident {
+		return false
+	}
+	switch toks[1].Token {
+	case token.Ident, token.Meti, token.Interface, token.Method:
+		return true
+	}
+	return false
 }
 
 // ParseFuncReturnTypes parses an optional function return-type list following
@@ -3984,6 +4050,15 @@ func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 	switch p.Token.Token {
 	case token.LParen:
 		valueExpr = p.ParseDictElementLitFunc()
+	case token.LBrack:
+		// `key[T …](…)` is a method shorthand with type parameters; otherwise a
+		// `[…]` here is a syntax error handled by the default (expects ':').
+		if p.peekTypeParamsAfterLBrack() {
+			valueExpr = p.ParseDictElementLitFunc()
+		} else {
+			colonPos = p.Expect(token.Colon)
+			valueExpr = p.ParseExpr()
+		}
 	case token.LBrace:
 		valueExpr = p.ParseDictLit()
 	default:
@@ -4005,6 +4080,13 @@ func (p *Parser) ParseDictElementLitFunc() *node.FuncDefLit {
 
 func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
 	e := &node.FuncDefLit{}
+
+	// optional type parameters preceding the parameter list: `[T number](v T)`.
+	var typeParams []*node.TypedIdentExpr
+	if p.Token.Token == token.LBrack {
+		typeParams = p.parseTypeParams()
+	}
+
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 
 	// the optional "<ret>" list precedes the closure ':'/'=>' or the '{' block.
@@ -4012,6 +4094,7 @@ func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
 
 	if p.Token.Token == colon {
 		c := p.ParseClosureExpr(colon, paren.ToMultiParenExpr())
+		c.TypeParams = typeParams
 		c.Return = returnTypes
 		e.Expr = c
 	} else {
@@ -4027,7 +4110,7 @@ func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
 
 		e.Expr = &node.FuncExpr{
 			Type: &node.FuncType{
-				FuncHeader: node.FuncHeader{Params: params, Return: returnTypes},
+				FuncHeader: node.FuncHeader{TypeParams: typeParams, Params: params, Return: returnTypes},
 			},
 			Body: body,
 		}

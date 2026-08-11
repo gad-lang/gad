@@ -373,8 +373,33 @@ func (n FuncParams) WithNamedValuesNil() (c *FuncParams) {
 // FuncType and FuncHeaderExpr.
 type FuncHeader struct {
 	NameExpr Expr
-	Params   FuncParams
-	Return   []*TypedIdentExpr
+	// TypeParams is the optional type-parameter list written between the name
+	// (or `func`) and the parameter list: `[T indexable, K int|uint, V number]`.
+	// Each entry names a type parameter and its constraint type(s); references to
+	// the name in a parameter/return type are substituted by the constraint at
+	// compile time.
+	TypeParams []*TypedIdentExpr
+	Params     FuncParams
+	Return     []*TypedIdentExpr
+}
+
+// TypeParamsString renders the type-parameter list including brackets, or "" when
+// there are none: `[T indexable, K int | uint]`.
+func (e *FuncHeader) TypeParamsString() string {
+	return FormatTypeParams(e.TypeParams)
+}
+
+// FormatTypeParams renders a type-parameter list including its brackets
+// (`[T indexable, K int | uint]`), or "" when the list is empty.
+func FormatTypeParams(tps []*TypedIdentExpr) string {
+	if len(tps) == 0 {
+		return ""
+	}
+	parts := make([]string, len(tps))
+	for i, tp := range tps {
+		parts[i] = tp.String()
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 // Pos returns the position of first character belonging to the node.
@@ -439,6 +464,7 @@ func (e *FuncHeader) String() string {
 	if e.NameExpr != nil {
 		s = e.NameExpr.String()
 	}
+	s += e.TypeParamsString()
 	s += e.Params.String()
 	s += FormatFuncReturn(e.Return)
 	return s
@@ -450,6 +476,7 @@ func (e *FuncHeader) WriteCode(ctx *CodeWriteContext) {
 	if e.NameExpr != nil {
 		ctx.WriteString(e.NameExpr.String())
 	}
+	ctx.WriteString(e.TypeParamsString())
 	e.Params.WriteCode(ctx)
 	WriteFuncReturn(ctx, e.Return)
 }

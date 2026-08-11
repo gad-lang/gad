@@ -100,6 +100,12 @@ type (
 		// emitted as a separate dict + OpExtendModuleConst so the runtime declares
 		// them as read-only module constants (see flushExports).
 		pendingConstExports []*node.DictElementLit
+		// typeParams maps the type-parameter names of the signature currently being
+		// compiled to their constraint type expressions. A parameter/return type
+		// naming a type parameter is substituted by these constraints (see
+		// typeExprSymbols). Set for the duration of one signature's type
+		// resolution and restored afterwards.
+		typeParams map[string][]*node.TypeExpr
 	}
 
 	// CompilerOptions represents customizable options for Compile().

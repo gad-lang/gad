@@ -2329,10 +2329,11 @@ func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
 // ClosureExpr represents a function closure literal.
 type ClosureExpr struct {
 	ast.NodeData
-	Params FuncParams
-	Return []*TypedIdentExpr
-	Lambda Token
-	Body   Expr
+	TypeParams []*TypedIdentExpr
+	Params     FuncParams
+	Return     []*TypedIdentExpr
+	Lambda     Token
+	Body       Expr
 }
 
 func (e *ClosureExpr) ExprNode() {}
@@ -2355,10 +2356,11 @@ func (e *ClosureExpr) sep() string {
 }
 
 func (e *ClosureExpr) String() string {
-	return e.Params.String() + FormatFuncReturn(e.Return) + e.sep() + " " + e.Body.String()
+	return FormatTypeParams(e.TypeParams) + e.Params.String() + FormatFuncReturn(e.Return) + e.sep() + " " + e.Body.String()
 }
 
 func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(FormatTypeParams(e.TypeParams))
 	e.Params.WriteCode(ctx)
 	WriteFuncReturn(ctx, e.Return)
 	ctx.WriteString(e.sep(), " ")
