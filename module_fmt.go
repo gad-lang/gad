@@ -26,7 +26,7 @@ func newFmtModule() StdModuleData {
 		//
 		// ## Scan Examples
 		//
-		// ```go
+		// ```gad ignore
 		// arg1 := fmt.scanArg("str")
 		// arg2 := fmt.scanArg("int")
 		// ret := fmt.sscanf("abc123", "%3s%d", arg1, arg2)
@@ -42,7 +42,7 @@ func newFmtModule() StdModuleData {
 		// }
 		// ```
 		//
-		// ```go
+		// ```gad ignore
 		// arg1 = fmt.scanArg("str")
 		// arg2 = fmt.scanArg("int")
 		// arg3 = fmt.scanArg("float")
