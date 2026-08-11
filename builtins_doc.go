@@ -35,7 +35,7 @@ package gad
 // typeof(o any) <type>
 // Returns the type object of a value.
 //
-// chars(s any) <array | error>
+// chars(s str|bytes) <array | error>
 // Returns the characters of a str/bytes as an array of `char`, or an error for
 // an unsupported value.
 //
@@ -45,11 +45,11 @@ package gad
 // dcopy(o any) <any>
 // Returns a deep copy of a value, cloning nested arrays and dicts recursively.
 //
-// repeat(o any, count int) <any | error>
+// repeat(o str|bytes|array, count int) <any | error>
 // Returns a value (array/str/bytes) repeated `count` times, or an error for an
 // unsupported value.
 //
-// contains(o any, val any) <bool | error>
+// contains(o iterable, val any) <bool | error>
 // Reports whether a collection/str contains val (a dict key, an array element
 // or a substring), or an error for an unsupported value.
 //

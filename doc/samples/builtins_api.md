@@ -44,7 +44,7 @@ Returns the type object of a value.
 ### chars
 
 ```gad
-chars(s any) <_ array|error>
+chars(s str|bytes) <_ array|error>
 ```
 
 Returns the characters of a str/bytes as an array of `char`, or an error for
@@ -69,7 +69,7 @@ Returns a deep copy of a value, cloning nested arrays and dicts recursively.
 ### repeat
 
 ```gad
-repeat(o any, count int) <_ any|error>
+repeat(o str|bytes|array, count int) <_ any|error>
 ```
 
 Returns a value (array/str/bytes) repeated `count` times, or an error for an
@@ -78,7 +78,7 @@ unsupported value.
 ### contains
 
 ```gad
-contains(o any, val any) <_ bool|error>
+contains(o iterable, val any) <_ bool|error>
 ```
 
 Reports whether a collection/str contains val (a dict key, an array element
@@ -400,7 +400,7 @@ export typeof(o any) <type> => nil
 Returns the characters of a str/bytes as an array of `char`, or an error for
 an unsupported value.
 **/
-export chars(s any) <_ array|error> => nil
+export chars(s str|bytes) <_ array|error> => nil
 
 /**
 Returns a shallow copy of a value (a new array/dict with the same elements).
@@ -416,13 +416,13 @@ export dcopy(o any) <any> => nil
 Returns a value (array/str/bytes) repeated `count` times, or an error for an
 unsupported value.
 **/
-export repeat(o any, count int) <_ any|error> => nil
+export repeat(o str|bytes|array, count int) <_ any|error> => nil
 
 /**
 Reports whether a collection/str contains val (a dict key, an array element
 or a substring), or an error for an unsupported value.
 **/
-export contains(o any, val any) <_ bool|error> => nil
+export contains(o iterable, val any) <_ bool|error> => nil
 
 /**
 Returns the debug representation of a value; `indent=yes` pretty-prints it.
