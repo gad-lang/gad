@@ -73,6 +73,26 @@ func TestBehaviouralInterfaces(t *testing.T) {
 try { f(5); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
 }
 
+// TestClassInstanceInterface checks the `classInstance` interface: it matches an
+// instance of a user-defined class, and rejects the class itself and non-class
+// values.
+func TestClassInstanceInterface(t *testing.T) {
+	ci := ClassInstanceInterface
+
+	// A class instance satisfies it; the class object and other values do not.
+	testExpectRun(t, `C := Class("C", (cls, def) => def(; fields=(; x=(=0))))
+		f := func(o classInstance) => 1
+		return f(C())`, nil, Int(1))
+	testExpectRun(t, `C := Class("C", (cls, def) => def(; fields=(; x=(=0))))
+		f := func(o classInstance) => 1
+		try { f(C); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
+	testExpectRun(t, `f := func(o classInstance) => 1
+		try { f(5); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
+
+	require.Same(t, ci, BuiltinObjects[BuiltinClassInstance])
+	require.Equal(t, "classInstance", ci.Name())
+}
+
 // TestNumberTypeUnion checks the builtin `number` type union (int|uint|float|
 // decimal): direct assignability, use as a parameter/return type, the `::` cast,
 // and nesting inside another union (`str|number`).

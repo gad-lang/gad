@@ -285,6 +285,9 @@ const (
 	BuiltinIndexable
 	BuiltinIndexAssignable
 	BuiltinIndexDeletable
+	// BuiltinClassInstance is the builtin `classInstance` interface: an instance of
+	// a user-defined class.
+	BuiltinClassInstance
 	// BuiltinNumberTypeUnion is the builtin `number` type union: int|uint|float|decimal.
 	BuiltinNumberTypeUnion
 
@@ -391,6 +394,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"indexable":       BuiltinIndexable,
 	"indexAssignable": BuiltinIndexAssignable,
 	"indexDeletable":  BuiltinIndexDeletable,
+	"classInstance":   BuiltinClassInstance,
 	"number":          BuiltinNumberTypeUnion,
 	"iteratorInput":   BuiltinIteratorInput,
 	"zip":             BuiltinZipIterator,
@@ -1061,6 +1065,7 @@ func init() {
 	BuiltinObjects[BuiltinIndexable] = IndexableInterface
 	BuiltinObjects[BuiltinIndexAssignable] = IndexAssignableInterface
 	BuiltinObjects[BuiltinIndexDeletable] = IndexDeletableInterface
+	BuiltinObjects[BuiltinClassInstance] = ClassInstanceInterface
 	BuiltinObjects[BuiltinNumberTypeUnion] = newNumberTypeUnion()
 	BuiltinObjects[BuiltinZipIterator] = TZipIterator
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{

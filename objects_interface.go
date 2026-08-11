@@ -76,6 +76,13 @@ var (
 		_, ok := obj.(IndexDeleter)
 		return ok
 	})
+
+	// ClassInstanceInterface (`classInstance`) matches an instance of a
+	// user-defined class (a value produced by calling a `class`/`Class(…)`).
+	ClassInstanceInterface = nativeInterface("classInstance", func(_ *VM, obj Object) bool {
+		_, ok := obj.(*ClassInstance)
+		return ok
+	})
 )
 
 // Object types for the interface members. They are internal representations
