@@ -442,6 +442,67 @@ opts.ModuleMap = gad.NewModuleMap().
     AddSourceModuleKind("page", []byte(`{% export title = "Hi" %}`), gad.SourceKindGadt)
 ```
 
+## Type unions and interfaces from Go
+
+A Go host can build **types** — type unions and interfaces — and expose them to a
+script (through globals, a builtin, or a module member). Once in scope, they work
+everywhere a type is expected: parameter and return types, and the `::` cast.
+
+### Type unions
+
+`gad.NewTypeUnion(members…)` builds a union satisfied by a value matching any
+member. Members are ObjectTypes (`gad.TInt`, `gad.TStr`, …), interfaces, or other
+unions, so unions nest. It is the Go equivalent of the `type <int|uint|…>`
+syntax; the builtin `number` (`int|uint|float|decimal`) is one such union.
+
+```go
+globals := gad.Dict{
+    "number": gad.NewTypeUnion(gad.TInt, gad.TUint, gad.TFloat, gad.TDecimal),
+}
+```
+
+```gad
+global number
+addOne := func(v number) <number> => v + 1
+addOne(2)        // 3
+addOne(2.5)      // 3.5
+addOne("x")      // TypeError: invalid type for argument: found str
+1 :: number      // 1 (checked cast)
+```
+
+### Native interfaces
+
+`gad.Interface` describes a structural contract, but a **builtin** interface can
+instead carry a `Native` predicate: a Go function that decides membership
+directly. This matches Go-backed behaviour that is not expressed as Gad members —
+it is how the builtin `iterable`, `callable`, `lengther` and `index*` interfaces
+work.
+
+```go
+// `posInt` accepts a positive int.
+posInt := &gad.Interface{
+    IName: "posInt",
+    Native: func(_ *gad.VM, o gad.Object) (bool, error) {
+        i, ok := o.(gad.Int)
+        return ok && i > 0, nil
+    },
+}
+globals := gad.Dict{"posInt": posInt}
+```
+
+```gad
+global posInt
+f := func(v posInt) => v
+f(5)             // 5
+f(-1)            // TypeError: invalid type for argument: found int
+```
+
+The predicate receives the VM (nil during a VM-less check, e.g. from another
+goroutine) and returns `(matches, error)`; keep it side-effect-free. A *structural*
+interface — one that requires named fields, properties or methods — is normally
+written in Gad source with `interface { … }` rather than assembled in Go, since
+its member types are resolved per-VM (see [Interfaces](samples/24_interfaces.md)).
+
 ## Safety
 
 When writing Go functions, methods or object types, mind the
