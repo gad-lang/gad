@@ -2,18 +2,8 @@ package gad
 
 import "strings"
 
-// gad:doc
-// ## Type Interface
-// Interface is the value of an `interface { … }` declaration: a structural
-// contract of typed fields, getter/setter properties, required methods and an
-// optional `parse { … }` group of signatures. It is compiled to a bytecode
-// constant; parameter/field types are stored as symbols and resolved per-VM.
-//
-// Members are read with indexing:
-//   - `i.name`    -> str
-//   - `i.fields`  -> array of InterfaceField
-//   - `i.props`   -> array of InterfaceProp
-//   - `i.methods` -> array of InterfaceMethod
+// The user-facing `gad:doc` reference for Interface lives in
+// builtin_types_doc.go (the `types` doc module).
 
 // TInterface is the builtin `Interface` object type. It has no constructor.
 var TInterface = RegisterBuiltinType(BuiltinInterface, "Interface", Interface{}, nil)

@@ -7,16 +7,8 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-// gad:doc
-// ## Type MethodInterface
-// MethodInterface is a set of required function headers, produced by a `meti`
-// expression: `meti { (), (v) <int> }`. Use `implements(fn, mi)` to test whether
-// a callable provides every header, and `mi + mi2` (or `mi ++ [mi2, …]`) to merge.
-//
-// ```gad
-// Stringer := meti { () <str> }
-// implements((this) => "x", Stringer)   // true if the func matches a header
-// ```
+// The user-facing `gad:doc` reference for MethodInterface lives in
+// builtin_types_doc.go (the `types` doc module).
 
 // TMethodInterface is the builtin `MethodInterface` object type.
 var TMethodInterface = RegisterBuiltinType(BuiltinMethodInterface, "MethodInterface", MethodInterface{}, NewMethodInterfaceFunc)

@@ -307,6 +307,26 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
   anon/closure validam tudo. return types <T> não são runtime-enforced (nem
   diretos). Type params se comportam idêntico a escrever a constraint direto.
 
+## 2026-08-11 cont. 12 — tipos globais fora de time.gad → Built-in Types
+- **Bug**: `samples/stdlib/time.gad` continha os tipos GLOBAIS FuncHeaderObject,
+  Interface, MethodInterface, Prop (não são do time). Causa: gaddoc associa blocos
+  gad:doc órfãos (sem `# X module`) ao header de módulo que os precede; `module_time.go`
+  ('t') é o último `module_*.go` antes dos `objects_*.go` (alfabético) → vazam p/ time.
+- **Fix**: consolidei os 4 blocos gad:doc num novo `builtin_types_doc.go` com header
+  `# types module` (ordena "b", antes de `module_*`, então nada vaza p/ time). Removi
+  os blocos free-floating dos 4 `objects_*.go` (cada tipo já tinha Go doc próprio na
+  decl). gaddoc: `moduleData("types")` = dict vazio (só-doc); //go:generate p/ types.
+  Título emitido: `moduleTitle()` rende **"# Built-in Types"** p/ types (não
+  "`types` module" — são globais, não módulo; pedido do usuário). `# types module` no
+  source é só marcador de fronteira.
+- **Varredura de outros casos**: só os 4. `module_time_location.go`/`module_time_time.go`
+  têm `## Types` mas documentam Location/Time (tipos DO time, sob `# time module`
+  corretamente) — não são vazamentos.
+- PROVAS: `go build/test ./...` VERDE; delve up to date; vet limpo. time.gad/
+  stdlib-time.md SEM os tipos globais (grep FuncHeaderObject só em types.gad/types.md);
+  samples/types.gad + doc/samples/types.md geram "# Built-in Types" (make samples-doc
+  EXIT 0). builtins.gad inalterado.
+
 ## Restam — checklist acionável (2026-08-11 cont. 9)
 - [x] **Bug de fundo do compilador** — CORRIGIDO (fix particionado, ver cont.10).
 - [ ] **Revisar/pushar** os commits locais desta sessão. Usuário pediu NÃO pushar

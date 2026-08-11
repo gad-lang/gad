@@ -2,24 +2,8 @@ package gad
 
 import "strings"
 
-// gad:doc
-// ## Type FuncHeaderObject
-// FuncHeaderObject describes a function signature: a name, positional and named
-// parameters (each a `typedIdent`) and a return-type list. It is the value of a
-// func-header expression `<(params) <return>>`.
-//
-// Members are read with indexing:
-//   - `h.name` -> str
-//   - `h.params` -> array of typedIdent
-//   - `h.namedParams` -> array of typedIdent
-//   - `h.return` -> array of typedIdent
-//
-// ```gad
-// h := <(a int, b str) <r bool>>
-// h.name           // ""
-// len(h.params)    // 2
-// h.params[0].name // "a"
-// ```
+// The user-facing `gad:doc` reference for FuncHeaderObject lives in
+// builtin_types_doc.go (the `types` doc module).
 
 // TFunctionHeader is the builtin `FuncHeaderObject` object type.
 var TFunctionHeader = RegisterBuiltinType(BuiltinFunctionHeader, "FunctionHeader", FuncHeaderObject{}, NewFunctionHeaderFunc)

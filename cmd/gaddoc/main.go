@@ -180,13 +180,25 @@ func (dg *docgroup) process(comments []string) {
 		dg.docs = append(dg.docs, lines[:hdrs[0].idx]...)
 	}
 	dg.module = hdrs[sel].name
-	dg.docs = append(dg.docs, fmt.Sprintf("# `%s` module", dg.module))
+	dg.docs = append(dg.docs, moduleTitle(dg.module))
 
 	end := len(lines)
 	if sel+1 < len(hdrs) {
 		end = hdrs[sel+1].idx
 	}
 	dg.processBlocks(lines[hdrs[sel].idx+1 : end])
+}
+
+// moduleTitle renders the top `#` heading for a documentation group. Importable
+// stdlib modules are titled "`name` module"; the synthetic `types` group is not a
+// module — it collects the globally-available built-in object types — so it gets
+// a plain title without the "module" suffix. The `# <name> module` source header
+// stays a module marker only for boundary detection (see reModuleHeader).
+func moduleTitle(module string) string {
+	if module == "types" {
+		return "# Built-in Types"
+	}
+	return fmt.Sprintf("# `%s` module", module)
 }
 
 // moduleFilter, when non-empty, selects which module's gad:doc to emit from a
@@ -376,6 +388,14 @@ var moduleDataCache = map[string]gad.Dict{}
 // moduleData returns (and caches) the runtime data dict of a stdlib module.
 func moduleData(module string) gad.Dict {
 	if d, ok := moduleDataCache[module]; ok {
+		return d
+	}
+	// The `types` doc module is a documentation-only grouping of global object
+	// types (see builtin_types_doc.go). It has no importable members to resolve —
+	// its `## Type …` blocks are pure prose — so expose an empty data dict.
+	if module == "types" {
+		d := gad.Dict{}
+		moduleDataCache[module] = d
 		return d
 	}
 	// The root builtins are not an importable module; expose them as a flat dict

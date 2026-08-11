@@ -6,45 +6,8 @@ import (
 	"github.com/gad-lang/gad/repr"
 )
 
-// gad:doc
-// ## Type Prop
-// Prop is a named, callable value backed by getter and setter methods.
-//
-//	Prop(name str, *methods) -> Prop
-//
-// The trailing methods are dispatched by their signature when the property is
-// called:
-//   - **getter**: takes no parameters and returns a value (`prop() -> value`).
-//     At most one getter may be registered.
-//   - **setter**: takes one parameter and returns nothing (`prop(v)`). Any
-//     number of setters may be registered; the one whose parameter type matches
-//     the argument is selected.
-//
-// A property may be created with no methods, but calling such a property is an
-// error because no matching method exists. New methods can be attached later
-// with the `met` statement.
-//
-// Example — getter/setter pair plus a typed setter:
-//
-// ```gad
-// var value
-// const p = Prop("x", () => value, (v) => {value = v})
-// met p(v int) {
-//   value = "int value= " + v
-// }
-// p()      // nil
-// p("a")   // setter: value = "a"
-// p()      // "a"
-// p(1)     // typed setter selected: value = "int value= 1"
-// p()      // "int value= 1"
-// ```
-//
-// Example — read-only (getter-only) property:
-//
-// ```gad
-// const pi = Prop("pi", () => 3.14)
-// pi()        // 3.14
-// ```
+// The user-facing `gad:doc` reference for Prop lives in builtin_types_doc.go
+// (the `types` doc module).
 
 // TProp is the builtin `Prop` object type.
 var TProp = RegisterBuiltinType(BuiltinProp, "Prop", Prop{}, NewPropFunc)

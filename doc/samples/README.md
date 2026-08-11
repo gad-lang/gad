@@ -39,3 +39,4 @@
 - [35_type_unions](35_type_unions.md)
 - [36_type_parameters](36_type_parameters.md)
 - [builtins](builtins.md)
+- [types](types.md)
