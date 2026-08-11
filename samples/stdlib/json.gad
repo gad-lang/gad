@@ -7,11 +7,27 @@ All numeric types is unmarshaled to `gad.Decimal` type.
 
 /**
 Returns the JSON encoding v or error.
+
+## Example
+
+```gad ignore
+json := import("json")
+str(json.Marshal({a: 1, b: [2, 3]}))
+//= "{\"a\":1,\"b\":[2,3]}"
+```
 **/
 export Marshal(v any) <bytes> => nil
 
 /**
 MarshalIndent is like Marshal but applies IndentCount to format the output.
+
+## Example
+
+```gad ignore
+json := import("json")
+str(json.MarshalIndent({a: 1}, "", "  "))
+//= "{\n  \"a\": 1\n}"
+```
 **/
 export MarshalIndent(v any, prefix str, indent str) <bytes> => nil
 
@@ -54,10 +70,26 @@ if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to tru
 if floatsAsDecimal is true, parses float values as decimal
 if intAsDecimal is true, parses int values as decimal
 Unmarshal parses the JSON-encoded p and returns the result or error.
+
+## Example
+
+```gad ignore
+json := import("json")
+json.Unmarshal(`{"a":1,"b":[2,3]}`).a
+//= 1
+```
 **/
 export Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any> => nil
 
 /**
 Reports whether p is a valid JSON encoding.
+
+## Example
+
+```gad ignore
+json := import("json")
+[json.Valid(`{"x":1}`), json.Valid("bad")]
+//= [true, false]
+```
 **/
 export Valid(p bytes) <bool> => nil

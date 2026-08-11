@@ -1,0 +1,46 @@
+// Samples of module json: one snippet region per exported
+// member. These are standard doctest snippets, run and checked by `gad doc`,
+// and merged into the module API as `## Example` sections by gaddoc (the
+// `gad:samples` directive).
+
+//snippet Marshal
+json := import("json")
+str(json.Marshal({a: 1, b: [2, 3]}))
+//= "{\"a\":1,\"b\":[2,3]}"
+//endsnippet
+
+//snippet MarshalIndent
+json := import("json")
+str(json.MarshalIndent({a: 1}, "", "  "))
+//= "{\n  \"a\": 1\n}"
+//endsnippet
+
+//snippet IndentCount
+//endsnippet
+
+//snippet RawMessage
+//endsnippet
+
+//snippet Compact
+//endsnippet
+
+//snippet Quote
+//endsnippet
+
+//snippet NoQuote
+//endsnippet
+
+//snippet NoEscape
+//endsnippet
+
+//snippet Unmarshal
+json := import("json")
+json.Unmarshal(`{"a":1,"b":[2,3]}`).a
+//= 1
+//endsnippet
+
+//snippet Valid
+json := import("json")
+[json.Valid(`{"x":1}`), json.Valid("bad")]
+//= [true, false]
+//endsnippet

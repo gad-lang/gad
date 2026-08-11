@@ -1,7 +1,7 @@
-// Samples of module time: one `//snippet NAME ... //endsnippet`
-// region per exported member. These are standard doctest snippets, run and
-// checked by `gad doc`, and merged into the module API as `## Example`
-// sections by gaddoc (the `gad:samples` directive).
+// Samples of module time: one snippet region per exported
+// member. These are standard doctest snippets, run and checked by `gad doc`,
+// and merged into the module API as `## Example` sections by gaddoc (the
+// `gad:samples` directive).
 
 //snippet utc
 //endsnippet

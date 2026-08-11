@@ -26,6 +26,7 @@ func newStringsModule() StdModuleData {
 	return StdModuleData{Funcs: Dict{
 		// gad:doc
 		// # strings module
+		// gad:samples [module,auto] stdlib/strings/samples.gad
 		//
 		// ## Functions
 		// contains(s str, substr str) <bool>

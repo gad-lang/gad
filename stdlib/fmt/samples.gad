@@ -1,0 +1,52 @@
+// Samples of module fmt: one snippet region per exported
+// member. These are standard doctest snippets, run and checked by `gad doc`,
+// and merged into the module API as `## Example` sections by gaddoc (the
+// `gad:samples` directive).
+
+//snippet print
+// print writes to stdout and returns the byte count.
+fmt.print("a", 1)
+//= 2
+//endsnippet
+
+//snippet printf
+fmt.printf("%d!", 5)
+//= 2
+//endsnippet
+
+//snippet println
+fmt.println("hi", 1)   // writes "hi 1\n"
+//= 5
+//endsnippet
+
+//snippet sprint
+fmt.sprint("x=", 5)
+//= "x=5"
+//endsnippet
+
+//snippet sprintf
+fmt.sprintf("%s=%d", "n", 42)
+//= "n=42"
+//endsnippet
+
+//snippet sprintln
+fmt.sprintln("a", 1)
+//= "a 1\n"
+//endsnippet
+
+//snippet sscan
+fmt.sscan("7", fmt.scanArg("int"))
+//= 1
+//endsnippet
+
+//snippet sscanf
+// scanArg holders receive the parsed fields; sscanf returns the count.
+fmt.sscanf("42 hi", "%d %s", fmt.scanArg("int"), fmt.scanArg("str"))
+//= 2
+//endsnippet
+
+//snippet scanArg
+// scanArg builds a typed holder passed to sscan/sscanf.
+typeName(fmt.scanArg("int"))
+//= "scanArg"
+//endsnippet

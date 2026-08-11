@@ -331,8 +331,16 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
   parseSnippetChecks + runSnippetChecks; renderSnippet insere `// => valor` inline
   após cada statement verificado. Testes TestExtractSnippetsMultipleChecks +
   TestExtractSnippetsInlineMarkers. Ex.: `1\n//= 1\n\n"x"\n//= "x"` → 2 checks.
-- RESTA (rollout): estender a fmt/strings/json (diretiva + samples file + dobrar
-  use_*.gad) e REMOVER use_*.gad; minerar testes dos módulos p/ mais exemplos.
+- **Rollout (cont. 16)**: diretiva `gad:samples [module,auto]` em module_fmt.go/
+  module_strings.go/stdlib/json/module.go (paths repo-relative stdlib/<m>/samples.gad).
+  Fix bug: header do scaffold continha literal `//snippet NAME` → parser capturava
+  "NAME" como membro; header reescrito. samples files gerados: time(41)/fmt(9)/
+  strings(45)/json(10). **Exemplos autorados+validados**: fmt (todos 9: sprint/f/ln
+  //=, print/f/ln retornam byte-count //=, scan família), json (Marshal/MarshalIndent/
+  Unmarshal/Valid, cada com `json := import("json")`). MODULE.gad regenerado com
+  `## Example`. Todos os 4 samples files: `gad doc` doctest OK.
+- RESTA: autorar exemplos p/ strings(45) + time(35 restantes); dobrar use_time/
+  use_strings; REMOVER use_*.gad; minerar testes.
 
 ## 2026-08-11 cont. 13 — stdlib refs: sig em ```gad, doc/stdlib/, submenu Stdlib
 - **Assinaturas de função** em stdlib-*.md saíam inline (`` `local() <Location>` ``);

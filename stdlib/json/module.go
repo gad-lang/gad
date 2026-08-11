@@ -19,6 +19,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 	module.Data = gad.StdModuleData{Funcs: gad.Dict{
 		// gad:doc
 		// # json module
+		// gad:samples [module,auto] stdlib/json/samples.gad
 		//
 		// ## Functions
 		// Marshal(v any) <bytes>

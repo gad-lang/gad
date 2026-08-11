@@ -23,6 +23,7 @@ func newFmtModule() StdModuleData {
 	return StdModuleData{Funcs: Dict{
 		// gad:doc
 		// # fmt module
+		// gad:samples [module,auto] stdlib/fmt/samples.gad
 		//
 		// ## Scan Examples
 		//

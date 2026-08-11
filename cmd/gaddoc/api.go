@@ -253,7 +253,7 @@ func scaffoldMissingSamples(module string, dg *docgroup, sf *sampleFile) error {
 
 	var b strings.Builder
 	if os.IsNotExist(err) {
-		b.WriteString("// Samples of module " + module + ": one `//snippet NAME ... //endsnippet`\n// region per exported member. These are standard doctest snippets, run and\n// checked by `gad doc`, and merged into the module API as `## Example`\n// sections by gaddoc (the `gad:samples` directive).\n")
+		b.WriteString("// Samples of module " + module + ": one snippet region per exported\n// member. These are standard doctest snippets, run and checked by `gad doc`,\n// and merged into the module API as `## Example` sections by gaddoc (the\n// `gad:samples` directive).\n")
 	} else {
 		b.Write(existing)
 		if !strings.HasSuffix(string(existing), "\n") {

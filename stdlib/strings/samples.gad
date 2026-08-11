@@ -1,0 +1,136 @@
+// Samples of module strings: one snippet region per exported
+// member. These are standard doctest snippets, run and checked by `gad doc`,
+// and merged into the module API as `## Example` sections by gaddoc (the
+// `gad:samples` directive).
+
+//snippet contains
+//endsnippet
+
+//snippet containsAny
+//endsnippet
+
+//snippet containsChar
+//endsnippet
+
+//snippet count
+//endsnippet
+
+//snippet equalFold
+//endsnippet
+
+//snippet fields
+//endsnippet
+
+//snippet fieldsFunc
+//endsnippet
+
+//snippet hasPrefix
+//endsnippet
+
+//snippet hasSuffix
+//endsnippet
+
+//snippet index
+//endsnippet
+
+//snippet indexAny
+//endsnippet
+
+//snippet indexByte
+//endsnippet
+
+//snippet indexChar
+//endsnippet
+
+//snippet indexFunc
+//endsnippet
+
+//snippet join
+//endsnippet
+
+//snippet joinAnd
+//endsnippet
+
+//snippet lastIndex
+//endsnippet
+
+//snippet lastIndexAny
+//endsnippet
+
+//snippet lastIndexByte
+//endsnippet
+
+//snippet lastIndexFunc
+//endsnippet
+
+//snippet dict
+//endsnippet
+
+//snippet padLeft
+//endsnippet
+
+//snippet padRight
+//endsnippet
+
+//snippet repeat
+//endsnippet
+
+//snippet replace
+//endsnippet
+
+//snippet split
+//endsnippet
+
+//snippet splitAfter
+//endsnippet
+
+//snippet title
+//endsnippet
+
+//snippet toLower
+//endsnippet
+
+//snippet toTitle
+//endsnippet
+
+//snippet toUpper
+//endsnippet
+
+//snippet toValidUTF8
+//endsnippet
+
+//snippet trim
+//endsnippet
+
+//snippet trimFunc
+//endsnippet
+
+//snippet trimLeft
+//endsnippet
+
+//snippet trimLeftFunc
+//endsnippet
+
+//snippet trimPrefix
+//endsnippet
+
+//snippet trimRight
+//endsnippet
+
+//snippet trimRightFunc
+//endsnippet
+
+//snippet trimSpace
+//endsnippet
+
+//snippet trimSuffix
+//endsnippet
+
+//snippet trunc
+//endsnippet
+
+//snippet slitWords
+//endsnippet
+
+//snippet truncWords
+//endsnippet
