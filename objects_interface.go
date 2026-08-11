@@ -83,6 +83,14 @@ var (
 		_, ok := obj.(*ClassInstance)
 		return ok
 	})
+
+	// ClassTypeInterface (`classType`) matches a user-defined class object (a
+	// value produced by `class`/`Class(…)`). Calling a classType yields a
+	// `classInstance`.
+	ClassTypeInterface = nativeInterface("classType", func(_ *VM, obj Object) bool {
+		_, ok := obj.(*Class)
+		return ok
+	})
 )
 
 // Object types for the interface members. They are internal representations

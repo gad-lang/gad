@@ -398,10 +398,16 @@ wrap(caller callable, *args; **named) <function>
 Returns a new function that calls `caller` with `args`/`named` prepended —
 a partial application. Calling the wrapper appends its own arguments.
 
-Class(name str, define callable)
+### Class
+
+```gad
+Class(name str, define callable) <classType>
+```
+
 Creates a class named `name`; `define` builds its fields, methods and
 properties (see the Classes chapter). Also written with the `class` keyword.
-(Returns the new class.)
+It returns a `classType`; calling that class type — `classType(…)` — yields a
+`classInstance`.
 
 ### addMethod
 
@@ -712,13 +718,16 @@ export implements(fn callable, mi) <bool> => nil
 /**
 Returns a new function that calls `caller` with `args`/`named` prepended —
 a partial application. Calling the wrapper appends its own arguments.
-
-Class(name str, define callable)
-Creates a class named `name`; `define` builds its fields, methods and
-properties (see the Classes chapter). Also written with the `class` keyword.
-(Returns the new class.)
 **/
 export wrap(caller callable, *args; **named) <function> => nil
+
+/**
+Creates a class named `name`; `define` builds its fields, methods and
+properties (see the Classes chapter). Also written with the `class` keyword.
+It returns a `classType`; calling that class type — `classType(…)` — yields a
+`classInstance`.
+**/
+export Class(name str, define callable) <classType> => nil
 
 /**
 Attaches typed method overloads to a callable or type, so the VM dispatches on

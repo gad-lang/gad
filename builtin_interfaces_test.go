@@ -93,6 +93,27 @@ func TestClassInstanceInterface(t *testing.T) {
 	require.Equal(t, "classInstance", ci.Name())
 }
 
+// TestClassTypeInterface checks the `classType` interface: it matches a
+// user-defined class object (rejecting its instances and non-class values), and
+// calling such a class yields a classInstance.
+func TestClassTypeInterface(t *testing.T) {
+	ct := ClassTypeInterface
+
+	testExpectRun(t, `C := Class("C", (cls, def) => def(; fields=(; x=(=0))))
+		f := func(t classType) => 1
+		return f(C)`, nil, Int(1))
+	testExpectRun(t, `C := Class("C", (cls, def) => def(; fields=(; x=(=0))))
+		f := func(t classType) => 1
+		try { f(C()); return "accepted" } catch e { return "rejected" }`, nil, Str("rejected"))
+	// A classType is callable and returns a classInstance.
+	testExpectRun(t, `C := Class("C", (cls, def) => def(; fields=(; x=(=0))))
+		make := func(t classType) <classInstance> => t()
+		return typeName(make(C))`, nil, Str("C"))
+
+	require.Same(t, ct, BuiltinObjects[BuiltinClassType])
+	require.Equal(t, "classType", ct.Name())
+}
+
 // TestNumberTypeUnion checks the builtin `number` type union (int|uint|float|
 // decimal): direct assignability, use as a parameter/return type, the `::` cast,
 // and nesting inside another union (`str|number`).

@@ -177,10 +177,11 @@ package gad
 // Returns a new function that calls `caller` with `args`/`named` prepended —
 // a partial application. Calling the wrapper appends its own arguments.
 //
-// Class(name str, define callable)
+// Class(name str, define callable) <classType>
 // Creates a class named `name`; `define` builds its fields, methods and
 // properties (see the Classes chapter). Also written with the `class` keyword.
-// (Returns the new class.)
+// It returns a `classType`; calling that class type — `classType(…)` — yields a
+// `classInstance`.
 //
 // addMethod(target callable, *methods) <any>
 // Attaches typed method overloads to a callable or type, so the VM dispatches on
