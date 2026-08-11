@@ -72,44 +72,58 @@ type RawMessage struct {
 
 ## Functions
 
-`Marshal(v any) <bytes>`
+```gad
+Marshal(v any) <bytes>
+```
 
 Returns the JSON encoding v or error.
 
 ---
 
-`MarshalIndent(v any, prefix str, indent str) <bytes>`
+```gad
+MarshalIndent(v any, prefix str, indent str) <bytes>
+```
 
 MarshalIndent is like Marshal but applies IndentCount to format the output.
 
 ---
 
-`IndentCount(src bytes, prefix str, indent str) <bytes>`
+```gad
+IndentCount(src bytes, prefix str, indent str) <bytes>
+```
 
 Returns indented form of the JSON-encoded src or error.
 
 ---
 
-`RawMessage(v bytes) <rawMessage>`
+```gad
+RawMessage(v bytes) <rawMessage>
+```
 
 Returns a wrapped bytes to provide raw encoded JSON value to Marshal
 functions.
 
 ---
 
-`Compact(data bytes, escape bool) <bytes>`
+```gad
+Compact(data bytes, escape bool) <bytes>
+```
 
 Returns elided insignificant space characters from data or error.
 
 ---
 
-`Quote(v any) <encoderOptions>`
+```gad
+Quote(v any) <encoderOptions>
+```
 
 Returns a wrapped object to provide Marshal functions to quote v.
 
 ---
 
-`NoQuote(v any) <encoderOptions>`
+```gad
+NoQuote(v any) <encoderOptions>
+```
 
 Returns a wrapped object to provide Marshal functions not to quote while
 encoding.
@@ -117,14 +131,18 @@ This can be used not to quote all array or map items.
 
 ---
 
-`NoEscape(v any) <encoderOptions>`
+```gad
+NoEscape(v any) <encoderOptions>
+```
 
 Returns a wrapped object to provide Marshal functions not to escape html
 while encoding.
 
 ---
 
-`Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any>`
+```gad
+Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any>
+```
 
 if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to true
 if floatsAsDecimal is true, parses float values as decimal
@@ -133,6 +151,8 @@ Unmarshal parses the JSON-encoded p and returns the result or error.
 
 ---
 
-`Valid(p bytes) <bool>`
+```gad
+Valid(p bytes) <bool>
+```
 
 Reports whether p is a valid JSON encoding.

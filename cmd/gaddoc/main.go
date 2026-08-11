@@ -375,7 +375,7 @@ func (dg *docgroup) processFuncBlock(line string) {
 		dg.addError(fmt.Sprintf("function not exist in module:%s", line))
 	}
 
-	dg.funcs = append(dg.funcs, fmt.Sprintf("`%s`\n", sig))
+	dg.funcs = append(dg.funcs, fmt.Sprintf("```gad\n%s\n```\n", sig))
 
 	if usage != "" {
 		dg.funcs = append(dg.funcs, "", usage, "")
@@ -671,6 +671,11 @@ func main() {
 }
 
 func writeToFile(pkgs map[string]*ast.Package, outFile string) error {
+	if dir := filepath.Dir(outFile); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("failed to create output dir '%s' error: %w", dir, err)
+		}
+	}
 	f, err := os.Create(outFile)
 	if err != nil {
 		return fmt.Errorf("failed to create output file '%s' error: %w", outFile, err)

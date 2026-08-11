@@ -64,6 +64,7 @@ func newTimeModule() StdModuleData {
 		Consts: Dict{
 			// gad:doc
 			// # time module
+			// gad:samples [module,auto] stdlib/time/samples.gad
 			// ## Types
 			// Type is a type of Time Value
 			"Type": TimeType,

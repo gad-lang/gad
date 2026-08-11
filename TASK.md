@@ -307,6 +307,19 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
   anon/closure validam tudo. return types <T> não são runtime-enforced (nem
   diretos). Type params se comportam idêntico a escrever a constraint direto.
 
+## 2026-08-11 cont. 13 — stdlib refs: sig em ```gad, doc/stdlib/, submenu Stdlib
+- **Assinaturas de função** em stdlib-*.md saíam inline (`` `local() <Location>` ``);
+  agora em bloco ```gad (cmd/gaddoc/main.go processFuncBlock).
+- **Path**: geram em `doc/stdlib/MODULE.md` (antes `doc/stdlib-MODULE.md`). Makefile
+  atualizado; writeToFile faz MkdirAll do dir pai. Movido `doc/stdlib-test.md`→
+  `doc/stdlib/test.md`; removidos os flat antigos.
+- **Menu do site**: novo submenu (navGroup) **"Stdlib"** em site.go com os itens
+  corretos: strings, fmt, json, time, test (via collectStdlibPages, lê doc/stdlib/).
+  Rotas `ref-stdlib-<mod>` PRESERVADAS (slug estável). refOrder perde os stdlib-*.
+- PROVAS: build-website `build --no-wasm` EXIT 0; content.json tem grupo "Stdlib"
+  com os 5 (ref-stdlib-{strings,fmt,json,time,test}); time.md Functions em ```gad;
+  `go build/test/vet ./...` VERDE.
+
 ## 2026-08-11 cont. 12 — tipos globais fora de time.gad → Built-in Types
 - **Bug**: `samples/stdlib/time.gad` continha os tipos GLOBAIS FuncHeaderObject,
   Interface, MethodInterface, Prop (não são do time). Causa: gaddoc associa blocos

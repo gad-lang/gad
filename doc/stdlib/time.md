@@ -144,67 +144,89 @@ Dynamically calculated getters for a time value are as follows:
 
 ## Functions
 
-`utc() <Location>`
+```gad
+utc() <Location>
+```
 
 Returns Universal Coordinated Time (UTC) location.
 
 ---
 
-`local() <Location>`
+```gad
+local() <Location>
+```
 
 Returns the system's local time zone location.
 
 ---
 
-`monthString(m Months) <str>`
+```gad
+monthString(m Months) <str>
+```
 
 Returns English name of the month m ("January", "February", ...).
 
 ---
 
-`weekdayString(w Weekdays) <str>`
+```gad
+weekdayString(w Weekdays) <str>
+```
 
 Returns English name of the int weekday w, note that 0 is Sunday.
 
 ---
 
-`durationString(d duration) <str>`
+```gad
+durationString(d duration) <str>
+```
 
 Returns a string representing the duration d in the form "72h3m0.5s".
 
 ---
 
-`durationNanoseconds(d duration) <int>`
+```gad
+durationNanoseconds(d duration) <int>
+```
 
 Returns the duration d as an int nanosecond count.
 
 ---
 
-`durationMicroseconds(d duration) <int>`
+```gad
+durationMicroseconds(d duration) <int>
+```
 
 Returns the duration d as an int microsecond count.
 
 ---
 
-`durationMilliseconds(d duration) <int>`
+```gad
+durationMilliseconds(d duration) <int>
+```
 
 Returns the duration d as an int millisecond count.
 
 ---
 
-`durationSeconds(d duration) <float>`
+```gad
+durationSeconds(d duration) <float>
+```
 
 Returns the duration d as a floating point number of seconds.
 
 ---
 
-`durationMinutes(d duration) <float>`
+```gad
+durationMinutes(d duration) <float>
+```
 
 Returns the duration d as a floating point number of minutes.
 
 ---
 
-`durationHours(d duration) <float>`
+```gad
+durationHours(d duration) <float>
+```
 
 Returns the duration d as a floating point number of hours.
 
@@ -213,62 +235,82 @@ Pauses the current goroutine for at least the duration.
 
 ---
 
-`parseDuration(s str) <duration>`
+```gad
+parseDuration(s str) <duration>
+```
 
 Parses duration s and returns duration as int or error.
 
 ---
 
-`durationRound(d duration, m duration) <duration>`
+```gad
+durationRound(d duration, m duration) <duration>
+```
 
 Returns the result of rounding duration to the nearest multiple of m.
 
 ---
 
-`durationTruncate(d duration, m duration) <duration>`
+```gad
+durationTruncate(d duration, m duration) <duration>
+```
 
 Returns the result of rounding duration toward zero to a multiple of m.
 
 ---
 
-`fixedZone(name str, sec int) <Location>`
+```gad
+fixedZone(name str, sec int) <Location>
+```
 
 Returns a Location that always uses the given zone name and offset
 (seconds east of UTC).
 
 ---
 
-`loadLocation(name str) <Location>`
+```gad
+loadLocation(name str) <Location>
+```
 
 Returns the Location with the given name.
 
 ---
 
-`isLocation(any) <bool>`
+```gad
+isLocation(any) <bool>
+```
 
 Reports whether any value is of location type.
 
 ---
 
-`time() <time>`
+```gad
+time() <time>
+```
 
 Returns zero time.
 
 ---
 
-`since(t time) <duration>`
+```gad
+since(t time) <duration>
+```
 
 Returns the time elapsed since t.
 
 ---
 
-`until(t time) <duration>`
+```gad
+until(t time) <duration>
+```
 
 Returns the duration until t.
 
 ---
 
-`date(year int, month Months, day int, hour int, min int, sec int, nsec int, loc Location) <time>`
+```gad
+date(year int, month Months, day int, hour int, min int, sec int, nsec int, loc Location) <time>
+```
 
 Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
 in the appropriate zone for that time in the given location. Zero values
@@ -276,13 +318,17 @@ of optional arguments are used if not provided.
 
 ---
 
-`now() <time>`
+```gad
+now() <time>
+```
 
 Returns the current local time.
 
 ---
 
-`parse(layout str, value str, loc Location) <time>`
+```gad
+parse(layout str, value str, loc Location) <time>
+```
 
 Parses a formatted string and returns the time value it represents.
 If location is not provided, ToInterface's `time.Parse` function is called
@@ -290,38 +336,50 @@ otherwise `time.ParseInLocation` is called.
 
 ---
 
-`strToDate(s str) <date>`
+```gad
+strToDate(s str) <date>
+```
 
 Parses a date from "YYYYMMDD" or "YYYY-MM-DD".
 
 ---
 
-`strToTime(s str) <time>`
+```gad
+strToTime(s str) <time>
+```
 
 Parses an RFC3339 timestamp or "YYYY-MM-DD[ HH:MM:SS]" (UTC when no
 zone is present).
 
 ---
 
-`strToCalendarTime(s str) <calendarTime>`
+```gad
+strToCalendarTime(s str) <calendarTime>
+```
 
 Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.
 
 ---
 
-`strToDuration(s str) <duration>`
+```gad
+strToDuration(s str) <duration>
+```
 
 Parses a Go duration string (e.g. "1h30m").
 
 ---
 
-`strToLocation(s str) <Location>`
+```gad
+strToLocation(s str) <Location>
+```
 
 Parses a location from an offset ("-0300"/"-03:00") or an IANA name.
 
 ---
 
-`unix(sec int, nsec int) <time>`
+```gad
+unix(sec int, nsec int) <time>
+```
 
 Returns the local time corresponding to the given Unix time,
 sec seconds and nsec nanoseconds since January 1, 1970 UTC.
@@ -329,21 +387,27 @@ Zero values of optional arguments are used if not provided.
 
 ---
 
-`add(t time, d duration) <time>`
+```gad
+add(t time, d duration) <time>
+```
 
 Deprecated: Use .Add method of time object.
 Returns the time of t+duration.
 
 ---
 
-`sub(t1 time, t2 time) <duration>`
+```gad
+sub(t1 time, t2 time) <duration>
+```
 
 Deprecated: Use .Sub method of time object.
 Returns the duration of t1-t2.
 
 ---
 
-`addDate(t time, years int, months int, days int) <time>`
+```gad
+addDate(t time, years int, months int, days int) <time>
+```
 
 Deprecated: Use .AddDate method of time object.
 Returns the time corresponding to adding the given number of
@@ -351,21 +415,27 @@ years, months, and days to t.
 
 ---
 
-`after(t1 time, t2 time) <bool>`
+```gad
+after(t1 time, t2 time) <bool>
+```
 
 Deprecated: Use .After method of time object.
 Reports whether the time t1 is after t2.
 
 ---
 
-`before(t1 time, t2 time) <bool>`
+```gad
+before(t1 time, t2 time) <bool>
+```
 
 Deprecated: Use .Before method of time object.
 Reports whether the time t1 is before t2.
 
 ---
 
-`format(t time, layout str) <str>`
+```gad
+format(t time, layout str) <str>
+```
 
 Deprecated: Use .Format method of time object.
 Returns a textual representation of the time value formatted according
@@ -373,7 +443,9 @@ to layout.
 
 ---
 
-`appendFormat(t time, b bytes, layout str) <bytes>`
+```gad
+appendFormat(t time, b bytes, layout str) <bytes>
+```
 
 Deprecated: Use .AppendFormat method of time object.
 It is like `Format` but appends the textual representation to b and
@@ -381,7 +453,9 @@ returns the extended buffer.
 
 ---
 
-`in(t time, loc Location) <time>`
+```gad
+in(t time, loc Location) <time>
+```
 
 Deprecated: Use .In method of time object.
 Returns a copy of t representing the same time t, but with the copy's
@@ -389,7 +463,9 @@ location information set to loc for display purposes.
 
 ---
 
-`round(t time, d duration) <time>`
+```gad
+round(t time, d duration) <time>
+```
 
 Deprecated: Use .Round method of time object.
 Round returns the result of rounding t to the nearest multiple of
@@ -397,13 +473,17 @@ duration.
 
 ---
 
-`truncate(t time, d duration) <time>`
+```gad
+truncate(t time, d duration) <time>
+```
 
 Deprecated: Use .Truncate method of time object.
 Truncate returns the result of rounding t down to a multiple of duration.
 
 ---
 
-`isTime(any) <bool>`
+```gad
+isTime(any) <bool>
+```
 
 Reports whether any value is of time type.

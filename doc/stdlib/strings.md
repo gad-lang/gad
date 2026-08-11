@@ -10,31 +10,41 @@
 
 ## Functions
 
-`contains(s str, substr str) <bool>`
+```gad
+contains(s str, substr str) <bool>
+```
 
 Reports whether substr is within s.
 
 ---
 
-`containsAny(s str, chars str) <bool>`
+```gad
+containsAny(s str, chars str) <bool>
+```
 
 Reports whether any char in chars are within s.
 
 ---
 
-`containsChar(s str, c char) <bool>`
+```gad
+containsChar(s str, c char) <bool>
+```
 
 Reports whether the char c is within s.
 
 ---
 
-`count(s str, substr str) <int>`
+```gad
+count(s str, substr str) <int>
+```
 
 Counts the number of non-overlapping instances of substr in s.
 
 ---
 
-`equalFold(s str, t str) <bool>`
+```gad
+equalFold(s str, t str) <bool>
+```
 
 EqualFold reports whether s and t, interpreted as UTF-8 strings,
 are equal under Unicode case-folding, which is a more general form of
@@ -42,7 +52,9 @@ case-insensitivity.
 
 ---
 
-`fields(s str) <array>`
+```gad
+fields(s str) <array>
+```
 
 Splits the string s around each instance of one or more consecutive white
 space characters, returning an array of substrings of s or an empty array
@@ -50,7 +62,9 @@ if s contains only white space.
 
 ---
 
-`fieldsFunc(s str, f func(char) bool) <array>`
+```gad
+fieldsFunc(s str, f func(char) bool) <array>
+```
 
 Splits the string s at each run of Unicode code points c satisfying f(c),
 and returns an array of slices of s. If all code points in s satisfy
@@ -58,54 +72,70 @@ f(c) or the string is empty, an empty array is returned.
 
 ---
 
-`hasPrefix(s str, prefix str) <bool>`
+```gad
+hasPrefix(s str, prefix str) <bool>
+```
 
 Reports whether the string s begins with prefix.
 
 ---
 
-`hasSuffix(s str, suffix str) <bool>`
+```gad
+hasSuffix(s str, suffix str) <bool>
+```
 
 Reports whether the string s ends with prefix.
 
 ---
 
-`index(s str, substr str) <int>`
+```gad
+index(s str, substr str) <int>
+```
 
 Returns the index of the first instance of substr in s, or -1 if substr
 is not present in s.
 
 ---
 
-`indexAny(s str, chars str) <int>`
+```gad
+indexAny(s str, chars str) <int>
+```
 
 Returns the index of the first instance of any char from chars in s, or
 -1 if no char from chars is present in s.
 
 ---
 
-`indexByte(s str, c char|int) <int>`
+```gad
+indexByte(s str, c char|int) <int>
+```
 
 Returns the index of the first byte value of c in s, or -1 if byte value
 of c is not present in s. c's integer value must be between 0 and 255.
 
 ---
 
-`indexChar(s str, c char) <int>`
+```gad
+indexChar(s str, c char) <int>
+```
 
 Returns the index of the first instance of the char c, or -1 if char is
 not present in s.
 
 ---
 
-`indexFunc(s str, f func(char) bool) <int>`
+```gad
+indexFunc(s str, f func(char) bool) <int>
+```
 
 Returns the index into s of the first Unicode code point satisfying f(c),
 or -1 if none do.
 
 ---
 
-`join(arr array, sep str) <str>`
+```gad
+join(arr array, sep str) <str>
+```
 
 Concatenates the string values of array arr elements to create a
 single string. The separator string sep is placed between elements in the
@@ -113,7 +143,9 @@ resulting string.
 
 ---
 
-`joinAnd(arr array, sep, lastSep str) <str>`
+```gad
+joinAnd(arr array, sep, lastSep str) <str>
+```
 
 Concatenates the string values of array arr elements to create a
 single string. The separator string sep is placed between elements
@@ -122,35 +154,45 @@ resulting string.
 
 ---
 
-`lastIndex(s str, substr str) <int>`
+```gad
+lastIndex(s str, substr str) <int>
+```
 
 Returns the index of the last instance of substr in s, or -1 if substr
 is not present in s.
 
 ---
 
-`lastIndexAny(s str, chars str) <int>`
+```gad
+lastIndexAny(s str, chars str) <int>
+```
 
 Returns the index of the last instance of any char from chars in s, or
 -1 if no char from chars is present in s.
 
 ---
 
-`lastIndexByte(s str, c char|int) <int>`
+```gad
+lastIndexByte(s str, c char|int) <int>
+```
 
 Returns the index of byte value of the last instance of c in s, or -1
 if c is not present in s. c's integer value must be between 0 and 255.
 
 ---
 
-`lastIndexFunc(s str, f func(char) bool) <int>`
+```gad
+lastIndexFunc(s str, f func(char) bool) <int>
+```
 
 Returns the index into s of the last Unicode code point satisfying f(c),
 or -1 if none do.
 
 ---
 
-`dict(f func(char) char, s str) <str>`
+```gad
+dict(f func(char) char, s str) <str>
+```
 
 Returns a copy of the string s with all its characters modified
 according to the mapping function f. If f returns a negative value, the
@@ -158,7 +200,9 @@ character is dropped from the string with no replacement.
 
 ---
 
-`padLeft(s str, padLen int, padWith any) <str>`
+```gad
+padLeft(s str, padLen int, padWith any) <str>
+```
 
 Returns a string that is padded on the left with the string `padWith` until
 the `padLen` length is reached. If padWith is not given, a white space is
@@ -166,7 +210,9 @@ used as default padding.
 
 ---
 
-`padRight(s str, padLen int, padWith any) <str>`
+```gad
+padRight(s str, padLen int, padWith any) <str>
+```
 
 Returns a string that is padded on the right with the string `padWith` until
 the `padLen` length is reached. If padWith is not given, a white space is
@@ -174,7 +220,9 @@ used as default padding.
 
 ---
 
-`repeat(s str, count int) <str>`
+```gad
+repeat(s str, count int) <str>
+```
 
 Returns a new string consisting of count copies of the string s.
 
@@ -183,7 +231,9 @@ Returns a new string consisting of count copies of the string s.
 
 ---
 
-`replace(s str, old str, new str, n int) <str>`
+```gad
+replace(s str, old str, new str, n int) <str>
+```
 
 Returns a copy of the string s with the first n non-overlapping instances
 of old replaced by new. If n is not provided or -1, it replaces all
@@ -191,7 +241,9 @@ instances.
 
 ---
 
-`split(s str, sep str, n int) <[str]>`
+```gad
+split(s str, sep str, n int) <[str]>
+```
 
 Splits s into substrings separated by sep and returns an array of
 the substrings between those separators.
@@ -204,7 +256,9 @@ n determines the number of substrings to return:
 
 ---
 
-`splitAfter(s str, sep str, n int) <[str]>`
+```gad
+splitAfter(s str, sep str, n int) <[str]>
+```
 
 Slices s into substrings after each instance of sep and returns an array
 of those substrings.
@@ -217,116 +271,150 @@ n determines the number of substrings to return:
 
 ---
 
-`title(s str) <str>`
+```gad
+title(s str) <str>
+```
 
 Deprecated: Returns a copy of the string s with all Unicode letters that
 begin words mapped to their Unicode title case.
 
 ---
 
-`toLower(s str) <str>`
+```gad
+toLower(s str) <str>
+```
 
 Returns s with all Unicode letters mapped to their lower case.
 
 ---
 
-`toTitle(s str) <str>`
+```gad
+toTitle(s str) <str>
+```
 
 Returns a copy of the string s with all Unicode letters mapped to their
 Unicode title case.
 
 ---
 
-`toUpper(s str) <str>`
+```gad
+toUpper(s str) <str>
+```
 
 Returns s with all Unicode letters mapped to their upper case.
 
 ---
 
-`toValidUTF8(s str, replacement str) <str>`
+```gad
+toValidUTF8(s str, replacement str) <str>
+```
 
 Returns a copy of the string s with each run of invalid UTF-8 byte
 sequences replaced by the replacement string, which may be empty.
 
 ---
 
-`trim(s str, cutset str) <str>`
+```gad
+trim(s str, cutset str) <str>
+```
 
 Returns a slice of the string s with all leading and trailing Unicode
 code points contained in cutset removed.
 
 ---
 
-`trimFunc(s str, f func(char) bool) <str>`
+```gad
+trimFunc(s str, f func(char) bool) <str>
+```
 
 Returns a slice of the string s with all leading and trailing Unicode
 code points satisfying f removed.
 
 ---
 
-`trimLeft(s str, cutset str) <str>`
+```gad
+trimLeft(s str, cutset str) <str>
+```
 
 Returns a slice of the string s with all leading Unicode code points
 contained in cutset removed.
 
 ---
 
-`trimLeftFunc(s str, f func(char) bool) <str>`
+```gad
+trimLeftFunc(s str, f func(char) bool) <str>
+```
 
 Returns a slice of the string s with all leading Unicode code points
 c satisfying f(c) removed.
 
 ---
 
-`trimPrefix(s str, prefix str) <str>`
+```gad
+trimPrefix(s str, prefix str) <str>
+```
 
 Returns s without the provided leading prefix string. If s doesn't start
 with prefix, s is returned unchanged.
 
 ---
 
-`trimRight(s str, cutset str) <str>`
+```gad
+trimRight(s str, cutset str) <str>
+```
 
 Returns a slice of the string s with all trailing Unicode code points
 contained in cutset removed.
 
 ---
 
-`trimRightFunc(s str, f func(char) bool) <str>`
+```gad
+trimRightFunc(s str, f func(char) bool) <str>
+```
 
 Returns a slice of the string s with all trailing Unicode code points
 c satisfying f(c) removed.
 
 ---
 
-`trimSpace(s str) <str>`
+```gad
+trimSpace(s str) <str>
+```
 
 Returns a slice of the string s, with all leading and trailing white
 space removed, as defined by Unicode.
 
 ---
 
-`trimSuffix(s str, suffix str) <str>`
+```gad
+trimSuffix(s str, suffix str) <str>
+```
 
 Returns s without the provided trailing suffix string. If s doesn't end
 with suffix, s is returned unchanged.
 
 ---
 
-`trunc(s str, maxLen int; emph="...") <str>`
+```gad
+trunc(s str, maxLen int; emph="...") <str>
+```
 
 Truncate s to maxLen concatenated with emph.
 
 ---
 
-`slitWords(s str|rawstr) <array>`
+```gad
+slitWords(s str|rawstr) <array>
+```
 
 Split words by spaces using regex `\s+`.
 If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
 
 ---
 
-`truncWords(s str|rawstr, max int; emph="...", atlimit=off) <str|rawstr>`
+```gad
+truncWords(s str|rawstr, max int; emph="...", atlimit=off) <str|rawstr>
+```
 
 Truncate words in s to maxLen concatenated with emph. If atlimit is Falsy,
 limits at word count equals to max, otherwise at length of s equals to max.

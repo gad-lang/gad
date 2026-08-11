@@ -45,7 +45,9 @@ fmt.println(bool(arg3))  // false, not scanned
 
 ## Functions
 
-`print(*any) <int>`
+```gad
+print(*any) <int>
+```
 
 Formats using the default formats for its operands and writes to standard
 output. Spaces are added between operands when neither is a str.
@@ -54,7 +56,9 @@ throws a runtime error.
 
 ---
 
-`printf(format str, *any) <int>`
+```gad
+printf(format str, *any) <int>
+```
 
 Formats according to a format specifier and writes to standard output.
 It returns the number of bytes written and any encountered write error
@@ -62,7 +66,9 @@ throws a runtime error.
 
 ---
 
-`println(*any) <int>`
+```gad
+println(*any) <int>
+```
 
 Formats using the default formats for its operands and writes to standard
 output. Spaces are always added between operands and a newline
@@ -71,7 +77,9 @@ write error throws a runtime error.
 
 ---
 
-`sprint(*any) <str>`
+```gad
+sprint(*any) <str>
+```
 
 Formats using the default formats for its operands and returns the
 resulting str. Spaces are added between operands when neither is a
@@ -79,13 +87,17 @@ str.
 
 ---
 
-`sprintf(format str, *any) <str>`
+```gad
+sprintf(format str, *any) <str>
+```
 
 Formats according to a format specifier and returns the resulting str.
 
 ---
 
-`sprintln(*any) <str>`
+```gad
+sprintln(*any) <str>
+```
 
 Formats using the default formats for its operands and returns the
 resulting str. Spaces are always added between operands and a newline
@@ -93,7 +105,9 @@ is appended.
 
 ---
 
-`sscan(str str, *scanArg) <int>`
+```gad
+sscan(str str, *scanArg) <int>
+```
 
 Scans the argument str, storing successive space-separated values into
 successive scanArg arguments. Newlines count as space. If no error is
@@ -102,7 +116,9 @@ is less than the number of arguments, a scan error is thrown.
 
 ---
 
-`sscanf(str str, format str, *scanArg) <int>`
+```gad
+sscanf(str str, format str, *scanArg) <int>
+```
 
 Scans the argument str, storing successive space-separated values into
 successive scanArg arguments as determined by the format. It returns the
@@ -111,7 +127,9 @@ Newlines in the input must match newlines in the format.
 
 ---
 
-`scanArg(typeName str) <scanArg>`
+```gad
+scanArg(typeName str) <scanArg>
+```
 
 Returns a `scanArg` object to scan a value of given type name in scan
 functions.
