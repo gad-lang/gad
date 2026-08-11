@@ -14,6 +14,17 @@ Returns the JSON encoding v or error.
 json := import("json")
 str(json.Marshal({a: 1, b: [2, 3]}))
 >>> "{\"a\":1,\"b\":[2,3]}"
+// scalars, dates and durations encode too (mined from json module tests):
+str(json.Marshal(nil))
+>>> "null"
+str(json.Marshal(true))
+>>> "true"
+str(json.Marshal("test"))
+>>> "\"test\""
+str(json.Marshal(dur 1h30m))
+>>> "\"1h30m0s\""
+str(json.Marshal(2026-01-31D))
+>>> "\"2026-01-31\""
 ```
 **/
 export Marshal(v any) <bytes> => nil
@@ -129,6 +140,9 @@ Unmarshal parses the JSON-encoded p and returns the result or error.
 json := import("json")
 json.Unmarshal(`{"a":1,"b":[2,3]}`).a
 >>> 1
+// a mixed JSON array decodes to a Gad array:
+json.Unmarshal(`[1,1.5,true,"x"]`)
+>>> [1, 1.5, true, "x"]
 ```
 **/
 export Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any> => nil
@@ -140,8 +154,8 @@ Reports whether p is a valid JSON encoding.
 
 ```gad
 json := import("json")
-[json.Valid(`{"x":1}`), json.Valid("bad")]
->>> [true, false]
+[json.Valid(`{"x":1}`), json.Valid("bad"), json.Valid("{")]
+>>> [true, false, false]
 ```
 **/
 export Valid(p bytes) <bool> => nil

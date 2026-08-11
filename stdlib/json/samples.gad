@@ -7,6 +7,17 @@
 json := import("json")
 str(json.Marshal({a: 1, b: [2, 3]}))
 //= "{\"a\":1,\"b\":[2,3]}"
+// scalars, dates and durations encode too (mined from json module tests):
+str(json.Marshal(nil))
+//= "null"
+str(json.Marshal(true))
+//= "true"
+str(json.Marshal("test"))
+//= "\"test\""
+str(json.Marshal(dur 1h30m))
+//= "\"1h30m0s\""
+str(json.Marshal(2026-01-31D))
+//= "\"2026-01-31\""
 //endsnippet
 
 //snippet MarshalIndent
@@ -59,10 +70,13 @@ str(json.Marshal(json.NoEscape("a<b>c")))
 json := import("json")
 json.Unmarshal(`{"a":1,"b":[2,3]}`).a
 //= 1
+// a mixed JSON array decodes to a Gad array:
+json.Unmarshal(`[1,1.5,true,"x"]`)
+//= [1, 1.5, true, "x"]
 //endsnippet
 
 //snippet Valid
 json := import("json")
-[json.Valid(`{"x":1}`), json.Valid("bad")]
-//= [true, false]
+[json.Valid(`{"x":1}`), json.Valid("bad"), json.Valid("{")]
+//= [true, false, false]
 //endsnippet

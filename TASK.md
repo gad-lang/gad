@@ -362,8 +362,14 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
   Standard Library inclui base64 (ref-stdlib-base64). use_base64.gad REMOVIDO.
 - Todos os 5 MODULE.gad (time/fmt/strings/json/base64) EXECUTAM via `gad doc`.
   use_*.gad TODOS removidos. `go test ./...` VERDE.
-- RESTA (menor): time since/until (não-determinísticos, scaffold), strings dict,
-  minerar testes p/ exemplos extras.
+### 2026-08-11 cont. 19 — minerar testes p/ exemplos extras
+- **json**: minerado stdlib/json/module_test.go — enriquecidos Marshal (nil→null,
+  true, "test", dur 1h30m→"1h30m0s", 2026-01-31D→date), Valid (+ caso inválido),
+  Unmarshal (array misto) com **múltiplos doctests por snippet** (recurso multi-check).
+  json.gad: 16 `>>>` executáveis. Valida EXIT 0.
+- stdlib/time/module_test.go e os_test.go são Go-level (gad.MustCall/time.Now()) —
+  não mineráveis como snippets gad com valores limpos.
+- RESTA (menor): time since/until (não-determinísticos, scaffold), strings dict.
 
 ## 2026-08-11 cont. 13 — stdlib refs: sig em ```gad, doc/stdlib/, submenu Stdlib
 - **Assinaturas de função** em stdlib-*.md saíam inline (`` `local() <Location>` ``);
