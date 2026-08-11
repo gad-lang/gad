@@ -398,6 +398,70 @@ wrap(caller callable, *args; **named) <function>
 Returns a new function that calls `caller` with `args`/`named` prepended —
 a partial application. Calling the wrapper appends its own arguments.
 
+Class(name str, define callable)
+Creates a class named `name`; `define` builds its fields, methods and
+properties (see the Classes chapter). Also written with the `class` keyword.
+(Returns the new class.)
+
+### addMethod
+
+```gad
+addMethod(target callable, *methods) <any>
+```
+
+Attaches typed method overloads to a callable or type, so the VM dispatches on
+argument types. Returns the target.
+
+### obstart
+
+```gad
+obstart() <buffer>
+```
+
+Starts capturing standard output into a fresh buffer, which it returns.
+Nested calls stack.
+
+### obend
+
+```gad
+obend() <buffer>
+```
+
+Stops the most recent output capture and returns its buffer (the captured
+output).
+
+### read
+
+```gad
+read(reader) <bytes>
+```
+
+Reads all remaining bytes from a reader.
+
+### write
+
+```gad
+write(writer, *data) <int>
+```
+
+Writes each data value to a writer and returns the number of bytes written.
+
+### close
+
+```gad
+close(o)
+```
+
+Closes a closable value (e.g. a reader/writer).
+
+### flush
+
+```gad
+flush(writer)
+```
+
+Flushes any buffered output of a writer.
+
 ## Example — `builtins.gad`
 
 ```gad
@@ -648,6 +712,49 @@ export implements(fn callable, mi) <bool> => nil
 /**
 Returns a new function that calls `caller` with `args`/`named` prepended —
 a partial application. Calling the wrapper appends its own arguments.
+
+Class(name str, define callable)
+Creates a class named `name`; `define` builds its fields, methods and
+properties (see the Classes chapter). Also written with the `class` keyword.
+(Returns the new class.)
 **/
 export wrap(caller callable, *args; **named) <function> => nil
+
+/**
+Attaches typed method overloads to a callable or type, so the VM dispatches on
+argument types. Returns the target.
+**/
+export addMethod(target callable, *methods) <any> => nil
+
+/**
+Starts capturing standard output into a fresh buffer, which it returns.
+Nested calls stack.
+**/
+export obstart() <buffer> => nil
+
+/**
+Stops the most recent output capture and returns its buffer (the captured
+output).
+**/
+export obend() <buffer> => nil
+
+/**
+Reads all remaining bytes from a reader.
+**/
+export read(reader) <bytes> => nil
+
+/**
+Writes each data value to a writer and returns the number of bytes written.
+**/
+export write(writer, *data) <int> => nil
+
+/**
+Closes a closable value (e.g. a reader/writer).
+**/
+export close(o) => nil
+
+/**
+Flushes any buffered output of a writer.
+**/
+export flush(writer) => nil
 ```

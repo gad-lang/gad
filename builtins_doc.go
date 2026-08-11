@@ -176,3 +176,32 @@ package gad
 // wrap(caller callable, *args; **named) <function>
 // Returns a new function that calls `caller` with `args`/`named` prepended —
 // a partial application. Calling the wrapper appends its own arguments.
+//
+// Class(name str, define callable)
+// Creates a class named `name`; `define` builds its fields, methods and
+// properties (see the Classes chapter). Also written with the `class` keyword.
+// (Returns the new class.)
+//
+// addMethod(target callable, *methods) <any>
+// Attaches typed method overloads to a callable or type, so the VM dispatches on
+// argument types. Returns the target.
+//
+// obstart() <buffer>
+// Starts capturing standard output into a fresh buffer, which it returns.
+// Nested calls stack.
+//
+// obend() <buffer>
+// Stops the most recent output capture and returns its buffer (the captured
+// output).
+//
+// read(reader) <bytes>
+// Reads all remaining bytes from a reader.
+//
+// write(writer, *data) <int>
+// Writes each data value to a writer and returns the number of bytes written.
+//
+// close(o) <nil>
+// Closes a closable value (e.g. a reader/writer).
+//
+// flush(writer) <nil>
+// Flushes any buffered output of a writer.
