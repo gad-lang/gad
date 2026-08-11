@@ -107,39 +107,39 @@ package gad
 // isError(o any) <bool>
 // Reports whether o is an error value.
 //
-// filter(iterable any, callback any) <iterator>
+// filter(it iterable, callback any) <iterator>
 // Returns a lazy iterator over the elements of iterable for which callback
 // returns a truthy value.
 //
-// map(iterable any, callback any; update=no, nokey=no) <iterator>
+// map(it iterable, callback any; update=no, nokey=no) <iterator>
 // Returns a lazy iterator applying callback to each element of iterable.
 // `update=yes` replaces elements in place; `nokey=yes` passes only the value to
 // the callback.
 //
-// each(iterable any, callback any) <any>
+// each(it iterable, callback any) <any>
 // Calls callback for every element of iterable (for its side effects) and
 // returns the iterable.
 //
-// reduce(iterable any, callback any, initial any) <any>
+// reduce(it iterable, callback any, initial any) <any>
 // Folds the elements of iterable with callback into a single value, starting
 // from initial (or the first element when initial is omitted).
 //
-// keys(o any) <iterator>
+// keys(it iterable) <iterator>
 // Returns a lazy iterator over the keys of a value.
 //
-// values(o any) <iterator>
+// values(it iterable) <iterator>
 // Returns a lazy iterator over the values of a value.
 //
-// items(o any) <iterator>
+// items(it iterable) <iterator>
 // Returns a lazy iterator over the key/value items of a value.
 //
-// iterate(o any) <iterator>
+// iterate(it iterable) <iterator>
 // Returns an iterator over a value.
 //
-// enumerate(o any) <iterator>
+// enumerate(it iterable) <iterator>
 // Returns a lazy iterator yielding each element paired with its index.
 //
-// collect(o any) <array>
+// collect(it iterable) <array>
 // Consumes an iterator or iterable into an array.
 //
 // toArray(*args) <array>

@@ -274,6 +274,9 @@ const (
 	BuiltinSourceType
 	BuiltinSourceFile
 	BuiltinEnvType
+	// BuiltinIterable is the builtin `iterable` interface: the structural type of
+	// values that can be iterated (see IsIterable / Iterabler).
+	BuiltinIterable
 
 	BuiltinEnd_
 )
@@ -369,6 +372,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"collect":       BuiltinCollect,
 	"enumerate":     BuiltinEnumerate,
 	"iterator":      BuiltinIterator,
+	"iterable":      BuiltinIterable,
 	"iteratorInput": BuiltinIteratorInput,
 	"zip":           BuiltinZipIterator,
 	"keyValue":      BuiltinKeyValue,
@@ -1032,6 +1036,7 @@ func init() {
 		Value:    BuiltinEnumerateFunc,
 	}
 	BuiltinObjects[BuiltinIterator] = TIterator
+	BuiltinObjects[BuiltinIterable] = IterableInterface
 	BuiltinObjects[BuiltinZipIterator] = TZipIterator
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{
 		FuncName: "iteratorInput",

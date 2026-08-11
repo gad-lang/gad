@@ -18,6 +18,28 @@ import "strings"
 // TInterface is the builtin `Interface` object type. It has no constructor.
 var TInterface = RegisterBuiltinType(BuiltinInterface, "Interface", Interface{}, nil)
 
+// IterableInterface is the builtin `iterable` interface: a value satisfies it
+// when it can be iterated. Its satisfaction is native — it delegates to
+// IsIterable (an iterator, a Go Iterabler, or a type with an `iterator` method)
+// rather than probing structural members — so it matches built-in iterables such
+// as arrays and dicts. It is used to type iteration-builtin arguments, e.g.
+// `filter(it iterable, callback)`.
+var IterableInterface = &Interface{
+	IName: "iterable",
+	Native: func(vm *VM, obj Object) (bool, error) {
+		if vm != nil {
+			return Iterable(vm, obj), nil
+		}
+		// Without a VM only the Go-level check is available (the iterator-method
+		// case needs the builtins).
+		switch obj.(type) {
+		case Iterator, Iterabler:
+			return true, nil
+		}
+		return false, nil
+	},
+}
+
 // Object types for the interface members. They are internal representations
 // carried inside an Interface constant, not user-constructible.
 var (
@@ -45,6 +67,11 @@ type Interface struct {
 	// captured value (bound at run time, see OpInterfaceBind) must have a
 	// signature matching each header, with `@self` standing for this interface.
 	ContextFuncs []*InterfaceContextFunc
+	// Native, when set, is a builtin interface's satisfaction check (e.g. the
+	// `iterable` interface delegates to IsIterable). It replaces the structural
+	// member check, so such interfaces can match Go-backed behaviour that is not
+	// expressed as Gad members. nil for interfaces compiled from source.
+	Native func(vm *VM, obj Object) (bool, error)
 }
 
 // InterfaceContextFunc is a context-function member of an interface: the source
@@ -166,6 +193,11 @@ func ifaceCacheableType(obj Object) (ObjectType, bool) {
 }
 
 func (i *Interface) canAssignVMUncached(vm *VM, obj Object) (bool, error) {
+	// A builtin interface with a native predicate (e.g. `iterable`) is satisfied
+	// by that predicate rather than by structural member probing.
+	if i.Native != nil {
+		return i.Native(vm, obj)
+	}
 	if vm != nil {
 		for _, sym := range i.Extends {
 			pv, err := vm.GetSymbolValue(sym)
