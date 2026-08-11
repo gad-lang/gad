@@ -10,6 +10,33 @@ import "encoding/base64"
 // members and the importable encoding/base64 module.
 var base64ModuleSpec = NewModuleSpecFromName("base64")
 
+// gad:doc
+// # base64 module
+//
+// Base64 encodings (Go's encoding/base64), available without an import as the
+// `base64` namespace. Each encoding is an `Encoding` value exposing
+// `EncodeToString(data bytes) <str>` and `DecodeString(s str) <bytes>`.
+//
+// ## Example
+//
+// ```gad
+// data := bytes("Gad Lang")
+// base64.StdEncoding.EncodeToString(data)
+// >>> "R2FkIExhbmc="
+// base64.RawStdEncoding.EncodeToString(data)
+// >>> "R2FkIExhbmc"
+// str(base64.StdEncoding.DecodeString("R2FkIExhbmc="))
+// >>> "Gad Lang"
+// ```
+//
+// ## Constants
+//
+// - `StdEncoding`: the standard padded base64 encoding (RFC 4648).
+// - `RawStdEncoding`: the standard base64 encoding without `=` padding.
+// - `URLEncoding`: the URL- and filename-safe padded base64 encoding.
+// - `RawURLEncoding`: the URL-safe base64 encoding without padding.
+// - `NewEncoding`: builds a custom `Encoding` from a 64-character alphabet.
+
 // base64Module is the `base64` builtin namespace (Go's encoding/base64),
 // available to scripts without an import.
 var base64Module = Dict{

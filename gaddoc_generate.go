@@ -13,6 +13,7 @@ package gad
 //go:generate go run ./cmd/gaddoc api . samples/stdlib/fmt.gad fmt
 //go:generate go run ./cmd/gaddoc api . samples/stdlib/strings.gad strings
 //go:generate go run ./cmd/gaddoc api . samples/stdlib/time.gad time
+//go:generate go run ./cmd/gaddoc api . samples/stdlib/base64.gad base64
 //go:generate go run ./cmd/gaddoc api ./stdlib/json samples/stdlib/json.gad json
 //go:generate go run ./cmd/gaddoc api . samples/builtins.gad builtins
 //go:generate go run ./cmd/gaddoc api . samples/types.gad types

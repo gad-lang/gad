@@ -419,6 +419,13 @@ func moduleData(module string) gad.Dict {
 		moduleDataCache[module] = d
 		return d
 	}
+	// base64 is a const-only builtin namespace (Go's encoding/base64); expose its
+	// encodings so `# base64 module` gad:doc resolves them.
+	if module == "base64" {
+		d := gad.Base64Module().ToDict()
+		moduleDataCache[module] = d
+		return d
+	}
 	// The root builtins are not an importable module; expose them as a flat dict
 	// (name -> object) so `# builtins module` gad:doc resolves every member.
 	if module == "builtins" {

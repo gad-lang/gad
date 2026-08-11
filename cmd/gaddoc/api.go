@@ -129,13 +129,30 @@ func normalizeSig(sig string) string {
 // (they reference the live module, absent in the stub).
 func neutralizeFences(lines []string) []string {
 	out := make([]string, len(lines))
-	for i, ln := range lines {
-		t := strings.TrimSpace(ln)
-		if t == "```gad" || t == "```Gad" {
-			out[i] = strings.Replace(ln, t, "```gad ignore", 1)
-		} else {
-			out[i] = ln
+	copy(out, lines)
+	for i := 0; i < len(out); i++ {
+		t := strings.TrimSpace(out[i])
+		if t != "```gad" && t != "```Gad" {
+			continue
 		}
+		// A fenced block that contains a `>>>` doctest assertion is a real,
+		// runnable example: leave it executable so `gad doc` verifies it. Purely
+		// illustrative fences (no assertion) are neutralized to `gad ignore`.
+		hasDoctest := false
+		j := i + 1
+		for ; j < len(out); j++ {
+			ct := strings.TrimSpace(out[j])
+			if ct == "```" {
+				break
+			}
+			if strings.HasPrefix(ct, ">>>") {
+				hasDoctest = true
+			}
+		}
+		if !hasDoctest {
+			out[i] = strings.Replace(out[i], t, "```gad ignore", 1)
+		}
+		i = j
 	}
 	return out
 }

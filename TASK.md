@@ -349,8 +349,20 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
   Mantido use_base64.gad (base64 ainda sem gad:samples).
 - TOTAL: **92 Examples** mesclados nos MODULE.gad (time 36, fmt 9, strings 43,
   json 4). Todos os 4 samples files: `gad doc` doctest OK. `go test ./...` VERDE.
-- RESTA (menor): json Compact/Quote/NoQuote/NoEscape/IndentCount/RawMessage
-  (assinaturas atípicas), time since/until (não-determinísticos), base64 setup,
+### 2026-08-11 cont. 18 — json restantes + base64 + fences executáveis
+- **Fix (importante)**: exemplos mesclados saíam ```gad ignore → doctests NÃO
+  executavam na doc final. Agora exampleDoc emite ```gad + converte `//= X`→`>>> X`
+  (forma de fence doctest); neutralizeFences preserva fences com `>>>` executáveis.
+  PROVA: teste negativo (`>>> WRONG`) faz `gad doc` FALHAR.
+- **json completo (10/10)**: Compact/IndentCount/RawMessage/Quote/NoQuote/NoEscape
+  autorados+validados (b40e08f).
+- **base64 configurado**: gad:doc (# base64 module + ## Example doctested + ##
+  Constants) em module_base64.go; wired no pipeline (gaddoc_generate/moduleData/
+  Makefile generate-docs/site.go stdlibOrder). doc/stdlib/base64.md gerado; submenu
+  Standard Library inclui base64 (ref-stdlib-base64). use_base64.gad REMOVIDO.
+- Todos os 5 MODULE.gad (time/fmt/strings/json/base64) EXECUTAM via `gad doc`.
+  use_*.gad TODOS removidos. `go test ./...` VERDE.
+- RESTA (menor): time since/until (não-determinísticos, scaffold), strings dict,
   minerar testes p/ exemplos extras.
 
 ## 2026-08-11 cont. 13 — stdlib refs: sig em ```gad, doc/stdlib/, submenu Stdlib
