@@ -378,6 +378,19 @@ func moduleData(module string) gad.Dict {
 	if d, ok := moduleDataCache[module]; ok {
 		return d
 	}
+	// The root builtins are not an importable module; expose them as a flat dict
+	// (name -> object) so `# builtins module` gad:doc resolves every member.
+	if module == "builtins" {
+		b := gad.NewBuiltins()
+		d := gad.Dict{}
+		for name, bt := range b.NameSet {
+			if obj := b.Objects[bt]; obj != nil {
+				d[name] = obj
+			}
+		}
+		moduleDataCache[module] = d
+		return d
+	}
 	var initFn gad.ModuleInitFunc
 	switch module {
 	case "time":

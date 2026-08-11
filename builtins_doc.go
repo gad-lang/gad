@@ -1,0 +1,108 @@
+// Copyright (c) 2020-2023 Ozan Hacıbekiroğlu.
+// Use of this source code is governed by a MIT License
+// that can be found in the LICENSE file.
+
+package gad
+
+// This file carries the `gad:doc` documentation for the root builtin functions
+// (those available without an import). `gaddoc api . samples/builtins_api.gad
+// builtins` renders it as the documented Gad API stub `samples/builtins_api.gad`.
+//
+// It is a work in progress: the type-conversion builtins (str/int/…), the
+// iteration/collection builtins (map/filter/reduce/…) and the I/O builtins are
+// still to be documented from their implementations and VM tests.
+
+// gad:doc
+// # builtins module
+//
+// Gad's **builtin functions** are available in every script without an
+// `import`. This page documents the builtins whose signatures are settled; the
+// remaining conversion, iteration and I/O builtins are still being typed.
+//
+// ## Functions
+//
+// len(val any; check=no) <int>
+// Returns the number of elements of a value that has a length (array, dict,
+// str, bytes, …). With `check=yes`, a value that has no length raises
+// `ErrNotLengther` instead of returning 0.
+//
+// cap(o any) <int>
+// Returns the capacity of an array or bytes value (0 for values without one).
+//
+// typeName(o any) <str>
+// Returns the type name of a value (e.g. "int", "array", "dict").
+//
+// typeof(o any) <type>
+// Returns the type object of a value.
+//
+// chars(s any) <array | error>
+// Returns the characters of a str/bytes as an array of `char`, or an error for
+// an unsupported value.
+//
+// copy(o any) <any>
+// Returns a shallow copy of a value (a new array/dict with the same elements).
+//
+// dcopy(o any) <any>
+// Returns a deep copy of a value, cloning nested arrays and dicts recursively.
+//
+// repeat(o any, count int) <any | error>
+// Returns a value (array/str/bytes) repeated `count` times, or an error for an
+// unsupported value.
+//
+// contains(o any, val any) <bool | error>
+// Reports whether a collection/str contains val (a dict key, an array element
+// or a substring), or an error for an unsupported value.
+//
+// repr(o any; indent=no) <str>
+// Returns the debug representation of a value; `indent=yes` pretty-prints it.
+//
+// isNil(o any) <bool>
+// Reports whether o is nil.
+//
+// isInt(o any) <bool>
+// Reports whether o is an int.
+//
+// isUint(o any) <bool>
+// Reports whether o is a uint.
+//
+// isFloat(o any) <bool>
+// Reports whether o is a float.
+//
+// isChar(o any) <bool>
+// Reports whether o is a char.
+//
+// isBool(o any) <bool>
+// Reports whether o is a bool.
+//
+// isStr(o any) <bool>
+// Reports whether o is a str.
+//
+// isRawStr(o any) <bool>
+// Reports whether o is a rawStr.
+//
+// isBytes(o any) <bool>
+// Reports whether o is a bytes value.
+//
+// isArray(o any) <bool>
+// Reports whether o is an array.
+//
+// isDict(o any) <bool>
+// Reports whether o is a dict.
+//
+// isSyncDict(o any) <bool>
+// Reports whether o is a syncDict.
+//
+// isFunction(o any) <bool>
+// Reports whether o is a function value.
+//
+// isCallable(o any) <bool>
+// Reports whether o can be called.
+//
+// isIterable(o any) <bool>
+// Reports whether o can be iterated.
+//
+// isIterator(o any) <bool>
+// Reports whether o is an iterator.
+//
+// isError(o any) <bool>
+// Reports whether o is an error value.
