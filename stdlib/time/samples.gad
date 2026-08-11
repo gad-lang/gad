@@ -4,9 +4,13 @@
 // `gad:samples` directive).
 
 //snippet utc
+time.isLocation(time.utc())
+//= true
 //endsnippet
 
 //snippet local
+time.isLocation(time.local())
+//= true
 //endsnippet
 
 //snippet monthString
@@ -20,21 +24,33 @@ time.weekdayString(0)
 //endsnippet
 
 //snippet durationString
+time.durationString(90 * time.Minute)
+//= "1h30m0s"
 //endsnippet
 
 //snippet durationNanoseconds
+time.durationNanoseconds(time.Second)
+//= 1000000000
 //endsnippet
 
 //snippet durationMicroseconds
+time.durationMicroseconds(time.Millisecond)
+//= 1000
 //endsnippet
 
 //snippet durationMilliseconds
+time.durationMilliseconds(time.Second)
+//= 1000
 //endsnippet
 
 //snippet durationSeconds
+time.durationSeconds(90 * time.Minute)
+//= 5400
 //endsnippet
 
 //snippet durationMinutes
+time.durationMinutes(90 * time.Minute)
+//= 90
 //endsnippet
 
 //snippet durationHours
@@ -48,21 +64,33 @@ time.parseDuration("2h30m") == 2 * time.Hour + 30 * time.Minute
 //endsnippet
 
 //snippet durationRound
+time.durationRound(time.parseDuration("1h17m30s"), time.Minute)
+//= dur 1h18m
 //endsnippet
 
 //snippet durationTruncate
+time.durationTruncate(time.parseDuration("1h17m30s"), time.Minute)
+//= dur 1h17m
 //endsnippet
 
 //snippet fixedZone
+time.isLocation(time.fixedZone("X+1", 3600))
+//= true
 //endsnippet
 
 //snippet loadLocation
+time.isLocation(time.loadLocation("UTC"))
+//= true
 //endsnippet
 
 //snippet isLocation
+[time.isLocation(time.utc()), time.isLocation(5)]
+//= [true, false]
 //endsnippet
 
 //snippet time
+time.isTime(time.time())
+//= true
 //endsnippet
 
 //snippet since
@@ -72,12 +100,18 @@ time.parseDuration("2h30m") == 2 * time.Hour + 30 * time.Minute
 //endsnippet
 
 //snippet date
+time.format(time.date(2026, 1, 31, 9, 0, 0, 0, time.utc()), "2006-01-02")
+//= "2026-01-31"
 //endsnippet
 
 //snippet now
+time.isTime(time.now())
+//= true
 //endsnippet
 
 //snippet parse
+time.format(time.parse("2006-01-02", "2026-01-31", time.utc()), "2006/01/02")
+//= "2026/01/31"
 //endsnippet
 
 //snippet strToDate
@@ -86,49 +120,83 @@ time.strToDate("2026-01-31").year()
 //endsnippet
 
 //snippet strToTime
+time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02")
+//= "2026-01-31"
 //endsnippet
 
 //snippet strToCalendarTime
+time.strToCalendarTime("2026-01-31 09:30:00.001").ns()
+//= 1000000
 //endsnippet
 
 //snippet strToDuration
+time.strToDuration("2h30m")
+//= dur 2h30m
 //endsnippet
 
 //snippet strToLocation
+time.isLocation(time.strToLocation("UTC"))
+//= true
 //endsnippet
 
 //snippet unix
+time.format(time.unix(1000000000, 0), "2006-01-02")
+//= "2001-09-08"
 //endsnippet
 
 //snippet add
+time.format(time.add(time.strToTime("2026-01-31T09:00:00Z"), 24 * time.Hour), "2006-01-02")
+//= "2026-02-01"
 //endsnippet
 
 //snippet sub
+time.sub(time.strToTime("2026-02-01T09:00:00Z"), time.strToTime("2026-01-31T09:00:00Z"))
+//= dur 24h
 //endsnippet
 
 //snippet addDate
+time.format(time.addDate(time.strToTime("2026-01-31T09:00:00Z"), 1, 0, 0), "2006-01-02")
+//= "2027-01-31"
 //endsnippet
 
 //snippet after
+time.after(time.strToTime("2026-02-01T00:00:00Z"), time.strToTime("2026-01-31T09:00:00Z"))
+//= true
 //endsnippet
 
 //snippet before
+time.before(time.strToTime("2026-01-31T09:00:00Z"), time.strToTime("2026-02-01T00:00:00Z"))
+//= true
 //endsnippet
 
 //snippet format
+time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02 15:04")
+//= "2026-01-31 09:00"
 //endsnippet
 
 //snippet appendFormat
+str(time.appendFormat(time.strToTime("2026-01-31T09:00:00Z"), bytes(""), "2006"))
+//= "2026"
 //endsnippet
 
 //snippet in
-//endsnippet
+time.format(time.in(time.strToTime("2026-01-31T09:00:00Z"), time.utc()), "15:04")
+//= "09:00"
 
 //snippet round
+time.format(time.round(time.strToTime("2026-01-31T09:37:52Z"), time.Hour), "15:04")
+//= "10:00"
 //endsnippet
 
 //snippet truncate
+time.format(time.truncate(time.strToTime("2026-01-31T09:37:52Z"), time.Hour), "15:04")
+//= "09:00"
 //endsnippet
 
 //snippet isTime
+[time.isTime(time.now()), time.isTime(5)]
+//= [true, false]
+//endsnippet
+
+//snippet round
 //endsnippet

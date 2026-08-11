@@ -4,133 +4,219 @@
 // `gad:samples` directive).
 
 //snippet contains
+strings.contains("hello", "ell")
+//= true
 //endsnippet
 
 //snippet containsAny
+strings.containsAny("hello", "aeiou")
+//= true
 //endsnippet
 
 //snippet containsChar
+strings.containsChar("hello", "e"[0])
+//= true
 //endsnippet
 
 //snippet count
+strings.count("banana", "a")
+//= 3
 //endsnippet
 
 //snippet equalFold
+strings.equalFold("Go", "GO")
+//= true
 //endsnippet
 
 //snippet fields
+strings.fields("  a b   c ")
+//= ["a", "b", "c"]
 //endsnippet
 
 //snippet fieldsFunc
+strings.fieldsFunc("a1b2c", func(c) => c >= "0"[0] && c <= "9"[0])
+//= ["a", "b", "c"]
 //endsnippet
 
 //snippet hasPrefix
+strings.hasPrefix("gopher", "go")
+//= true
 //endsnippet
 
 //snippet hasSuffix
+strings.hasSuffix("gopher", "her")
+//= true
 //endsnippet
 
 //snippet index
+strings.index("chicken", "ken")
+//= 4
 //endsnippet
 
 //snippet indexAny
+strings.indexAny("golang", "ln")
+//= 2
 //endsnippet
 
 //snippet indexByte
+strings.indexByte("golang", "g"[0])
+//= 0
 //endsnippet
 
 //snippet indexChar
+strings.indexChar("golang", "a"[0])
+//= 3
 //endsnippet
 
 //snippet indexFunc
+strings.indexFunc("go123", func(c) => c >= "0"[0] && c <= "9"[0])
+//= 2
 //endsnippet
 
 //snippet join
+strings.join(["a", "b", "c"], "-")
+//= "a-b-c"
 //endsnippet
 
 //snippet joinAnd
+strings.joinAnd(["a", "b", "c"], ", ", " and ")
+//= "a, b and c"
 //endsnippet
 
 //snippet lastIndex
+strings.lastIndex("go gopher", "go")
+//= 3
 //endsnippet
 
 //snippet lastIndexAny
+strings.lastIndexAny("golang", "ln")
+//= 4
 //endsnippet
 
 //snippet lastIndexByte
+strings.lastIndexByte("golang", "g"[0])
+//= 5
 //endsnippet
 
 //snippet lastIndexFunc
+strings.lastIndexFunc("1a2b", func(c) => c >= "0"[0] && c <= "9"[0])
+//= 2
 //endsnippet
 
 //snippet dict
 //endsnippet
 
 //snippet padLeft
+strings.padLeft("7", 3, "0")
+//= "007"
 //endsnippet
 
 //snippet padRight
+strings.padRight("7", 3, "0")
+//= "700"
 //endsnippet
 
 //snippet repeat
+strings.repeat("ab", 3)
+//= "ababab"
 //endsnippet
 
 //snippet replace
+strings.replace("oink oink", "k", "ky", 2)
+//= "oinky oinky"
 //endsnippet
 
 //snippet split
+strings.split("a,b,c", ",", -1)
+//= ["a", "b", "c"]
 //endsnippet
 
 //snippet splitAfter
+strings.splitAfter("a,b,c", ",", -1)
+//= ["a,", "b,", "c"]
 //endsnippet
 
 //snippet title
+strings.title("hello world")
+//= "Hello World"
 //endsnippet
 
 //snippet toLower
+strings.toLower("Go")
+//= "go"
 //endsnippet
 
 //snippet toTitle
+strings.toTitle("hello")
+//= "HELLO"
 //endsnippet
 
 //snippet toUpper
+strings.toUpper("go")
+//= "GO"
 //endsnippet
 
 //snippet toValidUTF8
+strings.toValidUTF8("abc", "?")
+//= "abc"
 //endsnippet
 
 //snippet trim
+strings.trim("xxhixx", "x")
+//= "hi"
 //endsnippet
 
 //snippet trimFunc
+strings.trimFunc("12hi34", func(c) => c >= "0"[0] && c <= "9"[0])
+//= "hi"
 //endsnippet
 
 //snippet trimLeft
+strings.trimLeft("xxhi", "x")
+//= "hi"
 //endsnippet
 
 //snippet trimLeftFunc
+strings.trimLeftFunc("12hi", func(c) => c >= "0"[0] && c <= "9"[0])
+//= "hi"
 //endsnippet
 
 //snippet trimPrefix
+strings.trimPrefix("gopher", "go")
+//= "pher"
 //endsnippet
 
 //snippet trimRight
+strings.trimRight("hixx", "x")
+//= "hi"
 //endsnippet
 
 //snippet trimRightFunc
+strings.trimRightFunc("hi12", func(c) => c >= "0"[0] && c <= "9"[0])
+//= "hi"
 //endsnippet
 
 //snippet trimSpace
+strings.trimSpace("  hi  ")
+//= "hi"
 //endsnippet
 
 //snippet trimSuffix
+strings.trimSuffix("gopher", "her")
+//= "gop"
 //endsnippet
 
 //snippet trunc
+strings.trunc("hello world", 8)
+//= "hello wo..."
 //endsnippet
 
 //snippet slitWords
+strings.slitWords("foo bar baz")
+//= ["foo", "bar", "baz"]
 //endsnippet
 
 //snippet truncWords
+strings.truncWords("one two three", 10)
+//= "one two..."
 //endsnippet

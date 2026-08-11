@@ -339,8 +339,19 @@ nameSymbolsOfTypedIdent/returnTypesOf (expandem type-param → símbolos da cons
   //=, print/f/ln retornam byte-count //=, scan família), json (Marshal/MarshalIndent/
   Unmarshal/Valid, cada com `json := import("json")`). MODULE.gad regenerado com
   `## Example`. Todos os 4 samples files: `gad doc` doctest OK.
-- RESTA: autorar exemplos p/ strings(45) + time(35 restantes); dobrar use_time/
-  use_strings; REMOVER use_*.gad; minerar testes.
+### 2026-08-11 cont. 17 — exemplos strings+time + remoção use_*.gad
+- **strings**: 43/44 membros com exemplo `//=` (dict fica scaffold — assinatura
+  atípica). Validado 1a tentativa (semânticas espelham Go). MODULE.gad: 43 Examples.
+- **time**: 36/40 membros (restam since/until não-determinísticos, `in` não é
+  export [nome reservado], Compact/etc. json atípicos). Durações via literal `dur`,
+  saídas determinísticas via `format()`. MODULE.gad: 36 Examples.
+- **use_*.gad REMOVIDOS** (fmt/json/strings/time — superados pelos samples.gad).
+  Mantido use_base64.gad (base64 ainda sem gad:samples).
+- TOTAL: **92 Examples** mesclados nos MODULE.gad (time 36, fmt 9, strings 43,
+  json 4). Todos os 4 samples files: `gad doc` doctest OK. `go test ./...` VERDE.
+- RESTA (menor): json Compact/Quote/NoQuote/NoEscape/IndentCount/RawMessage
+  (assinaturas atípicas), time since/until (não-determinísticos), base64 setup,
+  minerar testes p/ exemplos extras.
 
 ## 2026-08-11 cont. 13 — stdlib refs: sig em ```gad, doc/stdlib/, submenu Stdlib
 - **Assinaturas de função** em stdlib-*.md saíam inline (`` `local() <Location>` ``);
