@@ -3,7 +3,7 @@
 
 Gad's **builtin functions** are available in every script without an
 `import`. This page documents the builtins whose signatures are settled; the
-remaining conversion, iteration and I/O builtins are still being typed.
+remaining conversion, meta and operator builtins are still being typed.
 **/
 
 /**
@@ -145,3 +145,95 @@ export isIterator(o any) <bool> => nil
 Reports whether o is an error value.
 **/
 export isError(o any) <bool> => nil
+
+/**
+Returns a lazy iterator over the elements of iterable for which callback
+returns a truthy value.
+**/
+export filter(iterable any, callback any) <iterator> => nil
+
+/**
+Returns a lazy iterator applying callback to each element of iterable.
+`update=yes` replaces elements in place; `nokey=yes` passes only the value to
+the callback.
+**/
+export map(iterable any, callback any; update=no, nokey=no) <iterator> => nil
+
+/**
+Calls callback for every element of iterable (for its side effects) and
+returns the iterable.
+**/
+export each(iterable any, callback any) <any> => nil
+
+/**
+Folds the elements of iterable with callback into a single value, starting
+from initial (or the first element when initial is omitted).
+**/
+export reduce(iterable any, callback any, initial any) <any> => nil
+
+/**
+Returns a lazy iterator over the keys of a value.
+**/
+export keys(o any) <iterator> => nil
+
+/**
+Returns a lazy iterator over the values of a value.
+**/
+export values(o any) <iterator> => nil
+
+/**
+Returns a lazy iterator over the key/value items of a value.
+**/
+export items(o any) <iterator> => nil
+
+/**
+Returns an iterator over a value.
+**/
+export iterate(o any) <iterator> => nil
+
+/**
+Returns a lazy iterator yielding each element paired with its index.
+**/
+export enumerate(o any) <iterator> => nil
+
+/**
+Consumes an iterator or iterable into an array.
+**/
+export collect(o any) <array> => nil
+
+/**
+Returns its arguments collected into an array.
+**/
+export toArray(*args) <array> => nil
+
+/**
+Returns the collection sorted ascending; `less` is an optional comparator
+function `less(a, b) <bool>`.
+**/
+export sort(o any; less=nil) <_ any|error> => nil
+
+/**
+Returns the collection sorted descending; `less` is an optional comparator.
+**/
+export sortReverse(o any; less=nil) <_ any|error> => nil
+
+/**
+Writes its arguments to standard output and returns the number of bytes
+written.
+**/
+export print(*args) <int> => nil
+
+/**
+Writes format applied to args to standard output and returns the byte count.
+**/
+export printf(format str, *args) <int> => nil
+
+/**
+Writes its arguments and a trailing newline to standard output.
+**/
+export println(*args) <int> => nil
+
+/**
+Returns format applied to args as a str.
+**/
+export sprintf(format str, *args) <str> => nil
