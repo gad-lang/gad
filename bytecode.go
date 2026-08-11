@@ -398,6 +398,10 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 			t      ParamType
 			accept bool
 			last   = o.Params.Items[l-1]
+			// Resolve type symbols against this function's own closure (free vars),
+			// not the caller's frame — argument validation runs before the callee
+			// frame exists (see AcceptResolve / paramTypeSymbolValue).
+			resolveSym = func(s *SymbolInfo) (Object, error) { return o.paramTypeSymbolValue(vm, s) }
 		)
 		if last.Var {
 			l--
@@ -409,7 +413,7 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 				continue
 			}
 			arg := args.GetOnly(i)
-			if accept, err = t.Accept(vm, arg); err != nil {
+			if accept, err = t.AcceptResolve(vm, arg, resolveSym); err != nil {
 				return
 			} else if !accept {
 				// argType is only needed for the error message; resolve it here.
@@ -420,7 +424,7 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 		if last.Var {
 			t = last.TypesSymbols
 			args.WalkSkip(l, func(i int, arg Object) any {
-				if accept, err = t.Accept(vm, arg); err == nil && !accept {
+				if accept, err = t.AcceptResolve(vm, arg, resolveSym); err == nil && !accept {
 					err = NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), arg.Type().Name())
 				}
 				return err

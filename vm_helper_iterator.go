@@ -38,7 +38,7 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 			if nextMethod := mc.CallerMethodOfArgsTypes(ObjectTypeArray{obj.Type(), TAny}); nextMethod != nil {
 				if lenMethod := vm.Builtins.Get(BuiltinLen).(MethodCaller).CallerMethodOfArgsTypes(ObjectTypeArray{obj.Type()}); lenMethod != nil {
 					var lenValue Object
-					if lenValue, err = NewInvoker(vm, lenMethod).Invoke(Args{Array{obj}}, Dict{"check": Yes}.ToNamedArgs()); err == nil {
+					if lenValue, err = vm.Call(lenMethod, Args{Array{obj}}, Dict{"check": Yes}.ToNamedArgs()); err == nil {
 						switch t := lenValue.(type) {
 						case Int:
 							if t > math.MaxInt32 {
@@ -75,24 +75,13 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 				}
 				typeName += string(s) + "}"
 
-				var (
-					nextArgs   = Array{obj, nil}
-					nextCaller VMCaller
-				)
-
-				if nextCaller, err = NewInvoker(vm, nextMethod).ValidArgs(true).Caller(Args{nextArgs}, nil); err != nil {
-					return
-				}
-
-				vm.curFrame.Defer(func(ret *Object) {
-					nextCaller.Close()
-				})
+				nextArgs := Array{obj, nil}
 
 				it = NewIterator(
 					func(vm *VM) (state *IteratorState, err error) {
 						state = &IteratorState{}
 						var val Object
-						if val, err = NewInvoker(vm, startMethod).Invoke(Args{Array{obj}}, nil); err == nil {
+						if val, err = vm.Call(startMethod, Args{Array{obj}}, nil); err == nil {
 							if arr, ok := val.(Array); ok && len(arr) == 2 {
 								state.Value = arr[0]
 								if e, _ := arr[1].(*KeyValue); e != nil {
@@ -110,7 +99,7 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 					func(vm *VM, state *IteratorState) (err error) {
 						nextArgs[1] = state.Value
 						var val Object
-						if val, err = nextCaller.Call(); err == nil {
+						if val, err = vm.Call(nextMethod, Args{nextArgs}, nil); err == nil {
 							if val == Nil {
 								state.Mode = IteratorStateModeDone
 							} else if arr, ok := val.(Array); ok && len(arr) == 2 {

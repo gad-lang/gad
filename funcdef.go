@@ -25,6 +25,15 @@ func (t ParamType) String() string {
 // entry (a meti/interface, i.e. a TypeAssigner that is not an ObjectType) is
 // matched by its CanAssign check. An empty list accepts anything.
 func (t ParamType) Accept(vm *VM, obj Object) (ok bool, err error) {
+	return t.AcceptResolve(vm, obj, vm.GetSymbolValue)
+}
+
+// AcceptResolve is Accept with a custom symbol resolver. A compiled function
+// resolves its own free-var type symbols against its closure (see
+// CompiledFunction.paramTypeSymbolValue) rather than the current frame, because
+// argument validation runs before the callee's frame (and its free vars) exist —
+// resolving against vm.curFrame would read the caller's slots.
+func (t ParamType) AcceptResolve(vm *VM, obj Object, resolve func(*SymbolInfo) (Object, error)) (ok bool, err error) {
 	if len(t) == 0 {
 		ok = true
 		return
@@ -39,7 +48,7 @@ func (t ParamType) Accept(vm *VM, obj Object) (ok bool, err error) {
 		otDone bool
 	)
 	for _, symbol := range t {
-		if st, err = vm.GetSymbolValue(symbol); err != nil {
+		if st, err = resolve(symbol); err != nil {
 			return
 		}
 		if st == TAny {
