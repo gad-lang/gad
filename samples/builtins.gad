@@ -327,6 +327,12 @@ implementing UserDataStorage); throws otherwise.
 export userData(o any) <any> => nil
 
 /**
+Returns a standard stream of the running VM selected by `which` — "IN"/"OUT"/
+"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`.
+**/
+export stdio(which any) <any> => nil
+
+/**
 Creates a class named `name`; `define` builds its fields, methods and
 properties (see the Classes chapter). Also written with the `class` keyword.
 It returns a `classType`; calling that class type — `classType(…)` — yields a

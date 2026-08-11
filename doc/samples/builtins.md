@@ -507,6 +507,15 @@ userData(o any) <any>
 Returns the host-attached user data of a value that carries it (a Go value
 implementing UserDataStorage); throws otherwise.
 
+### stdio
+
+```gad
+stdio(which any) <any>
+```
+
+Returns a standard stream of the running VM selected by `which` — "IN"/"OUT"/
+"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`.
+
 ### Class
 
 ```gad
@@ -899,6 +908,12 @@ Returns the host-attached user data of a value that carries it (a Go value
 implementing UserDataStorage); throws otherwise.
 **/
 export userData(o any) <any> => nil
+
+/**
+Returns a standard stream of the running VM selected by `which` — "IN"/"OUT"/
+"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`.
+**/
+export stdio(which any) <any> => nil
 
 /**
 Creates a class named `name`; `define` builds its fields, methods and

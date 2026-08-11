@@ -37,6 +37,8 @@ right way:
 | `indexable`       | supports `obj[i]`                         |
 | `indexAssignable` | supports `obj[i] = v`                     |
 | `indexDeletable`  | supports deleting an index                |
+| `readable`        | can be read from (a reader/buffer)        |
+| `writable`        | can be written to (a writer/buffer)       |
 | `classType`       | is a class object (`Class(…)` / `class`)  |
 | `classInstance`   | is an instance of a class                 |
 
