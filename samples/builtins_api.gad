@@ -150,26 +150,26 @@ export isError(o any) <bool> => nil
 Returns a lazy iterator over the elements of iterable for which callback
 returns a truthy value.
 **/
-export filter(it iterable, callback any) <iterator> => nil
+export filter(it iterable, callback callable) <iterator> => nil
 
 /**
 Returns a lazy iterator applying callback to each element of iterable.
 `update=yes` replaces elements in place; `nokey=yes` passes only the value to
 the callback.
 **/
-export map(it iterable, callback any; update=no, nokey=no) <iterator> => nil
+export map(it iterable, callback callable; update=no, nokey=no) <iterator> => nil
 
 /**
 Calls callback for every element of iterable (for its side effects) and
 returns the iterable.
 **/
-export each(it iterable, callback any) <any> => nil
+export each(it iterable, callback callable) <any> => nil
 
 /**
 Folds the elements of iterable with callback into a single value, starting
 from initial (or the first element when initial is omitted).
 **/
-export reduce(it iterable, callback any, initial any) <any> => nil
+export reduce(it iterable, callback callable, initial any) <any> => nil
 
 /**
 Returns a lazy iterator over the keys of a value.

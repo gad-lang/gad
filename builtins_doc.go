@@ -107,20 +107,20 @@ package gad
 // isError(o any) <bool>
 // Reports whether o is an error value.
 //
-// filter(it iterable, callback any) <iterator>
+// filter(it iterable, callback callable) <iterator>
 // Returns a lazy iterator over the elements of iterable for which callback
 // returns a truthy value.
 //
-// map(it iterable, callback any; update=no, nokey=no) <iterator>
+// map(it iterable, callback callable; update=no, nokey=no) <iterator>
 // Returns a lazy iterator applying callback to each element of iterable.
 // `update=yes` replaces elements in place; `nokey=yes` passes only the value to
 // the callback.
 //
-// each(it iterable, callback any) <any>
+// each(it iterable, callback callable) <any>
 // Calls callback for every element of iterable (for its side effects) and
 // returns the iterable.
 //
-// reduce(it iterable, callback any, initial any) <any>
+// reduce(it iterable, callback callable, initial any) <any>
 // Folds the elements of iterable with callback into a single value, starting
 // from initial (or the first element when initial is omitted).
 //
