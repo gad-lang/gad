@@ -9,12 +9,12 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-// buildHtmlNodes parses a (balanced) raw HTML region into gadx Tag/Text AST
+// buildHTMLNodes parses a (balanced) raw HTML region into gadx Tag/Text AST
 // nodes, so the region compiles to gadx.Tag/gadx.Text elements — like the
 // pug-style tag syntax — instead of being written as raw HTML markup, and
 // transpiles back to pug-style gadx. Source positions of interpolation
 // expressions (`{expr}`) are preserved.
-func buildHtmlNodes(raw string, base source.Pos) (gnode.Stmts, []htmlSubError) {
+func buildHTMLNodes(raw string, base source.Pos) (gnode.Stmts, []htmlSubError) {
 	rewritten, blocks, errs := rewriteGadxBlocks(raw, base)
 	b := &htmlBuilder{src: rewritten, base: base, blocks: blocks}
 	nodes, _ := b.parseNodes(0)

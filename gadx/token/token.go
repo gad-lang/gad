@@ -11,7 +11,7 @@ const (
 	Indent
 	Outdent
 	Blank
-	Id
+	ID
 	ClassName
 	Tag
 	Text
@@ -37,7 +37,7 @@ const (
 	Var
 	Const
 	Enum
-	Html
+	HTML
 	TextBlock // @text — raw literal-text block
 	Para      // @p — paragraph block
 	Md        // @md — Markdown block
@@ -51,7 +51,7 @@ var tokNames = [...]string{
 	Indent:       "INDENT",
 	Outdent:      "OUTDENT",
 	Blank:        "BLANK",
-	Id:           "ID",
+	ID:           "ID",
 	ClassName:    "CLASS_NAME",
 	Tag:          "TAG",
 	Text:         "TEXT",
@@ -77,7 +77,7 @@ var tokNames = [...]string{
 	Var:          "VAR",
 	Const:        "CONST",
 	Enum:         "ENUM",
-	Html:         "HTML",
+	HTML:         "HTML",
 	TextBlock:    "TEXT_BLOCK",
 	Para:         "PARA",
 	Md:           "MD",

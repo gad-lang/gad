@@ -182,8 +182,8 @@ func convertStmt(s gnode.Stmt) gnode.Stmts {
 		return convertText(st)
 	case *TagStmt:
 		return convertTag(st)
-	case *HtmlStmt:
-		return convertHtml(st)
+	case *HTMLStmt:
+		return convertHTML(st)
 	default:
 		return gnode.Stmts{s}
 	}
@@ -829,11 +829,11 @@ func applyTagAttrs(call *gnode.CallExpr, attrs []*TagAttribute) {
 	}
 }
 
-// convertHtml lowers an HTML region by converting its parsed gadx child nodes
+// convertHTML lowers an HTML region by converting its parsed gadx child nodes
 // (TagStmt / TextStmt / …) the same way as any other gadx body, so the HTML
 // builds gadx.Tag / gadx.Text elements linked to the enclosing tag rather than
 // writing raw markup.
-func convertHtml(h *HtmlStmt) gnode.Stmts {
+func convertHTML(h *HTMLStmt) gnode.Stmts {
 	if len(h.Children) == 0 {
 		return nil
 	}

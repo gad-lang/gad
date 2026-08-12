@@ -23,7 +23,6 @@ type Parser struct {
 	scanner   *scanner
 	Token     gadparser.PToken
 	PrevToken gadparser.PToken
-	filename  string
 	comps     []*gadxnode.CompDecl
 	compStack []*gadxnode.CompDecl
 	// pendingDoc holds a `/** … */` doc comment awaiting the next statement: it
@@ -153,11 +152,11 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		return p.parseParaBlock()
 	case gadxtoken.Md:
 		return p.parseMdBlock()
-	case gadxtoken.Html:
-		return p.parseHtml()
+	case gadxtoken.HTML:
+		return p.parseHTML()
 	case gadxtoken.Tag:
 		return p.parseTag()
-	case gadxtoken.Id, gadxtoken.ClassName, gadxtoken.Attribute:
+	case gadxtoken.ID, gadxtoken.ClassName, gadxtoken.Attribute:
 		return p.parseTag()
 	case gadxtoken.If:
 		return p.parseIf()
@@ -428,20 +427,20 @@ func (p *Parser) parseMdBlock() *gadxnode.MdBlockStmt {
 	return mb
 }
 
-func (p *Parser) parseHtml() *gadxnode.HtmlStmt {
+func (p *Parser) parseHTML() *gadxnode.HTMLStmt {
 	tok := p.Token
-	p.expect(gadxtoken.Html)
+	p.expect(gadxtoken.HTML)
 
 	raw := stringData(tok, "value", tok.Literal)
 	base := posData(tok, "htmlPos")
 	if base == noBase {
 		base = tok.Pos
 	}
-	children, subErrs := buildHtmlNodes(raw, base)
+	children, subErrs := buildHTMLNodes(raw, base)
 	for _, e := range subErrs {
 		p.Error(e.pos, e.msg)
 	}
-	return &gadxnode.HtmlStmt{
+	return &gadxnode.HTMLStmt{
 		NodePos:  tok.Pos,
 		NodeEnd:  tok.Pos + source.Pos(len(tok.Literal)),
 		Children: children,
@@ -460,7 +459,7 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 	}
 
 	// Consume inline attributes (id, class, and `[ … ]` attribute groups).
-	for p.Token.Token == gadxtoken.Id ||
+	for p.Token.Token == gadxtoken.ID ||
 		p.Token.Token == gadxtoken.ClassName ||
 		p.Token.Token == gadxtoken.Attribute {
 		if p.Token.Token == gadxtoken.Attribute {
@@ -494,8 +493,8 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 func (p *Parser) parseInlineAttribute() *gadxnode.TagAttribute {
 	tok := p.Token
 	switch tok.Token {
-	case gadxtoken.Id:
-		p.expect(gadxtoken.Id)
+	case gadxtoken.ID:
+		p.expect(gadxtoken.ID)
 		attr := &gadxnode.TagAttribute{
 			Name:  "id",
 			Value: gnode.Str(stringData(tok, "value", ""), tok.Pos),

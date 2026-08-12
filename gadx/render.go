@@ -323,13 +323,3 @@ func changedPaths(files map[string]time.Time, base string) []string {
 	}
 	return out
 }
-
-func filesChanged(files map[string]time.Time) bool {
-	for p, mod := range files {
-		fi, err := os.Stat(p)
-		if err != nil || !fi.ModTime().Equal(mod) {
-			return true
-		}
-	}
-	return false
-}

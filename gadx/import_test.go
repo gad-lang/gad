@@ -1,7 +1,6 @@
 package gadx
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/gad-lang/gad"
@@ -27,33 +26,6 @@ func compileSrc(t *testing.T, src string) {
 	if err != nil {
 		t.Fatalf("compile: %v\nsrc: %s", err, src)
 	}
-}
-
-func compileAndRun(t *testing.T, src string, globals gad.Dict) string {
-	t.Helper()
-	builtins := AppendBuiltins(gad.NewBuiltins())
-	st := gad.NewSymbolTable(builtins.NameSet)
-	names := make([]string, 0, len(globals))
-	for name := range globals {
-		names = append(names, name)
-	}
-	if _, err := st.DefineGlobals(names); err != nil {
-		t.Fatal(err)
-	}
-	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
-		FallbackFunc: CompileFallback,
-		ModuleMap:    testModuleMap(),
-	}}
-	_, bc, err := Compile(st, []byte(src), opts)
-	if err != nil {
-		t.Fatalf("compile: %v\nsrc: %s", err, src)
-	}
-	var buf bytes.Buffer
-	vm := gad.NewVM(builtins.Build(), bc)
-	if _, err := vm.RunOpts(&gad.RunOpts{StdOut: &buf, Globals: globals}); err != nil {
-		t.Fatalf("run: %v", err)
-	}
-	return buf.String()
 }
 
 func TestCompileImportBare(t *testing.T) {

@@ -220,13 +220,13 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanMCode(); tok.Valid() {
 			return tok
 		}
-		if tok := s.scanHtml(); tok.Valid() {
+		if tok := s.scanHTML(); tok.Valid() {
 			return tok
 		}
 		if tok := s.scanTag(); tok.Valid() {
 			return tok
 		}
-		if tok := s.scanId(); tok.Valid() {
+		if tok := s.scanID(); tok.Valid() {
 			return tok
 		}
 		if tok := s.scanClassName(); tok.Valid() {
@@ -276,20 +276,6 @@ func (s *scanner) newToken(kind token.Token, literal, value string) gadparser.PT
 	}
 	if value != "" {
 		pt.Set("value", value)
-	}
-	return pt
-}
-
-func (s *scanner) newTokenWithData(kind token.Token, literal string, data map[string]string) gadparser.PToken {
-	pt := gadparser.PToken{
-		TokenLit: node.TokenLit{
-			Pos:     s.lastTokenPos,
-			Token:   kind,
-			Literal: literal,
-		},
-	}
-	for k, v := range data {
-		pt.Set(k, v)
 	}
 	return pt
 }
@@ -608,12 +594,12 @@ func (s *scanner) scanComment() gadparser.PToken {
 	return gadparser.PToken{}
 }
 
-var rgxId = regexp.MustCompile(`^#([\w-]+)(?:\s*\?\s*(.*)$)?`)
+var rgxID = regexp.MustCompile(`^#([\w-]+)(?:\s*\?\s*(.*)$)?`)
 
-func (s *scanner) scanId() gadparser.PToken {
-	if sm := rgxId.FindStringSubmatch(s.buffer); len(sm) != 0 {
+func (s *scanner) scanID() gadparser.PToken {
+	if sm := rgxID.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
-		pt := s.newToken(gadxtoken.Id, sm[0], sm[1])
+		pt := s.newToken(gadxtoken.ID, sm[0], sm[1])
 		pt.Set("condition", sm[2])
 		return pt
 	}
@@ -729,8 +715,6 @@ func (s *scanner) scanImportModule() gadparser.PToken {
 	}
 	return gadparser.PToken{}
 }
-
-var rgxSlot = regexp.MustCompile(`^@slot\s+([a-zA-Z_-]+\w*)(\((.*)\))?$`)
 
 func (s *scanner) readBalanced(start int, open, close byte) (string, int, bool) {
 	if start >= len(s.buffer) || s.buffer[start] != open {
@@ -891,12 +875,12 @@ func (s *scanner) scanSlotPass() gadparser.PToken {
 	return gadparser.PToken{}
 }
 
-// scanHtml scans a self-contained raw HTML region beginning with `<` — an
+// scanHTML scans a self-contained raw HTML region beginning with `<` — an
 // opening tag `<name …>` or a `<>` fragment. The region runs to its matching
 // close tag (spanning multiple lines if needed) and is stored verbatim as the
 // token value with its absolute base position; the parser turns it into write
 // calls, collapsing whitespace and evaluating `{ … }` interpolations.
-func (s *scanner) scanHtml() gadparser.PToken {
+func (s *scanner) scanHTML() gadparser.PToken {
 	if len(s.buffer) < 2 || s.buffer[0] != '<' {
 		return gadparser.PToken{}
 	}
@@ -906,22 +890,22 @@ func (s *scanner) scanHtml() gadparser.PToken {
 		return gadparser.PToken{}
 	}
 	base0 := source.Pos(s.file.Base + s.offset - len(s.buffer) - 1)
-	s.ensureHtmlComplete(0)
+	s.ensureHTMLComplete(0)
 	end, ok := htmlRegionEnd(s.buffer, 0)
 	if !ok {
 		return gadparser.PToken{}
 	}
 	raw := s.buffer[:end]
 	s.consume(end)
-	pt := s.newToken(gadxtoken.Html, raw, raw)
+	pt := s.newToken(gadxtoken.HTML, raw, raw)
 	pt.Set("htmlPos", base0)
 	return pt
 }
 
-// ensureHtmlComplete pulls additional source lines into the buffer until the
+// ensureHTMLComplete pulls additional source lines into the buffer until the
 // HTML region opened at s.buffer[start] closes, or input ends. The separating
 // newline is preserved so buffer offsets stay aligned with file offsets.
-func (s *scanner) ensureHtmlComplete(start int) {
+func (s *scanner) ensureHTMLComplete(start int) {
 	for {
 		if _, ok := htmlRegionEnd(s.buffer, start); ok {
 			return
@@ -1068,8 +1052,6 @@ func (s *scanner) scanDeclDirective(prefix string, tk token.Token) gadparser.PTo
 	return pt
 }
 
-var rgxFunc = regexp.MustCompile(`^@(export\s+)?func ([a-zA-Z_-]+\w*)(\((.*)\))?$`)
-
 func (s *scanner) scanFunc() gadparser.PToken {
 	line := s.buffer
 	exported := false
@@ -1119,9 +1101,6 @@ func (s *scanner) scanFunc() gadparser.PToken {
 	pt.Set("exported", fmt.Sprint(exported))
 	return pt
 }
-
-var rgxComp = regexp.MustCompile(`^@(export\s+)?comp ([a-zA-Z_-]+\w*)(\((.*)\))?$`)
-var rgxMainComp = regexp.MustCompile(`^@main\s*(\((.*)\))?$`)
 
 func (s *scanner) scanComp() gadparser.PToken {
 	line := s.buffer
@@ -1226,8 +1205,6 @@ func (s *scanner) scanCase() gadparser.PToken {
 	}
 	return gadparser.PToken{}
 }
-
-var rgxCompCall = regexp.MustCompile(`^\+([@\$A-Za-z_-]+[.\w]*)(\((.*)\)\s*(~?))?$`)
 
 func (s *scanner) scanCompCall() gadparser.PToken {
 	if !strings.HasPrefix(s.buffer, "+") {

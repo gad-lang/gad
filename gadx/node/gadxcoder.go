@@ -117,7 +117,7 @@ func (a *TagAttribute) writeGadx(ctx *GadxCodeWriteContext) {
 // WriteGadx emits the HTML region as pug-style gadx: its parsed children
 // (TagStmt / TextStmt / …) are written with their own WriteGadx, so
 // `<a href="/">Home</a>` transpiles to `a[href="/"]` with an indented `| Home`.
-func (h *HtmlStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+func (h *HTMLStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.WriteStmts(h.Children)
 }
 

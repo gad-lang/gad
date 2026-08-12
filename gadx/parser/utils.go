@@ -59,20 +59,12 @@ func parseGadAt(s string, base source.Pos, textMode bool) (_ node.Stmts, err err
 	return f.Stmts, err
 }
 
-func parseGadFirstStmt(s string, file *source.File, mixed bool) (node.Stmt, error) {
-	return parseGadFirstStmtAt(s, noBase, mixed)
-}
-
 func parseGadFirstStmtAt(s string, base source.Pos, mixed bool) (_ node.Stmt, err error) {
 	var stmts node.Stmts
 	if stmts, err = parseGadAt(s, base, mixed); err != nil {
 		return
 	}
 	return stmts[0], nil
-}
-
-func parseTextGad(s string) (node.Stmts, error) {
-	return parseTextGadAt(s, noBase)
 }
 
 // parseTextGadRawAt is like parseTextGadAt but keeps leading and trailing

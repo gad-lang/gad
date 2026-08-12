@@ -167,65 +167,12 @@ func gadxCallExpr(method string, pos source.Pos) *gnode.CallExpr {
 	return gnode.ECall(gnode.ESelector(gnode.EIdent("gadx", pos), gnode.Str(method, 0)), 0, 0)
 }
 
-func writeCallExpr(s string) *gnode.CallExpr {
-	return writeCallExprs(rawStrExpr(s))
-}
-
 func rawStrExpr(s string) gnode.Expr {
 	return gnode.EToRaw(0, gnode.Str(s, 0))
 }
 
-func writeCallExprs(expr ...gnode.Expr) *gnode.CallExpr {
-	call := &gnode.CallExpr{Func: gnode.EIdent("write", 0)}
-	call.Args.Values = expr
-	return call
-}
-
 func (t *TagStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 	ctx.WriteStmts(convertTag(t)...)
-}
-
-func buildAttrsCall(attrs []*TagAttribute, pos ...source.Pos) gnode.Expr {
-	call := gadxCallExpr("attrs", 0)
-	if len(pos) > 0 {
-		if !call.LParen.IsValid() {
-			call.LParen = pos[0]
-		}
-	}
-	if len(pos) > 1 {
-		if !call.RParen.IsValid() {
-			call.RParen = pos[1]
-		}
-	}
-	for _, attr := range attrs {
-		if attr == nil {
-			continue
-		}
-		if attr.Spread != nil {
-			call.NamedArgs.Append(&gnode.NamedArgExpr{Var: true, Exp: attr.Spread}, nil)
-			continue
-		}
-		if attr.Elements != nil {
-			for _, el := range attr.Elements.Elements {
-				if kv, ok := el.(*gnode.KeyValuePairLit); ok {
-					addNamedArg(call, exprKeyName(kv.Key), kv.Value)
-				}
-			}
-			continue
-		}
-		value := attr.Value
-		if value == nil {
-			if attr.IsFlag {
-				value = gnode.Str(attr.Name, 0)
-			} else {
-				value = gnode.Str("", 0)
-			}
-		}
-		addNamedArg(call, attr.Name, value)
-	}
-	writeCall := &gnode.CallExpr{Func: gnode.EIdent("write", 0)}
-	writeCall.Args.Values = append(writeCall.Args.Values, call)
-	return writeCall
 }
 
 func addNamedArg(call *gnode.CallExpr, name string, value gnode.Expr) {
@@ -244,10 +191,10 @@ func exprKeyName(e gnode.Expr) string {
 }
 
 // =============================================================================
-// HtmlStmt — a raw HTML region (`<tag …>…</tag>` or `<>…</>` fragment)
+// HTMLStmt — a raw HTML region (`<tag …>…</tag>` or `<>…</>` fragment)
 // =============================================================================
 
-type HtmlStmt struct {
+type HTMLStmt struct {
 	ast.NodeData
 	NodePos source.Pos
 	NodeEnd source.Pos
@@ -258,13 +205,13 @@ type HtmlStmt struct {
 	Children gnode.Stmts
 }
 
-func (h *HtmlStmt) Pos() source.Pos { return h.NodePos }
-func (h *HtmlStmt) End() source.Pos { return h.NodeEnd }
-func (h *HtmlStmt) StmtNode()       {}
-func (h *HtmlStmt) String() string  { return "gadx.Html" }
+func (h *HTMLStmt) Pos() source.Pos { return h.NodePos }
+func (h *HTMLStmt) End() source.Pos { return h.NodeEnd }
+func (h *HTMLStmt) StmtNode()       {}
+func (h *HTMLStmt) String() string  { return "gadx.HTML" }
 
-func (h *HtmlStmt) WriteCode(ctx *gnode.CodeWriteContext) {
-	ctx.WriteStmts(convertHtml(h)...)
+func (h *HTMLStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertHTML(h)...)
 }
 
 // =============================================================================

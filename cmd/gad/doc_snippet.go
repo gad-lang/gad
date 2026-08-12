@@ -624,38 +624,6 @@ func stripSnippetMarkers(src string) string {
 
 // dedent removes the longest common leading whitespace from the non-blank lines
 // and trims leading/trailing blank lines.
-func dedent(lines []string) string {
-	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
-		lines = lines[1:]
-	}
-	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
-		lines = lines[:len(lines)-1]
-	}
-	if len(lines) == 0 {
-		return ""
-	}
-
-	indent := -1
-	for _, ln := range lines {
-		if strings.TrimSpace(ln) == "" {
-			continue
-		}
-		n := len(ln) - len(strings.TrimLeft(ln, " \t"))
-		if indent < 0 || n < indent {
-			indent = n
-		}
-	}
-	if indent <= 0 {
-		return strings.Join(lines, "\n")
-	}
-	for i, ln := range lines {
-		if len(ln) >= indent {
-			lines[i] = ln[indent:]
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
 // evalGadExampleCapture runs src with the default builtins and module map,
 // capturing (and returning) its standard output alongside the last value.
 func evalGadExampleCapture(src string) (gad.Object, string, error) {

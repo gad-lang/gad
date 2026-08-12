@@ -15,12 +15,9 @@ func runForError(t *testing.T, src string) *gad.RuntimeError {
 
 	builtins := AppendBuiltins(gad.NewBuiltins())
 	st := gad.NewSymbolTable(builtins.NameSet)
-	names := make([]string, 0)
 	// Define any globals referenced by the templates so compilation succeeds;
 	// they default to nil, which is exactly what triggers the nil-call.
-	for _, n := range []string{"x", "y", "z", "w", "bad"} {
-		names = append(names, n)
-	}
+	names := []string{"x", "y", "z", "w", "bad"}
 	if _, err := st.DefineGlobals(names); err != nil {
 		t.Fatalf("define globals: %v", err)
 	}

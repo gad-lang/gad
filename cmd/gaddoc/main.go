@@ -337,9 +337,9 @@ func valueLiteral(module, name string) string {
 	if v == nil {
 		return ""
 	}
-	switch v.(type) {
+	switch v := v.(type) {
 	case gad.Str:
-		return strconv.Quote(string(v.(gad.Str)))
+		return strconv.Quote(string(v))
 	case gad.Int, gad.Uint, gad.Float, gad.Bool, gad.Char:
 		return v.ToString()
 	}
