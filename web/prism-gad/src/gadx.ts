@@ -60,13 +60,24 @@ export const gadxGrammar: Grammar = {
       rest: gadGrammar,
     },
   },
-  keyword: {
-    // Control keywords at line start: `@main`, `@if`, `@else`, `@for`, `@match`,
+  directive: {
+    // A `@`-control directive line: `@main`, `@if`, `@else`, `@for`, `@match`,
     // `@case`, `@var`, `@const`, `@enum`, `@global`, `@param`, `@func`, `@comp`,
-    // `@slot`,
-    // `@export`, `@assign`, `@import`, …
-    pattern: /(^[ \t]*)@[A-Za-z_]\w*/m,
+    // `@slot`, `@export`, `@assign`, `@import`, … The keyword itself is a keyword;
+    // the remainder of the line is a Gad fragment — for `@func`/`@comp`/`@main` a
+    // function signature carrying parameter types, type parameters
+    // (`[T constraint]`) and a return type (`<ret>`) — so it is highlighted as
+    // embedded Gad (mirroring the CodeMirror mode, which switches the rest of an
+    // `@`-line into Gad).
+    pattern: /(^[ \t]*)@[A-Za-z_]\w*.*/m,
     lookbehind: true,
+    inside: {
+      // A distinct key (aliased to `keyword`) so it is not overwritten by the
+      // `keyword` entry that `rest: gadGrammar` merges in — and so the whole
+      // `@name` is claimed before the Gad grammar can match the bare name.
+      "directive-name": { pattern: /^@[A-Za-z_]\w*/, alias: "keyword" },
+      rest: gadGrammar,
+    },
   },
   component: {
     // `+comp(...)` / `+mod.comp(...)` component calls.
