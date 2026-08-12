@@ -3,6 +3,7 @@ package parser
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	gadparser "github.com/gad-lang/gad/parser"
@@ -750,20 +751,189 @@ func expandImportDestructure(destructure, path string, pos source.Pos) string {
 // Function and component parameter parsing
 // =============================================================================
 
+// sigFuncPrefix is prepended to a directive signature to reconstruct a Gad func
+// expression for parsing.
+const sigFuncPrefix = "func "
+
+// parseGadxSignature turns a directive signature — `name`, `name(params)`,
+// `name[T constraint, …](params) <return>` — into a Gad FuncType by
+// reconstructing a func expression and parsing it with the Gad parser, so
+// parameter types, type parameters and return types are all supported. sigPos is
+// the source position of the signature's first character; the `func ` prefix is
+// compensated so the signature's tokens keep their original positions. Returns
+// nil when the text does not parse as a function.
+func parseGadxSignature(sig string, sigPos source.Pos) *gnode.FuncType {
+	// Map the signature's tokens back onto the original source: only the short
+	// `func ` prefix is compensated (parsing directly as a statement, rather than
+	// via parseExprStr, avoids the extra `return ` overhead — so positions still
+	// resolve even for directives that begin near the start of the file).
+	base := noBase
+	if sigPos != source.NoPos {
+		if b := sigPos - source.Pos(len(sigFuncPrefix)); b >= 1 {
+			base = b
+		}
+	}
+	stmt, err := parseGadFirstStmtAt(sigFuncPrefix+sig+" => nil", base, false)
+	if err != nil {
+		return nil
+	}
+	switch v := stmt.(type) {
+	case *gnode.FuncStmt:
+		if v.Func != nil {
+			return v.Func.Type
+		}
+	case *gnode.ExprStmt:
+		if fe, ok := v.Expr.(*gnode.FuncExpr); ok {
+			return fe.Type
+		}
+	}
+	return nil
+}
+
+// sigParts parses a directive signature at sigPos and returns its components,
+// falling back to (fallbackName, nil, empty, nil) when the signature does not
+// parse.
+func sigParts(sig string, sigPos source.Pos, fallbackName string) (name string, typeParams []*gnode.TypedIdentExpr, params *gnode.FuncParams, ret []*gnode.TypedIdentExpr) {
+	// A comp/func name may contain dashes, which are not valid in a Gad
+	// identifier. Replace them only within the leading name (same length, so
+	// parameter/type positions are unchanged); the real name comes from
+	// fallbackName.
+	parseSig := sig
+	if end := strings.IndexAny(sig, "[( "); end != 0 {
+		if end < 0 {
+			end = len(sig)
+		}
+		parseSig = strings.ReplaceAll(sig[:end], "-", "_") + sig[end:]
+	}
+	// gadx separates named parameters with `,`; Gad uses `;`. Rewrite it (a
+	// length-preserving one-byte change, so positions are kept).
+	parseSig = translateSigParams(parseSig)
+
+	ft := parseGadxSignature(parseSig, sigPos)
+	if ft == nil {
+		return fallbackName, nil, &gnode.FuncParams{}, nil
+	}
+	return fallbackName, ft.TypeParams, &ft.Params, ft.Return
+}
+
+// translateSigParams rewrites the gadx parameter list inside a signature's outer
+// `(…)` into Gad syntax (see gadxToGadParams), preserving positions.
+func translateSigParams(sig string) string {
+	op := strings.IndexByte(sig, '(')
+	if op < 0 {
+		return sig
+	}
+	cp := matchParen(sig, op)
+	if cp <= op {
+		return sig
+	}
+	return sig[:op+1] + gadxToGadParams(sig[op+1:cp]) + sig[cp:]
+}
+
+// sigParamsRaw returns the parameter list written inside the signature's outer
+// `(…)`, or "" when the signature has no parameter list.
+func sigParamsRaw(sig string) string {
+	op := strings.IndexByte(sig, '(')
+	if op < 0 {
+		return ""
+	}
+	cp := matchParen(sig, op)
+	if cp <= op {
+		return ""
+	}
+	return strings.TrimSpace(sig[op+1 : cp])
+}
+
+// matchParen returns the index of the `)` matching the `(` at open, or -1.
+func matchParen(s string, open int) int {
+	depth := 0
+	var quote byte
+	escaped := false
+	for i := open; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '"', '\'', '`':
+			quote = c
+		case '(':
+			depth++
+		case ')':
+			if depth--; depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// gadxToGadParams turns the comma before the first named parameter (`name=…` or
+// `**rest`) into a `;`, converting a gadx parameter list (positional and named
+// both comma-separated) into Gad syntax. The single-byte change preserves every
+// parameter's source position.
+func gadxToGadParams(params string) string {
+	parts := splitTopLevelArgs(params)
+	namedIdx := -1
+	for i, p := range parts {
+		tp := strings.TrimSpace(p)
+		if strings.HasPrefix(tp, "**") || topLevelAssignIndex(tp) >= 0 {
+			namedIdx = i
+			break
+		}
+	}
+	if namedIdx <= 0 {
+		return params
+	}
+	b := []byte(params)
+	depth, count := 0, 0
+	var quote byte
+	escaped := false
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		if quote != 0 {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '"', '\'', '`':
+			quote = c
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				if count++; count == namedIdx {
+					b[i] = ';'
+					return string(b)
+				}
+			}
+		}
+	}
+	return params
+}
+
 // parseFuncParams parses function parameters from an args string.
 func (p *Parser) parseFuncParams(argsStr string, pos source.Pos) *gnode.FuncParams {
 	params, err := parseFuncParamsString(argsStr)
 	if err != nil {
 		panic(fmt.Errorf("parsing func params failed: %v", err))
-	}
-	return params
-}
-
-// parseCompParams parses component parameters from an args string.
-func (p *Parser) parseCompParams(argsStr string, pos source.Pos) *gnode.FuncParams {
-	params, err := parseFuncParamsString(argsStr)
-	if err != nil {
-		panic(fmt.Errorf("parsing comp params failed: %v", err))
 	}
 	return params
 }
@@ -1183,17 +1353,19 @@ func (p *Parser) parseFunc() *gadxnode.FuncDecl {
 	tok := p.Token
 	p.expect(gadxtoken.Func)
 
-	argsStr := stringData(tok, "args", "")
+	sig := stringData(tok, "sig", "")
+	sigOff, _ := strconv.Atoi(stringData(tok, "sigoff", "0"))
 	exported := stringData(tok, "exported", "") == "true"
-	name := stringData(tok, "value", tok.Literal)
-	params := p.parseFuncParams(argsStr, tok.Pos)
+	name, typeParams, params, ret := sigParts(sig, tok.Pos+source.Pos(sigOff), stringData(tok, "value", tok.Literal))
 
 	f := &gadxnode.FuncDecl{
-		NodePos:   tok.Pos,
-		Name:      name,
-		Params:    params,
-		ParamsRaw: strings.TrimSpace(argsStr),
-		Exported:  exported,
+		NodePos:    tok.Pos,
+		Name:       name,
+		TypeParams: typeParams,
+		Params:     params,
+		Return:     ret,
+		ParamsRaw:  sigParamsRaw(sig),
+		Exported:   exported,
 	}
 
 	if p.Token.Token == gadxtoken.Indent {
@@ -1212,20 +1384,22 @@ func (p *Parser) parseComp() *gadxnode.CompDecl {
 	tok := p.Token
 	p.expect(gadxtoken.Comp)
 
-	name := stringData(tok, "value", tok.Literal)
-	argsStr := stringData(tok, "args", "")
+	sig := stringData(tok, "sig", "")
+	sigOff, _ := strconv.Atoi(stringData(tok, "sigoff", "0"))
 	exported := stringData(tok, "exported", "") == "true"
 	main := stringData(tok, "main", "") == "true"
-	params := p.parseCompParams(argsStr, tok.Pos)
+	name, typeParams, params, ret := sigParts(sig, tok.Pos+source.Pos(sigOff), stringData(tok, "value", tok.Literal))
 
 	comp := &gadxnode.CompDecl{
-		NodePos:   tok.Pos,
-		Name:      name,
-		ID:        strings.ReplaceAll(name, "-", "__"),
-		Params:    params,
-		ParamsRaw: strings.TrimSpace(argsStr),
-		Exported:  exported,
-		Main:      main,
+		NodePos:    tok.Pos,
+		Name:       name,
+		ID:         strings.ReplaceAll(name, "-", "__"),
+		TypeParams: typeParams,
+		Params:     params,
+		Return:     ret,
+		ParamsRaw:  sigParamsRaw(sig),
+		Exported:   exported,
+		Main:       main,
 	}
 
 	p.compStack = append(p.compStack, comp)

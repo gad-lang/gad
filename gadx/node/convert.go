@@ -231,6 +231,8 @@ func convertFuncDecl(f *FuncDecl) gnode.Stmts {
 	params := addSlotsParam(f.Params)
 	body := fragmentStmts(gnode.LNil(f.Pos()), convertBody(f.Body), f.Pos(), f.End())
 	fn := funcExpr(params, body, f.Pos(), f.End())
+	fn.Type.TypeParams = f.TypeParams
+	fn.Type.Return = f.Return
 	stmts := recursiveFuncStmts(f.Name, fn, f.Pos())
 	if f.Exported {
 		stmts = append(stmts, &gnode.ExportStmt{
@@ -270,6 +272,8 @@ func convertCompDecl(c *CompDecl) gnode.Stmts {
 	}
 	fnBody := fragmentStmts(gnode.LNil(c.Pos()), body, c.Pos(), c.End())
 	fn := funcExpr(addSlotsParam(c.Params), fnBody, c.Pos(), c.End())
+	fn.Type.TypeParams = c.TypeParams
+	fn.Type.Return = c.Return
 
 	stmts := recursiveFuncStmts(c.ID, fn, c.Pos())
 	if c.Exported {

@@ -309,6 +309,91 @@ Then import what your application resolver supports:
         +contact_form
 ```
 
+## Typed Signatures
+
+The `@comp`, `@func` and `@main` directives accept the full Gad function
+signature grammar: parameter types, type parameters (`[T constraint]`) and
+return types (`<ret>`). Each is lowered to the corresponding Gad function header,
+so the same syntax Gad functions use works verbatim in a template.
+
+### Parameter types
+
+Annotate a parameter with a type; the type is enforced when the component or
+function is called.
+
+```gadx
+@comp box(title str, count int)
+    div.box
+        h2 {= title}
+        span {= count}
+
+@func add(a int, b int) <int>
+    | {= a + b}
+
+@main
+    +box("Inbox", 3)
+    p Total: {= add(2, 3) }
+```
+
+Passing an argument of the wrong type raises a `TypeError` naming the parameter
+and both types (`expected int, found str`). Named parameters (after `;`) may
+carry both a type and a default:
+
+```gadx
+@comp badge(label str; kind str = "info")
+    span[class="badge badge--" + kind] {= label}
+```
+
+### Type parameters
+
+A `[T constraint, …]` list between the name and the parameters introduces type
+parameters. References to a type parameter in a parameter or return type are
+substituted by the constraint at compile time, and the constraint is enforced at
+call time.
+
+```gadx
+@func cell[T any](v T) <T>
+    | {= v}
+
+@comp list[T stringer](items array)
+    ul
+        @for it in items
+            li {= it}
+
+@main
+    p {= cell("x") }
+    +list(["a", "b"])
+```
+
+`@func inc[T number](v T)` rejects a non-number argument with
+`expected number, found str`.
+
+### Return types
+
+Declare a return type with `<ret>` after the parameter list. It documents the
+directive and participates in Gad's type checking where a concrete value is
+returned.
+
+```gadx
+@func total(items array) <int>
+    | {= len(items) }
+```
+
+### The `@main` entry point
+
+`@main` is an anonymous component and takes the same typed signature. Its
+parameters are supplied as template globals:
+
+```gadx
+@main(user str, count int)
+    p Hello {= user}, you have {= count} messages
+```
+
+Source positions of every signature part — parameter identifiers, parameter
+types, type parameters and return types — are preserved back to the exact
+offsets in the `.gadx` source, so type errors and editor navigation land on the
+right token. See [Source Positions](./source-positions.md).
+
 ## Composition Guidelines
 
 - Use components for repeated markup, not one-off tags.

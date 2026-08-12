@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -1077,27 +1078,18 @@ func (s *scanner) scanFunc() gadparser.PToken {
 		return gadparser.PToken{}
 	}
 	name := line[i:j]
-	rest := strings.TrimSpace(line[j:])
-	args := ""
-	consumed := j
-	if rest != "" {
-		if j >= len(line) || line[j] != '(' {
-			return gadparser.PToken{}
-		}
-		balanced, end, ok := s.readBalanced(j, '(', ')')
-		if !ok {
-			return gadparser.PToken{}
-		}
-		args = balanced[1 : len(balanced)-1]
-		if strings.TrimSpace(line[end:]) != "" {
-			return gadparser.PToken{}
-		}
-		consumed = len(line)
-	}
+	// The signature is the name plus the rest of the line: optional
+	// `[typeparams]`, `(params)` and `<return>`. It is validated and turned into a
+	// FuncType by the parser (via the Gad parser), so parameter types, type
+	// parameters and return types are all supported. sigoff records where the
+	// signature starts so its source positions are preserved.
+	sig := strings.TrimRight(line[i:], " \t")
+	consumed := len(line)
 	lit := line[:consumed]
 	s.consume(consumed)
 	pt := s.newToken(gadxtoken.Func, lit, name)
-	pt.Set("args", args)
+	pt.Set("sig", sig)
+	pt.Set("sigoff", strconv.Itoa(i))
 	pt.Set("exported", fmt.Sprint(exported))
 	return pt
 }
@@ -1105,37 +1097,23 @@ func (s *scanner) scanFunc() gadparser.PToken {
 func (s *scanner) scanComp() gadparser.PToken {
 	line := s.buffer
 	if strings.HasPrefix(line, "@main") {
-		rest := strings.TrimSpace(line[len("@main"):])
-		args := ""
-		consumed := len("@main")
-		if rest != "" {
-			if consumed >= len(line) || line[consumed] != ' ' {
-				return gadparser.PToken{}
-			}
-			start := consumed
-			for start < len(line) && line[start] == ' ' {
-				start++
-			}
-			if start >= len(line) || line[start] != '(' {
-				return gadparser.PToken{}
-			}
-			balanced, end, ok := s.readBalanced(start, '(', ')')
-			if !ok {
-				return gadparser.PToken{}
-			}
-			args = balanced[1 : len(balanced)-1]
-			if strings.TrimSpace(line[end:]) != "" {
-				return gadparser.PToken{}
-			}
-			consumed = len(line)
+		// `@main` is anonymous: its signature (optional `[typeparams]`, `(params)`
+		// and `<return>`) starts right after it. Only a boundary — end of line,
+		// space, `(` or `[` — separates it from an unrelated `@mainxyz` tag.
+		after := line[len("@main"):]
+		if after == "" || after[0] == ' ' || after[0] == '(' || after[0] == '[' {
+			i := len("@main") + (len(after) - len(strings.TrimLeft(after, " \t")))
+			sig := strings.TrimRight(line[i:], " \t")
+			consumed := len(line)
+			lit := line[:consumed]
+			s.consume(consumed)
+			pt := s.newToken(gadxtoken.Comp, lit, "main")
+			pt.Set("sig", sig)
+			pt.Set("sigoff", strconv.Itoa(i))
+			pt.Set("exported", "true")
+			pt.Set("main", "true")
+			return pt
 		}
-		lit := line[:consumed]
-		s.consume(consumed)
-		pt := s.newToken(gadxtoken.Comp, lit, "main")
-		pt.Set("args", args)
-		pt.Set("exported", "true")
-		pt.Set("main", "true")
-		return pt
 	}
 
 	exported := false
@@ -1161,27 +1139,15 @@ func (s *scanner) scanComp() gadparser.PToken {
 		return gadparser.PToken{}
 	}
 	name := line[i:j]
-	rest := strings.TrimSpace(line[j:])
-	args := ""
-	consumed := j
-	if rest != "" {
-		if j >= len(line) || line[j] != '(' {
-			return gadparser.PToken{}
-		}
-		balanced, end, ok := s.readBalanced(j, '(', ')')
-		if !ok {
-			return gadparser.PToken{}
-		}
-		args = balanced[1 : len(balanced)-1]
-		if strings.TrimSpace(line[end:]) != "" {
-			return gadparser.PToken{}
-		}
-		consumed = len(line)
-	}
+	// The signature is the name plus the rest of the line (optional
+	// `[typeparams]`, `(params)`, `<return>`), parsed by the parser (see scanFunc).
+	sig := strings.TrimRight(line[i:], " \t")
+	consumed := len(line)
 	lit := line[:consumed]
 	s.consume(consumed)
 	pt := s.newToken(gadxtoken.Comp, lit, name)
-	pt.Set("args", args)
+	pt.Set("sig", sig)
+	pt.Set("sigoff", strconv.Itoa(i))
 	pt.Set("exported", fmt.Sprint(exported))
 	return pt
 }

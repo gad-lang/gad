@@ -444,13 +444,18 @@ func (c *CodeStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 
 type FuncDecl struct {
 	ast.NodeData
-	NodePos   source.Pos
-	NodeEnd   source.Pos
-	Name      string
-	Params    *gnode.FuncParams
-	ParamsRaw string
-	Body      gnode.Stmts
-	Exported  bool
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Name    string
+	// TypeParams and Return carry the optional `[T constraint, …]` type-parameter
+	// list and the `<ret>` return type from the directive signature; nil when
+	// absent. Params holds the positional/named parameters (with their types).
+	TypeParams []*gnode.TypedIdentExpr
+	Params     *gnode.FuncParams
+	Return     []*gnode.TypedIdentExpr
+	ParamsRaw  string
+	Body       gnode.Stmts
+	Exported   bool
 	// Doc is the text of a `/** … */` doc comment immediately preceding the
 	// declaration, or "".
 	Doc string
@@ -479,17 +484,22 @@ func (f *FuncDecl) WriteCode(ctx *gnode.CodeWriteContext) {
 
 type CompDecl struct {
 	ast.NodeData
-	NodePos   source.Pos
-	NodeEnd   source.Pos
-	Name      string
-	ID        string
-	Params    *gnode.FuncParams
-	ParamsRaw string
-	Body      gnode.Stmts
-	Slots     []*SlotDecl
-	Comps     []*CompDecl
-	Exported  bool
-	Main      bool
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Name    string
+	ID      string
+	// TypeParams and Return carry the optional `[T constraint, …]` type-parameter
+	// list and the `<ret>` return type from the directive signature; nil when
+	// absent.
+	TypeParams []*gnode.TypedIdentExpr
+	Params     *gnode.FuncParams
+	Return     []*gnode.TypedIdentExpr
+	ParamsRaw  string
+	Body       gnode.Stmts
+	Slots      []*SlotDecl
+	Comps      []*CompDecl
+	Exported   bool
+	Main       bool
 	// Doc is the text of a `/** … */` doc comment immediately preceding the
 	// declaration, or "".
 	Doc string
