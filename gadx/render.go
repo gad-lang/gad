@@ -201,7 +201,9 @@ func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error 
 		mainRel := filePath
 		if base != "" {
 			if rel, err := filepath.Rel(base, filePath); err == nil {
-				mainRel = rel
+				// Report portable forward-slash paths to the callback regardless
+				// of the host OS (filepath.Rel yields `\` on Windows).
+				mainRel = filepath.ToSlash(rel)
 			}
 		}
 		for _, fn := range r.onRenderFuncs {
@@ -324,7 +326,7 @@ func changedPaths(files map[string]time.Time, base string) []string {
 			if err != nil {
 				rel = p
 			}
-			out = append(out, rel)
+			out = append(out, filepath.ToSlash(rel))
 		}
 	}
 	return out
