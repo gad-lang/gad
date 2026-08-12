@@ -453,15 +453,21 @@ func (e *TypedIdentExpr) End() source.Pos {
 
 func (e *TypedIdentExpr) String() string {
 	if e != nil {
-		if l := len(e.Type); l == 0 {
+		l := len(e.Type)
+		if l == 0 {
 			return e.Ident.String()
-		} else {
-			var s = make([]string, l)
-			for i, t := range e.Type {
-				s[i] = t.String()
-			}
-			return e.Ident.String() + " " + strings.Join(s, "|")
 		}
+		var s = make([]string, l)
+		for i, t := range e.Type {
+			s[i] = t.String()
+		}
+		types := strings.Join(s, "|")
+		// An unnamed entry (an unnamed union return type, `<int|str>`) has no
+		// leading name — render just the type union.
+		if name := e.Ident.String(); name != "" {
+			return name + " " + types
+		}
+		return types
 	}
 	return nullRep
 }
@@ -494,7 +500,9 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 		return
 	}
 
-	ctx.WriteString(e.Ident.String(), " ")
+	if name := e.Ident.String(); name != "" {
+		ctx.WriteString(name, " ")
+	}
 	ctx.Depth++ // continuation lines indent one extra level
 	ctx.WriteGreedy(len(e.Type), " | ", " |", func(i int) {
 		ctx.WriteString(e.Type[i].String())
@@ -504,7 +512,11 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 
 // writeInlineUnion renders `ident T1 | T2 | ...` on a single line.
 func (e *TypedIdentExpr) writeInlineUnion(ctx *CodeWriteContext) {
-	ctx.WriteString(e.Ident.String(), " ")
+	// An unnamed entry (an unnamed union return type, `<int|str>`) has no leading
+	// name — render just the union.
+	if name := e.Ident.String(); name != "" {
+		ctx.WriteString(name, " ")
+	}
 	for i, t := range e.Type {
 		if i > 0 {
 			ctx.WriteString(" | ")

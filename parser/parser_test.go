@@ -382,6 +382,15 @@ func TestFormatReturnUnion(t *testing.T) {
 		IndentedCode("func() <x int | bool> {\n\treturn 1\n}")
 	test.New(t, "func() <x int|bool, y str> { return 1 }").
 		IndentedCode("func() <x int | bool, y str> {\n\treturn 1\n}")
+
+	// Unnamed union return types (no leading name): `<int|str>`.
+	test.New(t, "func() <int|str> { return 1 }").
+		IndentedCode("func() <int | str> {\n\treturn 1\n}")
+	test.New(t, "func() <int|str|float> { return 1 }").
+		IndentedCode("func() <int | str | float> {\n\treturn 1\n}")
+	// An unnamed union may be mixed with further comma-separated return entries.
+	test.New(t, "func() <int|uint, str> { return 1 }").
+		IndentedCode("func() <int | uint, str> {\n\treturn 1\n}")
 }
 
 func TestFormatMixedMode(t *testing.T) {

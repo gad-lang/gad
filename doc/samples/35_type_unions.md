@@ -8,8 +8,10 @@ interfaces**.
 
 ## Type unions
 
-A parameter accepts a union of types with `|` directly: `func(v int|uint)`. To
-name a union or pass it around as a value, write `type <T1|T2|…>`:
+A union of types is written with `|` directly wherever a type is expected — a
+parameter type (`func(v int|uint)`), a type-parameter constraint (`[T int|uint]`)
+and a return type (`func() <int|str>`). To name a union or pass it around as a
+value, write `type <T1|T2|…>`:
 
 - **expression** — `const number = type <int|uint|float|decimal>`
 - **statement**  — `type number <int|uint|float|decimal>` (sugar for the const)
@@ -24,10 +26,12 @@ named union can appear inside another union (`str|number`). The builtin `number`
 ```gad
 type number <int|uint|float|decimal> // named union (statement form)
 addOne := func(v number) <number> => v + 1
+// inline unions need no naming — here in both a parameter and a return type
+pick := func(v int|str) <int|str> => v
 // nested: a union can contain another named union
 label := func(v str|number) => isStr(v) ? "text" : "num"
-[addOne(2), addOne(2.5), 1 :: number, label("hi"), label(3)]
-// => [3, 3.5, 1, "text", "num"]
+[addOne(2), addOne(2.5), pick(5), pick("x"), 1 :: number, label("hi"), label(3)]
+// => [3, 3.5, 5, "x", 1, "text", "num"]
 ```
 
 ## Behavioural interfaces
@@ -82,9 +86,11 @@ p := build(Point)
 ```gad
 type number <int|uint|float|decimal> // named union (statement form)
 addOne := func(v number) <number> => v + 1
+// inline unions need no naming — here in both a parameter and a return type
+pick := func(v int|str) <int|str> => v
 // nested: a union can contain another named union
 label := func(v str|number) => isStr(v) ? "text" : "num"
-[addOne(2), addOne(2.5), 1 :: number, label("hi"), label(3)]
+[addOne(2), addOne(2.5), pick(5), pick("x"), 1 :: number, label("hi"), label(3)]
 
 sum := func(xs iterable) { total := 0; for v in xs { total += v }; return total }
 apply := func(f callable, x) => f(x)

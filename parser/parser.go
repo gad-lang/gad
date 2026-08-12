@@ -2404,8 +2404,25 @@ func (p *Parser) ParseFuncReturnTypes() (types []*node.TypedIdentExpr) {
 	p.SkipSpace()
 
 	for p.Token.Token != token.Greater && p.Token.Token != token.EOF {
-		types = append(types, p.ParseTypedIdent())
+		ti := p.ParseTypedIdent()
 		p.SkipSpace()
+
+		// An unnamed union return type (`<int|str>`): ParseTypedIdent read the
+		// first member as the ident and stopped at `|` (a named return `<x int|str>`
+		// is already handled by ParseTypes). Fold that member and the trailing
+		// `| member` list into the type set, leaving the entry unnamed so the
+		// return may be any of the union's types.
+		if len(ti.Type) == 0 && p.Token.Token == token.Or {
+			ti.Type = []*node.TypeExpr{node.EType(ti.Ident)}
+			for p.Token.Token == token.Or {
+				p.Next() // consume '|'
+				p.SkipSpace()
+				ti.Type = append(ti.Type, p.parseType())
+				p.SkipSpace()
+			}
+			ti.Ident = node.EIdent("", ti.Ident.Pos())
+		}
+		types = append(types, ti)
 
 		if p.Token.Token != token.Comma {
 			break

@@ -26,12 +26,21 @@ param (; x, y = 1, **named)        // named only (with defaults)
 param (a, *rest; x, y = 1, **nx)   // mixed
 ```
 
+A `param` (and a `global`) name may carry a **type** — a single type, a `|` union
+or an interface — enforced when a value is bound. `var` and `const` are untyped.
+
+```gad ignore
+param (a int, b str)               // typed positionals
+param (id int|uint; page int = 1)  // typed union; typed named with default
+```
+
 ## global
 
 `global` declares variables backed by the host-provided globals object (`@g`) —
 how an embedding Go program exchanges data with a script. A grouped `global (…)`
 may give defaults: `name = value` applies when the global is nil or absent (like
-`??=`), `name !?= value` only when it is absent.
+`??=`), `name !?= value` only when it is absent. A global may also be typed
+(`global (page int = 1)`).
 
 @snippet global
 
