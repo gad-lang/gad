@@ -71,7 +71,12 @@ type Render struct {
 	templateCache  map[string]*templateCacheEntry
 	onRenderFuncs  []func(first bool, mainFile string, files []string, lastTime time.Time, err error)
 	cachedBuiltins *gad.Builtins
-	builtinsOnce   sync.Once
+	// cachedStatic is the built (immutable) form of cachedBuiltins, produced once
+	// under builtinsOnce. Building mutates shared builtin source objects (lazy
+	// caches), so it must happen single-threaded; renders then reuse this
+	// read-only result instead of calling Build() concurrently.
+	cachedStatic *gad.StaticBuiltins
+	builtinsOnce sync.Once
 }
 
 // NewRender creates a Render with the given workDir. Non-empty paths are
@@ -215,7 +220,7 @@ func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error 
 	if _, err := st.DefineGlobals(globalNames); err != nil {
 		return err
 	}
-	e := gad.NewEval(entry.builtins.Build(), st, gad.CompileOptions{}, &gad.RunOpts{StdOut: out, Globals: gad.Dict(globals)})
+	e := gad.NewEval(r.cachedStatic, st, gad.CompileOptions{}, &gad.RunOpts{StdOut: out, Globals: gad.Dict(globals)})
 	// Reuse the compiled template's interface-satisfaction cache across renders;
 	// it is reset only when the template recompiles (a fresh entry, above), so
 	// `obj :: Interface` checks in the template are validated once per type.
@@ -246,6 +251,7 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 			builtinsFn = func() *gad.Builtins { return gad.NewBuiltins() }
 		}
 		r.cachedBuiltins = AppendBuiltins(builtinsFn())
+		r.cachedStatic = r.cachedBuiltins.Build()
 	})
 
 	tr := newTrackingReader()
