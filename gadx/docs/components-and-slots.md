@@ -344,6 +344,23 @@ carry both a type and a default:
     span[class="badge badge--" + kind] {= label}
 ```
 
+### Type unions
+
+Every typed position accepts a **type union** written with `|` — in a parameter
+type, a type-parameter constraint and a return type alike. A union member may be
+a concrete type, a named interface or an inline `interface { … }`.
+
+```gadx
+@func format(v int|str|float) <str>
+    | {= str(v) }
+
+@comp cell[T int|uint](v T)
+    td {= v}
+
+@func pick(v int|str) <int|str>
+    | {= v}
+```
+
 ### Type parameters
 
 A `[T constraint, …]` list between the name and the parameters introduces type
@@ -372,11 +389,14 @@ call time.
 
 Declare a return type with `<ret>` after the parameter list. It documents the
 directive and participates in Gad's type checking where a concrete value is
-returned.
+returned. The return type may itself be a `|` union (`<int|str>`).
 
 ```gadx
 @func total(items array) <int>
     | {= len(items) }
+
+@func idOrName(v int|str) <int|str>
+    | {= v }
 ```
 
 ### The `@main` entry point

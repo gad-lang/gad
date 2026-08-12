@@ -1117,10 +1117,14 @@ func (p *Parser) parseGlobal() *gadxnode.GlobalStmt {
 		return s
 	}
 
-	// Legacy space-separated names (no comma, `=` or newline) → comma-separated.
+	// Legacy space-separated names (no comma, `=` or newline) → comma-separated:
+	// `@global a b c` declares three globals. This applies only to the bare form;
+	// the parenthesized form (`@global (x int)`) is passed verbatim so it can
+	// carry typed names — `x int` there is one typed global, not two.
 	content := inner
 	verbatim := true
-	if !strings.ContainsAny(inner, ",=\n") {
+	isParen, _ := tok.Get("paren").(bool)
+	if !isParen && !strings.ContainsAny(inner, ",=\n") {
 		content = strings.Join(strings.Fields(inner), ", ")
 		verbatim = content == inner
 	}

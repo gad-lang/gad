@@ -1029,6 +1029,7 @@ func (s *scanner) scanDeclDirective(prefix string, tk token.Token) gadparser.PTo
 		inner      string
 		innerStart int
 		consumed   int
+		paren      bool
 	)
 	if s.buffer[start] == '(' {
 		s.ensureBalanced(start, '(', ')')
@@ -1039,6 +1040,7 @@ func (s *scanner) scanDeclDirective(prefix string, tk token.Token) gadparser.PTo
 		inner = balanced[1 : len(balanced)-1]
 		innerStart = start + 1
 		consumed = end
+		paren = true
 	} else {
 		inner = s.buffer[start:]
 		innerStart = start
@@ -1050,6 +1052,10 @@ func (s *scanner) scanDeclDirective(prefix string, tk token.Token) gadparser.PTo
 	s.consume(consumed)
 	pt := s.newToken(tk, lit, strings.TrimSpace(inner))
 	pt.Set("innerPos", base0+source.Pos(innerStart+lead))
+	// Record whether the declaration was written in parenthesized form. `@global`
+	// applies its legacy space-separated-names rewrite only to the bare form, so
+	// the parenthesized form stays verbatim Gad (and can carry typed names).
+	pt.Set("paren", paren)
 	return pt
 }
 

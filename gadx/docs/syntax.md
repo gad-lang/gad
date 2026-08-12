@@ -352,6 +352,9 @@ lines are all accepted. Indentation inside the parentheses is ignored.
 
 Each form compiles to a Gad grouped declaration, e.g. `var (a, b={name: "test"}, x)`.
 
+`@var` names are **untyped** (Gad's `var`/`const` have no type annotation — only
+`@param`/`@global` do); `@var x int` is a parse error, not a typed variable.
+
 ## Constant Declarations
 
 Declare immutable constants with `@const`. It accepts the same single,
@@ -420,6 +423,22 @@ The `= v` / `!?= v` defaults lower onto Gad's [`global` defaults](../../gad/doc/
 also be provided through the Go symbol table — the CMS example passes one global
 named `Model`.
 
+A global may also carry a **type** — like a `@param`, and unlike `@var`/`@const`,
+which are untyped. Because the bare form keeps its legacy space-separated-names
+meaning (`@global a b` declares two globals), a typed global uses the
+**parenthesized** form:
+
+```gadx
+@global (x int)              // typed
+@global (x int, y str)       // several typed globals
+@global (id int|uint)        // a type union
+@global (page int = 1)       // typed, `= v` nil-or-absent default
+@global (user str !?= "guest") // typed, `!?= v` absent-only default
+```
+
+The type is a Gad type expression, so it may be a single type, a `|` union, a
+named interface or an inline `interface { … }`.
+
 ## Params
 
 Declare the parameters the compiled template receives with `@param`, the gadx
@@ -444,3 +463,15 @@ scope. Positional parameters have no defaults (a default requires the named
 section after `;`); a named parameter's default applies when its argument is
 absent. Unlike `@global` (which reads ambient values), `@param` values are the
 arguments supplied when the template is invoked. See `samples/gadx/param.gadx`.
+
+Parameters may be **typed** — again like Gad's `param`, and unlike `@var`/`@const`:
+
+```gadx
+@param a int                    // typed positional
+@param (a int, b str)           // several typed positionals
+@param (id int|uint)            // a type union
+@param (a int; b int = 2)       // positional typed; named typed with default
+```
+
+The type is a Gad type expression (a single type, a `|` union, a named interface
+or an inline `interface { … }`), enforced when the template is invoked.
