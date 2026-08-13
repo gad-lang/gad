@@ -10,7 +10,7 @@ class GadRunConfigurationType : ConfigurationTypeBase(
     ID,
     "Gad",
     "Run or debug a Gad script (.gad / .gadt / .gadx)",
-    GadIcons.FILE,
+    GadIcons.LOGO,
 ) {
     init {
         addFactory(GadConfigurationFactory(this))

@@ -23,8 +23,26 @@
     <resource-bundle>messages.GadBundle</resource-bundle>
 
     <extensions defaultExtensionNamespace="com.intellij">
-        <!-- Custom file icons for the three dialects (TextMate owns highlighting). -->
-        <fileIconProvider implementation="dev.gad.intellij.lang.GadFileIconProvider"/>
+        <!-- Real file types for the three dialects: they appear in
+             Settings ▸ Editor ▸ File Types with the Gad icon and give run/debug a
+             solid file association. -->
+        <fileType name="Gad" fieldName="INSTANCE" language="Gad" extensions="gad"
+                  implementationClass="dev.gad.intellij.lang.GadFileType"/>
+        <fileType name="Gad Template" fieldName="INSTANCE" language="Gad" extensions="gadt"
+                  implementationClass="dev.gad.intellij.lang.GadTemplateFileType"/>
+        <fileType name="Gadx" fieldName="INSTANCE" language="Gad" extensions="gadx"
+                  implementationClass="dev.gad.intellij.lang.GadxFileType"/>
+
+        <!-- Highlighting: delegate to the bundled TextMate grammars, which resolve
+             the grammar by file name. -->
+        <lang.syntaxHighlighterFactory language="Gad"
+            implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateSyntaxHighlighterFactory"/>
+        <editorHighlighterProvider filetype="Gad"
+            implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+        <editorHighlighterProvider filetype="Gad Template"
+            implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+        <editorHighlighterProvider filetype="Gadx"
+            implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
 
         <!-- Persisted settings + the Settings UI page. -->
         <applicationService serviceImplementation="dev.gad.intellij.settings.GadSettings"/>
@@ -41,11 +59,9 @@
 
         <!-- Debugger: line/conditional breakpoints for Gad files. -->
         <xdebugger.breakpointType implementation="dev.gad.intellij.debug.GadBreakpointType"/>
-    </extensions>
 
-    <!-- Ship the VS Code extension's grammars as a TextMate bundle (single source
-         of truth for highlighting across the two editor plugins). -->
-    <extensions defaultExtensionNamespace="com.intellij">
+        <!-- Ship the VS Code extension's grammars as a TextMate bundle (single
+             source of truth for highlighting across the two editor plugins). -->
         <textmate.bundleProvider implementation="dev.gad.intellij.highlight.GadBundleProvider"/>
     </extensions>
 </idea-plugin>

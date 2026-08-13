@@ -3,10 +3,9 @@ package dev.gad.intellij.lang
 import com.intellij.openapi.vfs.VirtualFile
 
 /**
- * The Gad language family recognized by the plugin. Highlighting is provided by
- * a TextMate bundle (see the highlight package); file identity for run/debug is
- * keyed off the extension, so no custom [com.intellij.openapi.fileTypes.FileType]
- * is registered (which would shadow the TextMate grammar).
+ * The Gad language family recognized by the plugin. The three dialects have real
+ * file types ([GadFileType], [GadTemplateFileType], [GadxFileType]); this helper
+ * classifies a file by extension for run/debug and breakpoints.
  */
 object GadFile {
     /** Plain Gad scripts and modules. */
