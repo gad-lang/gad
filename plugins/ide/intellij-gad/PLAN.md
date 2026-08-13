@@ -1,12 +1,17 @@
 # Gad plugin for the IntelliJ Platform — implementation plan
 
-Status: **implemented (phases 0–3); compiles and packages**. The plugin source is
-in place — highlighting, run configurations, the DAP-backed debugger, settings and
-config-schema support — and `make build` (`./gradlew buildPlugin`) compiles the
-Kotlin and produces a valid `.zip` (the reused grammars + schemas are bundled and
-plugin.xml is verified). The Go-side DAP prerequisites (§5.1/§5.2) are shipped and
-tested. Remaining: exercise the debugger in a running IDE, the Plugin Verifier
+Status: **working in a real IDE (verified in GoLand 2026.1)**. The plugin builds
+(`make build`), installs, and its file types, run/debug configuration, settings
+and icons are live. The reused TextMate grammars + JSON schemas are bundled and
+plugin.xml is verified; the Go-side DAP prerequisites (§5.1/§5.2) are shipped and
+tested. Remaining: exercise the full debugger flow end-to-end, the Plugin Verifier
 pass and Marketplace packaging (phase 4). See the [README](README.md).
+
+Root-cause note (landmine marker): the extensions must be declared with
+`<extensions defaultExtensionNs="com.intellij">` — the attribute is
+`defaultExtensionNs`, **not** `defaultExtensionNamespace`. The wrong name makes the
+IDE load the plugin but silently drop the entire `<extensions>` block (no file
+types, run config, or settings; and no error is logged).
 
 ## 1. Name and target
 

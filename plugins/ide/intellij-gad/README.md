@@ -70,11 +70,23 @@ The debugger relies on the adapter reporting **per-frame source paths** and
 honoring **launch profiles** (`args`/`cwd`/`env`/`GADPATH`) — shipped in the Gad
 CLI (`cmd/gad/dap.go`).
 
+## Building against a local IDE
+
+By default the build downloads IntelliJ IDEA Community. To compile and package
+against a locally-installed IDE instead (e.g. your GoLand), pass its path:
+
+```sh
+make build GRADLE_FLAGS="--console=plain -PlocalIdePath=/opt/GoLand-2026.1.1"
+# or: ./gradlew buildPlugin -PlocalIdePath=/opt/GoLand-2026.1.1
+```
+
+This is handy to verify the plugin against the exact IDE it will run in.
+
 ## Status
 
-All layers are implemented (highlighting, run, debug, settings, config). `make
-build` compiles the Kotlin and packages a valid plugin `.zip` (the reused
-grammars and schemas are bundled and `plugin.xml` is verified). Exercising the
-debugger in a running IDE, the Plugin Verifier pass and the Marketplace listing
-are the remaining ship steps (PLAN.md, phase 4). The IntelliJ SDK download is out
-of scope for this repo's Go CI, so the plugin builds in its own Gradle job.
+Working: verified in GoLand 2026.1 — file types, run/debug configuration,
+settings and icons are live. `make build` compiles the Kotlin and packages a
+valid plugin `.zip` (grammars + schemas bundled, `plugin.xml` verified). The full
+debugger flow, the Plugin Verifier pass and the Marketplace listing are the
+remaining ship steps (PLAN.md, phase 4). The IntelliJ SDK download is out of scope
+for this repo's Go CI, so the plugin builds in its own Gradle job.

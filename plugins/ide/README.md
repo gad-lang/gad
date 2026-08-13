@@ -9,7 +9,7 @@ highlighting.
 | Extension | Target | Status |
 | --- | --- | --- |
 | [`vscode-gad`](vscode-gad) | VS Code (and forks) | Shipping — TextMate grammars + language client + DAP debugging. |
-| [`intellij-gad`](intellij-gad) | IntelliJ Platform (IntelliJ IDEA, GoLand, WebStorm, PyCharm, …) | Implemented — build locally with `./gradlew buildPlugin` (see [`intellij-gad/README.md`](intellij-gad/README.md) / [`PLAN.md`](intellij-gad/PLAN.md)). |
+| [`intellij-gad`](intellij-gad) | IntelliJ Platform (IntelliJ IDEA, GoLand, WebStorm, PyCharm, …) | Working (verified in GoLand 2026.1). Build with `./gradlew buildPlugin` — see [`intellij-gad/README.md`](intellij-gad/README.md). |
 
 ## VS Code — `vscode-gad`
 
