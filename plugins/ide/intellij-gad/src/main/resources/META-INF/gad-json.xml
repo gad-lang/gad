@@ -1,6 +1,6 @@
 <idea-plugin>
     <!-- Loaded only when the JSON module is available (optional dependency). -->
-    <extensions defaultExtensionNamespace="com.intellij">
+    <extensions defaultExtensionNs="com.intellij">
         <json.jsonSchemaProviderFactory
             implementation="dev.gad.intellij.config.GadJsonSchemaProviderFactory"/>
     </extensions>

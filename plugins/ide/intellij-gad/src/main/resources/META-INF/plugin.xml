@@ -20,7 +20,7 @@
     <depends optional="true" config-file="gad-textmate.xml">org.jetbrains.plugins.textmate</depends>
     <depends optional="true" config-file="gad-json.xml">com.intellij.modules.json</depends>
 
-    <extensions defaultExtensionNamespace="com.intellij">
+    <extensions defaultExtensionNs="com.intellij">
         <fileType name="Gad" language="Gad" extensions="gad"
                   implementationClass="dev.gad.intellij.lang.GadFileType" fieldName="INSTANCE"/>
         <fileType name="Gad Template" language="Gad" extensions="gadt"
