@@ -51,6 +51,35 @@ export const gadxGrammar: Grammar = {
     pattern: /^[ \t]*!!!.*/m,
     alias: "important",
   },
+  slot: {
+    // `@slot "name[{i}]"` / `@slot #"…"(args)` — a slot with a dynamic name. The
+    // double-quoted name is a template string whose `{ … }` interpolations are
+    // Gad; any trailing `(args)` is Gad too. A bare `@slot name` (no quote) is a
+    // plain identifier and falls through to the generic `directive` rule below.
+    // Placed before `interpolation` so the whole line is claimed before the
+    // name's `{ … }` is carved out as a standalone interpolation.
+    pattern: /(^[ \t]*)@slot(?=[ \t]+#?").*/m,
+    lookbehind: true,
+    greedy: true,
+    inside: {
+      "directive-name": { pattern: /^@slot/, alias: "keyword" },
+      "slot-name": {
+        pattern: /#?"(?:[^"\\]|\\.)*"/,
+        alias: "string",
+        inside: {
+          punctuation: /^#/,
+          interpolation: {
+            pattern: /\{=?[^{}]*\}/,
+            inside: {
+              "interpolation-punctuation": { pattern: /^\{=?|\}$/, alias: "punctuation" },
+              rest: gadGrammar,
+            },
+          },
+        },
+      },
+      rest: gadGrammar,
+    },
+  },
   interpolation: {
     // `{= expr }` (buffered/escaped) and `{ expr }` (attribute/text).
     pattern: /\{=?[^{}]*\}/,

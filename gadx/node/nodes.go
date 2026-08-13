@@ -546,7 +546,7 @@ type CompCallStmt struct {
 	SlotPass []*SlotPassStmt
 	// InitStmts are call-scope `~` / `~~ … ~~` code statements from the call
 	// block. They are emitted before the slot-pass declarations so a slot's
-	// interpolated name (e.g. `@slot #(line[{index}])`) and slot bodies can
+	// interpolated name (e.g. `@slot #"line[{index}]"`) and slot bodies can
 	// reference values they declare.
 	InitStmts gnode.Stmts
 }
@@ -575,7 +575,7 @@ type SlotDecl struct {
 	NodeEnd source.Pos
 	Name    string
 	ID      string
-	// NameExpr, when set, is the interpolated slot name from `@slot (…)`. The
+	// NameExpr, when set, is the interpolated slot name from `@slot "…"`. The
 	// `slots` lookup then uses `slots[NameExpr]` and ID is a synthetic id for
 	// the generated local variables.
 	NameExpr gnode.Expr
@@ -614,7 +614,7 @@ type SlotPassStmt struct {
 	NodeEnd  source.Pos
 	FuncType *gnode.FuncType
 	Name     gnode.Expr
-	// NameExpr, when set, is the interpolated slot name from `@slot #(…)`. It is
+	// NameExpr, when set, is the interpolated slot name from `@slot #"…"`. It is
 	// used as the `$$slots[NameExpr]` index in place of a static string.
 	NameExpr gnode.Expr
 	Body     gnode.Stmts

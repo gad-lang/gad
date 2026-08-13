@@ -1432,8 +1432,8 @@ func posData(tok gadparser.PToken, key string) source.Pos {
 	return noBase
 }
 
-// parseSlotNameExpr parses an interpolated slot name (the content of `@slot (…)`
-// / `@slot #(…)`) as a Gad template string `#"…"`, so `{expr}` interpolations
+// parseSlotNameExpr parses an interpolated slot name (the content of `@slot "…"`
+// / `@slot #"…"`) as a Gad template string `#"…"`, so `{expr}` interpolations
 // are evaluated at render time. namePos is the absolute position of the content;
 // it is offset by the synthetic `#"` prefix so the parsed expression preserves
 // the original source positions.

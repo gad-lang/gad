@@ -6,6 +6,7 @@
     { "include": "#comment" },
     { "include": "#doctype" },
     { "include": "#codeblock" },
+    { "include": "#slot" },
     { "include": "#keyword" },
     { "include": "#component" },
     { "include": "#pipe" },
@@ -37,6 +38,24 @@
       "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.gadx" } },
       "name": "meta.interpolation.gadx",
       "patterns": [{ "include": "source.gad" }]
+    },
+    "slot": {
+      "begin": "^(\\s*)(@slot)(?=\\s+#?\")",
+      "beginCaptures": { "2": { "name": "keyword.control.gadx" } },
+      "end": "$",
+      "patterns": [
+        { "match": "#", "name": "punctuation.definition.slot.pass.gadx" },
+        { "include": "#slotname" },
+        { "include": "source.gad" }
+      ]
+    },
+    "slotname": {
+      "begin": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.gadx" } },
+      "end": "\"",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.gadx" } },
+      "name": "string.quoted.double.interpolated.gadx",
+      "patterns": [{ "include": "#interpolation" }]
     },
     "keyword": {
       "begin": "^(\\s*)(@[A-Za-z_]\\w*)",

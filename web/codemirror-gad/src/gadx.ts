@@ -31,7 +31,17 @@ export const gadxTokenTable = {
 // LineMode is the parser state within a single logical line (or a multi-line
 // `[ … ]` attribute group). It is reset to "start" at every start-of-line unless
 // the tokenizer is mid attribute group, `~~` code block or `{ … }` interpolation.
-type LineMode = "start" | "tagHead" | "attr" | "text" | "html" | "gad";
+type LineMode =
+  | "start"
+  | "tagHead"
+  | "attr"
+  | "text"
+  | "html"
+  | "gad"
+  // slotHead: just after `@slot`, expecting an optional `#` then a `"…"` dynamic
+  // name; slotStr: inside that double-quoted interpolated name.
+  | "slotHead"
+  | "slotStr";
 
 /** GadxState is the StreamLanguage state for the Gadx template language. */
 export interface GadxState {
@@ -183,6 +193,49 @@ function tokenTagHead(stream: StringStream, state: GadxState): string | null {
   return null;
 }
 
+// tokenSlotHead tokenizes the head of a dynamic `@slot` directive: an optional
+// `#` (pass marker) then the opening `"` of the interpolated name.
+function tokenSlotHead(stream: StringStream, state: GadxState): string | null {
+  if (stream.eatSpace()) return null;
+  const ch = stream.peek() as string;
+  if (ch === "#") {
+    stream.next();
+    return "gadxDelimiter";
+  }
+  if (ch === '"') {
+    stream.next(); // opening quote
+    state.line = "slotStr";
+    return "string";
+  }
+  // Not a quoted name after all: hand the rest to the Gad tokenizer.
+  state.line = "gad";
+  return null;
+}
+
+// tokenSlotStr tokenizes the inside of a `"…"` dynamic slot name: `{ … }`
+// interpolates as Gad, `\` escapes, and the closing `"` ends the name (the
+// trailing `(args)` is then Gad).
+function tokenSlotStr(stream: StringStream, state: GadxState): string | null {
+  const ch = stream.peek() as string;
+  if (ch === "{") return enterInterp(stream, state, "slotStr");
+  if (ch === '"') {
+    stream.next(); // closing quote
+    state.line = "gad";
+    return "string";
+  }
+  while (!stream.eol()) {
+    const c = stream.peek() as string;
+    if (c === "{" || c === '"') break;
+    if (c === "\\") {
+      stream.next();
+      if (!stream.eol()) stream.next();
+      continue;
+    }
+    stream.next();
+  }
+  return "string";
+}
+
 // tokenStart dispatches at the beginning of a logical line (after indentation),
 // classifying it as a comment, doctype, code fence, pipe-text, raw HTML, control
 // keyword (`@…`), component call (`+…`) or a tag line.
@@ -229,6 +282,13 @@ function tokenStart(stream: StringStream, state: GadxState): string | null {
   }
   // Control keyword: `@main`, `@if`, `@for`, `@var`, `@enum`, `@import`, …
   if (ch === "@") {
+    // `@slot "…"` / `@slot #"…"`: a dynamic (interpolated) slot name — highlight
+    // the double-quoted name as a template string. A bare `@slot name` falls
+    // through to the generic keyword handling below (rest tokenized as Gad).
+    if (stream.match(/^@slot(?=\s+#?")/)) {
+      state.line = "slotHead";
+      return "gadxKeyword";
+    }
     stream.next();
     while (!stream.eol() && /[A-Za-z_]/.test(stream.peek() as string)) stream.next();
     state.line = "gad"; // the remainder is a Gad expression / declaration
@@ -289,6 +349,10 @@ export function gadxToken(stream: StringStream, state: GadxState): string | null
     }
     case "tagHead":
       return tokenTagHead(stream, state);
+    case "slotHead":
+      return tokenSlotHead(stream, state);
+    case "slotStr":
+      return tokenSlotStr(stream, state);
     case "attr":
       return tokenAttr(stream, state);
     case "text":

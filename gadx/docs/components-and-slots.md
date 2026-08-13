@@ -220,29 +220,32 @@ See `samples/gadx/slots_programmatic.gadx` for a runnable version.
 
 ## Dynamic Slot Names
 
-A slot name may be written in parentheses as a Gad template string, so a `{expr}`
-interpolation is evaluated at render time and used as the `slots[…]` key. This
-works for both the declaration and the pass (override):
+A simple slot name is a bare identifier (`@slot header`, `@slot #header`). A
+**dynamic** name is written as a **double-quoted interpolated string**, so a
+`{expr}` interpolation is evaluated at render time and used as the `slots[…]`
+key. This works for both the declaration and the pass (override):
 
 ```gadx
-@slot (item[{i}])        // declaration — one slot per value of i
-@slot #(item[{index}])   // pass — override the slot named item[<index>]
+@slot "item[{i}]"        // declaration — one slot per value of i
+@slot #"item[{index}]"   // pass — override the slot named item[<index>]
 ```
 
-Source positions inside `{ … }` are preserved, so a runtime error in an
-interpolated name reports the correct line.
+(The quoted form is always dynamic — even a constant `@slot "item"` is treated as
+an interpolated string, whereas `@slot item` is a plain identifier.) Source
+positions inside `{ … }` are preserved, so a runtime error in an interpolated
+name reports the correct line.
 
 A component can therefore give each item its own overridable slot:
 
 ```gadx
 @comp list(items)
     @for i, it in items
-        @slot (item[{i}])(it)
+        @slot "item[{i}]"(it)
             li {= it }
 
 @main
     +list(Posts)
-        @slot #(item[{1}])(super, it)   // override just the second row
+        @slot #"item[{1}]"(super, it)   // override just the second row
             li.featured {= it }
             +super(it)                  // then render its default
 ```
@@ -257,10 +260,10 @@ they declare:
 ```gadx
 +list(Posts)
     ~ const index = 3
-    @slot #(item[{index}])(super, it)
+    @slot #"item[{index}]"(super, it)
         li.featured {= it }
     ~ var mark = "★"
-    @slot #(item[{4}])(super, it)
+    @slot #"item[{4}]"(super, it)
         li {= mark }{= it }
 ```
 

@@ -755,6 +755,41 @@ func (s *scanner) readBalanced(start int, open, close byte) (string, int, bool) 
 	return "", start, false
 }
 
+// readQuotedName reads a `"…"` interpolated name string beginning at start
+// (which must be the opening quote). Interpolation braces `{…}` are tracked so a
+// quote inside an interpolation does not close the name, and `\` escapes the next
+// character. It returns the content between the quotes, the index just past the
+// closing quote, and whether a closed string was found.
+func (s *scanner) readQuotedName(start int) (string, int, bool) {
+	if start >= len(s.buffer) || s.buffer[start] != '"' {
+		return "", start, false
+	}
+	depth := 0
+	escaped := false
+	for i := start + 1; i < len(s.buffer); i++ {
+		c := s.buffer[i]
+		if escaped {
+			escaped = false
+			continue
+		}
+		switch c {
+		case '\\':
+			escaped = true
+		case '{':
+			depth++
+		case '}':
+			if depth > 0 {
+				depth--
+			}
+		case '"':
+			if depth == 0 {
+				return s.buffer[start+1 : i], i + 1, true
+			}
+		}
+	}
+	return "", start, false
+}
+
 func (s *scanner) scanSlot() gadparser.PToken {
 	if strings.TrimSpace(s.buffer) == "@wrap" {
 		line := s.buffer
@@ -774,14 +809,14 @@ func (s *scanner) scanSlot() gadparser.PToken {
 		namePos   source.Pos
 		afterName int
 	)
-	if i < len(line) && line[i] == '(' {
-		// Parenthesized, interpolated name: `@slot (line[{index}])`. The content
-		// is a Gad template string; store it verbatim with its absolute position.
-		balanced, end, ok := s.readBalanced(i, '(', ')')
+	if i < len(line) && line[i] == '"' {
+		// Quoted, interpolated name: `@slot "line[{index}]"`. The content is a Gad
+		// template string; store it verbatim with its absolute position.
+		content, end, ok := s.readQuotedName(i)
 		if !ok {
 			return gadparser.PToken{}
 		}
-		name = balanced[1 : len(balanced)-1]
+		name = content
 		nameExpr = true
 		namePos = base0 + source.Pos(i+1)
 		afterName = end
@@ -834,18 +869,18 @@ var rgxSlotPass = regexp.MustCompile(`^@slot\s+#(.+)$`)
 
 func (s *scanner) scanSlotPass() gadparser.PToken {
 	const prefix = "@slot #"
-	if strings.HasPrefix(s.buffer, prefix) && len(s.buffer) > len(prefix) && s.buffer[len(prefix)] == '(' {
-		// Parenthesized, interpolated name: `@slot #(line[{index}])(args)`. The
-		// content is a Gad template string; store it verbatim with its absolute
-		// position, followed by an optional `(args)` group.
+	if strings.HasPrefix(s.buffer, prefix) && len(s.buffer) > len(prefix) && s.buffer[len(prefix)] == '"' {
+		// Quoted, interpolated name: `@slot #"line[{index}]"(args)`. The content is
+		// a Gad template string; store it verbatim with its absolute position,
+		// followed by an optional `(args)` group.
 		line := s.buffer
 		base0 := source.Pos(s.file.Base + s.offset - len(s.buffer) - 1)
 		i := len(prefix)
-		balanced, end, ok := s.readBalanced(i, '(', ')')
+		content, end, ok := s.readQuotedName(i)
 		if !ok {
 			return gadparser.PToken{}
 		}
-		name := balanced[1 : len(balanced)-1]
+		name := content
 		namePos := base0 + source.Pos(i+1)
 
 		args := ""

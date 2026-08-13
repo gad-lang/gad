@@ -7,16 +7,16 @@ import (
 	"github.com/gad-lang/gad"
 )
 
-// TestSlotDynamicName covers interpolated slot names: `@slot (name[{expr}])`
-// (declaration) and `@slot #(name[{expr}])` (pass). The `( … )` content is a Gad
-// template string, so `{expr}` is evaluated at render time and used as the
+// TestSlotDynamicName covers interpolated slot names: `@slot "name[{expr}]"`
+// (declaration) and `@slot #"name[{expr}]"` (pass). The double-quoted content is
+// a Gad template string, so `{expr}` is evaluated at render time and used as the
 // `slots[…]` key. Also covers hoisting call-block `~` code to call scope.
 func TestSlotDynamicName(t *testing.T) {
 	// A component whose per-iteration slot name is computed from the loop index,
 	// giving each row its own overridable slot.
 	const list = "@comp list(items;slots={})\n" +
 		"\t@for i, it in items\n" +
-		"\t\t@slot (item[{i}])(it)\n" +
+		"\t\t@slot \"item[{i}]\"(it)\n" +
 		"\t\t\t| {=it};\n"
 
 	tests := []struct {
@@ -35,7 +35,7 @@ func TestSlotDynamicName(t *testing.T) {
 			name: "pass overrides one row",
 			src: list + "@main\n" +
 				"\t+list([\"a\", \"b\", \"c\"])\n" +
-				"\t\t@slot #(item[{1}])(super, it)\n" +
+				"\t\t@slot #\"item[{1}]\"(super, it)\n" +
 				"\t\t\t| X{=it};\n",
 			want: "a;Xb;c;",
 		},
@@ -45,7 +45,7 @@ func TestSlotDynamicName(t *testing.T) {
 			name: "override forwards super",
 			src: list + "@main\n" +
 				"\t+list([\"a\", \"b\", \"c\"])\n" +
-				"\t\t@slot #(item[{2}])(super, it)\n" +
+				"\t\t@slot #\"item[{2}]\"(super, it)\n" +
 				"\t\t\t| *\n" +
 				"\t\t\t+super(it)\n",
 			want: "a;b;*c;",
@@ -57,7 +57,7 @@ func TestSlotDynamicName(t *testing.T) {
 			src: list + "@main\n" +
 				"\t+list([\"a\", \"b\", \"c\"])\n" +
 				"\t\t~ const target = 1\n" +
-				"\t\t@slot #(item[{target}])(super, it)\n" +
+				"\t\t@slot #\"item[{target}]\"(super, it)\n" +
 				"\t\t\t| Y{=it};\n",
 			want: "a;Yb;c;",
 		},
@@ -68,10 +68,10 @@ func TestSlotDynamicName(t *testing.T) {
 			src: list + "@main\n" +
 				"\t+list([\"a\", \"b\", \"c\"])\n" +
 				"\t\t~ const target = 0\n" +
-				"\t\t@slot #(item[{target}])(super, it)\n" +
+				"\t\t@slot #\"item[{target}]\"(super, it)\n" +
 				"\t\t\t| Z{=it};\n" +
 				"\t\t~ var mark = \"!\"\n" +
-				"\t\t@slot #(item[{2}])(super, it)\n" +
+				"\t\t@slot #\"item[{2}]\"(super, it)\n" +
 				"\t\t\t| {=mark}{=it};\n",
 			want: "Za;b;!c;",
 		},
@@ -102,7 +102,7 @@ func TestSlotDynamicNamePositions(t *testing.T) {
 			name: "declaration name",
 			src: "@global z\n" +
 				"@comp c(;slots={})\n" +
-				"    @slot (k[{z()}])\n" +
+				"    @slot \"k[{z()}]\"\n" +
 				"        | x\n" +
 				"@main\n" +
 				"    +c\n",
@@ -118,7 +118,7 @@ func TestSlotDynamicNamePositions(t *testing.T) {
 				"        | x\n" +
 				"@main\n" +
 				"    +c\n" +
-				"        @slot #(k[{z()}])\n" +
+				"        @slot #\"k[{z()}]\"\n" +
 				"            | y\n",
 			wantLine: 7,
 			wantCol:  21,

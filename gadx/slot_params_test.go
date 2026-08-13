@@ -73,7 +73,7 @@ func TestSlotParams_PrintLines(t *testing.T) {
 			"\t\t~ const index=3\n"+
 			"\t\t@slot #line[1](super, i, line)\n"+
 			"\t\t\t| line 1 {=\"\\n\"}\n"+
-			"\t\t@slot #(line[{index}])(super, i, line)\n"+
+			"\t\t@slot #\"line[{index}]\"(super, i, line)\n"+
 			"\t\t\t| line 3 @ \n"+
 			"\t\t\t~ tag += super(i, line)\n",
 		"0: a\nline 1 \n2: c\nline 3 @3: d")
