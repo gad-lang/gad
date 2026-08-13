@@ -6,7 +6,7 @@ the agreed scope and roadmap.
 
 ## 1. Name and target
 
-- **Directory**: `plugins/intellij-gad` (sibling of `plugins/vscode-gad`).
+- **Directory**: `plugins/ide/intellij-gad` (sibling of `plugins/ide/vscode-gad`).
 - **What it targets**: the **IntelliJ Platform**, so a single plugin runs in
   IntelliJ IDEA, GoLand, WebStorm, PyCharm, RustRover, CLion, Rider, etc. The name
   `intellij-gad` follows the community convention for IntelliJ Platform language
@@ -47,8 +47,8 @@ IntelliJ front-end over them.
 | Concern | Reused Gad asset | IntelliJ side |
 | --- | --- | --- |
 | Debugging | `gad debug --dap` — a **Debug Adapter Protocol** server over stdio (`cmd/gad/dap.go`) | a DAP client bridged to the **XDebugger** API |
-| Highlighting | TextMate grammars in `plugins/vscode-gad/syntaxes/{gad,gadx}.tmLanguage.json` | IntelliJ **TextMate bundle** support (`org.jetbrains.plugins.textmate`) — single source of truth, no grammar rewrite |
-| Config validation | JSON schemas in `plugins/vscode-gad/schemas/*.json` | **JSON Schema** mappings for `.gad.yaml` / `.gadide.yaml` |
+| Highlighting | TextMate grammars in `plugins/ide/vscode-gad/syntaxes/{gad,gadx}.tmLanguage.json` | IntelliJ **TextMate bundle** support (`org.jetbrains.plugins.textmate`) — single source of truth, no grammar rewrite |
+| Config validation | JSON schemas in `plugins/ide/vscode-gad/schemas/*.json` | **JSON Schema** mappings for `.gad.yaml` / `.gadide.yaml` |
 | Formatting | `gad fmt -` (stdin/stdout) | an external formatter / format-on-save action |
 | Running | `gad run <file>` / `gad <file>` | a `RunConfiguration` process |
 
@@ -74,7 +74,7 @@ evaluate. Two gaps must be closed on the Go side for full parity (§5).
 | Feature | IntelliJ Platform extension point / API |
 | --- | --- |
 | File types `.gad/.gadt/.gadx` | `com.intellij.fileType` (+ `LanguageFileType`, icons) |
-| Highlighting | TextMate bundle registered via `TextMateBundleProvider`; grammars copied at build time from `plugins/vscode-gad` |
+| Highlighting | TextMate bundle registered via `TextMateBundleProvider`; grammars copied at build time from `plugins/ide/vscode-gad` |
 | Config files (`.gad.yaml`, `.gadide.yaml`) | `JsonSchemaProviderFactory` mapping to the reused schemas |
 | Run configuration + profiles | `ConfigurationType`, `ConfigurationFactory`, `RunConfigurationBase`, `SettingsEditor` (form: file, profile, args, env, cwd) + `CommandLineState` |
 | Debugger entry | `XDebuggerRunner` / `ProgramRunner` producing an `XDebugProcess` |
@@ -118,7 +118,7 @@ Each item ships as its own Go commit with a DAP test in `cmd/gad/dap_test.go`.
 ## 6. Project layout
 
 ```
-plugins/intellij-gad/
+plugins/ide/intellij-gad/
 ├── PLAN.md                         # this file
 ├── README.md                       # build/usage docs
 ├── build.gradle.kts                # IntelliJ Platform Gradle plugin 2.x
@@ -136,11 +136,11 @@ plugins/intellij-gad/
     └── resources/
         ├── META-INF/plugin.xml      # all extension registrations
         ├── icons/                   # .gad/.gadt/.gadx file icons
-        ├── textmate/                # grammars copied from plugins/vscode-gad (build step)
-        └── schemas/                 # config schemas copied from plugins/vscode-gad (build step)
+        ├── textmate/                # grammars copied from plugins/ide/vscode-gad (build step)
+        └── schemas/                 # config schemas copied from plugins/ide/vscode-gad (build step)
 ```
 
-`textmate/` and `schemas/` are **copied at build time** from `plugins/vscode-gad`
+`textmate/` and `schemas/` are **copied at build time** from `plugins/ide/vscode-gad`
 by a Gradle `Copy` task, so there is a single source of truth for grammars and
 schemas across the VS Code and JetBrains plugins.
 

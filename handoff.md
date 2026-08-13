@@ -580,7 +580,7 @@ sync by a Go tool; full-stack scope.
   (frameIndex starts at 1; current frame = frames[frameIndex-1]).
 
 ### VS Code extension — DONE (committed below)
-- `plugins/vscode-gad/`: registers the `gad` language (.gad) + a `gad` debugger
+- `plugins/ide/vscode-gad/`: registers the `gad` language (.gad) + a `gad` debugger
   type whose adapter is `gad debug --dap` (DebugAdapterExecutable; `gad.path`
   setting). package.json contributes languages/breakpoints/debuggers; a config
   provider defaults `program` to `${file}`. Compiles with `tsc` (out/ + node_

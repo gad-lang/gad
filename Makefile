@@ -36,16 +36,16 @@ dist: web-build build-vscode-plugin build-wasm
 .PHONY: goreleaser-setup
 goreleaser-setup: web-build
 	go run ./cmd/update-vscode-plugin -w
-	cd plugins/vscode-gad && bun install && bun run package
+	cd plugins/ide/vscode-gad && bun install && bun run package
 
 # Build the VS Code extension: regenerate the TextMate grammar from the language
 # vocabulary, compile and package the .vsix, then move it into ./dist.
 .PHONY: build-vscode-plugin
 build-vscode-plugin:
 	go run ./cmd/update-vscode-plugin -w
-	cd plugins/vscode-gad && bun install && bun run package
+	cd plugins/ide/vscode-gad && bun install && bun run package
 	mkdir -p dist
-	mv plugins/vscode-gad/vscode-gad.vsix dist/
+	mv plugins/ide/vscode-gad/vscode-gad.vsix dist/
 
 # Build the distributable Gad WASM module (gad.wasm, debugger-enabled) and
 # wasm_exec.js into ./dist.
