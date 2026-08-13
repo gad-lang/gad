@@ -528,12 +528,14 @@ func copyGadxAssets(dir, outDir string) error {
 	return nil
 }
 
-// jsModules are the publishable web packages documented under "JS modules".
-var jsModules = []struct{ Name, Title string }{
-	{"codemirror-gad", "@gad-lang/codemirror-gad"},
-	{"prism-gad", "@gad-lang/prism-gad"},
-	{"ide-react", "@gad-lang/ide-react"},
-	{"ide-vuetify", "@gad-lang/ide-vuetify"},
+// jsModules are the publishable web packages documented under "JS modules". Dir
+// is the package's path from the repo root (the editor plugins live under
+// plugins/, the IDE components under web/).
+var jsModules = []struct{ Name, Title, Dir string }{
+	{"codemirror-gad", "@gad-lang/codemirror-gad", "plugins/js/codemirror-gad"},
+	{"prism-gad", "@gad-lang/prism-gad", "plugins/js/prism-gad"},
+	{"ide-react", "@gad-lang/ide-react", "web/ide-react"},
+	{"ide-vuetify", "@gad-lang/ide-vuetify", "web/ide-vuetify"},
 }
 
 // mdLinkRe matches Markdown link targets `](target)`.
@@ -543,7 +545,7 @@ var mdLinkRe = regexp.MustCompile(`\]\(([^)]+)\)`)
 // URLs (rooted at web/<name>/), so its `./docs/*.md`, `../<pkg>` and example
 // links resolve on the docs site. External, anchor and absolute links are left
 // as-is.
-func rewriteModuleLinks(md, name string) string {
+func rewriteModuleLinks(md, dir string) string {
 	return mdLinkRe.ReplaceAllStringFunc(md, func(m string) string {
 		target := m[2 : len(m)-1]
 		if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") ||
@@ -554,7 +556,7 @@ func rewriteModuleLinks(md, name string) string {
 		if i := strings.IndexByte(target, '#'); i >= 0 {
 			anchor, target = target[i:], target[:i]
 		}
-		resolved := path.Join("web", name, target)
+		resolved := path.Join(dir, target)
 		return "](https://github.com/gad-lang/gad/blob/main/" + resolved + anchor + ")"
 	})
 }
@@ -565,7 +567,7 @@ func rewriteModuleLinks(md, name string) string {
 func collectJSModulePages(repoRoot string) ([]*page, error) {
 	var pages []*page
 	for _, m := range jsModules {
-		fp := filepath.Join(repoRoot, "web", m.Name, "README.md")
+		fp := filepath.Join(repoRoot, filepath.FromSlash(m.Dir), "README.md")
 		src, err := os.ReadFile(fp)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -573,7 +575,7 @@ func collectJSModulePages(repoRoot string) ([]*page, error) {
 			}
 			return nil, err
 		}
-		md := rewriteModuleLinks(string(src), m.Name)
+		md := rewriteModuleLinks(string(src), m.Dir)
 		body, headings := renderMarkdown(md)
 		pages = append(pages, &page{
 			Slug:     "js-modules-" + m.Name,
@@ -818,7 +820,7 @@ func wasmEmbedBody(playHref string) template.HTML {
 // highlighting. Requires bun; the caller tolerates failure (code blocks then
 // render unstyled).
 func buildPrismBundle(repoRoot, outDir string) error {
-	pkg := filepath.Join(repoRoot, "web", "prism-gad")
+	pkg := filepath.Join(repoRoot, "plugins", "js", "prism-gad")
 	if _, err := os.Stat(filepath.Join(pkg, "site-bundle.mjs")); err != nil {
 		return err
 	}

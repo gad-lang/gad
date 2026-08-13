@@ -243,8 +243,8 @@ npm under the public **`@gad-lang`** scope (not yet released). Each has its own
 
 | Package | What it is |
 | --- | --- |
-| [`@gad-lang/codemirror-gad`](web/codemirror-gad) | CodeMirror 6 language support (highlighting, autocompletion, async diagnostics) for `.gad` / `.gadt` / `.gadx`. |
-| [`@gad-lang/prism-gad`](web/prism-gad) | PrismJS grammar for static, read-only Gad highlighting. |
+| [`@gad-lang/codemirror-gad`](plugins/js/codemirror-gad) | CodeMirror 6 language support (highlighting, autocompletion, async diagnostics) for `.gad` / `.gadt` / `.gadx`. |
+| [`@gad-lang/prism-gad`](plugins/js/prism-gad) | PrismJS grammar for static, read-only Gad highlighting. |
 | [`@gad-lang/ide-react`](web/ide-react) | Reusable **React** IDE component (explorer, editor, run/doc, stepping debugger, inspector, run profiles); backend-agnostic. |
 | [`@gad-lang/ide-vuetify`](web/ide-vuetify) | The **Vuetify 3** counterpart, same `IdeApi` contract. |
 

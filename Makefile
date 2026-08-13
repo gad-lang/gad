@@ -36,16 +36,16 @@ dist: web-build build-vscode-plugin build-wasm
 .PHONY: goreleaser-setup
 goreleaser-setup: web-build
 	go run ./cmd/update-vscode-plugin -w
-	cd editors/vscode-gad && bun install && bun run package
+	cd plugins/vscode-gad && bun install && bun run package
 
 # Build the VS Code extension: regenerate the TextMate grammar from the language
 # vocabulary, compile and package the .vsix, then move it into ./dist.
 .PHONY: build-vscode-plugin
 build-vscode-plugin:
 	go run ./cmd/update-vscode-plugin -w
-	cd editors/vscode-gad && bun install && bun run package
+	cd plugins/vscode-gad && bun install && bun run package
 	mkdir -p dist
-	mv editors/vscode-gad/vscode-gad.vsix dist/
+	mv plugins/vscode-gad/vscode-gad.vsix dist/
 
 # Build the distributable Gad WASM module (gad.wasm, debugger-enabled) and
 # wasm_exec.js into ./dist.
@@ -110,13 +110,20 @@ web: web-install
 web-server:
 	go run ./web/server -addr :8080 -static web/app/dist
 
+# Build the standalone JS editor plugins (@gad-lang/codemirror-gad and
+# @gad-lang/prism-gad) from their own workspace under plugins/js, so they compile
+# independently of the web app. Their dist/ is consumed by web (ide-react, app).
+.PHONY: plugins-js
+plugins-js:
+	cd plugins/js && bun install && bun run build
+
 # Production build of the React app (outputs web/app/dist). Emits two pages:
 # index.html (the playground) and webide.html (the standalone embeddable IDE).
-# The app imports the workspace packages (@gad-lang/codemirror-gad, prism-gad,
-# ide-react) as `workspace:*`, so build those first (their dist/ .d.ts are needed
-# by the app's tsc); the app's own `prebuild` regenerates src/samples.gen.ts.
+# The app imports the editor packages (@gad-lang/codemirror-gad, prism-gad,
+# ide-react), so build those first (their dist/ .d.ts are needed by the app's
+# tsc); the app's own `prebuild` regenerates src/samples.gen.ts.
 .PHONY: web-build
-web-build: web-install
+web-build: plugins-js web-install
 	cd web && bun run plugins:build
 	cd web/app && bun run build
 

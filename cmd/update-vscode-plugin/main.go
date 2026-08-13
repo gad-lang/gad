@@ -1,5 +1,5 @@
 // Command update-vscode-plugin regenerates the VS Code extension's TextMate
-// grammar (editors/vscode-gad/syntaxes/gad.tmLanguage.json) from the current Gad
+// grammar (plugins/vscode-gad/syntaxes/gad.tmLanguage.json) from the current Gad
 // language vocabulary, so highlighting stays in sync with the compiler. It also
 // reports the language commits since the extension was last updated.
 //
@@ -23,8 +23,8 @@ func main() {
 	flag.Parse()
 
 	const (
-		dir     = "editors/vscode-gad"
-		grammar = "editors/vscode-gad/syntaxes/gad.tmLanguage.json"
+		dir     = "plugins/vscode-gad"
+		grammar = "plugins/vscode-gad/syntaxes/gad.tmLanguage.json"
 	)
 
 	data, err := pluginsync.TextMateGrammar()

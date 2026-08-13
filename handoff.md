@@ -260,7 +260,7 @@ build-free VANILLA UI (`cmd/gad/ideapp/app.js`) which uses a plain `<textarea>`
 `@gad-lang/codemirror-gad`) only runs in the React UI served via `gad ide
 --static web/app/dist` or `-tags prod`. So "codemirror not working on ide"
 is largely "the default UI has no codemirror". Fixed the stale keyword list
-(`do`/`then`/`done`→`begin`) in web/codemirror-gad/src/keywords.ts. The big
+(`do`/`then`/`done`→`begin`) in plugins/js/codemirror-gad/src/keywords.ts. The big
 IDE task needs browser-based iteration; remaining sub-features (file-tree
 rename/menu, run/debug dialog, breakpoint dialog, evaluate panel, editors for
 JSON/YAML/etc., tooltips, undo/redo, …) are best done with the IDE running.
@@ -497,7 +497,7 @@ running the built CLI (`./.__tmp/gad`):
   gadbridge), CORS, optional static SPA serving. Smoke-tested with curl.
 - `web/wasm/` — `//go:build js && wasm`; installs `gadFormat`/`gadRun`/
   `gadDiagnose` globals (source→JSON string) + `gadReady`/`onGadReady`.
-- `web/codemirror-gad/` — CM6 plugin (`@gad-lang/codemirror-gad`): StreamLanguage
+- `plugins/js/codemirror-gad/` — CM6 plugin (`@gad-lang/codemirror-gad`): StreamLanguage
   tokenizer (`language.ts`), keyword/builtin lists (`keywords.ts`), completion
   (`complete.ts`), async linter mapping line/col→offsets (`lint.ts`), `gad()`
   bundler (`index.ts`). Typechecks clean.
@@ -513,12 +513,12 @@ running the built CLI (`./.__tmp/gad`):
   approved via `allowBuilds`).
 - Makefile: `build` (=`build-cli`+`build-wasm`), `build-wasm`, `web`
   (install+dev), `web-server`, `web-build`, `web-install`. Docs in
-  `web/README.md` + `web/codemirror-gad/README.md`.
+  `web/README.md` + `plugins/js/codemirror-gad/README.md`.
 - VERIFY UI in a browser next session (couldn't here): WASM load path
   (`/wasm_exec.js`, `/gad.wasm`), linter underlines, backend switch.
 
 ### PrismJS plugin + dark/light theme (follow-ups to item 5) — DONE
-- `web/prism-gad/` (`@gad-lang/prism-gad`): PrismJS grammar (`registerGad(Prism)`
+- `plugins/js/prism-gad/` (`@gad-lang/prism-gad`): PrismJS grammar (`registerGad(Prism)`
   → `Prism.languages.gad`); covers comments, string/heredoc/bytes forms, regex
   literals, keywords/atoms/builtins, `@`-specials, numbers, operators. Added to
   the pnpm workspace; typechecks clean.
@@ -580,7 +580,7 @@ sync by a Go tool; full-stack scope.
   (frameIndex starts at 1; current frame = frames[frameIndex-1]).
 
 ### VS Code extension — DONE (committed below)
-- `editors/vscode-gad/`: registers the `gad` language (.gad) + a `gad` debugger
+- `plugins/vscode-gad/`: registers the `gad` language (.gad) + a `gad` debugger
   type whose adapter is `gad debug --dap` (DebugAdapterExecutable; `gad.path`
   setting). package.json contributes languages/breakpoints/debuggers; a config
   provider defaults `program` to `${file}`. Compiles with `tsc` (out/ + node_
@@ -772,7 +772,7 @@ Backend + CLI + bundled UI are done and tested; a React/CodeMirror frontend
 
 ### CM6 plugin + web app (item 5) — plan
 Deliverables (under `web/`):
-- `web/codemirror-gad/` — a CodeMirror 6 plugin package (TS): Gad syntax
+- `plugins/js/codemirror-gad/` — a CodeMirror 6 plugin package (TS): Gad syntax
   highlighting, autocompletion (keywords + builtins), and a linter that turns
   `{line, column, message, severity}` diagnostics into CM6 `Diagnostic`s. The
   diagnose/format/run backend is injected so the same plugin works against the

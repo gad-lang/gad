@@ -24,9 +24,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/gad-lang/gad.git",
-    "directory": "web/prism-gad"
+    "directory": "plugins/js/prism-gad"
   },
-  "homepage": "https://github.com/gad-lang/gad/tree/main/web/prism-gad#readme",
+  "homepage": "https://github.com/gad-lang/gad/tree/main/plugins/js/prism-gad#readme",
   "bugs": "https://github.com/gad-lang/gad/issues",
   "keywords": [
     "gad",

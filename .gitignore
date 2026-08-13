@@ -12,6 +12,13 @@
 /gad
 /cmd/gad/gad
 /dist/
+
+# editor plugin build artifacts (plugins/js/*, plugins/vscode-gad)
+/plugins/**/node_modules/
+/plugins/**/dist/
+/plugins/**/out/
+/plugins/**/*.tsbuildinfo
+/plugins/**/*.vsix
 # goreleaser WASM release assets (built by scripts/build-wasm.sh)
 /wasm-assets/
 

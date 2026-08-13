@@ -167,7 +167,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/gad-lang/gad.git",
-    "directory": "editors/vscode-gad"
+    "directory": "plugins/vscode-gad"
   },
   "scripts": {
     "compile": "tsc -p ./",
