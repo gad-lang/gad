@@ -13,6 +13,7 @@ repositories {
     mavenCentral()
     intellijPlatform {
         defaultRepositories()
+        intellijDependencies()
     }
 }
 
@@ -28,6 +29,7 @@ dependencies {
 
         pluginVerifier()
         zipSigner()
+        instrumentationTools()
         testFramework(TestFrameworkType.Platform)
     }
 
@@ -39,6 +41,9 @@ kotlin {
 }
 
 intellijPlatform {
+    // The plugin's settings are simple; skip the headless searchable-options build.
+    buildSearchableOptions = false
+
     pluginConfiguration {
         id = providers.gradleProperty("pluginId")
         name = providers.gradleProperty("pluginName")

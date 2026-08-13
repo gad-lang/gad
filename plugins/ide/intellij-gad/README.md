@@ -35,20 +35,23 @@ Design and roadmap: [`PLAN.md`](PLAN.md).
 ## Build
 
 The IntelliJ Platform Gradle plugin downloads the target IDE SDK on first build.
+A `Makefile` wraps the common Gradle tasks:
 
 ```sh
 cd plugins/ide/intellij-gad
-./gradlew buildPlugin      # → build/distributions/intellij-gad-<version>.zip
-./gradlew runIde           # launch a sandbox IDE with the plugin
-./gradlew verifyPlugin     # JetBrains Plugin Verifier
-./gradlew test             # unit tests
+make help        # list targets
+make compile     # compile the Kotlin (fast sanity check)
+make build       # → build/distributions/intellij-gad-<version>.zip
+make test        # unit tests
+make verify      # JetBrains Plugin Verifier
+make check       # compile + test + verify
+make run         # launch a sandbox IDE with the plugin
+make clean
 ```
 
-Install the built `.zip` via *Settings ▸ Plugins ▸ ⚙ ▸ Install Plugin from Disk*.
-
-> The Gradle wrapper JAR (`gradle/wrapper/gradle-wrapper.jar`) is not committed;
-> generate it once with a local Gradle (`gradle wrapper --gradle-version 8.10.2`)
-> or let the IDE's Gradle integration create it on import.
+Each target just calls `./gradlew <task>` (the committed wrapper); override the
+JDK with `make JAVA_HOME=/path build`. Install the built `.zip` via *Settings ▸
+Plugins ▸ ⚙ ▸ Install Plugin from Disk*.
 
 ## Architecture
 
@@ -69,8 +72,9 @@ CLI (`cmd/gad/dap.go`).
 
 ## Status
 
-All layers are implemented (highlighting, run, debug, settings, config). The
-project has not yet been compiled in this repository's CI (the IntelliJ SDK
-download is out of scope for the Go CI); build it locally with `./gradlew
-buildPlugin`. A dedicated JetBrains CI job and the Marketplace listing are the
-remaining ship steps (PLAN.md, phase 4).
+All layers are implemented (highlighting, run, debug, settings, config). `make
+build` compiles the Kotlin and packages a valid plugin `.zip` (the reused
+grammars and schemas are bundled and `plugin.xml` is verified). Exercising the
+debugger in a running IDE, the Plugin Verifier pass and the Marketplace listing
+are the remaining ship steps (PLAN.md, phase 4). The IntelliJ SDK download is out
+of scope for this repo's Go CI, so the plugin builds in its own Gradle job.

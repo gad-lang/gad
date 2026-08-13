@@ -1,12 +1,12 @@
 # Gad plugin for the IntelliJ Platform — implementation plan
 
-Status: **implemented (phases 0–3), not yet compiled in CI**. The plugin source
-is in place — highlighting, run configurations, the DAP-backed debugger, settings
-and config-schema support. It builds with `./gradlew buildPlugin` (the IntelliJ
-SDK download is out of scope for the Go CI, so it is built/verified locally). The
-Go-side DAP prerequisites (§5.1/§5.2) are shipped. Remaining: local build fixes if
-any, the Plugin Verifier pass and Marketplace packaging (phase 4). See the
-[README](README.md).
+Status: **implemented (phases 0–3); compiles and packages**. The plugin source is
+in place — highlighting, run configurations, the DAP-backed debugger, settings and
+config-schema support — and `make build` (`./gradlew buildPlugin`) compiles the
+Kotlin and produces a valid `.zip` (the reused grammars + schemas are bundled and
+plugin.xml is verified). The Go-side DAP prerequisites (§5.1/§5.2) are shipped and
+tested. Remaining: exercise the debugger in a running IDE, the Plugin Verifier
+pass and Marketplace packaging (phase 4). See the [README](README.md).
 
 ## 1. Name and target
 

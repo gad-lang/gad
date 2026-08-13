@@ -1,6 +1,6 @@
 package dev.gad.intellij.run
 
-import com.intellij.execution.configurations.ParametersListUtil
+import com.intellij.util.execution.ParametersListUtil
 import dev.gad.intellij.settings.GadSettings
 import java.io.File
 

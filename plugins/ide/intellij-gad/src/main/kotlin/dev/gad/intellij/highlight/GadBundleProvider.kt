@@ -1,8 +1,8 @@
 package dev.gad.intellij.highlight
 
 import com.intellij.openapi.diagnostic.thisLogger
-import com.intellij.plugins.textmate.api.TextMateBundleProvider
-import com.intellij.plugins.textmate.api.TextMateBundleProvider.PluginBundle
+import org.jetbrains.plugins.textmate.api.TextMateBundleProvider
+import org.jetbrains.plugins.textmate.api.TextMateBundleProvider.PluginBundle
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption

@@ -5,8 +5,8 @@ import com.intellij.execution.configurations.PtyCommandLine
 import com.intellij.execution.process.KillableColoredProcessHandler
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessTerminatedListener
+import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.states.CommandLineState
 import java.io.File
 
 /** Runs `gad <script> [args…]` for the normal Run executor. */
