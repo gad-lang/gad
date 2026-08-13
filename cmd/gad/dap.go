@@ -12,12 +12,14 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/debug"
+	"github.com/gad-lang/gad/importers"
 	"github.com/google/go-dap"
 	cc "github.com/moisespsena-go/command-context"
 )
@@ -195,10 +197,15 @@ func (s *dapServer) handle(msg dap.Message) bool {
 	return false
 }
 
-// launchArgs is the subset of launch configuration we read.
+// launchArgs is the subset of launch configuration we read. Program/StopOnEntry
+// are the minimum; Args/Cwd/Env carry an editor "run profile" (arguments, working
+// directory and environment) into the launched program.
 type launchArgs struct {
-	Program     string `json:"program"`
-	StopOnEntry bool   `json:"stopOnEntry"`
+	Program     string            `json:"program"`
+	StopOnEntry bool              `json:"stopOnEntry"`
+	Args        []string          `json:"args"`
+	Cwd         string            `json:"cwd"`
+	Env         map[string]string `json:"env"`
 }
 
 func (s *dapServer) handleLaunch(m *dap.LaunchRequest) {
@@ -206,6 +213,27 @@ func (s *dapServer) handleLaunch(m *dap.LaunchRequest) {
 	_ = json.Unmarshal(m.Arguments, &args)
 	if args.Program != "" {
 		s.program = args.Program
+	}
+
+	// A run profile may set GADPATH (the module search path, like PYTHONPATH).
+	// Apply it before loading so bare imports resolve along it. The plugin may
+	// also set GADPATH in the adapter's process environment, which is read into
+	// sourcePath at startup; a launch-scoped value takes precedence.
+	if gp := args.Env["GADPATH"]; gp != "" {
+		sourcePath = importers.PathList(filepath.SplitList(gp))
+	}
+
+	// A run profile may set the working directory; do it before loading so
+	// relative imports and the program path resolve against it.
+	if args.Cwd != "" {
+		if err := os.Chdir(args.Cwd); err != nil {
+			s.send(&dap.ErrorResponse{Response: dap.Response{
+				ProtocolMessage: dap.ProtocolMessage{Seq: s.nextSeq(), Type: "response"},
+				RequestSeq:      m.Seq, Success: false, Command: m.Command,
+				Message: err.Error(),
+			}})
+			return
+		}
 	}
 
 	if s.program == "" {
@@ -234,11 +262,23 @@ func (s *dapServer) handleLaunch(m *dap.LaunchRequest) {
 	s.vm = gad.NewVM(builtins.Build(), bc).SetRecover(true)
 	s.vm.SetDebugger(s.eng)
 
+	opts := &gad.RunOpts{
+		StdOut: &dapWriter{s: s, category: "stdout"},
+		StdErr: &dapWriter{s: s, category: "stderr"},
+	}
+	if len(args.Args) > 0 {
+		argv := make(gad.Array, len(args.Args))
+		for i, a := range args.Args {
+			argv[i] = gad.Str(a)
+		}
+		opts.Args = gad.Args{argv}
+	}
+	if len(args.Env) > 0 {
+		opts.Env = gad.NewEnvFromMap(args.Env)
+	}
+
 	go func() {
-		ret, rerr := s.vm.RunOpts(&gad.RunOpts{
-			StdOut: &dapWriter{s: s, category: "stdout"},
-			StdErr: &dapWriter{s: s, category: "stderr"},
-		})
+		ret, rerr := s.vm.RunOpts(opts)
 		s.done <- debugResult{ret, rerr}
 	}()
 	go s.forwardEvents()
@@ -298,7 +338,21 @@ func (s *dapServer) handleStackTrace(m *dap.StackTraceRequest) *dap.StackTraceRe
 		return r
 	}
 	frames := s.eng.Frames()
-	src := &dap.Source{Name: baseName(s.program), Path: s.program}
+	// Cache one dap.Source per distinct file so frames from an imported module
+	// point the editor at that module's file (enabling step-into navigation
+	// across files), falling back to the entry program when a frame has no file.
+	sources := map[string]*dap.Source{}
+	sourceFor := func(path string) *dap.Source {
+		if path == "" {
+			path = s.program
+		}
+		if src, ok := sources[path]; ok {
+			return src
+		}
+		src := &dap.Source{Name: baseName(path), Path: path}
+		sources[path] = src
+		return src
+	}
 	// Innermost frame first (DAP convention).
 	id := 0
 	for i := len(frames) - 1; i >= 0; i-- {
@@ -306,7 +360,7 @@ func (s *dapServer) handleStackTrace(m *dap.StackTraceRequest) *dap.StackTraceRe
 		r.Body.StackFrames = append(r.Body.StackFrames, dap.StackFrame{
 			Id:     id,
 			Name:   f.FuncName,
-			Source: src,
+			Source: sourceFor(f.File),
 			Line:   f.Line,
 			Column: f.Column,
 		})
