@@ -3,7 +3,7 @@
          for the Gad file types by shipping the VS Code grammars as a TextMate
          bundle and delegating the highlighter to TextMate (which resolves the
          grammar by file name). If TextMate is absent, the core plugin still
-         works — the Gad files simply render without coloring. -->
+         works - the Gad files simply render without coloring. -->
     <extensions defaultExtensionNamespace="com.intellij">
         <lang.syntaxHighlighterFactory language="Gad"
             implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateSyntaxHighlighterFactory"/>
