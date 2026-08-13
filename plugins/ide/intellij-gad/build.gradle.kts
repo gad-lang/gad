@@ -19,10 +19,19 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        create(
-            providers.gradleProperty("platformType"),
-            providers.gradleProperty("platformVersion"),
-        )
+        // Build against a locally-installed IDE when `localIdePath` is set (e.g.
+        // the user's GoLand), so the plugin compiles and is verified against the
+        // exact platform it will run on. Otherwise download the configured
+        // IntelliJ IDEA Community version.
+        val localIde = providers.gradleProperty("localIdePath").orNull
+        if (!localIde.isNullOrBlank()) {
+            local(localIde)
+        } else {
+            create(
+                providers.gradleProperty("platformType"),
+                providers.gradleProperty("platformVersion"),
+            )
+        }
         bundledPlugins(
             providers.gradleProperty("platformBundledPlugins").map { it.split(',').map(String::trim) },
         )
@@ -33,7 +42,9 @@ dependencies {
         testFramework(TestFrameworkType.Platform)
     }
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    // BasePlatformTestCase (JUnit 3/4) needs the JUnit 4 API on the test classpath.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.opentest4j:opentest4j:1.3.0")
 }
 
 kotlin {
@@ -97,6 +108,4 @@ tasks.named("processResources") {
     dependsOn(bundleGad, copySchemas)
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
+// BasePlatformTestCase runs on the JUnit 4 runner (no useJUnitPlatform()).

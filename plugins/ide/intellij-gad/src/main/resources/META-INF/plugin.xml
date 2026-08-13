@@ -33,11 +33,11 @@
         <!-- Real file types for the three dialects: they appear in
              Settings ▸ Editor ▸ File Types with the Gad icon and give run/debug a
              solid file association. -->
-        <fileType name="Gad" fieldName="INSTANCE" language="Gad" extensions="gad"
+        <fileType name="Gad" extensions="gad"
                   implementationClass="dev.gad.intellij.lang.GadFileType"/>
-        <fileType name="Gad Template" fieldName="INSTANCE" language="Gad" extensions="gadt"
+        <fileType name="Gad Template" extensions="gadt"
                   implementationClass="dev.gad.intellij.lang.GadTemplateFileType"/>
-        <fileType name="Gadx" fieldName="INSTANCE" language="Gad" extensions="gadx"
+        <fileType name="Gadx" extensions="gadx"
                   implementationClass="dev.gad.intellij.lang.GadxFileType"/>
 
         <!-- Persisted settings + the Settings UI page. -->
@@ -55,5 +55,6 @@
 
         <!-- Debugger: line/conditional breakpoints for Gad files. -->
         <xdebugger.breakpointType implementation="dev.gad.intellij.debug.GadBreakpointType"/>
+
     </extensions>
 </idea-plugin>
