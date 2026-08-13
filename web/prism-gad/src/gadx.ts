@@ -65,8 +65,11 @@ export const gadxGrammar: Grammar = {
       "directive-name": { pattern: /^@slot/, alias: "keyword" },
       "slot-name": {
         pattern: /#?"(?:[^"\\]|\\.)*"/,
-        alias: "string",
         inside: {
+          // `#` pass marker, then `{ … }` interpolations as embedded Gad, then the
+          // remaining literal runs as string. The interpolation is a sibling of
+          // the string runs (not nested under a `string` alias), so the code
+          // inside `{ … }` keeps its own colours instead of the string colour.
           punctuation: /^#/,
           interpolation: {
             pattern: /\{=?[^{}]*\}/,
@@ -75,6 +78,7 @@ export const gadxGrammar: Grammar = {
               rest: gadGrammar,
             },
           },
+          string: /[\s\S]+/,
         },
       },
       rest: gadGrammar,

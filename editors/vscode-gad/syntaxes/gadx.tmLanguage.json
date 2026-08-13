@@ -54,8 +54,10 @@
       "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.gadx" } },
       "end": "\"",
       "endCaptures": { "0": { "name": "punctuation.definition.string.end.gadx" } },
-      "name": "string.quoted.double.interpolated.gadx",
-      "patterns": [{ "include": "#interpolation" }]
+      "patterns": [
+        { "include": "#interpolation" },
+        { "match": "[^{\"]+", "name": "string.quoted.double.gadx" }
+      ]
     },
     "keyword": {
       "begin": "^(\\s*)(@[A-Za-z_]\\w*)",
