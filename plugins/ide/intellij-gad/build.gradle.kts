@@ -51,7 +51,9 @@ intellijPlatform {
 
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
-            untilBuild = providers.gradleProperty("pluginUntilBuild")
+            // No upper bound: the plugin uses only stable platform APIs, so it stays
+            // compatible with current and future IDE builds (e.g. GoLand 2026.1+).
+            untilBuild = provider { null }
         }
     }
 
