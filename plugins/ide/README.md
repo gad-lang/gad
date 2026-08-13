@@ -9,7 +9,7 @@ highlighting.
 | Extension | Target | Status |
 | --- | --- | --- |
 | [`vscode-gad`](vscode-gad) | VS Code (and forks) | Shipping — TextMate grammars + language client + DAP debugging. |
-| [`intellij-gad`](intellij-gad) | IntelliJ Platform (IntelliJ IDEA, GoLand, WebStorm, PyCharm, …) | Planned — see [`intellij-gad/PLAN.md`](intellij-gad/PLAN.md). |
+| [`intellij-gad`](intellij-gad) | IntelliJ Platform (IntelliJ IDEA, GoLand, WebStorm, PyCharm, …) | Implemented — build locally with `./gradlew buildPlugin` (see [`intellij-gad/README.md`](intellij-gad/README.md) / [`PLAN.md`](intellij-gad/PLAN.md)). |
 
 ## VS Code — `vscode-gad`
 
@@ -28,11 +28,11 @@ bun run package                        # compile + produce vscode-gad.vsix
 
 ## IntelliJ Platform — `intellij-gad`
 
-A planned Gradle/Kotlin plugin for JetBrains IDEs providing highlighting, run
+A Gradle/Kotlin plugin for JetBrains IDEs providing highlighting, run
 configurations with execution profiles, and a full DAP-backed debugger
 (breakpoints incl. conditional, call stack, inspect, evaluate, cross-file
 navigation). Marketplace display name **Gad Language**. Scope, architecture and
-roadmap: [`intellij-gad/PLAN.md`](intellij-gad/PLAN.md).
+roadmap: [`intellij-gad/README.md`](intellij-gad/README.md) and [`PLAN.md`](intellij-gad/PLAN.md). Build with `./gradlew buildPlugin`.
 
 ---
 

@@ -14,7 +14,7 @@ plugins/
 │   └── prism-gad/          # @gad-lang/prism-gad — PrismJS grammar
 └── ide/                    # editor / IDE extensions
     ├── vscode-gad/         # VS Code extension (TextMate grammars + client)
-    └── intellij-gad/       # IntelliJ Platform plugin (planned — see its PLAN.md)
+    └── intellij-gad/       # IntelliJ Platform plugin (Gradle/Kotlin, DAP debugger)
 ```
 
 | Plugin | Package | What it is |
@@ -22,7 +22,7 @@ plugins/
 | [`js/codemirror-gad`](js/codemirror-gad) | `@gad-lang/codemirror-gad` | CodeMirror 6 language support: highlighting, autocompletion and async diagnostics for `.gad` / `.gadt` / `.gadx`. |
 | [`js/prism-gad`](js/prism-gad) | `@gad-lang/prism-gad` | PrismJS grammar for static, read-only Gad highlighting. |
 | [`ide/vscode-gad`](ide/vscode-gad) | `vscode-gad` | VS Code extension: TextMate grammars (`syntaxes/*.tmLanguage.json`) plus the language client. |
-| [`ide/intellij-gad`](ide/intellij-gad) | `Gad Language` | IntelliJ Platform plugin for JetBrains IDEs (highlighting, run configs, DAP debugger). Planned — see [`PLAN.md`](ide/intellij-gad/PLAN.md). |
+| [`ide/intellij-gad`](ide/intellij-gad) | `Gad Language` | IntelliJ Platform plugin for JetBrains IDEs (highlighting, run configs, DAP debugger). Build with `./gradlew buildPlugin` — see [`README`](ide/intellij-gad/README.md). |
 
 ## Building
 
@@ -55,11 +55,17 @@ bun run package                        # compile + produce vscode-gad.vsix
 
 ### IntelliJ Platform plugin (`plugins/ide/intellij-gad`)
 
-Planned — a Gradle/Kotlin plugin for JetBrains IDEs (IntelliJ IDEA, GoLand,
-WebStorm, …) reusing the `gad debug --dap` adapter and the VS Code TextMate
-grammars. Scope and roadmap live in
-[`ide/intellij-gad/PLAN.md`](ide/intellij-gad/PLAN.md); once it builds, it will
-compile with `./gradlew buildPlugin`.
+A Gradle/Kotlin plugin for JetBrains IDEs (IntelliJ IDEA, GoLand, WebStorm, …)
+reusing the `gad debug --dap` adapter and the VS Code TextMate grammars.
+
+```sh
+cd plugins/ide/intellij-gad
+./gradlew buildPlugin      # → build/distributions/*.zip (downloads the IDE SDK)
+./gradlew runIde           # launch a sandbox IDE with the plugin
+```
+
+Details in [`ide/intellij-gad/README.md`](ide/intellij-gad/README.md); scope and
+roadmap in [`PLAN.md`](ide/intellij-gad/PLAN.md).
 
 ## Keeping grammars in sync with the language
 

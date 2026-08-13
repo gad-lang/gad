@@ -19,6 +19,9 @@
 /plugins/**/out/
 /plugins/**/*.tsbuildinfo
 /plugins/**/*.vsix
+/plugins/**/build/
+/plugins/**/.gradle/
+/plugins/**/.kotlin/
 # goreleaser WASM release assets (built by scripts/build-wasm.sh)
 /wasm-assets/
 

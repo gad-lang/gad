@@ -1,0 +1,51 @@
+<idea-plugin>
+    <id>dev.gad-lang.gad</id>
+    <name>Gad Language</name>
+    <vendor url="https://gad-lang.github.io">Gad Lang</vendor>
+
+    <description><![CDATA[
+        Language support for <b>Gad</b> — a fast, embeddable scripting language —
+        and its template dialects, for JetBrains IDEs.
+        <ul>
+          <li>Syntax highlighting for <code>.gad</code>, <code>.gadt</code> and <code>.gadx</code>.</li>
+          <li>Run configurations with execution profiles (arguments, working directory, environment, <code>GADPATH</code>).</li>
+          <li>Full debugger over the Gad Debug Adapter (<code>gad debug --dap</code>): breakpoints and conditional breakpoints,
+              call stack, step in/over/out, resume/pause, variables inspection, expression evaluation and navigation into imported files.</li>
+          <li>Schema validation for <code>.gad.yaml</code> / <code>.gadide.yaml</code> project config.</li>
+        </ul>
+        See <a href="https://gad-lang.github.io">gad-lang.github.io</a>.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.textmate</depends>
+    <depends optional="true" config-file="gad-json.xml">com.intellij.modules.json</depends>
+
+    <resource-bundle>messages.GadBundle</resource-bundle>
+
+    <extensions defaultExtensionNamespace="com.intellij">
+        <!-- Custom file icons for the three dialects (TextMate owns highlighting). -->
+        <fileIconProvider implementation="dev.gad.intellij.lang.GadFileIconProvider"/>
+
+        <!-- Persisted settings + the Settings UI page. -->
+        <applicationService serviceImplementation="dev.gad.intellij.settings.GadSettings"/>
+        <applicationConfigurable
+            parentId="tools"
+            instance="dev.gad.intellij.settings.GadSettingsConfigurable"
+            id="dev.gad.intellij.settings"
+            displayName="Gad"/>
+
+        <!-- Run configuration + its debug program runner. -->
+        <configurationType implementation="dev.gad.intellij.run.GadRunConfigurationType"/>
+        <runConfigurationProducer implementation="dev.gad.intellij.run.GadRunConfigurationProducer"/>
+        <programRunner implementation="dev.gad.intellij.debug.GadDebugRunner"/>
+
+        <!-- Debugger: line/conditional breakpoints for Gad files. -->
+        <xdebugger.breakpointType implementation="dev.gad.intellij.debug.GadBreakpointType"/>
+    </extensions>
+
+    <!-- Ship the VS Code extension's grammars as a TextMate bundle (single source
+         of truth for highlighting across the two editor plugins). -->
+    <extensions defaultExtensionNamespace="com.intellij">
+        <textmate.bundleProvider implementation="dev.gad.intellij.highlight.GadBundleProvider"/>
+    </extensions>
+</idea-plugin>
