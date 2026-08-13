@@ -6,12 +6,14 @@ the agreed scope and roadmap.
 
 ## 1. Name and target
 
-- **Directory**: `plugins/jetbrains-gad` (sibling of `plugins/vscode-gad`).
+- **Directory**: `plugins/intellij-gad` (sibling of `plugins/vscode-gad`).
 - **What it targets**: the **IntelliJ Platform**, so a single plugin runs in
-  IntelliJ IDEA, GoLand, WebStorm, PyCharm, RustRover, CLion, Rider, etc. The
-  "correct" umbrella name is therefore *IntelliJ Platform plugin*; `jetbrains-gad`
-  is a fine artifact name (mirrors `vscode-gad`). An equally correct alternative
-  is `intellij-gad`. **Plugin ID**: `dev.gad-lang.gad` (reverse-DNS, stable).
+  IntelliJ IDEA, GoLand, WebStorm, PyCharm, RustRover, CLion, Rider, etc. The name
+  `intellij-gad` follows the community convention for IntelliJ Platform language
+  plugins (`intellij-rust`, `intellij-elixir`, `intellij-lua`, …) and is symmetric
+  with `vscode-gad`; `jetbrains-gad` is an acceptable alternative. **Plugin ID**:
+  `dev.gad-lang.gad` (reverse-DNS, stable). **Marketplace display name**:
+  `Gad Language`. **Website**: <https://gad-lang.github.io>.
 - **Languages**: `.gad` (scripts/modules), `.gadt` (mixed templates), `.gadx`
   (indentation templates) — the same three the VS Code extension and the web
   plugins handle.
@@ -116,7 +118,7 @@ Each item ships as its own Go commit with a DAP test in `cmd/gad/dap_test.go`.
 ## 6. Project layout
 
 ```
-plugins/jetbrains-gad/
+plugins/intellij-gad/
 ├── PLAN.md                         # this file
 ├── README.md                       # build/usage docs
 ├── build.gradle.kts                # IntelliJ Platform Gradle plugin 2.x
@@ -124,7 +126,7 @@ plugins/jetbrains-gad/
 ├── gradle.properties               # platform version, plugin version/id
 ├── gradle/wrapper/…                # pinned Gradle wrapper
 └── src/main/
-    ├── kotlin/dev/gad/jetbrains/
+    ├── kotlin/dev/gad/intellij/
     │   ├── lang/                    # file types, language, icons
     │   ├── highlight/               # TextMate bundle provider
     │   ├── config/                  # JSON-schema providers for .gad.yaml/.gadide.yaml
@@ -150,7 +152,7 @@ schemas across the VS Code and JetBrains plugins.
   declared IDE range).
 - `./gradlew test` → unit tests (DAP-client message mapping, breakpoint/condition
   translation, frame/value adapters — testable without a running IDE).
-- **Makefile**: add `build-jetbrains-plugin` (mirrors `build-vscode-plugin`) that
+- **Makefile**: add `build-intellij-plugin` (mirrors `build-vscode-plugin`) that
   runs `./gradlew buildPlugin` and copies the `.zip` into `dist/`. Wire into
   `dist` once the plugin builds green.
 - **Note**: the IntelliJ Platform Gradle plugin downloads the IDE SDK (~1 GB) on
@@ -165,7 +167,7 @@ schemas across the VS Code and JetBrains plugins.
 | **1 — run** | Run configuration + execution-profile form, settings (gad path), `.gad.yaml`/`.gadide.yaml` schema mapping. | §5.2 |
 | **2 — debug MVP** | `XDebugProcess` over DAP: launch, line breakpoints, resume/step in-over-out, call stack, Variables tree, evaluate/watches, console. | §5.2 |
 | **3 — full debug** | Conditional breakpoints, **cross-file navigation** into imports, on-hover evaluate, (optional) editable variables. | §5.1 (+5.3) |
-| **4 — ship** | Plugin Verifier green, README, marketplace metadata, `build-jetbrains-plugin` in the Makefile, first Marketplace draft. | 0–3 |
+| **4 — ship** | Plugin Verifier green, README, marketplace metadata, `build-intellij-plugin` in the Makefile, first Marketplace draft. | 0–3 |
 
 ## 9. Distribution
 
