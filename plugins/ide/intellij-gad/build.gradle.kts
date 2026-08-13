@@ -24,8 +24,9 @@ dependencies {
         // exact platform it will run on. Otherwise download the configured
         // IntelliJ IDEA Community version.
         val localIde = providers.gradleProperty("localIdePath").orNull
-        if (!localIde.isNullOrBlank()) {
-            local(localIde)
+        val buildingAgainstLocalIde = !localIde.isNullOrBlank()
+        if (buildingAgainstLocalIde) {
+            local(localIde!!)
         } else {
             create(
                 providers.gradleProperty("platformType"),
@@ -35,6 +36,13 @@ dependencies {
         bundledPlugins(
             providers.gradleProperty("platformBundledPlugins").map { it.split(',').map(String::trim) },
         )
+        // The JSON support is part of the core IntelliJ IDEA Community distribution
+        // (so it compiles by default there), but a separately-bundled plugin in
+        // product IDEs like GoLand — declare it only when building against a local
+        // IDE, so the config-schema classes are on the classpath there too.
+        if (buildingAgainstLocalIde) {
+            bundledPlugin("com.intellij.modules.json")
+        }
 
         pluginVerifier()
         zipSigner()
@@ -49,6 +57,11 @@ dependencies {
 
 kotlin {
     jvmToolchain(providers.gradleProperty("javaVersion").get().toInt())
+    compilerOptions {
+        // Allow compiling against a newer IDE (e.g. GoLand 2026.1) whose platform
+        // classes carry a newer Kotlin metadata version than this build's compiler.
+        freeCompilerArgs.add("-Xskip-metadata-version-check")
+    }
 }
 
 intellijPlatform {
