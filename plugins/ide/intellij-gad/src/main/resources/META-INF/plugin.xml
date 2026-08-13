@@ -48,5 +48,9 @@
         <programRunner implementation="dev.gad.intellij.debug.GadDebugRunner"/>
 
         <xdebugger.breakpointType implementation="dev.gad.intellij.debug.GadBreakpointType"/>
+
+        <!-- Reformat Code runs `gad fmt` for Gad files. -->
+        <formattingService implementation="dev.gad.intellij.format.GadFormattingService"/>
+        <notificationGroup id="Gad" displayType="BALLOON"/>
     </extensions>
 </idea-plugin>
