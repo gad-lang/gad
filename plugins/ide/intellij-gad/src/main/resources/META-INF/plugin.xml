@@ -29,9 +29,19 @@
                   implementationClass="dev.gad.intellij.lang.GadxFileType" fieldName="INSTANCE"/>
 
         <applicationService serviceImplementation="dev.gad.intellij.settings.GadSettings"/>
+        <!-- Settings > Tools > Gad, with three child pages. -->
         <applicationConfigurable parentId="tools"
                                  instance="dev.gad.intellij.settings.GadSettingsConfigurable"
                                  id="dev.gad.intellij.settings" displayName="Gad"/>
+        <applicationConfigurable parentId="dev.gad.intellij.settings"
+                                 instance="dev.gad.intellij.settings.GadExecutableConfigurable"
+                                 id="dev.gad.intellij.settings.executable" displayName="Executable"/>
+        <applicationConfigurable parentId="dev.gad.intellij.settings"
+                                 instance="dev.gad.intellij.settings.GadPathConfigurable"
+                                 id="dev.gad.intellij.settings.gadpath" displayName="GADPATH"/>
+        <applicationConfigurable parentId="dev.gad.intellij.settings"
+                                 instance="dev.gad.intellij.settings.GadFormattingConfigurable"
+                                 id="dev.gad.intellij.settings.formatting" displayName="Formatting"/>
 
         <configurationType implementation="dev.gad.intellij.run.GadRunConfigurationType"/>
         <runConfigurationProducer implementation="dev.gad.intellij.run.GadRunConfigurationProducer"/>
