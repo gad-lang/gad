@@ -8,6 +8,7 @@ import { VBtn, VIcon } from "../vuetify";
 import { IdeControllerKey } from "../controller";
 import UploadReviewDialog from "../UploadReviewDialog";
 import { rawFromDataTransfer, rawFromInput, type RawFile } from "../upload";
+import { gadFileIconFor } from "../gadFileIcons";
 import type { UploadedFile } from "../api";
 
 export default defineComponent({
@@ -99,13 +100,24 @@ export default defineComponent({
                 onDragover={ctx.canUpload.value ? (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); dropDir.value = rowDir; } : undefined}
                 onDrop={ctx.canUpload.value ? (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); void onDrop(e, rowDir); } : undefined}
               >
-                <VIcon size="16" class="mr-1">
-                  {row.node.dir
-                    ? ctx.isExpanded(row.node.path)
-                      ? "mdi-folder-open-outline"
-                      : "mdi-folder-outline"
-                    : ctx.iconFor(row.node.path)}
-                </VIcon>
+                {!row.node.dir && gadFileIconFor(row.node.path) ? (
+                  <img
+                    src={gadFileIconFor(row.node.path)}
+                    alt=""
+                    width="16"
+                    height="16"
+                    class="mr-1"
+                    style={{ imageRendering: "pixelated", verticalAlign: "-3px" }}
+                  />
+                ) : (
+                  <VIcon size="16" class="mr-1">
+                    {row.node.dir
+                      ? ctx.isExpanded(row.node.path)
+                        ? "mdi-folder-open-outline"
+                        : "mdi-folder-outline"
+                      : ctx.iconFor(row.node.path)}
+                  </VIcon>
+                )}
                 <span class="pnl-ellipsis">{row.node.name}</span>
               </div>
             );

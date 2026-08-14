@@ -71,6 +71,7 @@ function copyText(text: string): void {
   void navigator.clipboard?.writeText(text).catch(() => {});
 }
 import { Editor, type EditorHandle, type EditorLanguage } from "./Editor";
+import { gadFileIconFor } from "./gadFileIcons";
 
 /** Map a workspace file path to its CodeMirror language. */
 function langForPath(path: string): EditorLanguage {
@@ -2367,26 +2368,21 @@ function RemoveDialog({
 const FILE_ICON_SX = { fontSize: 15, verticalAlign: "middle", mr: "3px" } as const;
 
 function FileIcon({ name }: { name: string }) {
+  // Gad-family icons (.gad/.gadt/.gadx and *_test.gad) come from the shared
+  // data-URI set so they render identically in every deploy context.
+  const gadIcon = gadFileIconFor(name);
+  if (gadIcon) {
+    return (
+      <Box
+        component="img"
+        src={gadIcon}
+        alt=""
+        sx={{ ...FILE_ICON_SX, width: 16, height: 16, display: "inline-block" }}
+      />
+    );
+  }
   const ext = (name.includes(".") ? name.split(".").pop()! : "").toLowerCase();
   switch (ext) {
-    case "gad":
-      return (
-        <Box
-          component="img"
-          src="/gad-16.svg"
-          alt=""
-          sx={{ ...FILE_ICON_SX, width: 16, height: 16, display: "inline-block" }}
-        />
-      );
-    case "gadt":
-      return (
-        <Box
-          component="img"
-          src="/gadt-16.svg"
-          alt=""
-          sx={{ ...FILE_ICON_SX, width: 16, height: 16, display: "inline-block" }}
-        />
-      );
     case "json":
       return <DataObjectIcon sx={{ ...FILE_ICON_SX, color: "#fb923c" }} />;
     case "yaml": case "yml":

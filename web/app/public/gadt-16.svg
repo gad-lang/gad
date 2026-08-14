@@ -1,14 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" shape-rendering="crispEdges">
     <defs>
         <style>
-            .base-dark   { fill: #0D1B2A; } /* Contornos e estrutura principal */
-            .tmpl-cyan   { fill: #06B6D4; } /* Cor do template (Ciano da marca Gad) */
-            .tmpl-light  { fill: #E0F7FA; } /* Faixa de destaque do template */
-            .horn-silver { fill: #BDC3C7; } /* Chifres identificadores da gazela */
+            .base-dark  { fill: #0D1B2A; } /* Contornos grossos para garantir contraste */
+            .fur-orange { fill: #06B6D4; } /* Pele principal da gazela */
+            .fur-light  { fill: #E0F7FA; } /* Faixa central e orelhas */
+            .horn-silver{ fill: #BDC3C7; } /* Chifres claros e visíveis */
+            .eye-white  { fill: #FFFFFF; } /* Olhos grandes estilo Go */
+            .badge-red   { fill: #E53935; } /* GADT/GADX badge glyph */
+            .badge-white { fill: #FFFFFF; } /* GADT/GADX badge outline/gap */
         </style>
     </defs>
 
-    <!-- CHIFRES DA GAZELA (Mantidos para identidade da linguagem) -->
+    <!-- CHIFRES (topo, y=0) -->
     <rect x="5" y="0" width="2" height="4" class="base-dark" />
     <rect x="5" y="1" width="1" height="3" class="horn-silver" />
 
@@ -17,25 +20,72 @@
 
     <!-- ORELHAS LATERAIS -->
     <rect x="1" y="5" width="3" height="2" class="base-dark" />
-    <rect x="2" y="5" width="2" height="1" class="tmpl-cyan" />
+    <rect x="2" y="5" width="2" height="1" class="fur-orange" />
 
     <rect x="12" y="5" width="3" height="2" class="base-dark" />
-    <rect x="12" y="5" width="2" height="1" class="tmpl-cyan" />
+    <rect x="12" y="5" width="2" height="1" class="fur-orange" />
 
-    <!-- CABEÇA BASE (Em tom ciano para indicar Template/Blueprint) -->
-    <rect x="3" y="4" width="10" height="9" class="base-dark" />
-    <rect x="4" y="5" width="8" height="7" class="tmpl-cyan" />
+    <!-- CABEÇA AFUNILADA PARA BAIXO (focinho de gazela, y=4 -> 16) -->
+    <rect x="3" y="4" width="10" height="7" class="base-dark" />  <!-- topo largo (olhos) -->
+    <rect x="4" y="11" width="8" height="2" class="base-dark" />  <!-- afunila 1 -->
+    <rect x="5" y="13" width="6" height="3" class="base-dark" />  <!-- focinho -->
 
-    <!-- LISTRA FACIAL CENTRAL (Estilo Wireframe/Layout) -->
-    <rect x="7" y="5" width="2" height="8" class="tmpl-light" />
-    <rect x="7" y="12" width="2" height="1" class="base-dark" /> <!-- Nariz -->
+    <rect x="4" y="5" width="8" height="6" class="fur-orange" />
+    <rect x="5" y="11" width="6" height="2" class="fur-orange" />
+    <rect x="6" y="13" width="4" height="2" class="fur-orange" />
 
-    <!-- OLHOS VAZADOS (Efeito blueprint/molde para diferenciar de arquivo executável) -->
+    <!-- LISTRA FACIAL CENTRAL -->
+    <rect x="7" y="5" width="2" height="10" class="fur-light" />
+    <rect x="7" y="14" width="2" height="1" class="base-dark" /> <!-- Nariz -->
+
+    <!-- OLHOS GIGANTES (Estilo Mascote do Go) -->
     <!-- Olho Esquerdo -->
     <rect x="4" y="6" width="3" height="3" class="base-dark" />
-    <rect x="5" y="7" width="1" height="1" class="tmpl-light" />
+    <rect x="4" y="6" width="2" height="2" class="eye-white" />
+    <rect x="5" y="7" width="1" height="1" class="base-dark" /> <!-- Pupila -->
 
     <!-- Olho Direito -->
     <rect x="9" y="6" width="3" height="3" class="base-dark" />
-    <rect x="10" y="7" width="1" height="1" class="tmpl-light" />
+    <rect x="10" y="6" width="2" height="2" class="eye-white" />
+    <rect x="10" y="7" width="1" height="1" class="base-dark" /> <!-- Pupila -->
+  <!-- GADT (template) badge: red "{" + white border/gap (1px; 2px left), bottom-right. -->
+  <rect x="12" y="9" width="1" height="1" class="badge-white"/>
+  <rect x="12" y="10" width="1" height="1" class="badge-white"/>
+  <rect x="11" y="10" width="1" height="1" class="badge-white"/>
+  <rect x="12" y="12" width="1" height="1" class="badge-white"/>
+  <rect x="12" y="13" width="1" height="1" class="badge-white"/>
+  <rect x="12" y="14" width="1" height="1" class="badge-white"/>
+  <rect x="12" y="15" width="1" height="1" class="badge-white"/>
+  <rect x="12" y="8" width="1" height="1" class="badge-white"/>
+  <rect x="13" y="15" width="1" height="1" class="badge-white"/>
+  <rect x="12" y="7" width="1" height="1" class="badge-white"/>
+  <rect x="14" y="11" width="1" height="1" class="badge-white"/>
+  <rect x="14" y="12" width="1" height="1" class="badge-white"/>
+  <rect x="14" y="13" width="1" height="1" class="badge-white"/>
+  <rect x="14" y="15" width="1" height="1" class="badge-white"/>
+  <rect x="15" y="9" width="1" height="1" class="badge-white"/>
+  <rect x="14" y="10" width="1" height="1" class="badge-white"/>
+  <rect x="15" y="13" width="1" height="1" class="badge-white"/>
+  <rect x="15" y="15" width="1" height="1" class="badge-white"/>
+  <rect x="14" y="9" width="1" height="1" class="badge-white"/>
+  <rect x="15" y="7" width="1" height="1" class="badge-white"/>
+  <rect x="14" y="7" width="1" height="1" class="badge-white"/>
+  <rect x="13" y="7" width="1" height="1" class="badge-white"/>
+  <rect x="11" y="11" width="1" height="1" class="badge-white"/>
+  <rect x="11" y="12" width="1" height="1" class="badge-white"/>
+  <rect x="11" y="9" width="1" height="1" class="badge-white"/>
+  <rect x="11" y="8" width="1" height="1" class="badge-white"/>
+  <rect x="13" y="10" width="1" height="1" class="badge-red"/>
+  <rect x="13" y="11" width="1" height="1" class="badge-red"/>
+  <rect x="13" y="12" width="1" height="1" class="badge-red"/>
+  <rect x="13" y="13" width="1" height="1" class="badge-red"/>
+  <rect x="13" y="14" width="1" height="1" class="badge-red"/>
+  <rect x="15" y="8" width="1" height="1" class="badge-red"/>
+  <rect x="14" y="14" width="1" height="1" class="badge-red"/>
+  <rect x="12" y="11" width="1" height="1" class="badge-red"/>
+  <rect x="15" y="14" width="1" height="1" class="badge-red"/>
+  <rect x="13" y="9" width="1" height="1" class="badge-red"/>
+  <rect x="13" y="8" width="1" height="1" class="badge-red"/>
+  <rect x="14" y="8" width="1" height="1" class="badge-red"/>
+  <rect x="13" y="8" width="1" height="1" class="badge-red"/>
 </svg>
