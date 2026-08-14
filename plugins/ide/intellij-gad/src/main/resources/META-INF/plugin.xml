@@ -53,4 +53,22 @@
         <formattingService implementation="dev.gad.intellij.format.GadFormattingService"/>
         <notificationGroup id="Gad" displayType="BALLOON"/>
     </extensions>
+
+    <actions>
+        <!-- Right-click a .gad/.gadt/.gadx file: Run it directly. -->
+        <action id="dev.gad.intellij.run.GadRunFileAction"
+                class="dev.gad.intellij.run.GadRunFileAction" text="Run" description="Run this Gad file">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="first"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+        </action>
+        <!-- Right-click a .gadt/.gadx file or a directory: transpile to .gad. -->
+        <action id="dev.gad.intellij.run.GadTranspileAction"
+                class="dev.gad.intellij.run.GadTranspileAction" text="Gad Transpile"
+                description="Transpile Gad templates (.gadt / .gadx) to .gad">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="after"
+                          relative-to-action="dev.gad.intellij.run.GadRunFileAction"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="after"
+                          relative-to-action="dev.gad.intellij.run.GadRunFileAction"/>
+        </action>
+    </actions>
 </idea-plugin>
