@@ -34,28 +34,40 @@ func parseGadxFile(srcFile *source.File) (*parser.File, error) {
 	return &parser.File{InputFile: srcFile, Stmts: gadxnode.ConvertFile(file.Stmts)}, nil
 }
 
+// TranspileGadxSource parses Gadx source and returns the equivalent Gad source
+// (the same lowering used by compilation, emitted as Gad instead of bytecode).
+// The result is the raw serialization of the lowered AST; run it through the Gad
+// formatter for canonical output (see the `transpile` CLI command).
+func TranspileGadxSource(name string, src []byte) ([]byte, error) {
+	fileSet := source.NewFileSet()
+	srcFile := fileSet.AppendFileData(name, src)
+	p := gadxparser.NewParser(srcFile)
+	parsed, err := p.ParseFile()
+	if err != nil {
+		return nil, err
+	}
+	converted := gadxnode.ConvertFile(parsed.Stmts)
+	var buf bytes.Buffer
+	node.CodeW(&buf, converted, node.CodeWithPrefix("\t"), node.CodeFormat())
+	return buf.Bytes(), nil
+}
+
 // TranspileGadx parses Gadx source and writes the equivalent Gad source to
 // outPath (a ".gad" suffix is appended when missing). It is the on-disk
 // counterpart of the Gadx front-end: the same lowering used by compilation,
 // emitted as readable Gad instead of bytecode.
 func TranspileGadx(name string, src []byte, outPath string) error {
-	fileSet := source.NewFileSet()
-	srcFile := fileSet.AppendFileData(name, src)
-	p := gadxparser.NewParser(srcFile)
-	parsed, err := p.ParseFile()
+	out, err := TranspileGadxSource(name, src)
 	if err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		return fmt.Errorf("create transpile dir: %w", err)
 	}
-	converted := gadxnode.ConvertFile(parsed.Stmts)
-	var buf bytes.Buffer
-	node.CodeW(&buf, converted, node.CodeWithPrefix("\t"), node.CodeFormat())
 	if !strings.HasSuffix(outPath, ".gad") {
 		outPath += ".gad"
 	}
-	if err := os.WriteFile(outPath, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(outPath, out, 0o644); err != nil {
 		return fmt.Errorf("write transpiled %s: %w", outPath, err)
 	}
 	return nil

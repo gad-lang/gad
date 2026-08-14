@@ -83,23 +83,32 @@ func transpileFile(ctx *cc.CommandContext, path string) error {
 	}
 	dest := strings.TrimSuffix(path, filepath.Ext(path)) + ".gad"
 
+	var content string
 	if isGadxFile(path) {
-		// A `.gadx` template is lowered to Gad by the Gadx front-end (parse +
-		// convert + WriteCode), which TranspileGadx wraps.
-		if err := gad.TranspileGadx(path, src, dest); err != nil {
+		// A `.gadx` template is lowered to Gad by the Gadx front-end, then run
+		// through the Gad formatter so the emitted `.gad` is canonically
+		// formatted (no raw blank-line runs), just like the `.gadt` path below.
+		lowered, err := gad.TranspileGadxSource(path, src)
+		if err != nil {
+			return fmt.Errorf("transpile %s: %w", path, err)
+		}
+		o := &fmtOptions{codeFlags: fmtFormatFlag()}
+		content, err = o.formatSource(dest, lowered, false)
+		if err != nil {
 			return fmt.Errorf("transpile %s: %w", path, err)
 		}
 	} else {
 		// A `.gadt` mixed template reuses the formatter's transpile pipeline.
 		o := &fmtOptions{transpileOn: true}
 		o.finalizeTranspile()
-		content, err := o.formatSource(path, src, true)
+		var err error
+		content, err = o.formatSource(path, src, true)
 		if err != nil {
 			return fmt.Errorf("transpile %s: %w", path, err)
 		}
-		if err := os.WriteFile(dest, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", dest, err)
-		}
+	}
+	if err := os.WriteFile(dest, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", dest, err)
 	}
 
 	fmt.Fprintf(ctx.Out, "%s -> %s\n", path, dest)
