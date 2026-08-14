@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
+    <defs>
+        <style>
+            .outline-dark { fill: #0D1B2A; } /* Contornos principais */
+            .fur-main     { fill: #06B6D4; } /* Pele da gazela */
+            .fur-shadow   { fill: #0891B2; } /* Detalhes faciais escuros */
+            .fur-white    { fill: #E0F7FA; } /* Listra branca central */
+            .horn-gray    { fill: #BDC3C7; } /* Chifres prateados */
+            .eye-white    { fill: #FFFFFF; } /* Globo ocular */
+            .badge-red   { fill: #E53935; } /* GADT/GADX badge glyph */
+            .badge-white { fill: #FFFFFF; } /* GADT/GADX badge outline/gap */
+        </style>
+    </defs>
+
+    <!-- CHIFRES DA GAZELA (com ranhuras) -->
+    <rect x="11" y="0" width="2" height="9" class="outline-dark" />
+    <rect x="11" y="1" width="1" height="8" class="horn-gray" />
+    <rect x="11" y="3" width="1" height="1" class="outline-dark" />
+    <rect x="11" y="6" width="1" height="1" class="outline-dark" />
+    <rect x="19" y="0" width="2" height="9" class="outline-dark" />
+    <rect x="20" y="1" width="1" height="8" class="horn-gray" />
+    <rect x="20" y="3" width="1" height="1" class="outline-dark" />
+    <rect x="20" y="6" width="1" height="1" class="outline-dark" />
+
+    <!-- ORELHAS LONGAS -->
+    <rect x="3" y="10" width="7" height="3" class="outline-dark" />
+    <rect x="4" y="11" width="6" height="1" class="fur-main" />
+    <rect x="22" y="10" width="7" height="3" class="outline-dark" />
+    <rect x="22" y="11" width="6" height="1" class="fur-main" />
+
+    <!-- CABEÇA AFUNILADA (focinho de gazela, y=8 -> 32) -->
+    <rect x="7" y="8" width="18" height="12" class="outline-dark" />  <!-- topo largo (olhos) -->
+    <rect x="10" y="20" width="12" height="5" class="outline-dark" /> <!-- maxilar -->
+    <rect x="13" y="25" width="6" height="7" class="outline-dark" />  <!-- focinho -->
+
+    <rect x="8" y="9" width="16" height="11" class="fur-main" />
+    <rect x="11" y="20" width="10" height="5" class="fur-main" />
+    <rect x="14" y="28" width="4" height="3" class="fur-main" />
+
+    <!-- SOMBRAS DAS BOCHECHAS E DO MAXILAR (suaviza os degraus) -->
+    <rect x="8" y="14" width="2" height="6" class="fur-shadow" />
+    <rect x="22" y="14" width="2" height="6" class="fur-shadow" />
+    <rect x="11" y="23" width="2" height="2" class="fur-shadow" />
+    <rect x="19" y="23" width="2" height="2" class="fur-shadow" />
+
+    <!-- LISTRA FACIAL CENTRAL -->
+    <rect x="14" y="9" width="4" height="21" class="fur-white" />
+    <rect x="15" y="29" width="2" height="2" class="outline-dark" /> <!-- Nariz -->
+
+    <!-- OLHOS GIGANTES ESTILO GOPHER (com brilho interno) -->
+    <rect x="8" y="11" width="6" height="6" class="outline-dark" />
+    <rect x="9" y="12" width="4" height="4" class="eye-white" />
+    <rect x="11" y="14" width="2" height="2" class="outline-dark" />
+    <rect x="11" y="14" width="1" height="1" class="eye-white" />
+    <rect x="18" y="11" width="6" height="6" class="outline-dark" />
+    <rect x="19" y="12" width="4" height="4" class="eye-white" />
+    <rect x="19" y="14" width="2" height="2" class="outline-dark" />
+    <rect x="19" y="14" width="1" height="1" class="eye-white" />
+    <!-- GADX (pug) badge: red @ (7x7, 1px strokes) + white border/gap, bottom-right. -->
+    <svg x="18" y="18" width="14" height="14" viewBox="0 0 7 7" overflow="visible">
+        <rect x="0" y="0" width="1" height="1" class="badge-white"/>
+        <rect x="0" y="1" width="1" height="1" class="badge-white"/>
+        <rect x="0" y="2" width="1" height="1" class="badge-white"/>
+        <rect x="0" y="3" width="1" height="1" class="badge-white"/>
+        <rect x="0" y="4" width="1" height="1" class="badge-white"/>
+        <rect x="0" y="5" width="1" height="1" class="badge-white"/>
+        <rect x="0" y="6" width="1" height="1" class="badge-white"/>
+        <rect x="1" y="0" width="1" height="1" class="badge-white"/>
+        <rect x="1" y="6" width="1" height="1" class="badge-white"/>
+        <rect x="2" y="0" width="1" height="1" class="badge-white"/>
+        <rect x="2" y="2" width="1" height="1" class="badge-white"/>
+        <rect x="2" y="3" width="1" height="1" class="badge-white"/>
+        <rect x="2" y="4" width="1" height="1" class="badge-white"/>
+        <rect x="2" y="6" width="1" height="1" class="badge-white"/>
+        <rect x="3" y="0" width="1" height="1" class="badge-white"/>
+        <rect x="3" y="2" width="1" height="1" class="badge-white"/>
+        <rect x="3" y="4" width="1" height="1" class="badge-white"/>
+        <rect x="3" y="6" width="1" height="1" class="badge-white"/>
+        <rect x="4" y="0" width="1" height="1" class="badge-white"/>
+        <rect x="4" y="2" width="1" height="1" class="badge-white"/>
+        <rect x="4" y="3" width="1" height="1" class="badge-white"/>
+        <rect x="4" y="4" width="1" height="1" class="badge-white"/>
+        <rect x="4" y="6" width="1" height="1" class="badge-white"/>
+        <rect x="5" y="0" width="1" height="1" class="badge-white"/>
+        <rect x="5" y="4" width="1" height="1" class="badge-white"/>
+        <rect x="5" y="6" width="1" height="1" class="badge-white"/>
+        <rect x="6" y="0" width="1" height="1" class="badge-white"/>
+        <rect x="6" y="1" width="1" height="1" class="badge-white"/>
+        <rect x="6" y="2" width="1" height="1" class="badge-white"/>
+        <rect x="6" y="3" width="1" height="1" class="badge-white"/>
+        <rect x="6" y="4" width="1" height="1" class="badge-white"/>
+        <rect x="6" y="5" width="1" height="1" class="badge-white"/>
+        <rect x="6" y="6" width="1" height="1" class="badge-white"/>
+        <rect x="1" y="1" width="1" height="1" class="badge-red"/>
+        <rect x="1" y="2" width="1" height="1" class="badge-red"/>
+        <rect x="1" y="3" width="1" height="1" class="badge-red"/>
+        <rect x="1" y="4" width="1" height="1" class="badge-red"/>
+        <rect x="1" y="5" width="1" height="1" class="badge-red"/>
+        <rect x="2" y="1" width="1" height="1" class="badge-red"/>
+        <rect x="2" y="5" width="1" height="1" class="badge-red"/>
+        <rect x="3" y="1" width="1" height="1" class="badge-red"/>
+        <rect x="3" y="3" width="1" height="1" class="badge-red"/>
+        <rect x="3" y="5" width="1" height="1" class="badge-red"/>
+        <rect x="4" y="1" width="1" height="1" class="badge-red"/>
+        <rect x="4" y="5" width="1" height="1" class="badge-red"/>
+        <rect x="5" y="1" width="1" height="1" class="badge-red"/>
+        <rect x="5" y="2" width="1" height="1" class="badge-red"/>
+        <rect x="5" y="3" width="1" height="1" class="badge-red"/>
+        <rect x="5" y="5" width="1" height="1" class="badge-red"/>
+    </svg>
+</svg>
