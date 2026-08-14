@@ -99,7 +99,9 @@ func transpileFile(ctx *cc.CommandContext, path string) error {
 		}
 	} else {
 		// A `.gadt` mixed template reuses the formatter's transpile pipeline.
-		o := &fmtOptions{transpileOn: true}
+		// fmtFormatFlag() makes the emitted Gad canonically formatted (the
+		// transpile flag alone lowers the template but doesn't reflow the code).
+		o := &fmtOptions{transpileOn: true, codeFlags: fmtFormatFlag()}
 		o.finalizeTranspile()
 		var err error
 		content, err = o.formatSource(path, src, true)
