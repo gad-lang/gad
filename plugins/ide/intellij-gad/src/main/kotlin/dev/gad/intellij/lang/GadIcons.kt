@@ -17,6 +17,10 @@ object GadIcons {
     @JvmField
     val GADX_FILE = IconLoader.getIcon("/icons/gadx-file.svg", GadIcons::class.java)
 
+    /** `*_test.gad` files — the Gad file icon with a test badge. */
+    @JvmField
+    val GAD_TEST_FILE = IconLoader.getIcon("/icons/gad_test-file.svg", GadIcons::class.java)
+
     /** Backwards-compatible alias used by the run configuration. */
     @JvmField
     val FILE = LOGO

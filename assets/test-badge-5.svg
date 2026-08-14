@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5 5" width="5" height="5">
+    <!-- White rotated square (diamond): outer border plus the (wider) gap between
+         the two arrows. -->
+    <polygon points="2.5,0 5,2.5 2.5,5 0,2.5" fill="#FFFFFF"/>
+
+    <!-- Left half of the diamond, cut as a left-pointing triangle: red. -->
+    <polygon points="2.2,0.72 2.2,4.28 0.42,2.5" fill="#DB5860"/>
+
+    <!-- Right half of the diamond, cut as a right-pointing triangle: green. -->
+    <polygon points="2.8,0.72 2.8,4.28 4.58,2.5" fill="#59A869"/>
+</svg>

@@ -28,6 +28,9 @@
         <fileType name="Gadx" language="Gad" extensions="gadx"
                   implementationClass="dev.gad.intellij.lang.GadxFileType" fieldName="INSTANCE"/>
 
+        <!-- *_test.gad files get the Gad icon with a test badge. -->
+        <fileIconProvider implementation="dev.gad.intellij.lang.GadFileIconProvider"/>
+
         <applicationService serviceImplementation="dev.gad.intellij.settings.GadSettings"/>
         <!-- Settings > Build, Execution, Deployment > Gad, with three child pages. -->
         <applicationConfigurable parentId="build"
