@@ -18,6 +18,7 @@ import {
 } from "@codemirror/language";
 import { closeBrackets, autocompletion } from "@codemirror/autocomplete";
 import { gad, type GadOptions } from "../src/index";
+import { iconFor } from "./fileIcons";
 
 // Sample files are read from the filesystem by the dev server (see serve.ts):
 // the manifest lists them, and each file's contents are fetched on demand.
@@ -106,7 +107,11 @@ function renderTree(node: TreeNode, container: HTMLElement): void {
   for (const path of node.files.sort()) {
     const btn = document.createElement("button");
     btn.className = "file";
-    btn.textContent = path.split("/").pop()!;
+    const icon = document.createElement("img");
+    icon.className = "file-icon";
+    icon.src = iconFor(path);
+    icon.alt = "";
+    btn.append(icon, document.createTextNode(path.split("/").pop()!));
     btn.onclick = () => {
       activeButton?.classList.remove("active");
       btn.classList.add("active");

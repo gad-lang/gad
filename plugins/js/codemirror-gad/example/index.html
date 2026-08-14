@@ -26,6 +26,11 @@
         background: transparent; cursor: pointer; color: #222;
       }
       #tree button.file:hover { background: #f0f0f0; }
+      #tree button.file .file-icon,
+      #tree button.file img.file-icon {
+        width: 16px; height: 16px; vertical-align: -3px; margin-right: 0.35rem;
+        image-rendering: pixelated;
+      }
       #tree button.file.active { background: #2563eb; color: #fff; }
       #editor { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
       .cm-editor { height: 34rem; }

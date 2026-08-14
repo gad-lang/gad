@@ -5,6 +5,7 @@
 // (see serve.ts). Serve with `bun run demo`.
 import Prism from "prismjs";
 import { registerGad, registerGadx, gadGrammarFor, type GadSourceType } from "../src/index";
+import { iconFor } from "./fileIcons";
 
 registerGad(Prism); // the embedded Gad grammar (required by template & gadx)
 registerGadx(Prism); // Prism.languages.gadx
@@ -79,7 +80,11 @@ function renderTree(node: TreeNode, container: HTMLElement): void {
   for (const path of node.files.sort()) {
     const btn = document.createElement("button");
     btn.className = "file";
-    btn.textContent = path.split("/").pop()!;
+    const icon = document.createElement("img");
+    icon.className = "file-icon";
+    icon.src = iconFor(path);
+    icon.alt = "";
+    btn.append(icon, document.createTextNode(path.split("/").pop()!));
     btn.onclick = () => {
       activeButton?.classList.remove("active");
       btn.classList.add("active");
