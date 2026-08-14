@@ -326,7 +326,11 @@ export function createController(
   }
 
   // --- diagnose -----------------------------------------------------------
-  const diagnose = (src: string): Promise<GadDiagnostic[]> => api.diagnose(src);
+  // Forward the editor's dialect ("gad" | "gadx") so the backend parses .gadx
+  // with the Gadx front-end instead of as plain Gad (which flags valid gadx
+  // syntax like `@comp` as errors). The linter never runs for templates.
+  const diagnose = (src: string, sourceType?: string): Promise<GadDiagnostic[]> =>
+    api.diagnose(src, sourceType);
 
   // --- run / format / doc -------------------------------------------------
   const busy = ref(false);

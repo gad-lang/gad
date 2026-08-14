@@ -176,8 +176,8 @@ export const localIdeApi: IdeApi = {
     inspect?: InspectResult;
     error?: string;
   }> => sharedClient().inspect(req.session ?? "", req.expr, req.source ?? ""),
-  diagnose: async (source: string): Promise<GadDiagnostic[]> =>
-    (await sharedClient().diagnose(source)).diagnostics,
+  diagnose: async (source: string, sourceType?: string): Promise<GadDiagnostic[]> =>
+    (await sharedClient().diagnose(source, sourceType ?? "")).diagnostics,
   run: (req: { path?: string; source?: string; args?: string[]; tagEncode?: string }) =>
     sharedClient().run(req.source ?? fs.read(req.path ?? "") ?? "", dialectOf(req.path), req.args ?? [], req.tagEncode ?? ""),
   dbgStart: (req: { source: string; breakpoints: number[]; breakpointSpecs?: BreakpointSpec[]; stopOnEntry: boolean; path?: string; args?: string[] }) =>

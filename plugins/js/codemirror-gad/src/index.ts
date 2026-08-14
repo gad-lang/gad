@@ -87,7 +87,7 @@ export function gad(options: GadOptions = {}): Extension {
   if (options.completion !== false) ext.push(gadCompletion());
   if (options.hover !== false) ext.push(gadHoverTooltip());
   if (options.diagnose && sourceType !== "template") {
-    ext.push(gadLinter(options.diagnose, { delay: options.lintDelay }));
+    ext.push(gadLinter(options.diagnose, sourceType, { delay: options.lintDelay }));
   }
   return ext;
 }

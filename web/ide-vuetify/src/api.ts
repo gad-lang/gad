@@ -164,8 +164,8 @@ export const ideApi = {
     jsonFetch<EvalResult>("POST", "api/ide/eval", req),
   inspect: (req: { expr: string; session?: string; source?: string; path?: string }) =>
     jsonFetch<{ ok: boolean; inspect?: InspectResult; error?: string }>("POST", "api/ide/inspect", req),
-  diagnose: (source: string) =>
-    jsonFetch<{ diagnostics: GadDiagnostic[] }>("POST", "api/ide/diagnose", { source }).then(
+  diagnose: (source: string, sourceType?: string) =>
+    jsonFetch<{ diagnostics: GadDiagnostic[] }>("POST", "api/ide/diagnose", { source, sourceType }).then(
       (r) => r.diagnostics || [],
     ),
   run: (req: {

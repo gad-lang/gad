@@ -165,9 +165,11 @@ func (s *Server) handleEval(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, out)
 }
 
-// formatRequest carries source for format/diagnose.
+// formatRequest carries source for format/diagnose. SourceType selects the
+// dialect for diagnostics ("gad" | "gadTemplate" | "gadx"); empty means "gad".
 type formatRequest struct {
-	Source string `json:"source"`
+	Source     string `json:"source"`
+	SourceType string `json:"sourceType"`
 }
 
 func (s *Server) handleFormat(w http.ResponseWriter, r *http.Request) {
@@ -345,7 +347,11 @@ func (s *Server) handleDiagnose(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	writeJSON(w, map[string]any{"diagnostics": gadbridge.Diagnose(req.Source)})
+	st := req.SourceType
+	if st == "" {
+		st = "gad"
+	}
+	writeJSON(w, map[string]any{"diagnostics": gadbridge.DiagnoseSource(req.Source, st)})
 }
 
 // runRequest configures a run. Source defaults to the named file's content when
