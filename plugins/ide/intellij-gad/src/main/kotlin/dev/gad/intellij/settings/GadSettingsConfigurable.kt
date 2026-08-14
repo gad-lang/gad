@@ -6,6 +6,7 @@ import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
@@ -52,6 +53,7 @@ class GadExecutableConfigurable : BoundConfigurable("Executable"), Configurable 
                     )
                 }
                 cell(field)
+                    .align(AlignX.FILL)
                     .comment("Leave blank to resolve <code>gad</code> from PATH.")
                     .bindText(settings::gadPath)
             }
@@ -66,6 +68,7 @@ class GadPathConfigurable : BoundConfigurable("GADPATH"), Configurable {
         return panel {
             row("Default GADPATH:") {
                 textField()
+                    .align(AlignX.FILL)
                     .comment(
                         "Module search path (like PYTHONPATH), OS path-list separated. " +
                             "Applied to runs and debug sessions; a run configuration may override it.",

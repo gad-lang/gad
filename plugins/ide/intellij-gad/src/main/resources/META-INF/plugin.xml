@@ -29,8 +29,8 @@
                   implementationClass="dev.gad.intellij.lang.GadxFileType" fieldName="INSTANCE"/>
 
         <applicationService serviceImplementation="dev.gad.intellij.settings.GadSettings"/>
-        <!-- Settings > Tools > Gad, with three child pages. -->
-        <applicationConfigurable parentId="tools"
+        <!-- Settings > Build, Execution, Deployment > Gad, with three child pages. -->
+        <applicationConfigurable parentId="build"
                                  instance="dev.gad.intellij.settings.GadSettingsConfigurable"
                                  id="dev.gad.intellij.settings" displayName="Gad"/>
         <applicationConfigurable parentId="dev.gad.intellij.settings"
