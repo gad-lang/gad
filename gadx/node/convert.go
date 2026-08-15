@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"strings"
 
 	gnode "github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
@@ -940,6 +941,57 @@ func convertMdBlock(m *MdBlockStmt) gnode.Stmts {
 func isMdText(stmt gnode.Stmt) bool {
 	_, ok := stmt.(*TextStmt)
 	return ok
+}
+
+// MarkdownRenderer converts Markdown source to an HTML fragment. The gadx
+// package installs it (goldmark, via the customizable gadx.Markdown) in an
+// init; gadx/node cannot import gadx directly (that would be an import cycle).
+// It is only consulted when transpiling with CodePrerenderMarkdown, and only
+// for fully static `@md` blocks.
+var MarkdownRenderer func(src []byte) ([]byte, error)
+
+// staticMdSource returns the exact Markdown source an `@md` block would feed to
+// the renderer at run time, but only when the block is fully static: every body
+// item is a literal text line (no nested `@` directive) and none of those lines
+// contain `{= … }` interpolation. It mirrors convertMdBlock's line assembly (an
+// all-text body joins its lines with a single "\n"), so the pre-rendered HTML is
+// byte-identical to the runtime output. ok is false for any dynamic block.
+func staticMdSource(m *MdBlockStmt) (string, bool) {
+	var sb strings.Builder
+	for i, stmt := range m.Body {
+		ts, ok := stmt.(*TextStmt)
+		if !ok {
+			return "", false // a nested `@` directive: not static
+		}
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+		for _, inner := range ts.Stmts {
+			mt, ok := inner.(*gnode.MixedTextStmt)
+			if !ok {
+				return "", false // interpolation or an embedded statement: not static
+			}
+			sb.WriteString(mt.Value())
+		}
+	}
+	return sb.String(), true
+}
+
+// prerenderStaticMd converts a fully static `@md` block to HTML at transpile
+// time and returns a single raw gadx.Text write of that HTML (equivalent to the
+// runtime gadx.Md container's output). ok is false when the block is dynamic or
+// the renderer fails, so the caller falls back to convertMdBlock.
+func prerenderStaticMd(m *MdBlockStmt) (gnode.Stmts, bool) {
+	src, ok := staticMdSource(m)
+	if !ok {
+		return nil, false
+	}
+	html, err := MarkdownRenderer([]byte(src))
+	if err != nil {
+		return nil, false
+	}
+	raw := gnode.EToRaw(m.NodePos, gnode.Str(string(html), m.NodePos))
+	return gnode.Stmts{gnode.SExpr(textCall(m.NodePos, m.NodeEnd, raw))}, true
 }
 
 func convertDoctype(d *DoctypeStmt) gnode.Stmts {

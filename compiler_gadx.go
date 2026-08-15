@@ -48,7 +48,8 @@ func TranspileGadxSource(name string, src []byte) ([]byte, error) {
 	}
 	converted := gadxnode.ConvertFile(parsed.Stmts)
 	var buf bytes.Buffer
-	node.CodeW(&buf, converted, node.CodeWithPrefix("\t"), node.CodeFormat())
+	node.CodeW(&buf, converted,
+		node.CodeWithPrefix("\t"), node.CodeFormat(), node.CodePrerenderMarkdown())
 	return buf.Bytes(), nil
 }
 

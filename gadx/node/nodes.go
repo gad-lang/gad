@@ -118,6 +118,18 @@ func (t *MdBlockStmt) StmtNode()       {}
 func (t *MdBlockStmt) String() string  { return "gadx.MdBlock" }
 
 func (t *MdBlockStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	// When transpiling (ctx.PrerenderMarkdown) a fully static `@md` block — no
+	// `{= … }` interpolation and no nested `@` directives — is converted to HTML
+	// at code-emit time and written raw, so the produced `.gad` carries the final
+	// HTML instead of a runtime gadx.Md container. Dynamic blocks (and the
+	// compile path, which leaves the flag false) keep the runtime lowering so
+	// interpolation, nested directives and the swappable renderer still work.
+	if ctx.PrerenderMarkdown && MarkdownRenderer != nil {
+		if stmts, ok := prerenderStaticMd(t); ok {
+			ctx.WriteStmts(stmts...)
+			return
+		}
+	}
 	ctx.WriteStmts(convertMdBlock(t)...)
 }
 
