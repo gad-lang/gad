@@ -176,7 +176,33 @@ func (t *TagStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 }
 
 func addNamedArg(call *gnode.CallExpr, name string, value gnode.Expr) {
-	call.NamedArgs.AppendS(name, value)
+	if isIdentName(name) {
+		call.NamedArgs.AppendS(name, value)
+		return
+	}
+	// A non-identifier attribute name (e.g. `data-line`, `aria-label`) must be a
+	// quoted string key; emitted unquoted it re-parses as an expression
+	// (`data - line`), so the transpiled Gad fails to parse.
+	call.NamedArgs.Names = append(call.NamedArgs.Names, &gnode.NamedArgExpr{Lit: gnode.Str(name, 0)})
+	call.NamedArgs.Values = append(call.NamedArgs.Values, value)
+}
+
+// isIdentName reports whether name is a valid Gad identifier (letter/underscore
+// start, then letters/digits/underscores), so it can be a named-argument key
+// without quoting.
+func isIdentName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		switch {
+		case r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z'):
+		case i > 0 && r >= '0' && r <= '9':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func exprKeyName(e gnode.Expr) string {

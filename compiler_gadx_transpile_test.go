@@ -8,6 +8,28 @@ import (
 	_ "github.com/gad-lang/gad/gadx" // installs the Markdown + HTML-parse hooks
 )
 
+// TestTranspileGadxHyphenAttr covers a tag attribute whose name is not a valid
+// Gad identifier (e.g. `data-line`): the lowered named-argument key must be a
+// quoted string, else the transpiled Gad re-parses as `data - line` and fails.
+func TestTranspileGadxHyphenAttr(t *testing.T) {
+	src := "@main\n    div.box[data-line=5, aria-label=\"hi\"]\n        p ok\n"
+	out, err := gad.TranspileGadxSource("h.gadx", []byte(src))
+	if err != nil {
+		t.Fatalf("transpile: %v", err)
+	}
+	got := string(out)
+	for _, w := range []string{`"data-line"=`, `"aria-label"=`} {
+		if !strings.Contains(got, w) {
+			t.Fatalf("hyphenated attribute key not quoted (%q missing):\n%s", w, got)
+		}
+	}
+	// The bug emitted the key unquoted (`data-line=…`), which re-parses as the
+	// expression `data - line` — so the unquoted form must NOT appear.
+	if strings.Contains(got, "data-line=") && !strings.Contains(got, `"data-line"=`) {
+		t.Fatalf("hyphenated attribute key emitted unquoted:\n%s", got)
+	}
+}
+
 // TestTranspileGadxMarkdown covers the `@md` lowering: the Markdown is rendered
 // to HTML at transpile time and parsed into gadx.Tag/gadx.Text nodes (not a
 // runtime gadx.Md container), with interpolations preserved as dynamic values

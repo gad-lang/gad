@@ -184,7 +184,52 @@ func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType st
 	// A template emits its own `# name` title only when the prose does not
 	// already start with a Markdown heading (migrated samples lead with `# Title`).
 	d["proseHasTitle"] = gad.Bool(strings.HasPrefix(strings.TrimSpace(doc.Prose), "#"))
+	// Also expose the prose and each symbol's doc rendered from Markdown to an
+	// HTML fragment (as RawStr, written verbatim), so an HTML template can emit
+	// them directly instead of the raw Markdown. The Markdown template keeps using
+	// the plain `prose`/`doc` fields.
+	addDocHTML(d, doc.Prose)
 	return d, nil
+}
+
+// addDocHTML renders the module prose and every symbol/overload doc from Markdown
+// to an HTML fragment and stores it alongside the Markdown (`proseHTML`,
+// `docHTML`). A RawStr is written verbatim by a plain `{…}` interpolation. Rendering is
+// best-effort: a field is left absent when its Markdown is empty or fails.
+func addDocHTML(d gad.Dict, prose string) {
+	if html, err := docMarkdownToHTML(prose); err == nil && strings.TrimSpace(prose) != "" {
+		d["proseHTML"] = gad.RawStr(html)
+	}
+	sections, _ := d["sections"].(gad.Array)
+	for _, sec := range sections {
+		sd, _ := sec.(gad.Dict)
+		syms, _ := sd["symbols"].(gad.Array)
+		for _, sym := range syms {
+			md, _ := sym.(gad.Dict)
+			if md == nil {
+				continue
+			}
+			setDocHTML(md)
+			overloads, _ := md["overloads"].(gad.Array)
+			for _, ov := range overloads {
+				if od, ok := ov.(gad.Dict); ok {
+					setDocHTML(od)
+				}
+			}
+		}
+	}
+}
+
+// setDocHTML renders m["doc"] (Markdown) to an HTML fragment in m["docHTML"],
+// when present and non-empty (a RawStr, written verbatim by `{…}`).
+func setDocHTML(m gad.Dict) {
+	s, ok := m["doc"].(gad.Str)
+	if !ok || strings.TrimSpace(string(s)) == "" {
+		return
+	}
+	if html, err := docMarkdownToHTML(string(s)); err == nil {
+		m["docHTML"] = gad.RawStr(html)
+	}
 }
 
 // expandDocSnippets expands the `@snippet NAME` placeholders in a DocData's prose

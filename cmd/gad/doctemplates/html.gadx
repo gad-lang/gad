@@ -21,7 +21,7 @@ code block so the generated page is self-contained.
             h1 {doc.name}
 
         @if doc.prose
-            p.prose {doc.prose}
+            div.prose {doc.proseHTML}
 
         @for sec in doc.sections
             section.doc-section
@@ -37,13 +37,13 @@ code block so the generated page is self-contained.
                                 code {s.name + s.signature}
 
                         @if s.doc
-                            p.doc {s.doc}
+                            div.doc {s.docHTML}
 
                         @for o in s.overloads
                             p.signature
                                 code {s.name + o.signature}
                             @if o.doc
-                                p.doc {o.doc}
+                                div.doc {o.docHTML}
 
         @if doc.source
             section.doc-example
