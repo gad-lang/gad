@@ -1,6 +1,7 @@
 package dev.gad.intellij.settings
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.options.Configurable
@@ -81,9 +82,13 @@ class GadExecutableConfigurable : BoundConfigurable("Executable"), Configurable 
         statusLabel.text = "Checking…"
         ApplicationManager.getApplication().executeOnPooledThread {
             val probe = GadExecutable.probe(configured)
-            ApplicationManager.getApplication().invokeLater {
-                statusLabel.text = renderProbe(probe)
-            }
+            // ModalityState.any(): the Settings dialog is modal, so a default
+            // invokeLater would be deferred until it closes (the label would be
+            // stuck on "Checking…"). We only mutate a label, so any() is safe.
+            ApplicationManager.getApplication().invokeLater(
+                { statusLabel.text = renderProbe(probe) },
+                ModalityState.any(),
+            )
         }
     }
 
