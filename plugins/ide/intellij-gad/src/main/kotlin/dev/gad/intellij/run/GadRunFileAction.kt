@@ -11,6 +11,8 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.VirtualFile
 import dev.gad.intellij.lang.GadFile
 import dev.gad.intellij.lang.GadIcons
+import dev.gad.intellij.settings.GadExecutable
+import dev.gad.intellij.settings.GadSettings
 
 /**
  * Context-menu "Run" for a Gad file (.gad / .gadt / .gadx): creates a temporary
@@ -31,6 +33,9 @@ class GadRunFileAction : AnAction("Run", "Run this Gad file", GadIcons.LOGO) {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val file = targetFile(e) ?: return
+        // Fail fast with a clear message when the gad binary is missing, instead
+        // of letting the run configuration fail obscurely at launch.
+        GadExecutable.resolveForActionOrNotify(project, GadSettings.getInstance()) ?: return
         FileDocumentManager.getInstance().saveAllDocuments()
 
         val runManager = RunManager.getInstance(project)

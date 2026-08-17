@@ -14,6 +14,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import dev.gad.intellij.lang.GadFile
+import dev.gad.intellij.settings.GadExecutable
 import dev.gad.intellij.settings.GadSettings
 import java.io.File
 
@@ -36,7 +37,7 @@ class GadTranspileAction : AnAction("Gad Transpile", "Transpile Gad templates (.
         val file = target(e) ?: return
         FileDocumentManager.getInstance().saveAllDocuments()
 
-        val exe = GadSettings.getInstance().resolveExecutable()
+        val exe = GadExecutable.resolveForActionOrNotify(project, GadSettings.getInstance()) ?: return
         val cmd = GeneralCommandLine(exe, "transpile", file.path)
         file.parent?.path?.let { cmd.setWorkDirectory(it) }
         cmd.charset = Charsets.UTF_8
