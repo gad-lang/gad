@@ -3,9 +3,10 @@ md.gadx — default Markdown documentation template for `gad doc`.
 
 It receives the extracted documentation as `param (doc dict)` and writes
 Markdown to STDOUT. `doc` is:
-  { name: str, file: str, lang: str, source: str, prose: str,
-    sections: [ { title: str,
-      symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
+
+    { name: str, file: str, lang: str, source: str, prose: str,
+      sections: [ { title: str,
+        symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
 
 `name`/`file`/`lang`/`source` are added by the CLI (the module base name, the
 source file name, its fence language and the full source). The rendered page
