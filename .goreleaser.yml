@@ -18,6 +18,8 @@ builds:
       - GOTOOLCHAIN=go1.26.0+auto
     tags:
       - prod
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
     # CLI binaries: Linux and Windows on amd64 and arm64.
     goos:
       - linux
