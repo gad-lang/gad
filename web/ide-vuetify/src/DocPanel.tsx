@@ -12,6 +12,7 @@ import "prismjs/components/prism-yaml";
 import "prismjs/components/prism-markdown";
 import { VBtn, VSelect } from "./vuetify";
 import { renderDocMarkdown } from "./docMarkdown";
+import { resolveDocPaths, type DocRootFn } from "./docPaths";
 import type { DocMode, DocResult } from "./types";
 
 /** DocFn generates documentation for source in the given mode. */
@@ -47,6 +48,12 @@ export default defineComponent({
     doc: { type: Function as PropType<DocFn>, required: true },
     source: { type: Function as PropType<() => string>, required: true },
     sourceType: { type: String, default: "" },
+    // The open file's workspace path, used to resolve doc-comment asset/link
+    // references against the generated `doc/` tree (see resolveDocPaths).
+    docPath: { type: String, default: "" },
+    // Optional override for the doc root used to resolve those references, chosen
+    // per source path (e.g. to serve assets from a different URI). Defaults to `doc`.
+    docRootFor: { type: Function as PropType<DocRootFn>, default: undefined },
     // Bumped by the host on every source edit so the panel re-generates in sync.
     revision: { type: Number, default: 0 },
     // Called with a documented symbol's source position when it is clicked.
@@ -83,9 +90,9 @@ export default defineComponent({
       if (!r.ok || r.error) return <div class="gp-error gad-ide__diag">{r.error || "doc failed"}</div>;
       switch (mode.value) {
         case "render-md":
-          return <div class="gp-doc-rendered" innerHTML={renderDocMarkdown(r.markdown ?? "")} />;
+          return <div class="gp-doc-rendered" innerHTML={resolveDocPaths(renderDocMarkdown(r.markdown ?? ""), props.docPath, props.docRootFor)} />;
         case "render-html":
-          return <div class="gp-doc-rendered" innerHTML={r.html ?? ""} />;
+          return <div class="gp-doc-rendered" innerHTML={resolveDocPaths(r.html ?? "", props.docPath, props.docRootFor)} />;
         case "md":
           return <pre class="gp-doc-src language-markdown" innerHTML={highlight(stripPos(r.markdown ?? ""), "markdown")} />;
         case "html":

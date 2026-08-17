@@ -132,6 +132,7 @@ import { marked } from "marked";
 import { ReadonlyCode } from "./ReadonlyCode";
 import { InspectDialog, type InspectFn } from "./TreeNavigator";
 import { renderDocMarkdown } from "./docMarkdown";
+import { resolveDocPaths } from "./docPaths";
 import { DocPanel } from "./DocPanel";
 import { GadInput } from "./GadInput";
 import { useTheme } from "./useTheme";
@@ -882,6 +883,7 @@ function DocsPanel(_: IDockviewPanelProps) {
           doc={ide.api.docGen}
           source={() => ide.activeTab?.content ?? ""}
           sourceType={docSourceType(ide.activeTab?.path)}
+          docPath={ide.activeTab?.path ?? ""}
           dark={ide.dark}
           onNavigate={(line, col) => ide.editorRef.current?.gotoLocation(line, col)}
         />
@@ -894,7 +896,7 @@ function DocsPanel(_: IDockviewPanelProps) {
                 <span className={"doc-kind doc-kind-" + d.kind}>{d.kind}</span>
                 <span className="doc-title">{d.title || `line ${d.line}`}</span>
               </div>
-              <div className="doc-content language-gad" dangerouslySetInnerHTML={{ __html: renderDocMarkdown(d.content) }} />
+              <div className="doc-content language-gad" dangerouslySetInnerHTML={{ __html: resolveDocPaths(renderDocMarkdown(d.content), ide.activeTab?.path ?? "") }} />
             </div>
           ))}
         </div>

@@ -5,6 +5,7 @@ import { defineComponent, inject, onMounted, ref, watch } from "vue";
 import { VBtn, VBtnToggle } from "../vuetify";
 import { IdeControllerKey } from "../controller";
 import DocPanel from "../DocPanel";
+import { resolveDocPaths } from "../docPaths";
 
 // docSourceType maps the open file path to the doc dialect.
 function docSourceType(path: string): string {
@@ -46,11 +47,12 @@ export default defineComponent({
               doc={ctx.api.docGen}
               source={() => ctx.source.value}
               sourceType={docSourceType(ctx.openPath.value)}
+              docPath={ctx.openPath.value}
               onNavigate={(line: number) => ctx.goto(line)}
             />
           </div>
         ) : (
-          <div class="pnl-body gad-ide__doc" innerHTML={ctx.docHtml.value} />
+          <div class="pnl-body gad-ide__doc" innerHTML={resolveDocPaths(ctx.docHtml.value, ctx.openPath.value)} />
         )}
       </div>
     );

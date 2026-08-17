@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ReadonlyCode, type ReadonlyLanguage } from "./ReadonlyCode";
 import { PlaygroundStyles } from "./playgroundStyles";
 import { renderDocMarkdown } from "./docMarkdown";
+import { resolveDocPaths, type DocRootFn } from "./docPaths";
 import type { DocMode, DocResult } from "./types";
 
 /** DocFn generates documentation for source in the given mode. */
@@ -27,6 +28,12 @@ export interface DocPanelProps {
   /** Returns the current source to document. */
   source: () => string;
   sourceType: string;
+  /** The open file's workspace path, used to resolve doc-comment asset/link
+   * references against the generated `doc/` tree (see resolveDocPaths). */
+  docPath?: string;
+  /** Optional override for the doc root used to resolve those references, chosen
+   * per source path (e.g. to serve assets from a different URI). Defaults to `doc`. */
+  docRootFor?: DocRootFn;
   dark?: boolean;
   /** Bumped by the host whenever the source changes; the panel re-generates so it
    * stays in sync without a manual reload. */
@@ -43,7 +50,7 @@ export interface DocPanelProps {
 const stripPos = (md: string) => md.replace(/\s*\{data-src-pos="\d+,\d+"\}/g, "");
 
 /** DocPanel renders the doc generator + viewer. */
-export function DocPanel({ doc, source, sourceType, dark = false, revision = 0, onNavigate, header }: DocPanelProps) {
+export function DocPanel({ doc, source, sourceType, docPath = "", docRootFor, dark = false, revision = 0, onNavigate, header }: DocPanelProps) {
   const [mode, setMode] = useState<DocMode>("render-md");
   const [res, setRes] = useState<DocResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,13 +121,13 @@ export function DocPanel({ doc, source, sourceType, dark = false, revision = 0, 
           }
         }}
       >
-        <DocView mode={mode} res={res} dark={dark} />
+        <DocView mode={mode} res={res} dark={dark} docPath={docPath} docRootFor={docRootFor} />
       </div>
     </div>
   );
 }
 
-function DocView({ mode, res, dark }: { mode: DocMode; res: DocResult | null; dark?: boolean }) {
+function DocView({ mode, res, dark, docPath = "", docRootFor }: { mode: DocMode; res: DocResult | null; dark?: boolean; docPath?: string; docRootFor?: DocRootFn }) {
   if (!res) return <p className="gp-muted">Generating documentation…</p>;
   if (!res.ok || res.error) return <div className="gp-error gad-ide__diag">{res.error || "doc failed"}</div>;
 
@@ -130,11 +137,11 @@ function DocView({ mode, res, dark }: { mode: DocMode; res: DocResult | null; da
         <div
           className="gp-doc-rendered"
           // renderDocMarkdown returns sanitized HTML from the generated Markdown.
-          dangerouslySetInnerHTML={{ __html: renderDocMarkdown(res.markdown ?? "") }}
+          dangerouslySetInnerHTML={{ __html: resolveDocPaths(renderDocMarkdown(res.markdown ?? ""), docPath, docRootFor) }}
         />
       );
     case "render-html":
-      return <div className="gp-doc-rendered" dangerouslySetInnerHTML={{ __html: res.html ?? "" }} />;
+      return <div className="gp-doc-rendered" dangerouslySetInnerHTML={{ __html: resolveDocPaths(res.html ?? "", docPath, docRootFor) }} />;
     case "md":
       return <ReadonlyCode value={stripPos(res.markdown ?? "")} language="markdown" dark={dark} />;
     case "html":
