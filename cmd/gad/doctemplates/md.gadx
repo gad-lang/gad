@@ -1,20 +1,22 @@
-//- md.gadx — default Markdown documentation template for `gad doc`.
-//-
-//- It receives the extracted documentation as `param (doc dict)` and writes
-//- Markdown to STDOUT. `doc` is:
-//-   { name: str, file: str, lang: str, source: str, prose: str,
-//-     sections: [ { title: str,
-//-       symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
-//-
-//- `name`/`file`/`lang`/`source` are added by the CLI (the module base name, the
-//- source file name, its fence language and the full source). The rendered page
-//- is the feature's prose followed by its documented symbols and the complete,
-//- runnable example — one source of truth: the sample file itself.
-//-
-//- This template is intentionally a plain script inside a `~~ … ~~` block: it
-//- writes Markdown directly with `write()`, no HTML involved. Because `write` is
-//- a core builtin (not gadx-only), the same body also works as a `.gad`/`.gadt`
-//- template.
+/**
+md.gadx — default Markdown documentation template for `gad doc`.
+
+It receives the extracted documentation as `param (doc dict)` and writes
+Markdown to STDOUT. `doc` is:
+  { name: str, file: str, lang: str, source: str, prose: str,
+    sections: [ { title: str,
+      symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
+
+`name`/`file`/`lang`/`source` are added by the CLI (the module base name, the
+source file name, its fence language and the full source). The rendered page
+is the feature's prose followed by its documented symbols and the complete,
+runnable example — one source of truth: the sample file itself.
+
+This template is intentionally a plain script inside a `~~ … ~~` block: it
+writes Markdown directly with `write()`, no HTML involved. Because `write` is
+a core builtin (not gadx-only), the same body also works as a `.gad`/`.gadt`
+template.
+**/
 ~~
 param (doc dict)
 

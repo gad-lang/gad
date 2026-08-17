@@ -1,14 +1,16 @@
-//- html.gadx — default HTML documentation template for `gad doc`.
-//-
-//- It receives the extracted documentation as `param (doc dict)` and renders a
-//- self-contained HTML fragment. `doc` is:
-//-   { name: str, file: str, lang: str, source: str, prose: str,
-//-     sections: [ { title: str,
-//-       symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
-//-
-//- Each symbol carries data-line / data-column attributes so an editor can jump
-//- to the source position. The full example source is rendered as a <pre><code>
-//- block so the generated page is self-contained.
+/**
+html.gadx — default HTML documentation template for `gad doc`.
+
+It receives the extracted documentation as `param (doc dict)` and renders a
+self-contained HTML fragment. `doc` is:
+  { name: str, file: str, lang: str, source: str, prose: str,
+    sections: [ { title: str,
+      symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
+
+Each symbol carries data-line / data-column attributes so an editor can jump
+to the source position. The full example source is rendered as a <pre><code>
+block so the generated page is self-contained.
+**/
 
 @param (doc dict)
 
