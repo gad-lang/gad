@@ -73,6 +73,12 @@ type docOptions struct {
 	// collected into docTree and the whole tree is encoded (JSON/YAML) to stdout.
 	stdout  bool
 	docTree *docTreeNode
+
+	// stdinName is the filename a `-` (stdin) source is documented as; its
+	// extension selects the dialect and its base names the module. Used by the
+	// stdin render mode (see renderStdin) that streams one file's doc to stdout
+	// without touching the filesystem — e.g. a live editor preview.
+	stdinName string
 }
 
 const defaultDocOut = "doc"
@@ -129,6 +135,7 @@ func (o *docOptions) registerFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&o.noTemplate, "no-template", false, "disable doc templates; use the built-in Markdown renderer")
 	fs.BoolVar(&o.json, "json", false, "also emit a .json file per source encoding the doc structure")
 	fs.BoolVar(&o.yaml, "yaml", false, "also emit a .yaml file per source encoding the doc structure")
+	fs.StringVar(&o.stdinName, "name", "", "filename for a `-` (stdin) source: its extension picks the dialect and names the module")
 }
 
 // loadConfig reads the `doc:` section of the YAML config (unless --no-config) and
@@ -269,6 +276,13 @@ func (o *docOptions) rawOut() string {
 // run renders the documentation for the positional args and the config input
 // dirs.
 func (o *docOptions) run(ctx *cc.CommandContext) error {
+	// `gad doc -name FILE -` renders one source read from stdin straight to
+	// stdout (Markdown, or HTML with --html), writing no files. It is the
+	// primitive behind live editor previews.
+	if len(ctx.Args) == 1 && ctx.Args[0] == "-" {
+		return o.renderStdin(ctx)
+	}
+
 	o.indexRoots = map[string]bool{}
 
 	// Positional (non-INPUT_DIR) sources honour the root skip.

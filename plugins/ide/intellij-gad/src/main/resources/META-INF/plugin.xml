@@ -55,6 +55,11 @@
         <!-- Reformat Code runs `gad fmt` for Gad files. -->
         <formattingService implementation="dev.gad.intellij.format.GadFormattingService"/>
         <notificationGroup id="Gad" displayType="BALLOON"/>
+
+        <!-- Side panel: live-rendered documentation of the active Gad file. -->
+        <toolWindow id="Gad Doc" anchor="right" secondary="true"
+                    icon="dev.gad.intellij.lang.GadIcons.LOGO"
+                    factoryClass="dev.gad.intellij.doc.GadDocToolWindowFactory"/>
     </extensions>
 
     <actions>
@@ -72,6 +77,15 @@
                           relative-to-action="dev.gad.intellij.run.GadRunFileAction"/>
             <add-to-group group-id="EditorPopupMenu" anchor="after"
                           relative-to-action="dev.gad.intellij.run.GadRunFileAction"/>
+        </action>
+        <!-- Right-click a .gad/.gadt/.gadx file: open the live Gad Doc panel. -->
+        <action id="dev.gad.intellij.doc.GadDocAction"
+                class="dev.gad.intellij.doc.GadDocAction" text="Gad Doc"
+                description="Show this Gad file's documentation in the Gad Doc panel">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="after"
+                          relative-to-action="dev.gad.intellij.run.GadTranspileAction"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="after"
+                          relative-to-action="dev.gad.intellij.run.GadTranspileAction"/>
         </action>
     </actions>
 </idea-plugin>
