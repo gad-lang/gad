@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	gnode "github.com/gad-lang/gad/parser/node"
@@ -185,6 +186,13 @@ func convertStmt(s gnode.Stmt) gnode.Stmts {
 		return convertTag(st)
 	case *HTMLStmt:
 		return convertHTML(st)
+	case *MdBlockStmt:
+		// Lower `@md` here (in the Convert pass) rather than lazily in WriteCode,
+		// so the resulting gadx.Tag/gadx.Text nodes — and the original
+		// interpolation expressions swapped into them — are compiled directly and
+		// keep their source positions, instead of going through the compiler's
+		// serialize-and-reparse fallback (which would drop them).
+		return convertMdBlock(st)
 	default:
 		return gnode.Stmts{s}
 	}
@@ -908,13 +916,28 @@ func convertParaBlock(t *ParaBlockStmt) gnode.Stmts {
 	return out
 }
 
-// convertMdBlock lowers an `@md` block into a `gadx.Md` container: every body
-// line (literal Markdown text or a nested `@` directive) appends to the Md tag,
-// separated by newlines so the assembled Markdown source keeps its line breaks.
-// The Md element renders its children to Markdown source and converts it to HTML
-// via goldmark at render time. Interpolation and nested directives keep their
-// source positions through convertStmt.
+// convertMdBlock lowers an `@md` block. The preferred lowering renders the
+// Markdown to HTML at compile/transpile time and parses that HTML into
+// gadx.Tag/gadx.Text nodes (an HTMLStmt), so `@md` produces a real tag tree.
+// Each run of Markdown text between nested `@` directives is a section:
+// interpolations (`{= … }`) are protected through the Markdown conversion and
+// re-emerge as HTML `{ … }` interpolations, so dynamic values are inserted into
+// the fixed HTML structure. Nested `@` directives render inline as their own
+// gadx nodes. When the renderer/HTML-parser hooks are not installed (gadx or its
+// parser not imported), it falls back to the runtime gadx.Md container.
 func convertMdBlock(m *MdBlockStmt) gnode.Stmts {
+	if MarkdownRenderer != nil && HTMLToNodes != nil {
+		if stmts, ok := convertMdViaHTML(m); ok {
+			return stmts
+		}
+	}
+	return convertMdBlockRuntime(m)
+}
+
+// convertMdBlockRuntime is the fallback lowering: an `@md` block becomes a
+// `gadx.Md` container whose children are assembled as Markdown source and
+// converted to HTML by goldmark at render time.
+func convertMdBlockRuntime(m *MdBlockStmt) gnode.Stmts {
 	ctor := gadxNew("Md", m.NodePos, m.NodeEnd, tagIdent(m.NodePos))
 	inner := gnode.Stmts{defineTag(ctor, m.NodePos)}
 	nl := func(s string) {
@@ -944,54 +967,162 @@ func isMdText(stmt gnode.Stmt) bool {
 }
 
 // MarkdownRenderer converts Markdown source to an HTML fragment. The gadx
-// package installs it (goldmark, via the customizable gadx.Markdown) in an
-// init; gadx/node cannot import gadx directly (that would be an import cycle).
-// It is only consulted when transpiling with CodePrerenderMarkdown, and only
-// for fully static `@md` blocks.
+// package installs it (goldmark, via the customizable gadx.Markdown) in an init;
+// gadx/node cannot import gadx directly (that would be an import cycle).
 var MarkdownRenderer func(src []byte) ([]byte, error)
 
-// staticMdSource returns the exact Markdown source an `@md` block would feed to
-// the renderer at run time, but only when the block is fully static: every body
-// item is a literal text line (no nested `@` directive) and none of those lines
-// contain `{= … }` interpolation. It mirrors convertMdBlock's line assembly (an
-// all-text body joins its lines with a single "\n"), so the pre-rendered HTML is
-// byte-identical to the runtime output. ok is false for any dynamic block.
-func staticMdSource(m *MdBlockStmt) (string, bool) {
-	var sb strings.Builder
-	for i, stmt := range m.Body {
-		ts, ok := stmt.(*TextStmt)
-		if !ok {
-			return "", false // a nested `@` directive: not static
-		}
-		if i > 0 {
-			sb.WriteString("\n")
-		}
-		for _, inner := range ts.Stmts {
-			mt, ok := inner.(*gnode.MixedTextStmt)
-			if !ok {
-				return "", false // interpolation or an embedded statement: not static
-			}
-			sb.WriteString(mt.Value())
-		}
+// HTMLToNodes parses a raw HTML fragment into gadx Tag/Text nodes (with `{ … }`
+// interpolations preserved), anchoring node positions at base. The gadx parser
+// installs it (buildHTMLNodes) in an init; gadx/node cannot import gadx/parser
+// directly (import cycle).
+var HTMLToNodes func(html string, base source.Pos) (gnode.Stmts, error)
+
+// An interpolation placeholder in the Markdown source fed to the renderer is
+// built entirely from Unicode Private-Use characters: mdInterpOpen/mdInterpClose
+// delimit it and mdInterpDigit0+d encodes each decimal digit of the index. The
+// Markdown converter passes these through verbatim (they are neither Markdown nor
+// HTML syntax) so the interpolation survives conversion, yet goldmark's
+// auto-heading-id slugifier drops them - keeping generated ids clean - and they
+// are restored to an HTML `{ ... }` interpolation afterwards.
+const (
+	mdInterpOpen   = "\uE000"
+	mdInterpClose  = "\uE001"
+	mdInterpDigit0 = 0xE010
+)
+
+func mdInterpSentinel(n int) string {
+	var b strings.Builder
+	b.WriteString(mdInterpOpen)
+	for _, d := range strconv.Itoa(n) {
+		b.WriteRune(rune(mdInterpDigit0 + (d - '0')))
 	}
-	return sb.String(), true
+	b.WriteString(mdInterpClose)
+	return b.String()
 }
 
-// prerenderStaticMd converts a fully static `@md` block to HTML at transpile
-// time and returns a single raw gadx.Text write of that HTML (equivalent to the
-// runtime gadx.Md container's output). ok is false when the block is dynamic or
-// the renderer fails, so the caller falls back to convertMdBlock.
-func prerenderStaticMd(m *MdBlockStmt) (gnode.Stmts, bool) {
-	src, ok := staticMdSource(m)
-	if !ok {
-		return nil, false
+// convertMdViaHTML lowers an `@md` block by rendering its Markdown sections to
+// HTML and parsing the HTML into gadx nodes (see convertMdBlock). It returns
+// false to fall back to the runtime container when a section cannot be lowered
+// (e.g. an embedded statement, or the renderer/HTML parser fails).
+func convertMdViaHTML(m *MdBlockStmt) (gnode.Stmts, bool) {
+	var out gnode.Stmts
+	i := 0
+	for i < len(m.Body) {
+		if _, ok := m.Body[i].(*TextStmt); ok {
+			// Collect a maximal run of consecutive Markdown text lines.
+			j := i
+			var section []*TextStmt
+			for j < len(m.Body) {
+				ts, ok := m.Body[j].(*TextStmt)
+				if !ok {
+					break
+				}
+				section = append(section, ts)
+				j++
+			}
+			stmts, ok := convertMdTextSection(m, section)
+			if !ok {
+				return nil, false
+			}
+			out = append(out, stmts...)
+			i = j
+			continue
+		}
+		// A nested `@` directive renders inline as its own gadx nodes.
+		out = append(out, convertStmt(m.Body[i])...)
+		i++
 	}
-	html, err := MarkdownRenderer([]byte(src))
+	return out, true
+}
+
+// convertMdTextSection renders one run of Markdown text lines to HTML and parses
+// it into gadx nodes. Interpolations are replaced with placeholders before the
+// conversion and restored as HTML `{ … }` interpolations afterwards, so dynamic
+// values are inserted into the fixed HTML structure produced by the renderer.
+func convertMdTextSection(m *MdBlockStmt, section []*TextStmt) (gnode.Stmts, bool) {
+	var (
+		src   strings.Builder
+		exprs []gnode.Expr
+	)
+	for li, ts := range section {
+		if li > 0 {
+			src.WriteString("\n")
+		}
+		for _, inner := range ts.Stmts {
+			switch s := inner.(type) {
+			case *gnode.MixedTextStmt:
+				src.WriteString(s.Value())
+			case *gnode.MixedValueStmt:
+				src.WriteString(mdInterpSentinel(len(exprs)))
+				exprs = append(exprs, s.Expr)
+			default:
+				return nil, false // an embedded statement: fall back to the runtime lowering
+			}
+		}
+	}
+
+	html, err := MarkdownRenderer([]byte(src.String()))
 	if err != nil {
 		return nil, false
 	}
-	raw := gnode.EToRaw(m.NodePos, gnode.Str(string(html), m.NodePos))
-	return gnode.Stmts{gnode.SExpr(textCall(m.NodePos, m.NodeEnd, raw))}, true
+
+	// Escape backslashes and literal braces in the rendered HTML so the HTML
+	// parser treats content braces as literal text (not interpolation). Each
+	// interpolation placeholder — which contains no braces — is then restored as
+	// an HTML `{N}` interpolation whose index selects the original expression.
+	out := string(html)
+	out = strings.ReplaceAll(out, "\\", "\\\\")
+	out = strings.ReplaceAll(out, "{", "\\{")
+	out = strings.ReplaceAll(out, "}", "\\}")
+	for n := len(exprs) - 1; n >= 0; n-- {
+		out = strings.ReplaceAll(out, mdInterpSentinel(n), "{"+strconv.Itoa(n)+"}")
+	}
+
+	// Anchor synthetic node positions at the `@md` block so diagnostics land in
+	// the file near the block rather than at its start.
+	nodes, err := HTMLToNodes(out, m.NodePos)
+	if err != nil {
+		return nil, false
+	}
+	// Replace each `{N}` placeholder expression with the original interpolation
+	// expression, so runtime errors and debug stepping keep the source positions
+	// of the `.gadx` file (the placeholder int literal carries only the index).
+	replaceMdInterpPlaceholders(nodes, exprs)
+	return convertHTML(&HTMLStmt{NodePos: m.NodePos, NodeEnd: m.NodeEnd, Children: nodes}), true
+}
+
+// replaceMdInterpPlaceholders walks HTML-parsed nodes and swaps each `{N}`
+// placeholder interpolation (an IntLit index) for the original expression
+// exprs[N], preserving its source positions in the AST and the bytecode source
+// map. It covers the node shapes buildHTMLNodes emits: TextStmt interpolations,
+// tag attribute values/conditions, and nested tag bodies.
+func replaceMdInterpPlaceholders(stmts gnode.Stmts, exprs []gnode.Expr) {
+	swap := func(e gnode.Expr) gnode.Expr {
+		if lit, ok := e.(*gnode.IntLit); ok && lit.Value >= 0 && int(lit.Value) < len(exprs) {
+			return exprs[lit.Value]
+		}
+		return e
+	}
+	for _, s := range stmts {
+		switch n := s.(type) {
+		case *TextStmt:
+			for _, inner := range n.Stmts {
+				if mv, ok := inner.(*gnode.MixedValueStmt); ok {
+					mv.Expr = swap(mv.Expr)
+				}
+			}
+		case *TagStmt:
+			for _, a := range n.Attributes {
+				if a.Value != nil {
+					a.Value = swap(a.Value)
+				}
+				if a.Condition != nil {
+					a.Condition = swap(a.Condition)
+				}
+			}
+			replaceMdInterpPlaceholders(n.Body, exprs)
+		}
+	}
 }
 
 func convertDoctype(d *DoctypeStmt) gnode.Stmts {

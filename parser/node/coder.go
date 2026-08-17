@@ -176,12 +176,6 @@ type CodeWriteContext struct {
 	// DefaultMaxColumns).
 	MaxColumns int
 	Transpile  *TranspileOptions
-	// PrerenderMarkdown asks Markdown-producing nodes (e.g. the Gadx `@md`
-	// block) to convert fully static content to HTML at code-emit time rather
-	// than emitting a runtime renderer call. It is set only by the `transpile`
-	// pipeline; normal formatting/compilation leaves it false so dynamic
-	// content and the swappable renderer keep working at render time.
-	PrerenderMarkdown bool
 	CodeWriter
 
 	// srcFile and comments support preserving source comments during
@@ -234,14 +228,6 @@ func CodeNewLineCalc(maxColumns int) CodeOption {
 func CodeTranspile(v *TranspileOptions) CodeOption {
 	return func(ctx *CodeWriteContext) {
 		ctx.Transpile = v
-	}
-}
-
-// CodePrerenderMarkdown enables transpile-time Markdown pre-rendering (see
-// CodeWriteContext.PrerenderMarkdown).
-func CodePrerenderMarkdown() CodeOption {
-	return func(ctx *CodeWriteContext) {
-		ctx.PrerenderMarkdown = true
 	}
 }
 

@@ -99,6 +99,24 @@ func TestDiagnoseCompileError(t *testing.T) {
 	}
 }
 
+// TestDiagnoseGadxMdInterpPosition checks that an interpolation error inside an
+// `@md` block reports the original `.gadx` position (line/column of the
+// expression), so runtime errors and debug stepping map back to the source.
+func TestDiagnoseGadxMdInterpPosition(t *testing.T) {
+	src := "@main\n    @md\n        # Title\n\n        Value: {= missingVar }\n"
+	d := DiagnoseSource(src, "gadx")
+	if len(d) == 0 {
+		t.Fatal("expected a diagnostic for the unresolved reference in @md")
+	}
+	if !strings.Contains(d[0].Message, "missingVar") {
+		t.Fatalf("unexpected diagnostic: %+v", d[0])
+	}
+	// `missingVar` starts at line 5, column 19 in the source above.
+	if d[0].Line != 5 || d[0].Column != 19 {
+		t.Fatalf("want position 5:19 (original .gadx), got %d:%d", d[0].Line, d[0].Column)
+	}
+}
+
 func TestRun(t *testing.T) {
 	r := Run(`println("hello"); return 1 + 2`)
 	if !r.OK {

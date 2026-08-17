@@ -5,57 +5,50 @@ import (
 	"testing"
 
 	gad "github.com/gad-lang/gad"
-	_ "github.com/gad-lang/gad/gadx" // registers the transpile-time Markdown renderer hook
+	_ "github.com/gad-lang/gad/gadx" // installs the Markdown + HTML-parse hooks
 )
 
-// TestTranspileGadxStaticMarkdown covers transpile-time `@md` handling: a fully
-// static block is pre-rendered to raw HTML, while a block with interpolation or
-// a nested directive keeps the runtime gadx.Md container.
-func TestTranspileGadxStaticMarkdown(t *testing.T) {
-	static := "@main\n" +
-		"    @md\n" +
-		"        # Hello\n" +
-		"\n" +
-		"        A **static** line.\n"
-	out, err := gad.TranspileGadxSource("static.gadx", []byte(static))
-	if err != nil {
-		t.Fatalf("transpile static: %v", err)
+// TestTranspileGadxMarkdown covers the `@md` lowering: the Markdown is rendered
+// to HTML at transpile time and parsed into gadx.Tag/gadx.Text nodes (not a
+// runtime gadx.Md container), with interpolations preserved as dynamic values
+// and inline HTML flowing through as tags.
+func TestTranspileGadxMarkdown(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want []string // substrings the transpiled Gad must contain
+	}{
+		{
+			name: "static",
+			src:  "@main\n    @md\n        # Hello\n\n        A **static** line.\n",
+			want: []string{`"h1"`, `"strong"`, `"static"`},
+		},
+		{
+			name: "interpolation",
+			src:  "@main\n    @md\n        # {= title }\n",
+			want: []string{`"h1"`, "title"},
+		},
+		{
+			name: "inline-html",
+			src:  "@main\n    @md\n        A <span class=\"x\">tag</span> here.\n",
+			want: []string{`"span"`, `class="x"`},
+		},
 	}
-	got := string(out)
-	if strings.Contains(got, "gadx.Md(") {
-		t.Fatalf("static @md should not emit a runtime gadx.Md container:\n%s", got)
-	}
-	if !strings.Contains(got, "<h1") || !strings.Contains(got, "<strong>static</strong>") {
-		t.Fatalf("static @md should be pre-rendered to HTML:\n%s", got)
-	}
-	if !strings.Contains(got, `raw "`) {
-		t.Fatalf("pre-rendered HTML must be written raw (unescaped):\n%s", got)
-	}
-
-	// Interpolation -> dynamic -> keep the runtime container.
-	dynamic := "@main\n" +
-		"    @md\n" +
-		"        # {= title }\n"
-	out, err = gad.TranspileGadxSource("dyn.gadx", []byte(dynamic))
-	if err != nil {
-		t.Fatalf("transpile dynamic: %v", err)
-	}
-	if !strings.Contains(string(out), "gadx.Md(") {
-		t.Fatalf("interpolated @md must keep the runtime gadx.Md container:\n%s", out)
-	}
-
-	// A nested `@` directive -> dynamic -> keep the runtime container.
-	nested := "@main\n" +
-		"    @md\n" +
-		"        # Title\n" +
-		"\n" +
-		"        @p\n" +
-		"            inner\n"
-	out, err = gad.TranspileGadxSource("nested.gadx", []byte(nested))
-	if err != nil {
-		t.Fatalf("transpile nested: %v", err)
-	}
-	if !strings.Contains(string(out), "gadx.Md(") {
-		t.Fatalf("@md with a nested directive must keep the runtime gadx.Md container:\n%s", out)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out, err := gad.TranspileGadxSource(c.name+".gadx", []byte(c.src))
+			if err != nil {
+				t.Fatalf("transpile: %v", err)
+			}
+			got := string(out)
+			if strings.Contains(got, "gadx.Md(") {
+				t.Fatalf("@md must lower to gadx.Tag, not a runtime gadx.Md container:\n%s", got)
+			}
+			for _, w := range c.want {
+				if !strings.Contains(got, w) {
+					t.Fatalf("transpiled output missing %q:\n%s", w, got)
+				}
+			}
+		})
 	}
 }

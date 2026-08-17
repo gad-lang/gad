@@ -173,6 +173,17 @@ func (b *htmlBuilder) textNode(start, end int) gnode.Stmt {
 	}
 	i := start
 	for i < end {
+		// Backslash escapes a literal brace or backslash (`\{`, `\}`, `\\`), so
+		// content braces — e.g. Markdown lowered to HTML — are not mistaken for an
+		// interpolation. Any other `\x` stays literal.
+		if s[i] == '\\' && i+1 < end && (s[i+1] == '{' || s[i+1] == '}' || s[i+1] == '\\') {
+			if lit.Len() == 0 {
+				litStart = i
+			}
+			lit.WriteByte(s[i+1])
+			i += 2
+			continue
+		}
 		if s[i] == '{' {
 			e := skipBraces(s, i)
 			flushLit()
@@ -338,21 +349,28 @@ func (b *htmlBuilder) attrValue(start, end int) (expr gnode.Expr, lit string, is
 // --- helpers ---
 
 // collapseWS replaces every run of ASCII whitespace with a single space.
+// collapseWS collapses runs of whitespace to a single space, keeping a single
+// leading and trailing space when the text has content — HTML inline whitespace
+// between elements/interpolations is significant (e.g. `{x} y` and
+// `<strong>x</strong> y` must keep the space). A whitespace-only run collapses
+// to a single space (the padding between block elements).
 func collapseWS(s string) string {
 	var b strings.Builder
 	space := false
+	hasContent := false
 	for i := 0; i < len(s); i++ {
 		if isSpace(s[i]) {
 			space = true
 			continue
 		}
-		if space && b.Len() > 0 {
+		if space {
 			b.WriteByte(' ')
 		}
 		space = false
+		hasContent = true
 		b.WriteByte(s[i])
 	}
-	if space {
+	if space && (hasContent || b.Len() == 0) {
 		b.WriteByte(' ')
 	}
 	return b.String()
