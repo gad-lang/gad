@@ -131,12 +131,14 @@ Gad has a REPL application to learn and test Gad scripts.
 
 The `gad` binary is organised as subcommands:
 
-| Command     | Purpose                                                           |
-|-------------|------------------------------------------------------------------|
-| `gad run`   | Run a script/stdin (or a `.gadt`/`--template` template), or the REPL. |
-| `gad fmt`   | Format Gad source files in place.                                |
-| `gad debug` | Debug a script — interactive REPL or `--dap` for editors.        |
-| `gad ide`   | Start a local web IDE (file tree, tabs, format/run/debug).       |
+| Command         | Purpose                                                           |
+|-----------------|------------------------------------------------------------------|
+| `gad run`       | Run a script/stdin (or a `.gadt`/`--template` template), or the REPL. |
+| `gad fmt`       | Format Gad source files in place.                                |
+| `gad transpile` | Lower `.gadt`/`.gadx` templates to plain, formatted `.gad` (a file or a directory, recursively). |
+| `gad debug`     | Debug a script — interactive REPL or `--dap` for editors.        |
+| `gad ide`       | Start a local web IDE (file tree, tabs, format/run/debug).       |
+| `gad version`   | Print the Gad version and build (Go/OS/arch).                    |
 
 Gad also has a **template / mixed mode** (`{% … %}` code, `{%= … %}` values,
 `begin … end` blocks, whitespace trim markers) — see

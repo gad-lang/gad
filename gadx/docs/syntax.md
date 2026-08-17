@@ -201,6 +201,41 @@ p
     | It can span multiple lines.
 ```
 
+## Markdown block (`@md`)
+
+`@md` writes its indented body as Markdown. At compile (and transpile) time the
+Markdown is rendered to HTML by goldmark — GFM tables/strikethrough/task
+lists/autolinks, typographer, definition lists, footnotes and auto heading ids —
+and that HTML is parsed into the **same `gadx.Tag` / `gadx.Text` elements** as the
+inline-HTML and pug-style syntax. So `@md` produces a real tag tree, and
+`gad transpile` emits it as plain gadx tag code (not a runtime Markdown string).
+
+```gadx
+@param (; title = "Release notes")
+@main
+    @md
+        # {= title }
+
+        A **Markdown** paragraph with a <span class="tag">mixed {= title }</span> HTML span.
+
+        @p
+            A nested @p directive renders inline as its own tag.
+```
+
+- `{= expr }` interpolation becomes a **dynamic value inserted into the fixed HTML
+  structure** — the Markdown layout is fixed at compile time and the value is
+  evaluated at render time, so an interpolated value is not re-parsed as Markdown.
+- **Inline and block HTML** mixed into the Markdown is supported; it flows through
+  goldmark and is parsed into tags like everything else.
+- **Nested `@` directives** render inline as their own tags; Markdown text before
+  and after a directive is its own section.
+- Interpolation **source positions are preserved** (AST and bytecode source map),
+  so runtime errors and debug stepping map back to the `.gadx`. Write a literal
+  brace as `\{` / `\}`.
+
+The renderer is the package-level `gadx.Markdown` variable; an embedding Go
+program can replace or extend it before compiling. See `samples/gadx/markdown.gadx`.
+
 ## Expressions
 
 ```gadx

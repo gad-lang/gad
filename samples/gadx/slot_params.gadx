@@ -1,8 +1,10 @@
-//- Scoped slots — slots that pass data to the caller — plus `super` forwarding.
-//- A scoped slot declares parameters: `@slot row(i, item)`. The component fills
-//- them in when it renders the slot, and an override receives the same values.
-//- `super` is auto-injected as the override's first parameter; forward the scope
-//- to it (`+super(i, item)`) to render the component's default for that row.
+/**
+Scoped slots — slots that pass data to the caller — plus `super` forwarding.
+A scoped slot declares parameters: `@slot row(i, item)`. The component fills
+them in when it renders the slot, and an override receives the same values.
+`super` is auto-injected as the override's first parameter; forward the scope
+to it (`+super(i, item)`) to render the component's default for that row.
+**/
 
 @export comp list(items)
     ul

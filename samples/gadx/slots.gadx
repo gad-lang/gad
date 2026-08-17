@@ -1,5 +1,7 @@
-//- Slots sample — default content, optional slots, scoped slots and `super`.
-//- Render the `@main` block to see all four behaviors composed together.
+/**
+Slots sample — default content, optional slots, scoped slots and `super`.
+Render the `@main` block to see all four behaviors composed together.
+**/
 
 @export comp card(title)
     div.card

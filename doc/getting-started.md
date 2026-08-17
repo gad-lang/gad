@@ -131,13 +131,15 @@ the module is the main one — only the `--` drop is main-only.
 The CLI is organised as subcommands. Run `gad help` for the list, or
 `gad <cmd> --help` for a command's flags.
 
-| Command       | Purpose                                                  |
-|---------------|----------------------------------------------------------|
-| `gad run`     | Run a script file/stdin, or start the REPL (the default).|
-| `gad fmt`     | Format Gad source files in place.                        |
-| `gad debug`   | Debug a script (interactive REPL or `--dap` for editors).|
-| `gad ide`     | Start a local web IDE for a workspace directory or file. |
-| `gad help`    | Show help and list subcommands.                          |
+| Command         | Purpose                                                  |
+|-----------------|----------------------------------------------------------|
+| `gad run`       | Run a script file/stdin, or start the REPL (the default).|
+| `gad fmt`       | Format Gad source files in place.                        |
+| `gad transpile` | Lower `.gadt`/`.gadx` templates to formatted `.gad` (file or directory, recursive). |
+| `gad debug`     | Debug a script (interactive REPL or `--dap` for editors).|
+| `gad ide`       | Start a local web IDE for a workspace directory or file. |
+| `gad version`   | Print the Gad version and build (Go/OS/arch).            |
+| `gad help`      | Show help and list subcommands.                          |
 
 `gad` with no subcommand behaves as `gad run`, so `gad script.gad`,
 `gad - < script.gad` and a bare `gad` (REPL) all keep working.
@@ -174,6 +176,22 @@ It supports include/exclude globs and regexes, `--out`, `--backup`, parallel
 `--jobs`, layout `--no-*` flags, transpile flags, NDJSON `--report` output,
 `--to-stdout` streaming and a `.gad/gad.yaml` config file. See **[Formatting](formatting.md)** for
 the full reference.
+
+### Transpiling templates (`gad transpile`)
+
+`gad transpile PATH...` lowers a `.gadt` mixed template or a `.gadx` template to
+plain, formatted `.gad` source — the same lowering used by the compiler, written
+out as readable Gad. A `.gadt`/`.gadx` file is written as a `.gad` file of the
+same name; a directory is transpiled recursively.
+
+```sh
+gad transpile page.gadx      # -> page.gad
+gad transpile templates/     # every .gadt/.gadx under ./templates, recursively
+```
+
+The output runs identically to the template: a `.gadx` becomes `gadx.Tag` /
+`gadx.Text` calls (including `@md` blocks, which are rendered to HTML and parsed
+into tags at transpile time), and a `.gadt` becomes `write(…)` calls.
 
 ### The web IDE (`gad ide`)
 

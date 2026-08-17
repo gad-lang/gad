@@ -1,9 +1,11 @@
-//- Control flow interleaved inside inline HTML.
-//-
-//- Block-level gadx statements can appear as children of an HTML element by
-//- indentation: the directive line (`@if`/`@for`/`@else`/…) and every line
-//- indented deeper than it form the block, which may itself contain HTML. The
-//- block renders in source order alongside sibling HTML on the same level.
+/**
+Control flow interleaved inside inline HTML.
+
+Block-level gadx statements can appear as children of an HTML element by
+indentation: the directive line (`@if`/`@for`/`@else`/…) and every line
+indented deeper than it form the block, which may itself contain HTML. The
+block renders in source order alongside sibling HTML on the same level.
+**/
 
 @global (user, items)
 

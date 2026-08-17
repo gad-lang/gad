@@ -37,6 +37,11 @@ Two things are required for a position to resolve correctly:
    - interpolations — `{= expr }` / `{ expr }`
    - directive expressions — `@if`, `@for`, `@match`, attribute values, comp
      call arguments
+   - `@md` interpolations — a Markdown block is rendered to HTML at compile time,
+     but each `{= expr }` keeps its original expression node (and position): the
+     rendered HTML uses index placeholders that are swapped back for the source
+     expressions, so an error inside an `@md` interpolation still points at the
+     real `.gadx` line and column.
 
    Each fragment is a verbatim slice of the original source, so it is parsed
    with the fragment file's base offset set to the fragment's absolute position.

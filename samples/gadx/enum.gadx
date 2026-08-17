@@ -1,7 +1,9 @@
-//- Enums — `@enum IDENT ( … )`. The field body mirrors a `@var` declaration
-//- (comma- or newline-separated `Name` / `Name = value`) and also accepts the
-//- Gad enum extras `bit` (power-of-two) and a leading `+`/`-` sign. Defaulted
-//- fields auto-increment from the previous one. Render @main to see the values.
+/**
+Enums — `@enum IDENT ( … )`. The field body mirrors a `@var` declaration
+(comma- or newline-separated `Name` / `Name = value`) and also accepts the
+Gad enum extras `bit` (power-of-two) and a leading `+`/`-` sign. Defaulted
+fields auto-increment from the previous one. Render @main to see the values.
+**/
 
 //- auto-incrementing, with one explicit value (later fields resume from it)
 @enum Perm (Read, Write, Exec = 10, Delete)

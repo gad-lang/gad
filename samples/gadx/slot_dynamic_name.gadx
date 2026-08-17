@@ -1,13 +1,15 @@
-//- Dynamic (interpolated) slot names.
-//-
-//- A simple slot name is a bare identifier (`@slot header`). A dynamic name is
-//- written as a double-quoted interpolated string, so `{expr}` is evaluated at
-//- render time and used as the `slots[…]` key:
-//-   @slot "name[{expr}]"      — declaration
-//-   @slot #"name[{expr}]"     — pass (override)
-//-
-//- Here each row of `list` declares its own slot `item[{i}]`, so a caller can
-//- override an individual row by its computed name.
+/**
+Dynamic (interpolated) slot names.
+
+A simple slot name is a bare identifier (`@slot header`). A dynamic name is
+written as a double-quoted interpolated string, so `{expr}` is evaluated at
+render time and used as the `slots[…]` key:
+  @slot "name[{expr}]"      — declaration
+  @slot #"name[{expr}]"     — pass (override)
+
+Here each row of `list` declares its own slot `item[{i}]`, so a caller can
+override an individual row by its computed name.
+**/
 
 @comp list(items;slots={})
     @for i, it in items
