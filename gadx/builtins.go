@@ -1,7 +1,6 @@
 package gadx
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad"
@@ -80,7 +79,7 @@ var (
 				return
 			}
 		}
-		return gad.RawStr(name.ToString() + "=" + strconv.Quote(value.ToString())), nil
+		return gad.RawStr(name.ToString() + "=" + AttrValueQuote(value.ToString())), nil
 	}
 
 	BuiltinAttr = &gad.Function{
@@ -282,12 +281,12 @@ var (
 
 			if len(class) > 0 {
 				b.WriteString(" class=")
-				b.WriteString(strconv.Quote(strings.Join(class, " ")))
+				b.WriteString(AttrValueQuote(strings.Join(class, " ")))
 			}
 
 			if len(style) > 0 {
 				b.WriteString(" style=")
-				b.WriteString(strconv.Quote(strings.Join(style, "; ")))
+				b.WriteString(AttrValueQuote(strings.Join(style, "; ")))
 			}
 
 			return gad.RawStr(b.String()), nil

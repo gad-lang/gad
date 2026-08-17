@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -387,11 +386,18 @@ func (t Text) WriteTo(vm *gad.VM, w io.Writer) (n int64, err error) {
 			i, err = w.Write([]byte(rs))
 			cn = int64(i)
 		} else {
+			// A non-raw value (interpolated data, literal text) is HTML-escaped so
+			// it cannot inject markup; use a RawStr / gadx.escape for trusted HTML.
+			var buf bytes.Buffer
 			otw := vm.ObjectToWriter
 			if otw == nil {
 				otw = gad.DefaultObjectToWrite
 			}
-			_, cn, err = otw.WriteTo(vm, w, v)
+			if _, _, err = otw.WriteTo(vm, &buf, v); err == nil {
+				var i int
+				i, err = io.WriteString(w, escapeText(buf.String()))
+				cn = int64(i)
+			}
 		}
 		n += cn
 		if err != nil {
@@ -598,10 +604,10 @@ func (t *Tag) writeAttrs(vm *gad.VM, w io.Writer, wc *writeCounter) error {
 		}
 	}
 	if len(t.ClassList) > 0 {
-		wc.writeString(w, " class="+strconv.Quote(strings.Join(t.ClassList, " ")))
+		wc.writeString(w, " class="+AttrValueQuote(strings.Join(t.ClassList, " ")))
 	}
 	if len(t.Styles) > 0 {
-		wc.writeString(w, " style="+strconv.Quote(strings.Join(t.Styles, "; ")))
+		wc.writeString(w, " style="+AttrValueQuote(strings.Join(t.Styles, "; ")))
 	}
 	return wc.err
 }

@@ -245,15 +245,30 @@ p {= "Hello " + User.Name}
 
 Use Gad expressions inside `{= ...}`.
 
-## Raw HTML Values
+## Escaping and raw HTML values
 
-If the application passes a `gad.RawStr`, Gadx writes it without escaping.
+Interpolated values are **HTML-escaped by default**, in both text content and
+attribute values, so untrusted data cannot inject markup (XSS-safe): a `<b>` in
+`userInput` becomes `&lt;b&gt;`, and a `"` in an attribute value becomes `&#34;`
+so it cannot break out of the quoted attribute.
 
 ```gadx
-article {= Post.Body}
+p {= userInput}
+a[title=userInput] link
 ```
 
-Use raw values only for trusted HTML.
+Opt out for **trusted** HTML with `raw` (a `gad.RawStr` is written verbatim):
+
+```gadx
+article {= raw Post.Body}
+```
+
+`@md`, inline HTML regions and pug-style tags produce their own markup (they are
+not affected by text escaping). Attribute-value quoting is configurable via the
+package-level `gadx.AttrValueQuote`: the default `gadx.AttrQuoteHTML`
+double-quotes and entity-escapes; `gadx.AttrQuoteSingleQuote` single-quotes and
+escapes only `'`, so framework expressions keep their double quotes and operators
+(e.g. VueJS `:class="{ active: a && b }"`).
 
 ## Main Block
 
