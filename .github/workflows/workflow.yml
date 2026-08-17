@@ -22,7 +22,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.26.5'
+        go-version: '1.26.6'
 
     - name: Install govulncheck
       run: go install golang.org/x/vuln/cmd/govulncheck@latest
@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         os:  [ 'ubuntu-latest', 'windows-latest' ]
-        go: [ '1.26.5' ]
+        go: [ '1.26.6' ]
         arch: [ 'amd64', 'arm64', '386' ]
     runs-on: ${{ matrix.os }}
     name: Test and Build go${{ matrix.go }}_${{ matrix.os }}_${{ matrix.arch }}
@@ -82,7 +82,7 @@ jobs:
 
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@v4
-      if: ${{ matrix.go == '1.26.5' }}
+      if: ${{ matrix.go == '1.26.6' }}
       with:
         name: ${{ env.artifactPath }}
         path: ${{ env.artifactPath }}*

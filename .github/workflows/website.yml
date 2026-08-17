@@ -30,7 +30,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26.5'
+          go-version: '1.26.6'
 
       # bun builds the embedded ide-vuetify demo (Playground) and the PrismJS
       # syntax-highlighting bundle; install the web workspace deps for both.

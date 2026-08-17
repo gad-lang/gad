@@ -15,7 +15,7 @@ builds:
     binary: gad
     env:
       - CGO_ENABLED=0
-      - GOTOOLCHAIN=go1.26.0+auto
+      - GOTOOLCHAIN=go1.26.6+auto
     tags:
       - prod
     ldflags:
