@@ -110,12 +110,16 @@ web: web-install
 web-server:
 	go run ./web/server -addr :8080 -static web/app/dist
 
-# Build the standalone JS editor plugins (@gad-lang/codemirror-gad and
-# @gad-lang/prism-gad) from their own workspace under plugins/js, so they compile
-# independently of the web app. Their dist/ is consumed by web (ide-react, app).
+# Build the JS editor plugins (@gad-lang/codemirror-gad and @gad-lang/prism-gad).
+# They live as git submodules under web/plugins/js and are members of the web bun
+# workspace, so a single `bun install` in web/ links them; build each so their
+# dist/ is consumed by web (ide-react, app). Run `git submodule update --init`
+# first if the submodules are not checked out.
 .PHONY: plugins-js
 plugins-js:
-	cd plugins/js && bun install && bun run build
+	cd web && bun install
+	cd web/plugins/js/codemirror-gad && bun run build
+	cd web/plugins/js/prism-gad && bun run build
 
 # Production build of the React app (outputs web/app/dist). Emits two pages:
 # index.html (the playground) and webide.html (the standalone embeddable IDE).

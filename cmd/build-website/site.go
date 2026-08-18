@@ -532,8 +532,8 @@ func copyGadxAssets(dir, outDir string) error {
 // is the package's path from the repo root (the editor plugins live under
 // plugins/, the IDE components under web/).
 var jsModules = []struct{ Name, Title, Dir string }{
-	{"codemirror-gad", "@gad-lang/codemirror-gad", "plugins/js/codemirror-gad"},
-	{"prism-gad", "@gad-lang/prism-gad", "plugins/js/prism-gad"},
+	{"codemirror-gad", "@gad-lang/codemirror-gad", "web/plugins/js/codemirror-gad"},
+	{"prism-gad", "@gad-lang/prism-gad", "web/plugins/js/prism-gad"},
 	{"ide-react", "@gad-lang/ide-react", "web/ide-react"},
 	{"ide-vuetify", "@gad-lang/ide-vuetify", "web/ide-vuetify"},
 }

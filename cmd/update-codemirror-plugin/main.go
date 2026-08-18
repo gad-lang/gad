@@ -1,4 +1,4 @@
-// Command update-codemirror-plugin keeps plugins/js/codemirror-gad in sync with the Gad
+// Command update-codemirror-plugin keeps web/plugins/js/codemirror-gad in sync with the Gad
 // language: it adds any keywords/atoms/constants/builtins the plugin is missing
 // and reports the language commits since the plugin was last updated.
 //
@@ -13,8 +13,8 @@ import "github.com/gad-lang/gad/cmd/internal/pluginsync"
 func main() {
 	pluginsync.RunCLI(pluginsync.Target{
 		Name:   "codemirror-gad",
-		Dir:    "plugins/js/codemirror-gad",
-		File:   "plugins/js/codemirror-gad/src/keywords.ts",
+		Dir:    "web/plugins/js/codemirror-gad",
+		File:   "web/plugins/js/codemirror-gad/src/keywords.ts",
 		Arrays: []string{"keywords", "atoms", "constants", "builtins"},
 	})
 }

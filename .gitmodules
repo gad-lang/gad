@@ -1,0 +1,12 @@
+[submodule "plugins/ide/intellij-gad"]
+	path = plugins/ide/intellij-gad
+	url = git@github.com:gad-lang/intellij-gad.git
+[submodule "plugins/ide/vscode-gad"]
+	path = plugins/ide/vscode-gad
+	url = git@github.com:gad-lang/vscode-gad.git
+[submodule "web/plugins/js/codemirror-gad"]
+	path = web/plugins/js/codemirror-gad
+	url = git@github.com:gad-lang/codemirror-gad.git
+[submodule "web/plugins/js/prism-gad"]
+	path = web/plugins/js/prism-gad
+	url = git@github.com:gad-lang/prism-gad.git
