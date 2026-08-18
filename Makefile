@@ -8,6 +8,21 @@ all: version depcheck generate lint test
 depcheck:
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 
+# --- Submodules (editor plugins live in their own repos) -------------------
+# submodules-init: check out every submodule (run once after a plain clone).
+.PHONY: submodules-init
+submodules-init:
+	git submodule update --init --recursive
+
+# submodules-update: fast-forward every submodule pointer to the tip of its
+# tracked remote branch, then stage the bumped pointers. Review with
+# `git submodule status` / `git diff --cached`, then commit.
+.PHONY: submodules-update
+submodules-update:
+	git submodule update --remote --recursive
+	git submodule status
+	git add $$(git config --file .gitmodules --get-regexp path | awk '{ print $$2 }')
+
 # Default build: the CLI plus the WebAssembly module.
 .PHONY: build
 build: build-cli build-wasm
