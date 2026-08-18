@@ -24,10 +24,10 @@ export default defineConfig({
     // need.
     alias: {
       "@gad-lang/codemirror-gad": fileURLToPath(
-        new URL("../../plugins/js/codemirror-gad/src/index.ts", import.meta.url),
+        new URL("../plugins/js/codemirror-gad/src/index.ts", import.meta.url),
       ),
       "@gad-lang/prism-gad": fileURLToPath(
-        new URL("../../plugins/js/prism-gad/src/index.ts", import.meta.url),
+        new URL("../plugins/js/prism-gad/src/index.ts", import.meta.url),
       ),
       "@gad-lang/ide-react": fileURLToPath(
         new URL("../ide-react/src/index.ts", import.meta.url),

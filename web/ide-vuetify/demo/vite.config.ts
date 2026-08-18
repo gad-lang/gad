@@ -11,8 +11,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@gad-lang/ide-vuetify": fileURLToPath(new URL("../src/index.ts", import.meta.url)),
-      "@gad-lang/codemirror-gad": fileURLToPath(new URL("../../../plugins/js/codemirror-gad/src/index.ts", import.meta.url)),
-      "@gad-lang/prism-gad": fileURLToPath(new URL("../../../plugins/js/prism-gad/src/index.ts", import.meta.url)),
+      "@gad-lang/codemirror-gad": fileURLToPath(new URL("../../plugins/js/codemirror-gad/src/index.ts", import.meta.url)),
+      "@gad-lang/prism-gad": fileURLToPath(new URL("../../plugins/js/prism-gad/src/index.ts", import.meta.url)),
     },
     dedupe: [
       "vue",
