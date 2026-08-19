@@ -23,9 +23,12 @@ func main() {
 	print := flag.Bool("print", false, "write the generated grammar to stdout and exit (for tooling/tests)")
 	flag.Parse()
 
+	// The grammar now lives in the shared gad-textmate bundle, vendored as a
+	// submodule of the VS Code extension; -w regenerates it in place there. The
+	// canonical publish path is `make textmate-publish` (pushes to gad-textmate).
 	const (
 		dir     = "plugins/ide/vscode-gad"
-		grammar = "plugins/ide/vscode-gad/syntaxes/gad.tmLanguage.json"
+		grammar = "plugins/ide/vscode-gad/gad-textmate/syntaxes/gad.tmLanguage.json"
 	)
 
 	data, err := pluginsync.TextMateGrammar()

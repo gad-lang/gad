@@ -1,0 +1,62 @@
+# Keep the shared gad-textmate bundle's generated grammar in sync with the Gad
+# language vocabulary. On a push to main that can affect the grammar (or on
+# demand), regenerate gad.tmLanguage.json and push it to gad-lang/gad-textmate.
+#
+# Cross-repo push needs a token the default GITHUB_TOKEN cannot provide, so add a
+# repository secret GAD_TEXTMATE_TOKEN (a fine-grained PAT with Contents:read+write
+# on gad-lang/gad-textmate). Until it exists the job no-ops with a notice — it
+# never fails the build.
+name: textmate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cmd/internal/pluginsync/**"
+      - "cmd/update-vscode-plugin/**"
+      - "parser/token.go"
+      - ".github/workflows/textmate.yml"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Gate the cross-repo publish on the secret being configured, so the job is
+      # safe to run before the token exists (no failure, just a notice).
+      - name: Check for publish token
+        id: gate
+        env:
+          TOKEN: ${{ secrets.GAD_TEXTMATE_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then echo "enabled=yes" >> "$GITHUB_OUTPUT";
+          else echo "::notice::GAD_TEXTMATE_TOKEN not set — skipping gad-textmate publish"; fi
+
+      - name: Check out gad-textmate
+        if: steps.gate.outputs.enabled == 'yes'
+        uses: actions/checkout@v4
+        with:
+          repository: gad-lang/gad-textmate
+          token: ${{ secrets.GAD_TEXTMATE_TOKEN }}
+          path: .gad-textmate
+
+      - name: Regenerate and publish the grammar
+        if: steps.gate.outputs.enabled == 'yes'
+        run: |
+          go run ./cmd/update-vscode-plugin -print > .gad-textmate/syntaxes/gad.tmLanguage.json
+          cd .gad-textmate
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "gad-textmate grammar already up to date"; exit 0
+          fi
+          git config user.name "gad-textmate-bot"
+          git config user.email "actions@github.com"
+          git add syntaxes/gad.tmLanguage.json
+          git commit -m "chore: regenerate gad.tmLanguage.json from gad@${GITHUB_SHA::7}"
+          git push origin HEAD:main
+          echo "::notice::published updated grammar to gad-textmate"

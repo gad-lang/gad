@@ -50,13 +50,16 @@ dist: web-build build-vscode-plugin build-wasm
 # goreleaser's own dist/ directory stays empty before its build step.
 .PHONY: goreleaser-setup
 goreleaser-setup: web-build
+	git submodule update --init --recursive plugins/ide/vscode-gad
 	go run ./cmd/update-vscode-plugin -w
 	cd plugins/ide/vscode-gad && bun install && bun run package
 
-# Build the VS Code extension: regenerate the TextMate grammar from the language
-# vocabulary, compile and package the .vsix, then move it into ./dist.
+# Build the VS Code extension: refresh the gad-textmate bundle submodule,
+# regenerate the TextMate grammar into it from the current language vocabulary,
+# compile and package the .vsix, then move it into ./dist.
 .PHONY: build-vscode-plugin
 build-vscode-plugin:
+	git submodule update --init --recursive plugins/ide/vscode-gad
 	go run ./cmd/update-vscode-plugin -w
 	cd plugins/ide/vscode-gad && bun install && bun run package
 	mkdir -p dist
