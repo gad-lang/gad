@@ -40,7 +40,8 @@ non-declaration statement **or a blank line** between them breaks the merge.
 - Docs / comments travel with their item.
 
 ## Plan (each stage tested by RUNNING original vs formatted)
-- [ ] Stage 1: reorder within a `var`/`const`/`global` paren group (covers a/b/c/d).
+- [x] Stage 1: reorder within a `var`/`const` paren group (covers a/b/c/d).
+      (`global` uses ParamSpec, deferred to Stage 4 with `param`.)
 - [ ] Stage 2: collapse a single-item group to short form.
 - [ ] Stage 3: merge adjacent declaration statements.
 - [ ] Stage 4: `param` (named only) + destructuring as an item.
@@ -58,8 +59,20 @@ non-declaration statement **or a blank line** between them breaks the merge.
   go/ast's `ast.Inspect`. `go test ./parser/node -run TestWalk` → PASS (4 tests);
   `go test ./...` → no FAIL; `go test ./gadx/...` → ok.
 
+### Stage 1 done
+- `parser/node/decl_order.go`: `GenDecl.orderedSpecs()` reorders a `var`/`const`
+  paren group of single-ident, pattern-free specs by (rank, name), where rank =
+  1 valueless / 3 plain / 4 expression / 5 ComputedExpr / 6 closure / 7 func.
+  Constraints from `IdentNames` keep any value that references a group-declared
+  name in its original position relative to that declaration → a greedy
+  topological sort that can never change resolution. Eligibility is conservative
+  (skips patterns, multi-ident specs, `iota`, `global`); ineligible groups are
+  emitted unchanged. Wired via `specsForWrite()` in `GenDecl.WriteCode`.
+- Tests (`cmd/gad/decl_order_test.go`): grouping order, idempotency, and
+  **resolution preserved by RUNNING** original vs formatted (a/b/c/d → `[1,1,4]`
+  both ways). `go test ./...` → no FAIL.
+
 ## Current State
-AST walker done and green (foundation for the scope-safe reorder). Next: Stage 1
-(reorder within a var/const/global paren group), using `IdentNames` to build the
-resolution-preserving constraints. Prior formatter work in this branch (opt-in
-column-aware fmt, comment preservation for array/dict) is merged and green.
+Stages 0 (walker) and 1 (within-group reorder) done and green. Next: Stage 2
+(collapse single-item group to short form), then merging, param/destructuring,
+multiline-forces-item-per-line.

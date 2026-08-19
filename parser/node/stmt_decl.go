@@ -344,37 +344,41 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(d.Doc)
 	ctx.WriteString(d.Tok.String())
 
+	// The items of an eligible var/const group are reordered (grouped by kind,
+	// then by name) without changing name resolution; see decl_order.go.
+	specs := d.specsForWrite()
+
 	// A single spec is written without parentheses (`var x`, `const Pi = 1`),
 	// except a lone named param which must keep them so the `;` survives
 	// (`param (; x)`).
-	paren := len(d.Specs) > 1
-	if !paren && len(d.Specs) > 0 {
-		if _, ok := d.Specs[0].(*NamedParamSpec); ok {
+	paren := len(specs) > 1
+	if !paren && len(specs) > 0 {
+		if _, ok := specs[0].(*NamedParamSpec); ok {
 			paren = true
 		}
 	}
 
 	if !paren {
 		ctx.WriteSingleByte(' ')
-		if len(d.Specs) > 0 {
-			d.Specs[0].WriteCode(ctx)
+		if len(specs) > 0 {
+			specs[0].WriteCode(ctx)
 		}
 		return
 	}
 
 	ctx.WriteString(" (")
-	write := func(i int) { d.Specs[i].WriteCode(ctx) }
+	write := func(i int) { specs[i].WriteCode(ctx) }
 	inNewLine := ctx.DecideNewLine(
-		CodeWriteContextFlagFormatDeclItemInNewLine, len(d.Specs), ", ", 1, write)
+		CodeWriteContextFlagFormatDeclItemInNewLine, len(specs), ", ", 1, write)
 
 	// A group of only value-less specs wraps greedily under NEW_LINE_CALC:
 	// packed onto the line, continued on the next line only on overflow, with no
 	// comma at the break (content indented one level, no extra indent).
-	if inNewLine && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) && d.allValueless() {
+	if inNewLine && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) && allValueless(specs) {
 		ctx.Depth++
 		ctx.WriteSecondLine()
 		ctx.WritePrefix()
-		ctx.WriteGreedy(len(d.Specs), ", ", "", write)
+		ctx.WriteGreedy(len(specs), ", ", "", write)
 		ctx.WriteSecondLine()
 		ctx.Depth--
 		ctx.WritePrefix()
@@ -387,7 +391,7 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	namedStarted := false
-	for i, sp := range d.Specs {
+	for i, sp := range specs {
 		_, isNamed := sp.(*NamedParamSpec)
 		startNamed := isNamed && !namedStarted
 
@@ -426,14 +430,17 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 
 // allValueless reports whether every spec in the group is a value-less value
 // spec (just identifiers, no initial values), e.g. `var (a, b, c)`.
-func (d *GenDecl) allValueless() bool {
-	for _, sp := range d.Specs {
+func (d *GenDecl) allValueless() bool { return allValueless(d.Specs) }
+
+// allValueless reports whether every spec is a value-less value spec.
+func allValueless(specs []Spec) bool {
+	for _, sp := range specs {
 		vs, ok := sp.(*ValueSpec)
 		if !ok || !vs.valueless() {
 			return false
 		}
 	}
-	return len(d.Specs) > 0
+	return len(specs) > 0
 }
 
 func (d *GenDecl) Params() (positional []*ParamSpec, named []*NamedParamSpec) {
