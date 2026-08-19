@@ -226,11 +226,27 @@ samples-doc: generate-api
 	cd samples && go run ../cmd/gad doc --out ../doc/samples \
 		--doc-template-md ../doc-templates/md.gadx .
 
+# Run the web workspace's JS/TS tests. `bun test` auto-discovers every
+# *.test.ts under web/** (across all workspace members), so new tests are picked
+# up without wiring. It errors out when there are none, so only invoke it once at
+# least one test file exists. Needs bun.
+.PHONY: web-test
+web-test:
+	cd web && bun install
+	@if find web \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.spec.ts' \) \
+		-not -path '*/node_modules/*' | grep -q .; then \
+		echo "==> web: bun test"; cd web && bun test; \
+	else \
+		echo "==> web: no test files yet (bun test auto-discovers web/**/*.test.ts)"; \
+	fi
+
 .PHONY: test
 test: version generate lint
 	go test -count=1 -cover ./...
 	go test -count=1 -race -coverpkg=./... ./...
 	go run ./cmd/gad -timeout 20s cmd/gad/testdata/fibtc.gad
+	# Front-end + grammar: web workspace tests and the TextMate tokenization tests.
+	$(MAKE) web-test grammar-test
 
 .PHONY: generate-all
 generate-all: generate generate-docs
