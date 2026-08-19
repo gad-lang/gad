@@ -1,6 +1,6 @@
 # Embedding Gad in Go
 
-[← Back to index](README.md)
+[← Back to Get Started](getting-started.md)
 
 Gad is built to be embedded. A script is compiled to a `Bytecode` object and
 then run on a `VM`. This chapter shows the minimal flow and the common

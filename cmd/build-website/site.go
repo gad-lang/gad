@@ -101,8 +101,11 @@ type navGroup struct {
 // guideOrder / refOrder give the curated nav ordering (filenames without .md).
 // The language chapters now live in samples/ and are published from doc/samples
 // as the "Language" section (see langOrder / collectLangPages).
+// The guide leads with getting-started ("Get Started"), which is also the Docs
+// landing page (the SPA redirects /docs to the first page of the first group).
+// The old doc/README.md "Gad Language" index page is intentionally not published.
 var guideOrder = []string{
-	"README", "getting-started", "builtins", "formatting", "embedding",
+	"getting-started", "builtins", "formatting", "embedding",
 }
 
 var refOrder = []string{

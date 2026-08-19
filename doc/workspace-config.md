@@ -1,6 +1,6 @@
 # Workspace Configuration
 
-[← Back to index](README.md)
+[← Back to Get Started](getting-started.md)
 
 A Gad workspace is configured under a `.gad/` directory at the workspace root
 (**WORK_DIR**, default the current directory or `$GAD_WORK_DIR`; the config

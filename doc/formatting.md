@@ -1,6 +1,6 @@
 # Formatting with `gad fmt`
 
-[← Back to index](README.md)
+[← Back to Get Started](getting-started.md)
 
 `gad fmt` rewrites Gad source files with the canonical formatter. By default it
 formats **in place**; with `--out` it writes elsewhere and leaves inputs

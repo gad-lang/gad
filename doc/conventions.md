@@ -1,6 +1,6 @@
 # Conventions
 
-[← Back to index](README.md)
+[← Back to Get Started](getting-started.md)
 
 This document covers two things: how identifiers are **named** in Gad's builtins
 and standard library, and the **code layout** the formatter (`gad fmt` / the

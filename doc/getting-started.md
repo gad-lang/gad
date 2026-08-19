@@ -1,6 +1,4 @@
-# Getting Started
-
-[← Back to index](README.md)
+# Get Started
 
 ## Installing the CLI
 
