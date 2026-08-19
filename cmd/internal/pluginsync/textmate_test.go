@@ -31,4 +31,16 @@ func TestTextMateGrammar(t *testing.T) {
 			t.Fatalf("grammar missing scope %q", scope)
 		}
 	}
+	// Interpolated-string highlighting: the `#`-prefixed forms and the embedded
+	// `{ … }` island scope must be present so expressions inside strings colorize.
+	for _, scope := range []string{
+		"string.quoted.double.interpolated.gad",
+		"string.quoted.triple.interpolated.gad",
+		"string.quoted.raw.interpolated.gad",
+		"meta.interpolation.gad",
+	} {
+		if !strings.Contains(s, scope) {
+			t.Fatalf("grammar missing scope %q", scope)
+		}
+	}
 }

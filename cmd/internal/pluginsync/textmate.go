@@ -62,6 +62,25 @@ func TextMateGrammar() ([]byte, error) {
 			{Name: "comment.block.gad", Begin: `/\*`, End: `\*/`},
 		}},
 		"strings": {Patterns: []tmRule{
+			// Interpolated strings (`#`-prefixed): a `{ … }` island embeds a Gad
+			// expression, highlighted via `#interpolation` (which includes $self).
+			// These must precede the plain forms so the leading `#` is consumed.
+			// Cooked forms (`#"…"`, `#"""…"""`) honor escapes, including the `\{` /
+			// `\}` delimiter escapes, so `\{` is an escape, not an island start.
+			{Name: "string.quoted.triple.interpolated.gad", Begin: `#"""`, End: `"""`, Patterns: []tmRule{
+				{Name: "constant.character.escape.gad", Match: `\\.`},
+				{Include: "#interpolation"},
+			}},
+			{Name: "string.quoted.double.interpolated.gad", Begin: `#"`, End: `"`, Patterns: []tmRule{
+				{Name: "constant.character.escape.gad", Match: `\\.`},
+				{Include: "#interpolation"},
+			}},
+			// Raw interpolated form (`#`…``) is verbatim: no escapes, so every
+			// unescaped `{` opens an island (there is no `\{` escape here).
+			{Name: "string.quoted.raw.interpolated.gad", Begin: "#`", End: "`", Patterns: []tmRule{
+				{Include: "#interpolation"},
+			}},
+			// Plain (non-interpolated) strings.
 			{Name: "string.quoted.triple.gad", Begin: `"""`, End: `"""`},
 			{Name: "string.quoted.raw.gad", Begin: "```", End: "```"},
 			{Name: "string.quoted.double.gad", Begin: `[bh]?"`, End: `"`, Patterns: []tmRule{
@@ -72,6 +91,20 @@ func TextMateGrammar() ([]byte, error) {
 				{Name: "constant.character.escape.gad", Match: `\\.`},
 			}},
 		}},
+		// A `{ … }` interpolation island inside a `#`-string: the braces are
+		// embedded-section punctuation and the body is full Gad (via $self). It
+		// includes itself first so nested `{ … }` (e.g. a map/block literal in the
+		// expression) balances instead of closing the island at the first `}`.
+		"interpolation": {
+			Name:     "meta.interpolation.gad",
+			Begin:    `\{`,
+			End:      `\}`,
+			Captures: map[string]tmCap{"0": {Name: "punctuation.section.embedded.gad"}},
+			Patterns: []tmRule{
+				{Include: "#interpolation"},
+				{Include: "$self"},
+			},
+		},
 		"numbers": {Patterns: []tmRule{
 			{Name: "constant.numeric.gad", Match: `\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][-+]?\d+)?[uUdD]?\b`},
 		}},
