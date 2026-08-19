@@ -2422,22 +2422,24 @@ func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
 			e.Elements[0].WriteCode(ctx)
 			ctx.WriteSingleByte(' ')
 		} else {
+			write := func(i int) { e.Elements[i].WriteCode(ctx) }
+			done := func(newLine bool) {
+				if newLine {
+					ctx.WriteSecondLine()
+				}
+			}
+			if ctx.hasCommentInRange(e.Pos(), e.End()) {
+				// A comment inside the dict forbids collapsing it; keep each item's
+				// trailing comment attached.
+				ctx.WriteItemsWithComments(len(e.Elements), "",
+					func(i int) source.Pos { return e.Elements[i].End() }, write, done)
+				ctx.WritePrefix()
+				ctx.WriteSingleByte('}')
+				return
+			}
 			inLineLine := ctx.DecideNewLine(
-				CodeWriteContextFlagFormatDictItemInNewLine, len(e.Elements), ", ", 1,
-				func(i int) { e.Elements[i].WriteCode(ctx) })
-			ctx.WriteItemsSep(
-				inLineLine,
-				len(e.Elements),
-				", ",
-				"",
-				func(i int) {
-					e.Elements[i].WriteCode(ctx)
-				},
-				func(newLine bool) {
-					if newLine {
-						ctx.WriteSecondLine()
-					}
-				})
+				CodeWriteContextFlagFormatDictItemInNewLine, len(e.Elements), ", ", 1, write)
+			ctx.WriteItemsSep(inLineLine, len(e.Elements), ", ", "", write, done)
 			if inLineLine {
 				ctx.WritePrefix()
 			}
@@ -2480,6 +2482,21 @@ func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
 			e.Elements[0].WriteCode(ctx)
 		} else {
 			write := func(i int) { e.Elements[i].WriteCode(ctx) }
+			if ctx.hasCommentInRange(e.Pos(), e.End()) {
+				// A comment inside the array forbids collapsing it; write one item
+				// per line and keep each item's trailing comment attached (closing
+				// mirrors the non-greedy branch below).
+				ctx.WriteItemsWithComments(len(e.Elements), "",
+					func(i int) source.Pos { return e.Elements[i].End() }, write,
+					func(newLine bool) {
+						if newLine {
+							ctx.WriteSecondLine()
+						}
+					})
+				ctx.WritePrefix()
+				ctx.WriteSingleByte(']')
+				return
+			}
 			inNewLine := ctx.DecideNewLine(
 				CodeWriteContextFlagFormatArrayItemInNewLine, len(e.Elements), ", ", 1, write)
 			if inNewLine && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {

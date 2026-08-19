@@ -290,6 +290,26 @@ func TestFormatDocInGroupTrailing(t *testing.T) {
 	require.Equal(t, out, out2)
 }
 
+// TestFormatKeepsInlineComments verifies a list construct containing a comment is
+// not collapsed onto one line and each item's trailing comment stays attached.
+func TestFormatKeepsInlineComments(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	cases := []struct{ name, src, want string }{
+		{"array", "x := [1, // one\n2, 3]\n", "1 // one"},
+		{"dict", "x := {a: 1, // aa\nb: 2}\n", "a: 1 // aa"},
+		{"block", "x := [1, /* c */ 2]\n", "1 /* c */"},
+	}
+	for _, c := range cases {
+		out, err := o.formatSource("d.gad", []byte(c.src), false)
+		require.NoError(t, err, c.name)
+		require.Contains(t, out, c.want, c.name)
+		require.GreaterOrEqual(t, strings.Count(out, "\n"), 3, c.name+" expanded, not collapsed: "+out)
+		out2, err := o.formatSource("d.gad", []byte(out), false)
+		require.NoError(t, err, c.name)
+		require.Equal(t, out, out2, c.name+" idempotent")
+	}
+}
+
 // TestFormatDocPerMethod verifies a func-with-methods keeps its func-level doc
 // and per-method docs in place.
 func TestFormatDocPerMethod(t *testing.T) {

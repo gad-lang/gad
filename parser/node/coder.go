@@ -889,6 +889,54 @@ func (ctx *CodeWriteContext) WriteItemsSep(inNewLine bool, count int, inlineSep,
 	}
 }
 
+// hasCommentInRange reports whether an un-emitted source comment starts within
+// [start, end). A construct consults it to avoid collapsing onto one line, which
+// would drop or misplace the comment. comments are sorted by position, so the
+// scan stops once it passes end.
+func (ctx *CodeWriteContext) hasCommentInRange(start, end source.Pos) bool {
+	for i := ctx.commentIdx; i < len(ctx.comments); i++ {
+		p := ctx.comments[i].Pos()
+		if p >= end {
+			break
+		}
+		if p >= start {
+			return true
+		}
+	}
+	return false
+}
+
+// WriteItemsWithComments is the multi-line item writer (WriteItemsSep's newLine
+// branch) that also emits each item's trailing same-line source comment right
+// after it, so inline comments survive formatting instead of being relocated.
+// endOf gives an item's end position (to match comments on the same source
+// line); done runs before the indent is popped, exactly like WriteItemsSep, so
+// callers reuse their own closing.
+func (ctx *CodeWriteContext) WriteItemsWithComments(count int, newLineSep string, endOf func(i int) source.Pos, do func(i int), done func(newLine bool)) {
+	ctx.Depth++
+	ctx.WriteSecondLine()
+	for i := 0; i < count; i++ {
+		ctx.WritePrefix()
+		do(i)
+		if i != count-1 {
+			ctx.WriteString(newLineSep)
+		}
+		if line := ctx.lineOf(endOf(i)); line > 0 {
+			for c := ctx.peekComment(); c != nil && ctx.lineOf(c.Pos()) == line; c = ctx.peekComment() {
+				ctx.WriteString(" ", normalizeDocFence(c.Text))
+				ctx.commentIdx++
+			}
+		}
+		if i != count-1 {
+			ctx.WriteSecondLine()
+		}
+	}
+	if done != nil {
+		done(true)
+	}
+	ctx.Depth--
+}
+
 // WriteGreedy renders count items using the column-aware overflow rule: items
 // are packed onto the current line with itemSep between them and continue on a
 // new line only when the next item would overflow MaxColumns. breakConnector is
