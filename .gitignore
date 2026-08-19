@@ -12,6 +12,10 @@
 /gad
 /cmd/gad/gad
 /dist/
+# stray command binaries from `go build ./cmd/<name>/` at the repo root
+/build-website
+/update-vscode-plugin
+/gaddoc
 
 # editor plugin build artifacts (plugins/js/*, plugins/vscode-gad)
 /plugins/**/node_modules/
