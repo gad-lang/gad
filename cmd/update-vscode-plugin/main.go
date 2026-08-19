@@ -20,6 +20,7 @@ import (
 
 func main() {
 	write := flag.Bool("w", false, "write the generated grammar to the extension")
+	print := flag.Bool("print", false, "write the generated grammar to stdout and exit (for tooling/tests)")
 	flag.Parse()
 
 	const (
@@ -33,6 +34,13 @@ func main() {
 		os.Exit(1)
 	}
 	data = append(data, '\n')
+
+	// -print emits only the grammar JSON on stdout (no report), so a test or other
+	// tool can consume the exact generator output without touching the extension.
+	if *print {
+		os.Stdout.Write(data)
+		return
+	}
 
 	fmt.Println("== vscode-gad (gad.tmLanguage.json) ==")
 	old, _ := os.ReadFile(grammar)

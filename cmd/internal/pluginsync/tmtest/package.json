@@ -1,0 +1,12 @@
+{
+  "name": "gad-grammar-tmtest",
+  "private": true,
+  "description": "TextMate tokenization tests for the generated Gad grammar (bun test).",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  }
+}

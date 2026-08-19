@@ -96,6 +96,13 @@ website-fast:
 	@echo "Serving on http://localhost$(WEBSITE_ADDR) (Ctrl-C to stop)"
 	go run ./cmd/build-website serve --out $(WEBSITE_OUT) --addr $(WEBSITE_ADDR)
 
+# Tokenize the generated TextMate grammar with the real vscode-textmate engine
+# (the same stack VS Code and the IntelliJ TextMate bundle use) and assert the
+# highlighting contract — notably interpolated-string `{ … }` islands. Needs bun.
+.PHONY: grammar-test
+grammar-test:
+	cd cmd/internal/pluginsync/tmtest && bun install && bun test
+
 # Regenerate the VM debug loop (vm_loop_debug.go) from the production loop.
 .PHONY: gen-delve
 gen-delve:
