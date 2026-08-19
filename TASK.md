@@ -49,10 +49,14 @@ non-declaration statement **or a blank line** between them breaks the merge.
 ## Log
 ### 2026-08-19
 - Spec locked and saved.
-- Built `parser/node/walk.go`: reflection-based `Inspect(root, f)` AST walker +
-  `IdentNames(n)` (over-approx of referenced names, for the scope check).
-  `go test ./parser/node -run TestInspect\|TestIdentNames` → PASS (3 tests);
-  `go test ./...` → no FAIL.
+- Built `parser/node/walk.go`: reflection-based `Walk(root, f)` AST walker +
+  `IdentNames(n)` (over-approx of referenced names, for the scope check). Keyed on
+  **`ast.Node`** (Pos/End/String), so custom node implementations (the gadx AST)
+  are traversed too. Chose a package function over a `Node.Walk` interface method:
+  there is no shared base struct, so a method would mean boilerplate on 100+ node
+  types, whereas reflection covers all of them (incl. custom) with none — same as
+  go/ast's `ast.Inspect`. `go test ./parser/node -run TestWalk` → PASS (4 tests);
+  `go test ./...` → no FAIL; `go test ./gadx/...` → ok.
 
 ## Current State
 AST walker done and green (foundation for the scope-safe reorder). Next: Stage 1

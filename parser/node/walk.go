@@ -1,20 +1,28 @@
 package node
 
-import "reflect"
+import (
+	"reflect"
 
-// nodeIface is the reflect.Type of the Node interface, used to detect child nodes.
-var nodeIface = reflect.TypeOf((*Node)(nil)).Elem()
+	"github.com/gad-lang/gad/parser/ast"
+)
 
-// Inspect traverses the AST rooted at root in depth-first pre-order, calling f
-// for every Node it reaches (starting with root). When f returns false the
+// astNodeIface is the reflect.Type of ast.Node — the minimal node interface
+// (Pos/End). Keying traversal on it (rather than node.Node) means custom node
+// implementations, e.g. the gadx AST which embeds ast.NodeData, are traversed
+// too.
+var astNodeIface = reflect.TypeOf((*ast.Node)(nil)).Elem()
+
+// Walk traverses the AST rooted at root in depth-first pre-order, calling f
+// for every ast.Node it reaches (starting with root). When f returns false the
 // children of that node are skipped; returning true descends into them.
 //
-// Traversal is reflection-based, so it covers every node type without a
-// per-type switch: it follows exported fields that are Nodes, and descends into
-// slices, arrays, maps, pointers, interfaces and plain structs that may contain
-// them. Unexported fields are not followed (reflection cannot read them), and
-// non-Node leaves (e.g. *ast.CommentGroup, primitive fields) are ignored.
-func Inspect(root Node, f func(Node) bool) {
+// Traversal is reflection-based, so it covers every node type — including custom
+// implementations (gadx) — without a per-type switch: it follows exported fields
+// that are ast.Nodes and descends into slices, arrays, maps, pointers,
+// interfaces and plain structs that may contain them. Unexported fields are not
+// followed (reflection cannot read them), and nil interfaces/pointers are
+// handled.
+func Walk(root ast.Node, f func(ast.Node) bool) {
 	if isNilNode(reflect.ValueOf(root)) {
 		return
 	}
@@ -39,7 +47,7 @@ func isNilNode(v reflect.Value) bool {
 
 // walkChildren descends into the composite value v (dereferencing pointers and
 // interfaces), visiting each element/field via walkValue.
-func walkChildren(v reflect.Value, f func(Node) bool) {
+func walkChildren(v reflect.Value, f func(ast.Node) bool) {
 	switch v.Kind() {
 	case reflect.Ptr, reflect.Interface:
 		if !v.IsNil() {
@@ -64,12 +72,12 @@ func walkChildren(v reflect.Value, f func(Node) bool) {
 	}
 }
 
-// walkValue routes a single field/element: a Node restarts Inspect on it;
-// anything else that may transitively hold Nodes is descended into.
-func walkValue(v reflect.Value, f func(Node) bool) {
-	if v.Type().Implements(nodeIface) {
+// walkValue routes a single field/element: an ast.Node restarts Walk on it;
+// anything else that may transitively hold nodes is descended into.
+func walkValue(v reflect.Value, f func(ast.Node) bool) {
+	if v.Type().Implements(astNodeIface) {
 		if !isNilNode(v) {
-			Inspect(v.Interface().(Node), f)
+			Walk(v.Interface().(ast.Node), f)
 		}
 		return
 	}
@@ -83,9 +91,9 @@ func walkValue(v reflect.Value, f func(Node) bool) {
 // an over-approximation of the free variables of an expression (it also includes
 // bound names, selector field names, etc.), which is what callers that must not
 // miss a reference — e.g. the declaration reorderer's scope check — rely on.
-func IdentNames(n Node) map[string]struct{} {
+func IdentNames(n ast.Node) map[string]struct{} {
 	names := map[string]struct{}{}
-	Inspect(n, func(x Node) bool {
+	Walk(n, func(x ast.Node) bool {
 		if id, ok := x.(*IdentExpr); ok && !id.Empty && id.Name != "" {
 			names[id.Name] = struct{}{}
 		}

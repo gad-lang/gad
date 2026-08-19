@@ -1,13 +1,18 @@
 package node
 
-import "testing"
+import (
+	"testing"
 
-func TestInspectVisitsAllNodes(t *testing.T) {
+	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/source"
+)
+
+func TestWalkVisitsAllNodes(t *testing.T) {
 	inner := &ArrayExpr{Elements: []Expr{&IdentExpr{Name: "b"}, &IdentExpr{Name: "c"}}}
 	root := &ArrayExpr{Elements: []Expr{&IdentExpr{Name: "a"}, inner}}
 
 	var count int
-	Inspect(root, func(Node) bool { count++; return true })
+	Walk(root, func(ast.Node) bool { count++; return true })
 	// root array + a + inner array + b + c
 	if count != 5 {
 		t.Fatalf("visited %d nodes, want 5", count)
@@ -15,7 +20,7 @@ func TestInspectVisitsAllNodes(t *testing.T) {
 
 	// Returning false prunes children: only the root is visited.
 	count = 0
-	Inspect(root, func(Node) bool { count++; return false })
+	Walk(root, func(ast.Node) bool { count++; return false })
 	if count != 1 {
 		t.Fatalf("with prune, visited %d nodes, want 1", count)
 	}
@@ -36,8 +41,41 @@ func TestIdentNames(t *testing.T) {
 	}
 }
 
-func TestInspectNilSafe(t *testing.T) {
-	Inspect(nil, func(Node) bool { t.Fatal("visitor called for nil root"); return true })
+func TestWalkNilSafe(t *testing.T) {
+	Walk(nil, func(ast.Node) bool { t.Fatal("visitor called for nil root"); return true })
 	// A struct with a nil interface field must not panic.
-	Inspect(&ArrayExpr{Elements: []Expr{nil, &IdentExpr{Name: "a"}}}, func(Node) bool { return true })
+	Walk(&ArrayExpr{Elements: []Expr{nil, &IdentExpr{Name: "a"}}}, func(ast.Node) bool { return true })
+}
+
+// customNode is a minimal ast.Node implemented outside the node package (as the
+// gadx AST is): it must still be visited and descended into.
+type customNode struct {
+	ast.NodeData
+	Child Expr
+}
+
+func (customNode) Pos() source.Pos { return 0 }
+func (customNode) End() source.Pos { return 0 }
+func (customNode) String() string  { return "customNode" }
+
+func TestWalkCustomNode(t *testing.T) {
+	root := &customNode{Child: &IdentExpr{Name: "z"}}
+	var sawCustom, sawChild bool
+	Walk(root, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *customNode:
+			sawCustom = true
+		case *IdentExpr:
+			if v.Name == "z" {
+				sawChild = true
+			}
+		}
+		return true
+	})
+	if !sawCustom {
+		t.Error("custom node was not visited")
+	}
+	if !sawChild {
+		t.Error("child of custom node was not visited")
+	}
 }
