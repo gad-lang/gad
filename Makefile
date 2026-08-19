@@ -62,6 +62,25 @@ build-vscode-plugin:
 	mkdir -p dist
 	mv plugins/ide/vscode-gad/vscode-gad.vsix dist/
 
+# --- Shared TextMate bundle (gad-lang/gad-textmate) ------------------------
+# The gad.tmLanguage.json grammar is generated here (source of truth) and shared
+# by the editor plugins via the gad-textmate repo. `textmate-publish` regenerates
+# it and pushes to gad-textmate when it changed; the plugins then bump their
+# submodule pointer. Uses your local git credentials (no CI secret needed).
+TEXTMATE_REPO ?= git@github.com:gad-lang/gad-textmate.git
+TEXTMATE_DIR  ?= .__tmp/gad-textmate
+.PHONY: textmate-publish
+textmate-publish:
+	@if [ -d $(TEXTMATE_DIR)/.git ]; then git -C $(TEXTMATE_DIR) pull --ff-only; \
+		else git clone $(TEXTMATE_REPO) $(TEXTMATE_DIR); fi
+	go run ./cmd/update-vscode-plugin -print > $(TEXTMATE_DIR)/syntaxes/gad.tmLanguage.json
+	@if [ -n "$$(git -C $(TEXTMATE_DIR) status --porcelain)" ]; then \
+		git -C $(TEXTMATE_DIR) add syntaxes/gad.tmLanguage.json; \
+		git -C $(TEXTMATE_DIR) commit -m "chore: regenerate gad.tmLanguage.json from gad@$$(git rev-parse --short HEAD)"; \
+		git -C $(TEXTMATE_DIR) push origin HEAD:main; \
+		echo "==> published updated grammar to gad-textmate"; \
+	else echo "==> gad-textmate grammar already up to date"; fi
+
 # Build the distributable Gad WASM module (gad.wasm, debugger-enabled) and
 # wasm_exec.js into ./dist.
 .PHONY: build-wasm
