@@ -823,7 +823,7 @@ func wasmEmbedBody(playHref string) template.HTML {
 // highlighting. Requires bun; the caller tolerates failure (code blocks then
 // render unstyled).
 func buildPrismBundle(repoRoot, outDir string) error {
-	pkg := filepath.Join(repoRoot, "plugins", "js", "prism-gad")
+	pkg := filepath.Join(repoRoot, "web", "plugins", "js", "prism-gad")
 	if _, err := os.Stat(filepath.Join(pkg, "site-bundle.mjs")); err != nil {
 		return err
 	}
