@@ -45,8 +45,11 @@ non-declaration statement **or a blank line** between them breaks the merge.
 - [x] Stage 2: collapse a lone `var name = value` to `name := value`.
 - [x] Stage 3: merge adjacent declaration statements (`:=`/var/const/global/param;
       blank line or floating comment breaks the run; lead docs travel).
-- [ ] Stage 4: `param` (named only) + destructuring as an item + `global`.
+- [x] Stage 4: destructuring as an item; `param`/`global` named-only ordering
+      (positional/variadic fixed; bail on cross-referencing named defaults).
 - [x] Stage 5: multiline value forces item-per-line (existing measure logic).
+
+**All stages complete.**
 
 ## Log
 ### 2026-08-19
@@ -73,7 +76,13 @@ non-declaration statement **or a blank line** between them breaks the merge.
   **resolution preserved by RUNNING** original vs formatted (a/b/c/d → `[1,1,4]`
   both ways). `go test ./...` → no FAIL.
 
-## Current State
+## Current State (all stages done)
+Declaration organizer complete and green (`go test ./...` no FAIL):
+walker → within-group scope-safe reorder → collapse lone var to `:=` → merge
+adjacent decls → destructuring + param/global named ordering → multiline forces
+item-per-line. Semantics verified by running original vs formatted in tests.
+
+### (history) Stages 0-1
 Stages 0 (walker) and 1 (within-group reorder) done and green. Next: Stage 2
 (collapse single-item group to short form), then merging, param/destructuring,
 multiline-forces-item-per-line.

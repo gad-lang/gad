@@ -86,6 +86,16 @@ func TestDeclMerge(t *testing.T) {
 	require.Equal(t, runGad(t, src), runGad(t, fmtGad(t, src)))
 }
 
+// TestDeclParamGlobal checks param/global ordering: positional params stay put,
+// only named params are sorted, a variadic named stays last, and a named default
+// that references another named param leaves the group intact.
+func TestDeclParamGlobal(t *testing.T) {
+	require.Contains(t, fmtGad(t, "param (b, a; z = 3, m = 1)\n"), "param (b, a; m=1, z=3)")
+	require.Contains(t, fmtGad(t, "param (a; z = 2, m = 1, **kw)\n"), "param (a; m=1, z=2, **kw)")
+	require.Contains(t, fmtGad(t, "param (; z = 1, m = z)\n"), "param (; z=1, m=z)")
+	require.Contains(t, fmtGad(t, "global (z = 3, a = 1, m = 2)\n"), "a=1, m=2, z=3")
+}
+
 // TestDeclDestructuring checks a destructuring spec is ordered as an item (by its
 // first name) and keeps its meaning.
 func TestDeclDestructuring(t *testing.T) {

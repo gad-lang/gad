@@ -1,6 +1,8 @@
 package node
 
 import (
+	"sort"
+
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
@@ -164,7 +166,15 @@ type declItem struct {
 // name resolution: a value that references a name declared in the same group
 // keeps its position relative to that declaration (so shadowing is preserved).
 func (d *GenDecl) orderedSpecs() []Spec {
-	if (d.Tok != token.Var && d.Tok != token.Const) || !d.Lparen.IsValid() || len(d.Specs) < 2 {
+	if !d.Lparen.IsValid() || len(d.Specs) < 2 {
+		return nil
+	}
+	switch d.Tok {
+	case token.Param, token.Global:
+		return d.orderedParamSpecs()
+	case token.Var, token.Const:
+		// handled below
+	default:
 		return nil
 	}
 
@@ -298,6 +308,76 @@ func (d *GenDecl) specsForWrite() []Spec {
 		return o
 	}
 	return d.Specs
+}
+
+// namedRank ranks a named param/global spec: 2 typed-valueless (no default),
+// otherwise by its default value (declValueRank).
+func namedRank(s *NamedParamSpec) int {
+	if s.Value == nil {
+		return 2
+	}
+	return declValueRank(s.Value)
+}
+
+// orderedParamSpecs orders a `param`/`global` group: positional params (and any
+// variadic) keep their position; only non-variadic named params are sorted (by
+// rank then name). It bails (returns nil, leaving the group intact) on anything
+// unusual — a positional after a named, a non-param spec, fewer than two named
+// params, or a named default that references another named param (which would
+// need the resolution-preserving machinery).
+func (d *GenDecl) orderedParamSpecs() []Spec {
+	var positional, named []Spec
+	namedDeclared := map[string]bool{}
+	seenNamed := false
+	for _, sp := range d.Specs {
+		switch v := sp.(type) {
+		case *ParamSpec:
+			if seenNamed {
+				return nil
+			}
+			positional = append(positional, sp)
+		case *NamedParamSpec:
+			seenNamed = true
+			named = append(named, sp)
+			namedDeclared[v.Ident.Ident.Name] = true
+		default:
+			return nil
+		}
+	}
+	if len(named) < 2 {
+		return nil
+	}
+	for _, sp := range named {
+		if np := sp.(*NamedParamSpec); np.Value != nil {
+			for ref := range IdentNames(np.Value) {
+				if namedDeclared[ref] {
+					return nil // a named default references another named param
+				}
+			}
+		}
+	}
+
+	var plain, variadic []Spec
+	for _, sp := range named {
+		if sp.(*NamedParamSpec).Var {
+			variadic = append(variadic, sp) // keep `**kwargs` last, in place
+		} else {
+			plain = append(plain, sp)
+		}
+	}
+	sort.SliceStable(plain, func(i, j int) bool {
+		a, b := plain[i].(*NamedParamSpec), plain[j].(*NamedParamSpec)
+		if ra, rb := namedRank(a), namedRank(b); ra != rb {
+			return ra < rb
+		}
+		return a.Ident.Ident.Name < b.Ident.Ident.Name
+	})
+
+	out := make([]Spec, 0, len(d.Specs))
+	out = append(out, positional...)
+	out = append(out, plain...)
+	out = append(out, variadic...)
+	return out
 }
 
 // declLess orders items by rank, then by identifier name.
