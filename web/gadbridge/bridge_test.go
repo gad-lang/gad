@@ -36,7 +36,8 @@ func TestFormatSourceTemplate(t *testing.T) {
 	if !r.OK {
 		t.Fatalf("not ok: %v", r.Diagnostics)
 	}
-	for _, want := range []string{`{% var name = "Gad" %}`, `{%= name %}`, "<h1>Hello,"} {
+	// A lone `var name = value` collapses to the short form `name := value`.
+	for _, want := range []string{`{% name := "Gad" %}`, `{%= name %}`, "<h1>Hello,"} {
 		if !strings.Contains(r.Source, want) {
 			t.Fatalf("template format missing %q:\n%s", want, r.Source)
 		}

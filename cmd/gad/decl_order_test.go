@@ -47,6 +47,21 @@ func TestDeclOrderGrouping(t *testing.T) {
 	}
 }
 
+// TestDeclShortVar checks a lone `var name = value` collapses to `name := value`
+// (any standalone var), while valueless/const/global are left alone.
+func TestDeclShortVar(t *testing.T) {
+	require.Equal(t, "x := 1\n", fmtGad(t, "var x = 1\n"))
+	require.Equal(t, "b := 3\n", fmtGad(t, "var (b = 3)\n"))
+	require.Contains(t, fmtGad(t, "var x\n"), "var x")
+	require.Contains(t, fmtGad(t, "const x = 1\n"), "const x = 1")
+
+	// Semantics unchanged, and idempotent.
+	src := "var x = 41\nx + 1\n"
+	out := fmtGad(t, src)
+	require.Equal(t, runGad(t, src), runGad(t, out))
+	require.Equal(t, out, fmtGad(t, out))
+}
+
 // TestDeclOrderIdempotent checks the reordering is a fixed point.
 func TestDeclOrderIdempotent(t *testing.T) {
 	src := "var (z = 3, m = 1, aa = 2, k)\n"

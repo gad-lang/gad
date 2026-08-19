@@ -115,6 +115,32 @@ func (d *GenDecl) orderedSpecs() []Spec {
 	return out
 }
 
+// writeShortVar renders a single `var name = value` as the short form
+// `name := value` (equivalent semantics) and returns true when it applied. Only
+// a var with exactly one identifier and a value collapses; valueless vars,
+// const/global, destructuring patterns and multi-item groups take the normal
+// path.
+func (d *GenDecl) writeShortVar(ctx *CodeWriteContext) bool {
+	if d.Tok != token.Var || len(d.Specs) != 1 {
+		return false
+	}
+	vs, ok := d.Specs[0].(*ValueSpec)
+	if !ok || vs.Pattern != nil || len(vs.Idents) != 1 || len(vs.Values) != 1 || vs.Values[0] == nil {
+		return false
+	}
+	lead := isLeadDoc(vs.Doc, vs)
+	if lead {
+		ctx.WriteLeadDoc(vs.Doc)
+	}
+	vs.Idents[0].WriteCode(ctx)
+	ctx.WriteString(" := ")
+	vs.Values[0].WriteCode(ctx)
+	if !lead {
+		ctx.WriteTrailingDoc(vs.Doc)
+	}
+	return true
+}
+
 // specsForWrite returns the specs in the order they should be emitted: the
 // reordered order when the group is eligible, otherwise the original specs.
 func (d *GenDecl) specsForWrite() []Spec {

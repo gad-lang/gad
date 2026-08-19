@@ -342,6 +342,12 @@ func (d *GenDecl) String() string {
 
 func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(d.Doc)
+
+	// A lone `var name = value` collapses to the short form `name := value`.
+	if d.writeShortVar(ctx) {
+		return
+	}
+
 	ctx.WriteString(d.Tok.String())
 
 	// The items of an eligible var/const group are reordered (grouped by kind,
