@@ -70,6 +70,22 @@ func TestDeclOrderIdempotent(t *testing.T) {
 	require.Contains(t, out, "var (k, aa = 2, m = 1, z = 3)")
 }
 
+// TestDeclMerge checks adjacent same-kind declarations merge into one paren
+// group, that a blank line or a floating statement breaks the run, and that
+// merging preserves semantics (a later item may reference an earlier one).
+func TestDeclMerge(t *testing.T) {
+	require.Contains(t, fmtGad(t, "a := 2\nb := 3\n"), "var (a = 2, b = 3)")
+	require.Contains(t, fmtGad(t, "var x = 1\ny := 2\n"), "var (x = 1, y = 2)")
+
+	require.NotContains(t, fmtGad(t, "a := 2\n\nb := 3\n"), "var (")           // blank line
+	require.NotContains(t, fmtGad(t, "a := 2\nprintln(1)\nb := 3\n"), "var (") // interrupted
+
+	// Semantics: `b` references the earlier `a`; the merged/reordered form agrees.
+	src := "a := 1\nb := a\n[a, b]\n"
+	require.Equal(t, "[1, 1]", runGad(t, src))
+	require.Equal(t, runGad(t, src), runGad(t, fmtGad(t, src)))
+}
+
 // TestDeclOrderPreservesResolution runs the original and the reordered program
 // and asserts identical results: `b`/`c` must see the OUTER `a`, `d` the group
 // `a`, regardless of how the group is laid out.

@@ -42,10 +42,11 @@ non-declaration statement **or a blank line** between them breaks the merge.
 ## Plan (each stage tested by RUNNING original vs formatted)
 - [x] Stage 1: reorder within a `var`/`const` paren group (covers a/b/c/d).
       (`global` uses ParamSpec, deferred to Stage 4 with `param`.)
-- [ ] Stage 2: collapse a single-item group to short form.
-- [ ] Stage 3: merge adjacent declaration statements.
-- [ ] Stage 4: `param` (named only) + destructuring as an item.
-- [ ] Stage 5: multiline value forces item-per-line layout.
+- [x] Stage 2: collapse a lone `var name = value` to `name := value`.
+- [x] Stage 3: merge adjacent declaration statements (`:=`/var/const/global/param;
+      blank line or floating comment breaks the run; lead docs travel).
+- [ ] Stage 4: `param` (named only) + destructuring as an item + `global`.
+- [x] Stage 5: multiline value forces item-per-line (existing measure logic).
 
 ## Log
 ### 2026-08-19

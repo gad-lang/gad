@@ -1,6 +1,110 @@
 package node
 
-import "github.com/gad-lang/gad/token"
+import (
+	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/token"
+)
+
+// mergeableDecl reports whether s is a declaration statement that can be merged
+// into a paren group, returning its kind token and the specs it contributes. A
+// simple short var decl (`name := value`, single ident) counts as a `var`; a
+// var/const/global/param declaration contributes its own specs.
+func mergeableDecl(s Stmt) (tok token.Token, specs []Spec, ok bool) {
+	switch v := s.(type) {
+	case *AssignStmt:
+		if v.Token == token.Define && len(v.LHS) == 1 && len(v.RHS) == 1 {
+			if id, isID := v.LHS[0].(*IdentExpr); isID {
+				return token.Var, []Spec{&ValueSpec{Idents: []*IdentExpr{id}, Values: []Expr{v.RHS[0]}}}, true
+			}
+		}
+	case *DeclStmt:
+		if gd, isGD := v.Decl.(*GenDecl); isGD {
+			switch gd.Tok {
+			case token.Var, token.Const, token.Global, token.Param:
+				return gd.Tok, gd.Specs, true
+			}
+		}
+	}
+	return 0, nil, false
+}
+
+// newDeclGroup wraps the first statement of a mergeable run in a fresh paren
+// GenDecl so later same-kind statements can be appended without mutating the
+// original AST. Positions come from s (for the comment/blank-line machinery), and
+// a var/const/... group's own lead doc is preserved.
+func newDeclGroup(tok token.Token, s Stmt, specs []Spec) *DeclStmt {
+	gd := &GenDecl{Tok: tok, TokPos: s.Pos(), Lparen: s.Pos()}
+	gd.Specs = append(gd.Specs, specs...)
+	if ds, ok := s.(*DeclStmt); ok {
+		if og, ok := ds.Decl.(*GenDecl); ok {
+			gd.Doc = og.Doc
+		}
+	}
+	gd.setRparen()
+	return &DeclStmt{Decl: gd}
+}
+
+// setRparen keeps Rparen (and thus End) at the last spec, so surrounding comment
+// and blank-line handling sees a sensible span as specs are appended.
+func (d *GenDecl) setRparen() {
+	if n := len(d.Specs); n > 0 {
+		d.Rparen = d.Specs[n-1].End()
+	}
+}
+
+// stmtLeadDoc returns the lead doc comment that precedes a declaration statement
+// (and travels with it into a merged group), or nil.
+func stmtLeadDoc(s Stmt) *ast.CommentGroup {
+	ds, ok := s.(*DeclStmt)
+	if !ok {
+		return nil
+	}
+	gd, ok := ds.Decl.(*GenDecl)
+	if !ok {
+		return nil
+	}
+	if gd.Doc != nil {
+		return gd.Doc
+	}
+	if len(gd.Specs) == 1 {
+		if vs, ok := gd.Specs[0].(*ValueSpec); ok {
+			return vs.Doc
+		}
+	}
+	return nil
+}
+
+// declGapBreaks reports whether a blank line or a floating comment between prev
+// and cur should stop them from merging into one declaration group. cur's own
+// lead doc is not a break — it travels with cur into the group.
+func (ctx *CodeWriteContext) declGapBreaks(prev, cur Stmt) bool {
+	if ctx.srcFile == nil {
+		return false
+	}
+	doc := stmtLeadDoc(cur)
+
+	// A blank line before cur (measuring from cur's own doc, which is the content
+	// immediately above the declaration) breaks the run.
+	curStart := cur.Pos()
+	if doc != nil {
+		curStart = doc.Pos()
+	}
+	if ctx.lineOf(curStart) > ctx.lineOf(prev.End()-1)+1 {
+		return true
+	}
+
+	// Any comment between them that is not cur's lead doc breaks the run.
+	for _, c := range ctx.comments {
+		if c.Pos() < prev.End() || c.Pos() >= cur.Pos() {
+			continue
+		}
+		if doc != nil && c.Pos() >= doc.Pos() && c.End() <= doc.End() {
+			continue // part of cur's lead doc
+		}
+		return true
+	}
+	return false
+}
 
 // declValueRank ranks a value spec's value for declaration ordering (see
 // TASK.md): 1 no value; 3 plain (literal or bare ident); 4 expression;

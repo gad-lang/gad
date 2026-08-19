@@ -632,35 +632,37 @@ func (ctx *CodeWriteContext) With(n ast.Node, cb func() error) (err error) {
 	return
 }
 
+// simplifyStmts merges runs of adjacent, same-kind declaration statements into a
+// single paren group so they can be organized together: short var decls (`:=`)
+// and `var`/`const`/`global`/`param` declarations each merge with their own kind.
+// A blank line or a comment between two of them breaks the run. It builds fresh
+// GenDecls, never mutating the original AST.
 func (ctx *CodeWriteContext) simplifyStmts(stmt []Stmt) (ret []Stmt) {
-	l := len(stmt)
-
-loop:
-	for i := 0; i < l; i++ {
-		if i > 0 {
-			switch e := stmt[i].(type) {
-			case *DeclStmt:
-				if ge, _ := e.Decl.(*GenDecl); ge != nil {
-					if last, _ := ret[len(ret)-1].(*DeclStmt); last != nil {
-						if lge, _ := last.Decl.(*GenDecl); lge != nil {
-							if ge.Tok == lge.Tok {
-								// Preserve the merged decl's own lead doc by moving
-								// it onto its first spec, so it is not lost when ge
-								// is dropped into lge.
-								if ge.Doc != nil && len(ge.Specs) > 0 {
-									if vs, _ := ge.Specs[0].(*ValueSpec); vs != nil && vs.Doc == nil {
-										vs.Doc = ge.Doc
-									}
-								}
-								lge.Specs = append(lge.Specs, ge.Specs...)
-								continue loop
+	for i := 0; i < len(stmt); i++ {
+		s := stmt[i]
+		tok, specs, ok := mergeableDecl(s)
+		if ok && len(ret) > 0 {
+			if prev, isDS := ret[len(ret)-1].(*DeclStmt); isDS {
+				if pg, isGD := prev.Decl.(*GenDecl); isGD && pg.Tok == tok && !ctx.declGapBreaks(stmt[i-1], s) {
+					// Preserve a merged decl's own lead doc on its first spec.
+					if ds, _ := s.(*DeclStmt); ds != nil {
+						if sg, _ := ds.Decl.(*GenDecl); sg != nil && sg.Doc != nil && len(specs) > 0 {
+							if vs, _ := specs[0].(*ValueSpec); vs != nil && vs.Doc == nil {
+								vs.Doc = sg.Doc
 							}
 						}
 					}
+					pg.Specs = append(pg.Specs, specs...)
+					pg.setRparen()
+					continue
 				}
 			}
 		}
-		ret = append(ret, stmt[i])
+		if ok {
+			ret = append(ret, newDeclGroup(tok, s, specs))
+		} else {
+			ret = append(ret, s)
+		}
 	}
 	return
 }
