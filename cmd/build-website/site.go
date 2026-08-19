@@ -534,11 +534,14 @@ func copyGadxAssets(dir, outDir string) error {
 // jsModules are the publishable web packages documented under "JS modules". Dir
 // is the package's path from the repo root (the editor plugins live under
 // plugins/, the IDE components under web/).
-var jsModules = []struct{ Name, Title, Dir string }{
-	{"codemirror-gad", "@gad-lang/codemirror-gad", "web/plugins/js/codemirror-gad"},
-	{"prism-gad", "@gad-lang/prism-gad", "web/plugins/js/prism-gad"},
-	{"ide-react", "@gad-lang/ide-react", "web/ide-react"},
-	{"ide-vuetify", "@gad-lang/ide-vuetify", "web/ide-vuetify"},
+// Site, when set, is the package's own documentation site: the nav entry links
+// out to it (a plain external link) instead of rendering the README as an
+// in-site page — used for the editor plugins that ship a full GitHub Pages site.
+var jsModules = []struct{ Name, Title, Dir, Site string }{
+	{"codemirror-gad", "@gad-lang/codemirror-gad", "web/plugins/js/codemirror-gad", "https://gad-lang.github.io/codemirror-gad/"},
+	{"prism-gad", "@gad-lang/prism-gad", "web/plugins/js/prism-gad", "https://gad-lang.github.io/prism-gad/"},
+	{"ide-react", "@gad-lang/ide-react", "web/ide-react", ""},
+	{"ide-vuetify", "@gad-lang/ide-vuetify", "web/ide-vuetify", ""},
 }
 
 // mdLinkRe matches Markdown link targets `](target)`.
@@ -570,6 +573,17 @@ func rewriteModuleLinks(md, dir string) string {
 func collectJSModulePages(repoRoot string) ([]*page, error) {
 	var pages []*page
 	for _, m := range jsModules {
+		// Packages with their own docs site become an external nav link (no body),
+		// pointing at that site instead of an in-site README page.
+		if m.Site != "" {
+			pages = append(pages, &page{
+				Slug:    "js-modules-" + m.Name,
+				Title:   m.Title,
+				OutFile: m.Site, // absolute URL → external link in the nav
+				Section: "JS modules",
+			})
+			continue
+		}
 		fp := filepath.Join(repoRoot, filepath.FromSlash(m.Dir), "README.md")
 		src, err := os.ReadFile(fp)
 		if err != nil {
@@ -814,7 +828,7 @@ func wasmEmbedBody(playHref string) template.HTML {
 	b.WriteString(`</tbody></table></div>`)
 
 	b.WriteString(`<h2>Prefer a ready-made editor?</h2>`)
-	b.WriteString(`<p>The <a href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a> and <a href="js-modules/ide-react.html">@gad-lang/ide-react</a> packages wrap this module into a full IDE component (editor, run profiles, debugger, inspector), and <a href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a> / <a href="js-modules/prism-gad.html">@gad-lang/prism-gad</a> provide syntax highlighting.</p>`)
+	b.WriteString(`<p>The <a href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a> and <a href="js-modules/ide-react.html">@gad-lang/ide-react</a> packages wrap this module into a full IDE component (editor, run profiles, debugger, inspector), and <a href="https://gad-lang.github.io/codemirror-gad/" target="_blank" rel="noopener">@gad-lang/codemirror-gad</a> / <a href="https://gad-lang.github.io/prism-gad/" target="_blank" rel="noopener">@gad-lang/prism-gad</a> provide syntax highlighting.</p>`)
 	return template.HTML(b.String())
 }
 

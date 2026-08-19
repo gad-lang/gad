@@ -16,6 +16,12 @@ const site = computed(() => content.value?.site);
 const groups = computed(() => content.value?.groups ?? []);
 const logo = appBase() + "gad.svg";
 
+// A nav page's href may be an absolute URL (an external site, e.g. a plugin's
+// GitHub Pages) or a site-relative path. Absolute URLs open in a new tab and are
+// used verbatim; relative ones are resolved against the app base.
+const isExternal = (href: string) => /^https?:\/\//.test(href);
+const navHref = (href: string) => (isExternal(href) ? href : appBase() + href);
+
 const onDocs = computed(() => String(route.name || "").startsWith("docs"));
 const drawer = ref(true);
 watch(mdAndUp, (v) => (drawer.value = v), { immediate: true });
@@ -128,7 +134,10 @@ function go(slug: string) {
             :key="p.slug"
             :title="p.title"
             :to="p.href ? undefined : { name: 'docs', params: { slug: p.slug } }"
-            :href="p.href ? appBase() + p.href : undefined"
+            :href="p.href ? navHref(p.href) : undefined"
+            :target="p.href && isExternal(p.href) ? '_blank' : undefined"
+            :rel="p.href && isExternal(p.href) ? 'noopener' : undefined"
+            :append-icon="p.href && isExternal(p.href) ? 'mdi-open-in-new' : undefined"
             color="primary"
             density="compact"
           />
