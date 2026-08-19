@@ -8,10 +8,12 @@ import {
   VSpacer, VTab, VTabs, VTextField, VWindow, VWindowItem,
 } from "./vuetify";
 
-const NEWLINE_FLAGS: [string, string][] = [
-  ["no-array-item-in-new-line", "Array items on new lines"],
-  ["no-dict-item-in-new-line", "Dict items on new lines"],
-  ["no-call-params-in-new-line", "Call params on new lines"],
+// Opt-in force flags: checked forces that construct onto separate lines. Without
+// them a construct wraps only when it overflows the column budget.
+const FORCE_FLAGS: [string, string][] = [
+  ["array-item-in-new-line", "Each array item on its own line"],
+  ["dict-item-in-new-line", "Each dict item on its own line"],
+  ["call-params-in-new-line", "Each call argument on its own line"],
 ];
 
 export interface PanelToggle {
@@ -40,10 +42,12 @@ export default defineComponent({
     const transpile = rec("transpile");
     const template = rec("template");
 
-    // Formatter checkboxes are inverted: "on new lines" == flag absent.
-    const expanded = reactive<Record<string, boolean>>(
-      Object.fromEntries(NEWLINE_FLAGS.map(([k]) => [k, fmt[k] !== true])),
+    // Formatter checkboxes are opt-in: checked == force that construct on new lines.
+    const force = reactive<Record<string, boolean>>(
+      Object.fromEntries(FORCE_FLAGS.map(([k]) => [k, fmt[k] === true])),
     );
+    const forceAll = ref(fmt.format === true);
+    const maxColumns = ref(String(fmt["max-columns"] ?? ""));
     const backup = ref(fmt.backup === true);
     const writeFunc = ref(String(transpile.writeFunc ?? ""));
     const rawStart = ref(String(transpile.rawStrFuncStart ?? ""));
@@ -53,10 +57,15 @@ export default defineComponent({
 
     function save() {
       const fmtObj: Record<string, unknown> = { ...fmt };
-      for (const [k] of NEWLINE_FLAGS) {
-        if (expanded[k]) delete fmtObj[k];
-        else fmtObj[k] = true;
+      for (const [k] of FORCE_FLAGS) {
+        if (force[k]) fmtObj[k] = true;
+        else delete fmtObj[k];
       }
+      if (forceAll.value) fmtObj.format = true;
+      else delete fmtObj.format;
+      const cols = parseInt(maxColumns.value, 10);
+      if (Number.isFinite(cols) && cols > 0) fmtObj["max-columns"] = cols;
+      else delete fmtObj["max-columns"];
       if (backup.value) fmtObj.backup = true;
       else delete fmtObj.backup;
 
@@ -120,11 +129,26 @@ export default defineComponent({
               </VWindowItem>
 
               <VWindowItem value="formatter">
-                {NEWLINE_FLAGS.map(([k, label]) => (
+                <VCheckbox
+                  modelValue={forceAll.value}
+                  {...{ "onUpdate:modelValue": (v: boolean | null) => (forceAll.value = !!v) }}
+                  label="Force the full multi-line layout"
+                  density="compact"
+                  hideDetails
+                />
+                <VTextField
+                  modelValue={maxColumns.value}
+                  {...{ "onUpdate:modelValue": (v: string) => (maxColumns.value = v) }}
+                  label="Max columns (blank uses the default)"
+                  type="number"
+                  density="compact"
+                  hideDetails
+                />
+                {FORCE_FLAGS.map(([k, label]) => (
                   <VCheckbox
                     key={k}
-                    modelValue={expanded[k]}
-                    {...{ "onUpdate:modelValue": (v: boolean | null) => (expanded[k] = !!v) }}
+                    modelValue={force[k]}
+                    {...{ "onUpdate:modelValue": (v: boolean | null) => (force[k] = !!v) }}
                     label={label}
                     density="compact"
                     hideDetails

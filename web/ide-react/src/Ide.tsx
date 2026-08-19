@@ -2770,10 +2770,12 @@ function groupPanelIds(group: PanelGroup): string[] {
   return group.tabs.map((t) => t.id);
 }
 
-const NEWLINE_FLAGS: [string, string][] = [
-  ["no-array-item-in-new-line", "Array items on new lines"],
-  ["no-dict-item-in-new-line", "Dict items on new lines"],
-  ["no-call-params-in-new-line", "Call params on new lines"],
+// Opt-in force flags: checked forces that construct onto separate lines. Without
+// them a construct wraps only when it overflows the column budget.
+const FORCE_FLAGS: [string, string][] = [
+  ["array-item-in-new-line", "Each array item on its own line"],
+  ["dict-item-in-new-line", "Each dict item on its own line"],
+  ["call-params-in-new-line", "Each call argument on its own line"],
 ];
 
 function SettingsDialog({
@@ -2790,9 +2792,11 @@ function SettingsDialog({
   const fmt = (config.fmt as Record<string, unknown>) || {};
   const transpile = (config.transpile as Record<string, unknown>) || {};
   const template = (config.template as Record<string, unknown>) || {};
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(
-    Object.fromEntries(NEWLINE_FLAGS.map(([k]) => [k, fmt[k] !== true])),
+  const [force, setForce] = useState<Record<string, boolean>>(
+    Object.fromEntries(FORCE_FLAGS.map(([k]) => [k, fmt[k] === true])),
   );
+  const [forceAll, setForceAll] = useState(fmt.format === true);
+  const [maxColumns, setMaxColumns] = useState(String(fmt["max-columns"] ?? ""));
   const [backup, setBackup] = useState(fmt.backup === true);
   const [writeFunc, setWriteFunc] = useState(String(transpile.writeFunc ?? ""));
   const [rawStart, setRawStart] = useState(String(transpile.rawStrFuncStart ?? ""));
@@ -2801,9 +2805,13 @@ function SettingsDialog({
   const [endDelim, setEndDelim] = useState(String(template.end_delimiter ?? ""));
   function save() {
     const fmtObj: Record<string, unknown> = { ...fmt };
-    for (const [k] of NEWLINE_FLAGS) {
-      if (expanded[k]) delete fmtObj[k]; else fmtObj[k] = true;
+    for (const [k] of FORCE_FLAGS) {
+      if (force[k]) fmtObj[k] = true; else delete fmtObj[k];
     }
+    if (forceAll) fmtObj.format = true; else delete fmtObj.format;
+    const cols = parseInt(maxColumns, 10);
+    if (Number.isFinite(cols) && cols > 0) fmtObj["max-columns"] = cols;
+    else delete fmtObj["max-columns"];
     if (backup) fmtObj.backup = true; else delete fmtObj.backup;
     const trObj: Record<string, unknown> = { ...transpile };
     const setOrDel = (k: string, v: string) => { if (v.trim() === "") delete trObj[k]; else trObj[k] = v; };
@@ -2872,8 +2880,10 @@ function SettingsDialog({
           <>
             <Typography variant="subtitle2">Formatter (.gad/gad.yaml → fmt)</Typography>
             <Box sx={{ display: "flex", flexDirection: "column" }}>
-              {NEWLINE_FLAGS.map(([k, label]) => (
-                <FormControlLabel key={k} control={<Checkbox checked={expanded[k]} onChange={(e) => setExpanded((s) => ({ ...s, [k]: e.target.checked }))} />} label={label} />
+              <FormControlLabel control={<Checkbox checked={forceAll} onChange={(e) => setForceAll(e.target.checked)} />} label="Force the full multi-line layout" />
+              <TextField label="Max columns (blank uses the default)" type="number" size="small" value={maxColumns} onChange={(e) => setMaxColumns(e.target.value)} sx={{ my: 1, maxWidth: 280 }} />
+              {FORCE_FLAGS.map(([k, label]) => (
+                <FormControlLabel key={k} control={<Checkbox checked={force[k]} onChange={(e) => setForce((s) => ({ ...s, [k]: e.target.checked }))} />} label={label} />
               ))}
               <FormControlLabel control={<Checkbox checked={backup} onChange={(e) => setBackup(e.target.checked)} />} label="Keep .backup on format" />
             </Box>

@@ -217,10 +217,20 @@ func CodeFormat() CodeOption {
 
 // CodeNewLineCalc enables the column-aware (NEW_LINE_CALC) formatting mode with
 // the given column budget (<= 0 uses DefaultMaxColumns). List constructs stay
-// inline unless they would overflow the budget.
+// inline unless they would overflow the budget. It does NOT set the per-construct
+// force bits (…Format): those are opt-in and, when set, force that construct onto
+// separate lines regardless of the column budget.
 func CodeNewLineCalc(maxColumns int) CodeOption {
 	return func(ctx *CodeWriteContext) {
-		ctx.Flags |= CodeWriteContextFlagFormat | CodeWriteContextFlagFormatNewLineCalc
+		ctx.Flags |= CodeWriteContextFlagFormatNewLineCalc
+		ctx.MaxColumns = maxColumns
+	}
+}
+
+// CodeWithMaxColumns sets the line-width budget for NEW_LINE_CALC wrapping
+// (<= 0 keeps DefaultMaxColumns).
+func CodeWithMaxColumns(maxColumns int) CodeOption {
+	return func(ctx *CodeWriteContext) {
 		ctx.MaxColumns = maxColumns
 	}
 }
@@ -274,6 +284,16 @@ func (ctx *CodeWriteContext) wroteAny() bool {
 		return c.col > 0 || c.multiline
 	}
 	return false
+}
+
+// markMultiline flags the active NEW_LINE_CALC measurement (if one is running) as
+// multi-line. Emit points for line comments (`//` / `///`) call it: a line
+// comment ends its line, so a construct that contains one must never be collapsed
+// onto a single line (the comment would swallow the rest).
+func (ctx *CodeWriteContext) markMultiline() {
+	if c, ok := ctx.CodeWriter.(*cw); ok {
+		c.multiline = true
+	}
 }
 
 // flushRemainingComments writes any comments not yet emitted, each on its own
@@ -444,8 +464,16 @@ func (ctx *CodeWriteContext) isClaimedDoc(g *ast.CommentGroup) bool {
 // reflowed (Markdown paragraphs re-wrapped, SINGLE<->BLOCK chosen by the column
 // budget); otherwise the source lines are kept verbatim. Continuation lines
 // carry no prefix — callers re-indent them to the current prefix.
+// formatting reports whether any formatting is active — either the per-construct
+// force-to-new-line bits (…Format) or the column-aware NEW_LINE_CALC mode — so
+// layout common to both (e.g. doc-comment reflow) can gate on it.
+func (ctx *CodeWriteContext) formatting() bool {
+	return ctx.Flags.Has(CodeWriteContextFlagFormat) ||
+		ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc)
+}
+
 func (ctx *CodeWriteContext) docLines(g *ast.CommentGroup) []string {
-	if ctx.Flags.Has(CodeWriteContextFlagFormat) {
+	if ctx.formatting() {
 		if d, ok := parseDocComment(g); ok {
 			return renderDocLines(d, ctx.maxColumns()-len(ctx.CurrentPrefix()))
 		}
@@ -489,7 +517,10 @@ func (ctx *CodeWriteContext) WriteTrailingDoc(g *ast.CommentGroup) bool {
 	if !ctx.isClaimedDoc(g) {
 		return false
 	}
-	if ctx.Flags.Has(CodeWriteContextFlagFormat) {
+	// A trailing doc is a line comment (`/// …`): forbid collapsing the enclosing
+	// construct onto one line, or it would swallow whatever follows.
+	ctx.markMultiline()
+	if ctx.formatting() {
 		if d, ok := parseDocComment(g); ok {
 			ctx.WriteString(" ", "/// "+strings.Join(strings.Fields(d.content), " "))
 			return true
@@ -802,8 +833,15 @@ func (ctx *CodeWriteContext) DecideNewLine(flag CodeWriteContextFlag, count int,
 // map to a uniform per-item callback: renderInline writes the whole inline body
 // (to a throwaway writer during measurement).
 func (ctx *CodeWriteContext) DecideNewLineFunc(flag CodeWriteContextFlag, count, closing int, renderInline func()) bool {
+	// A set per-construct force flag always wins: put this construct on separate
+	// lines regardless of the column budget.
+	if ctx.Flags.Has(flag) {
+		return true
+	}
+	// No force flag: without NEW_LINE_CALC keep the construct inline; with it
+	// (the default), break only when the inline form would overflow MaxColumns.
 	if !ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
-		return ctx.Flags.Has(flag)
+		return false
 	}
 	if count <= 1 {
 		return false

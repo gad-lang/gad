@@ -501,11 +501,24 @@ func TestLoadConfigCLIOverrides(t *testing.T) {
 	require.Equal(t, "from-cli", o.backupFormat, "command line wins over config")
 }
 
-func TestNoFormatFlag(t *testing.T) {
+func TestFormatFlags(t *testing.T) {
+	// Default: column-aware NEW_LINE_CALC, no force bits.
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	require.Equal(t, node.CodeWriteContextFlagFormatNewLineCalc, o.codeFlags)
+	require.False(t, o.codeFlags.Has(node.CodeWriteContextFlagFormat))
+
+	// --format adds the full force aggregate.
 	fs := newFmtFlagSet(o)
-	require.NoError(t, fs.Parse([]string{"--no-format"}))
-	require.Equal(t, node.CodeWriteContextFlag(0), o.codeFlags&node.CodeWriteContextFlagFormat)
+	require.NoError(t, fs.Parse([]string{"--format"}))
+	require.True(t, o.codeFlags.Has(node.CodeWriteContextFlagFormat))
+
+	// An individual --*-in-new-line flag sets just that force bit.
+	o2 := &fmtOptions{codeFlags: fmtFormatFlag()}
+	fs2 := newFmtFlagSet(o2)
+	require.NoError(t, fs2.Parse([]string{"--array-item-in-new-line", "--max-columns", "100"}))
+	require.True(t, o2.codeFlags.Has(node.CodeWriteContextFlagFormatArrayItemInNewLine))
+	require.False(t, o2.codeFlags.Has(node.CodeWriteContextFlagFormatDictItemInNewLine))
+	require.Equal(t, 100, o2.maxColumns)
 }
 
 func TestTranspileFlags(t *testing.T) {

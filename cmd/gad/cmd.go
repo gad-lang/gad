@@ -235,6 +235,7 @@ type fmtOptions struct {
 	backup         bool
 	backupFormat   string
 	codeFlags      node.CodeWriteContextFlag
+	maxColumns     int // --max-columns (0 uses node.DefaultMaxColumns)
 	transpile      node.TranspileOptions
 	transpileSet   bool
 	transpileOn    bool // --transpile / config `transpile`
@@ -249,10 +250,12 @@ type fmtOptions struct {
 	inputDirs      []inputDir
 }
 
-// fmtFormatFlag returns the default formatting flag (full multi-line layout)
-// from which `--no-format` and the `--no-*-in-new-line` flags clear bits.
+// fmtFormatFlag returns the default formatting flag: the column-aware
+// NEW_LINE_CALC mode (wrap a construct only when it overflows the column budget).
+// The `--format` and `--*-in-new-line` flags add force bits that put a construct
+// on separate lines regardless of width.
 func fmtFormatFlag() node.CodeWriteContextFlag {
-	return node.CodeWriteContextFlagFormat
+	return node.CodeWriteContextFlagFormatNewLineCalc
 }
 
 // fmtCommand is the `gad fmt [flags] PATH...` subcommand: it formats Gad source
@@ -313,29 +316,34 @@ func (o *fmtOptions) registerFlags(fs *flag.FlagSet) {
 	fs.StringVar(&o.config, "config", "", "YAML config file with default flag values (default WORKDIR/.gad/gad.yaml)")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
 
-	fs.BoolFunc("no-format", "disable all multi-line formatting", func(string) error {
-		o.codeFlags &^= node.CodeWriteContextFlagFormat
+	// --format forces the full multi-line layout (every list construct on its own
+	// line), overriding the column-aware default.
+	fs.BoolFunc("format", "force the full multi-line layout (every list construct on its own line)", func(string) error {
+		o.codeFlags |= node.CodeWriteContextFlagFormat
 		return nil
 	})
+	fs.IntVar(&o.maxColumns, "max-columns", 0,
+		fmt.Sprintf("line-width budget before a construct wraps (0 uses %d)", node.DefaultMaxColumns))
 
-	// Boolean flags that clear individual multi-line formatting bits.
-	clear := func(name, desc string, bit node.CodeWriteContextFlag) {
+	// Boolean flags that force one construct onto separate lines (opt-in); without
+	// them a construct wraps only when it overflows --max-columns.
+	force := func(name, desc string, bit node.CodeWriteContextFlag) {
 		fs.BoolFunc(name, desc, func(string) error {
-			o.codeFlags &^= bit
+			o.codeFlags |= bit
 			return nil
 		})
 	}
-	clear("no-array-item-in-new-line", "keep array items on a single line",
+	force("array-item-in-new-line", "put each array item on its own line",
 		node.CodeWriteContextFlagFormatArrayItemInNewLine)
-	clear("no-dict-item-in-new-line", "keep dict items on a single line",
+	force("dict-item-in-new-line", "put each dict item on its own line",
 		node.CodeWriteContextFlagFormatDictItemInNewLine)
-	clear("no-key-value-array-item-in-new-line", "keep keyValueArray items on a single line",
+	force("key-value-array-item-in-new-line", "put each keyValueArray item on its own line",
 		node.CodeWriteContextFlagFormatKeyValueArrayItemInNewLine)
-	clear("no-call-params-in-new-line", "keep call params on a single line",
+	force("call-params-in-new-line", "put each call argument on its own line",
 		node.CodeWriteContextFlagFormatCallParamsInNewLine)
-	clear("no-parem-values-in-new-line", "keep param values on a single line",
+	force("parem-values-in-new-line", "put each parameter value on its own line",
 		node.CodeWriteContextFlagFormatParemValuesInNewLine)
-	clear("no-decl-item-in-new-line", "keep declaration items on a single line",
+	force("decl-item-in-new-line", "put each declaration item on its own line",
 		node.CodeWriteContextFlagFormatDeclItemInNewLine)
 
 	fs.BoolVar(&o.transpileOn, "transpile", false,
@@ -974,6 +982,9 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 		node.CodeWithFlags(o.codeFlags),
 		node.CodeWithPrefix("\t"),
 		node.CodeWithComments(srcFile, file.Comments),
+	}
+	if o.maxColumns > 0 {
+		opts = append(opts, node.CodeWithMaxColumns(o.maxColumns))
 	}
 	if transpile {
 		opts = append(opts, node.CodeTranspile(&o.transpile))

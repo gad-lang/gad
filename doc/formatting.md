@@ -70,18 +70,22 @@ formats all of its files. Jobs run in parallel up to `--jobs`.
 
 ## Layout Control
 
-The multi-line layout is on by default. `--no-format` disables it entirely;
-each `--no-*-in-new-line` flag keeps one construct on a single line:
+By default the formatter is **column-aware**: a list construct stays on one line
+and wraps to one item per line only when the inline form would overflow the
+column budget (`--max-columns`, default 80). Each `--*-in-new-line` flag opts in
+to **forcing** one construct onto separate lines regardless of width; `--format`
+forces the full multi-line layout (every construct expanded).
 
-| Flag                                    | Keeps on one line     |
-|-----------------------------------------|-----------------------|
-| `--no-format`                           | everything (no multi-line layout) |
-| `--no-array-item-in-new-line`           | array items           |
-| `--no-dict-item-in-new-line`            | dict items            |
-| `--no-key-value-array-item-in-new-line` | keyValueArray items   |
-| `--no-call-params-in-new-line`          | call arguments        |
-| `--no-parem-values-in-new-line`         | parameter values      |
-| `--no-decl-item-in-new-line`            | declaration items     |
+| Flag                                 | Effect                                              |
+|--------------------------------------|-----------------------------------------------------|
+| `--max-columns N`                    | wrap budget before a construct breaks (0 uses 80)   |
+| `--format`                           | force everything onto multiple lines                |
+| `--array-item-in-new-line`           | force each array item onto its own line             |
+| `--dict-item-in-new-line`            | force each dict item onto its own line              |
+| `--key-value-array-item-in-new-line` | force each keyValueArray item onto its own line     |
+| `--call-params-in-new-line`          | force each call argument onto its own line          |
+| `--parem-values-in-new-line`         | force each parameter value onto its own line        |
+| `--decl-item-in-new-line`            | force each declaration item onto its own line       |
 
 ## Transpile
 
