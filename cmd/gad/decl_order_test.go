@@ -86,6 +86,16 @@ func TestDeclMerge(t *testing.T) {
 	require.Equal(t, runGad(t, src), runGad(t, fmtGad(t, src)))
 }
 
+// TestDeclDestructuring checks a destructuring spec is ordered as an item (by its
+// first name) and keeps its meaning.
+func TestDeclDestructuring(t *testing.T) {
+	require.Contains(t, fmtGad(t, "const x = 1\nconst {a, b} = z\n"), "const ({ a, b } = z, x = 1)")
+
+	src := "z := {a: 1, b: 2}\nconst x = 3\nconst {a, b} = z\n[a, b, x]\n"
+	require.Equal(t, "[1, 2, 3]", runGad(t, src))
+	require.Equal(t, runGad(t, src), runGad(t, fmtGad(t, src)))
+}
+
 // TestDeclOrderPreservesResolution runs the original and the reordered program
 // and asserts identical results: `b`/`c` must see the OUTER `a`, `d` the group
 // `a`, regardless of how the group is laid out.

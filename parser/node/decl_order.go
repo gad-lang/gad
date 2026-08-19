@@ -2,8 +2,27 @@ package node
 
 import (
 	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
+
+// patternNames returns the leftmost identifier name in a destructuring pattern
+// (its sort key) and the set of all identifier names it binds (over-approximated,
+// for the scope/declared-name check).
+func patternNames(pattern Expr) (first string, all map[string]struct{}) {
+	all = map[string]struct{}{}
+	firstPos := source.Pos(-1)
+	Walk(pattern, func(n ast.Node) bool {
+		if id, ok := n.(*IdentExpr); ok && !id.Empty && id.Name != "" {
+			all[id.Name] = struct{}{}
+			if firstPos < 0 || id.Pos() < firstPos {
+				firstPos, first = id.Pos(), id.Name
+			}
+		}
+		return true
+	})
+	return
+}
 
 // mergeableDecl reports whether s is a declaration statement that can be merged
 // into a paren group, returning its kind token and the specs it contributes. A
@@ -150,16 +169,41 @@ func (d *GenDecl) orderedSpecs() []Spec {
 	}
 
 	items := make([]declItem, len(d.Specs))
-	declared := make(map[string]int, len(d.Specs)) // name -> item index
+	declared := make(map[string]int, len(d.Specs)) // declared name -> item index
 	for i, sp := range d.Specs {
 		vs, ok := sp.(*ValueSpec)
-		if !ok || vs.Pattern != nil || len(vs.Idents) != 1 {
-			return nil // not a simple single-ident spec: leave the whole group intact
+		if !ok {
+			return nil // non-ValueSpec (param/global): not handled here
 		}
-		var val Expr
-		if len(vs.Values) > 0 {
-			val = vs.Values[0]
+		var (
+			name      string
+			declNames []string
+			val       Expr
+		)
+		switch {
+		case vs.Pattern != nil:
+			// A destructuring item sorts by its leftmost name and binds all of them.
+			first, all := patternNames(vs.Pattern)
+			if first == "" {
+				return nil
+			}
+			name = first
+			for n := range all {
+				declNames = append(declNames, n)
+			}
+			if len(vs.Values) > 0 {
+				val = vs.Values[0]
+			}
+		case len(vs.Idents) == 1:
+			name = vs.Idents[0].Name
+			declNames = []string{name}
+			if len(vs.Values) > 0 {
+				val = vs.Values[0]
+			}
+		default:
+			return nil // multi-ident spec: leave the whole group intact
 		}
+
 		var refs map[string]struct{}
 		if val != nil {
 			refs = IdentNames(val)
@@ -167,8 +211,10 @@ func (d *GenDecl) orderedSpecs() []Spec {
 				return nil // const iota is position-sensitive: leave intact
 			}
 		}
-		items[i] = declItem{spec: vs, name: vs.Idents[0].Name, rank: declValueRank(val), refs: refs, orig: i}
-		declared[items[i].name] = i
+		items[i] = declItem{spec: vs, name: name, rank: declValueRank(val), refs: refs, orig: i}
+		for _, dn := range declNames {
+			declared[dn] = i
+		}
 	}
 
 	// Resolution-preserving constraints: for each value reference to a
