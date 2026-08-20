@@ -42,15 +42,23 @@ func completeCommand() *cc.Command {
 			if err != nil {
 				return err
 			}
-			fs := source.NewFileSet()
-			sf := fs.AddFileData(name, -1, data)
-			po := &parser.ParserOptions{Mode: parser.ParseComments}
-			file, err := parser.NewParserWithOptions(sf, po, nil).ParseFile()
-			if err != nil {
-				return err
-			}
 
-			items := completionItems(file, sf, offset)
+			var items []langsym.Symbol
+			// Member access (`x.` / `x[`) is resolved first by runtime
+			// introspection: the file need not parse (it is mid-edit), and a
+			// member context suppresses the in-scope/keyword candidates.
+			if member, ok := memberCompletions(string(data), offset); ok {
+				items = member
+			} else {
+				fs := source.NewFileSet()
+				sf := fs.AddFileData(name, -1, data)
+				po := &parser.ParserOptions{Mode: parser.ParseComments}
+				file, perr := parser.NewParserWithOptions(sf, po, nil).ParseFile()
+				if perr != nil {
+					return perr
+				}
+				items = completionItems(file, sf, offset)
+			}
 			items = filterByPrefix(items, prefix)
 
 			out, _ := json.Marshal(items)

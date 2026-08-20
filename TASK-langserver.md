@@ -44,8 +44,8 @@ keys / array shape / module values.)
 ## Plan (each stage tested in gad)
 - [x] Stage 1: AST scope resolver + `gad def` (scope-aware; shadowing + params tested).
 - [ ] Stage 2: `gad complete` — in-scope idents + keywords + builtins, with docs.
-- [ ] Stage 3: imported module members (with docs).
-- [ ] Stage 4: member/index/nested via runtime introspection (with docs).
+- [x] Stage 3: imported module members (with docs) — via runtime introspection.
+- [x] Stage 4: member/index/nested/class/instance via runtime introspection (with docs).
 - [ ] Stage 5: wire IntelliJ (CompletionContributor + real GotoDeclaration) and
       VS Code (CompletionItemProvider + DefinitionProvider) to the engine.
 
