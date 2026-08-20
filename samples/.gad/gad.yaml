@@ -1,4 +1,6 @@
-fmt:
-    no-array-item-in-new-line: true
-    no-call-params-in-new-line: true
-    no-dict-item-in-new-line: true
+# gad fmt now defaults to a column-aware layout: list constructs (arrays, dicts,
+# call arguments, …) stay on one line and wrap to one item per line only when
+# they would overflow the column budget (--max-columns, default 80). The old
+# keep-on-one-line keys (no-array-item-in-new-line, …) are therefore obsolete and
+# no fmt options are needed here. To force a construct onto separate lines use the
+# opt-in flags/keys (array-item-in-new-line, …) or --format.
