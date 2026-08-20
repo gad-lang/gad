@@ -16,12 +16,45 @@ import (
 type GadxCodeWriteContext struct {
 	Writer io.Writer
 	Depth  int
-	Prefix string // indentation string (default "\t")
+	Prefix string // indentation string per depth level (default "\t")
+	// EmbedFlags are the GAD formatting flags applied to embedded GAD code
+	// (attribute expressions, interpolations, conditions, `~` code, declaration
+	// values), so embedded code is formatted like `gad fmt`. Defaults to the
+	// column-aware NEW_LINE_CALC mode.
+	EmbedFlags gnode.CodeWriteContextFlag
+	// MaxColumns is the line-width budget for the embedded GAD (0 uses the GAD
+	// formatter's default).
+	MaxColumns int
 }
 
-// NewGadxCodeContext creates a new context writing to w.
+// NewGadxCodeContext creates a new context writing to w, with 1-tab indentation
+// and the column-aware GAD formatting rules for embedded code.
 func NewGadxCodeContext(w io.Writer) *GadxCodeWriteContext {
-	return &GadxCodeWriteContext{Writer: w, Prefix: "\t"}
+	return &GadxCodeWriteContext{
+		Writer:     w,
+		Prefix:     "\t",
+		EmbedFlags: gnode.CodeWriteContextFlagFormatNewLineCalc,
+	}
+}
+
+// gadExpr renders an embedded GAD expression with the configured formatting
+// rules. It returns "" for a nil expression.
+func (c *GadxCodeWriteContext) gadExpr(e gnode.Expr) string {
+	if e == nil {
+		return ""
+	}
+	return c.gadCode(e)
+}
+
+// gadCode renders any GAD coder (expression or statement) with the context's
+// formatting flags and column budget, matching `gad fmt`. A trailing newline is
+// trimmed so the result can be embedded inline.
+func (c *GadxCodeWriteContext) gadCode(n gnode.Coder) string {
+	opts := []gnode.CodeOption{gnode.CodeWithFlags(c.EmbedFlags)}
+	if c.MaxColumns > 0 {
+		opts = append(opts, gnode.CodeWithMaxColumns(c.MaxColumns))
+	}
+	return strings.TrimRight(gnode.Code(n, opts...), "\n")
 }
 
 func (c *GadxCodeWriteContext) indent() string {
@@ -86,26 +119,26 @@ func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 func (a *TagAttribute) writeGadx(ctx *GadxCodeWriteContext) {
 	cond := ""
 	if a.Condition != nil {
-		cond = " ? " + a.Condition.String()
+		cond = " ? " + ctx.gadExpr(a.Condition)
 	}
 	if a.Spread != nil {
-		ctx.WriteLine("[**" + a.Spread.String() + cond + "]")
+		ctx.WriteLine("[**" + ctx.gadExpr(a.Spread) + cond + "]")
 		return
 	}
 	switch a.Name {
 	case "id":
-		ctx.WriteLine("#" + exprStr(a.Value) + cond)
+		ctx.WriteLine("#" + ctx.gadExpr(a.Value) + cond)
 	case "class":
-		ctx.WriteLine("." + exprStr(a.Value) + cond)
+		ctx.WriteLine("." + ctx.gadExpr(a.Value) + cond)
 	default:
 		s := "[" + a.Name
 		if a.IsFlag {
 			s += cond
 		} else if a.Value != nil {
 			if a.IsRaw {
-				s += "=\"" + exprStr(a.Value) + "\""
+				s += "=\"" + ctx.gadExpr(a.Value) + "\""
 			} else {
-				s += "=" + exprStr(a.Value)
+				s += "=" + ctx.gadExpr(a.Value)
 			}
 			s += cond
 		}
@@ -156,12 +189,12 @@ func writeDoc(ctx *GadxCodeWriteContext, doc string) {
 }
 
 func (s *IfStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine("@if " + exprStr(s.Cond))
+	ctx.WriteLine("@if " + ctx.gadExpr(s.Cond))
 	ctx.Depth++
 	ctx.WriteStmts(s.Body)
 	ctx.Depth--
 	for _, eif := range s.ElseIfs {
-		ctx.WriteLine("@else if " + exprStr(eif.Cond))
+		ctx.WriteLine("@else if " + ctx.gadExpr(eif.Cond))
 		ctx.Depth++
 		ctx.WriteStmts(eif.Body)
 		ctx.Depth--
@@ -175,7 +208,7 @@ func (s *IfStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *ForStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine("@for " + exprStr(s.Cond))
+	ctx.WriteLine("@for " + ctx.gadExpr(s.Cond))
 	ctx.Depth++
 	ctx.WriteStmts(s.Body)
 	ctx.Depth--
@@ -188,16 +221,16 @@ func (s *ForStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *AssignStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine(exprStr(s.LHS) + " " + s.Op + " " + exprStr(s.RHS))
+	ctx.WriteLine(ctx.gadExpr(s.LHS) + " " + s.Op + " " + ctx.gadExpr(s.RHS))
 }
 
 func (c *CodeStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	if len(c.Stmts) == 1 {
-		ctx.WriteLine("~ " + c.Stmts[0].String())
+		ctx.WriteLine("~ " + ctx.gadCode(c.Stmts[0]))
 	} else if len(c.Stmts) > 1 {
 		ctx.WriteLine("~~")
 		for _, stmt := range c.Stmts {
-			ctx.WriteLine(stmt.String())
+			ctx.WriteLine(ctx.gadCode(stmt))
 		}
 		ctx.WriteLine("~~")
 	}
@@ -273,10 +306,10 @@ func (w *WrapStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *MatchStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine("@match " + exprStr(s.Tag))
+	ctx.WriteLine("@match " + ctx.gadExpr(s.Tag))
 	ctx.Depth++
 	for _, c := range s.Cases {
-		ctx.WriteLine("@case " + exprStr(c.Expr))
+		ctx.WriteLine("@case " + ctx.gadExpr(c.Expr))
 		ctx.Depth++
 		ctx.WriteStmts(c.Body)
 		ctx.Depth--
@@ -294,7 +327,7 @@ func (s *VarStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	var parts []string
 	for _, d := range s.Decls {
 		if d.Init != nil {
-			parts = append(parts, fmt.Sprintf("%s = %s", d.Name, exprStr(d.Init)))
+			parts = append(parts, fmt.Sprintf("%s = %s", d.Name, ctx.gadExpr(d.Init)))
 		} else {
 			parts = append(parts, d.Name)
 		}
@@ -306,7 +339,7 @@ func (s *ConstStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	var parts []string
 	for _, d := range s.Decls {
 		if d.Init != nil {
-			parts = append(parts, fmt.Sprintf("%s = %s", d.Name, exprStr(d.Init)))
+			parts = append(parts, fmt.Sprintf("%s = %s", d.Name, ctx.gadExpr(d.Init)))
 		} else {
 			parts = append(parts, d.Name)
 		}
@@ -330,7 +363,7 @@ func (s *ParamStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 func (e *ExportStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	line := "@export " + e.Name
 	if e.Value != nil {
-		line += " = " + exprStr(e.Value)
+		line += " = " + ctx.gadExpr(e.Value)
 	}
 	ctx.WriteLine(line)
 }
@@ -361,11 +394,3 @@ var (
 	_ GadxCoder = (*ParamStmt)(nil)
 	_ GadxCoder = (*ExportStmt)(nil)
 )
-
-// exprStr returns the string representation of a GAD expression.
-func exprStr(e gnode.Expr) string {
-	if e == nil {
-		return ""
-	}
-	return e.String()
-}

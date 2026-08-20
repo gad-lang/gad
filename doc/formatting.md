@@ -8,14 +8,41 @@ untouched; stdin is always written to stdout.
 
 ```sh
 gad fmt main.gad          # format a single file in place
-gad fmt src               # format the .gad files directly in ./src
+gad fmt src               # format the .gad/.gadt/.gadx files directly in ./src
 gad fmt src/...           # recurse into ./src and its sub-directories
 gad fmt -                 # read stdin, write formatted source to stdout
+gad fmt --stdin-name a.gadx -   # read stdin as a Gadx buffer (see Dialects)
+gad fmt --indent 2 main.gad     # indent with 2 spaces instead of a tab
 ```
 
-A directory argument formats only the `.gad` files directly inside it; append
-`/...` to recurse. Hidden files are ignored and hidden directories are skipped.
-Files already formatted are left untouched; each file that changes is printed.
+A directory argument formats only the `.gad`, `.gadt` and `.gadx` files directly
+inside it; append `/...` to recurse. Hidden files are ignored and hidden
+directories are skipped. Files already formatted are left untouched; each file
+that changes is printed.
+
+## Dialects
+
+The dialect is chosen by file extension, so one command formats every kind of
+Gad source:
+
+| Extension | Dialect                     | Formatter                                   |
+|-----------|-----------------------------|---------------------------------------------|
+| `.gad`    | plain Gad                   | the canonical Gad formatter                 |
+| `.gadt`   | mixed template              | Gad formatter, parsed in template mode      |
+| `.gadx`   | indentation (pug-style) template | the Gadx source formatter              |
+
+A `.gadx` file is re-emitted in Gadx syntax (tags, components, indentation).
+**Embedded Gad code** inside it — attribute expressions, `@if`/`@for` conditions,
+`~` code lines and declaration values — is formatted with the **same rules as
+plain Gad** (see [Layout Control](#layout-control)).
+
+When reading from **stdin** there is no file name, so the dialect defaults to
+plain Gad. Pass `--stdin-name FILE` to name the buffer and select the dialect —
+this is what editors use to format an unsaved `.gadx`/`.gadt` buffer:
+
+```sh
+gad fmt --stdin-name page.gadx - < page.gadx
+```
 
 A failing file (e.g. a syntax error) does not stop the others — every target is
 attempted, errors are reported to stderr, and the command exits with status `2`
@@ -87,6 +114,24 @@ forces the full multi-line layout (every construct expanded).
 | `--parem-values-in-new-line`         | force each parameter value onto its own line        |
 | `--decl-item-in-new-line`            | force each declaration item onto its own line       |
 
+## Indentation
+
+`--indent` sets the indentation unit used per nesting level, for **every dialect**
+(`.gad`, `.gadt` and the `.gadx` tag/component nesting). The default is a single
+tab. The value is one of:
+
+| `--indent` value | Unit                                   |
+|------------------|----------------------------------------|
+| `tab` / `tabs`   | one tab (the default)                  |
+| `N` (an integer) | `N` spaces (e.g. `--indent 2`)         |
+| `Nt` / `Ntab`    | `N` tabs (e.g. `--indent 2t`)          |
+| any other string | that literal string (spaces, tabs or other characters); `\t` is expanded to a tab |
+
+```sh
+gad fmt --indent 4 main.gad     # four spaces per level
+gad fmt --indent tab app.gadx   # one tab per level (default)
+```
+
 ## Transpile
 
 One `--transpile-NAME` flag is generated per field of the formatter's transpile
@@ -146,6 +191,7 @@ per-directory `report` writes that directory's NDJSON lines on its own.
 
 ```yaml
 fmt:
+  indent: "2"          # 2 spaces per level (default: tab); "tab", "2t", … also work
   exclude:
     - "*_gen.gad"
   backup-format: "BASE_NAME.bak.gad"

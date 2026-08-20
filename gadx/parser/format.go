@@ -32,9 +32,12 @@ func (w *firstSpacerTrimWriter) Write(p []byte) (n int, err error) {
 func (w *firstSpacerTrimWriter) String() string { return w.w.String() }
 func (w *firstSpacerTrimWriter) Bytes() []byte  { return w.w.Bytes() }
 
-// Format writes gadx statements as formatted GAD output.
+// Format writes gadx statements as formatted GAD output, using the same
+// column-aware rules as `gad fmt` (NEW_LINE_CALC: a list construct stays inline
+// unless it overflows the column budget) rather than forcing every construct
+// onto its own line.
 func Format(stmts gnode.Stmts) (_ []byte, err error) {
 	var buf firstSpacerTrimWriter
-	gnode.CodeW(&buf, stmts, gnode.CodeWithPrefix("\t"), gnode.CodeFormat())
+	gnode.CodeW(&buf, stmts, gnode.CodeWithPrefix("\t"), gnode.CodeNewLineCalc(0))
 	return buf.Bytes(), nil
 }

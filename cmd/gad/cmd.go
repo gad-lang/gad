@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -235,7 +236,9 @@ type fmtOptions struct {
 	backup         bool
 	backupFormat   string
 	codeFlags      node.CodeWriteContextFlag
-	maxColumns     int // --max-columns (0 uses node.DefaultMaxColumns)
+	maxColumns     int    // --max-columns (0 uses node.DefaultMaxColumns)
+	indentPrefix   string // --indent resolved to the indentation unit (default "\t")
+	stdinName      string // --stdin-name: assumed file name for stdin (dialect detection)
 	transpile      node.TranspileOptions
 	transpileSet   bool
 	transpileOn    bool // --transpile / config `transpile`
@@ -258,6 +261,53 @@ func fmtFormatFlag() node.CodeWriteContextFlag {
 	return node.CodeWriteContextFlagFormatNewLineCalc
 }
 
+// gadxDiagMessage renders a Gadx formatter's diagnostics as a single-line error
+// message (line:col: message), joining multiple with "; ".
+func gadxDiagMessage(diags []gadbridge.Diagnostic) string {
+	if len(diags) == 0 {
+		return "parse error"
+	}
+	parts := make([]string, len(diags))
+	for i, d := range diags {
+		parts[i] = fmt.Sprintf("%d:%d: %s", d.Line, d.Column, d.Message)
+	}
+	return strings.Join(parts, "; ")
+}
+
+// parseIndent resolves an --indent value to an indentation unit:
+//   - "tab" / "tabs" (or an escaped/literal tab) → a single tab;
+//   - a non-negative integer N → N spaces;
+//   - "Nt" / "Ntab" / "Ntabs" → N tabs;
+//   - a "\t"-containing string → with those escapes turned into tabs;
+//   - any other non-empty string → used verbatim (spaces, tabs or other
+//     characters — the caller may want a custom leader).
+func parseIndent(v string) (string, error) {
+	switch v {
+	case "":
+		return "", fmt.Errorf("indent: empty value")
+	case "tab", "tabs":
+		return "\t", nil
+	}
+	// N spaces.
+	if n, err := strconv.Atoi(v); err == nil {
+		if n < 0 {
+			return "", fmt.Errorf("indent: negative width %d", n)
+		}
+		return strings.Repeat(" ", n), nil
+	}
+	// N tabs: "2t", "2tab", "2tabs".
+	for _, suf := range []string{"tabs", "tab", "t"} {
+		if num, ok := strings.CutSuffix(v, suf); ok {
+			if n, err := strconv.Atoi(num); err == nil && n >= 0 {
+				return strings.Repeat("\t", n), nil
+			}
+		}
+	}
+	// Anything else is taken literally, with `\t` escapes expanded to tabs so a
+	// tab can be given on a command line or in YAML.
+	return strings.ReplaceAll(v, `\t`, "\t"), nil
+}
+
 // fmtCommand is the `gad fmt [flags] PATH...` subcommand: it formats Gad source
 // files, in place by default.
 func fmtCommand() *cc.Command {
@@ -265,12 +315,18 @@ func fmtCommand() *cc.Command {
 		Name:  "fmt",
 		Usage: "[flags] [PATH...]",
 		Description: "Format Gad source files.\n" +
-			"\nPATH may be a file, a directory or - (stdin). A directory formats the .gad\n" +
-			"files directly inside it; write DIR/... to recurse into sub-directories. Hidden\n" +
-			"files are ignored and hidden directories are skipped. Without --out, files are\n" +
-			"rewritten in place; stdin is always written to stdout.",
+			"\nPATH may be a file, a directory or - (stdin). A directory formats the .gad,\n" +
+			".gadt and .gadx files directly inside it; write DIR/... to recurse into\n" +
+			"sub-directories. Hidden files are ignored and hidden directories are skipped.\n" +
+			"Without --out, files are rewritten in place; stdin is always written to stdout.\n" +
+			"\nThe dialect is chosen by extension: .gad (plain), .gadt (mixed template) and\n" +
+			".gadx (indentation template). Reading from stdin, pass --stdin-name FILE so the\n" +
+			"dialect is detected (editors formatting an unsaved buffer). Embedded Gad code in\n" +
+			"a .gadx file is formatted with the same rules as plain Gad.\n" +
+			"\nUse --indent to set the indentation unit (tab, N spaces, N tabs, or a literal),\n" +
+			"applied to every dialect.",
 		New: func(ctx *cc.CommandContext) error {
-			o := &fmtOptions{codeFlags: fmtFormatFlag()}
+			o := &fmtOptions{codeFlags: fmtFormatFlag(), indentPrefix: "\t"}
 			o.registerFlags(ctx.Flags())
 			ctx.WithValue(fmtOptionsKey, o)
 			return nil
@@ -313,6 +369,8 @@ func (o *fmtOptions) registerFlags(fs *flag.FlagSet) {
 		"include the formatted source in each report record under the \"result\" key")
 	fs.BoolVar(&o.noSave, "no-save", false,
 		"do not write, create or back up any file (read-only); format and report only")
+	fs.StringVar(&o.stdinName, "stdin-name", "",
+		"assumed file name for stdin, so its dialect (.gad/.gadt/.gadx) is detected (editors formatting a buffer)")
 	fs.StringVar(&o.config, "config", "", "YAML config file with default flag values (default WORKDIR/.gad/gad.yaml)")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
 
@@ -324,6 +382,18 @@ func (o *fmtOptions) registerFlags(fs *flag.FlagSet) {
 	})
 	fs.IntVar(&o.maxColumns, "max-columns", 0,
 		fmt.Sprintf("line-width budget before a construct wraps (0 uses %d)", node.DefaultMaxColumns))
+
+	// --indent sets the indentation unit for both Gad and Gadx output: `tab`
+	// (default), a positive integer N for N spaces, or a literal string.
+	fs.Func("indent", "indentation unit: tab (default), an integer N for N spaces, or a literal string",
+		func(v string) error {
+			prefix, err := parseIndent(v)
+			if err != nil {
+				return err
+			}
+			o.indentPrefix = prefix
+			return nil
+		})
 
 	// Boolean flags that force one construct onto separate lines (opt-in); without
 	// them a construct wraps only when it overflows --max-columns.
@@ -842,10 +912,13 @@ func dirTargets(root string, files []string, backup bool, backupFormat string, t
 	return targets
 }
 
-// isGadSource reports whether name is a formattable Gad source file (.gad or
-// the template variant .gadt).
+// isGadSource reports whether name is a formattable Gad source file: plain Gad
+// (.gad), the mixed template variant (.gadt) or the Gadx indentation template
+// (.gadx). Directory scans use this, so every dialect is picked up.
 func isGadSource(name string) bool {
-	return strings.HasSuffix(name, ".gad") || strings.HasSuffix(name, ".gadt")
+	return strings.HasSuffix(name, ".gad") ||
+		strings.HasSuffix(name, ".gadt") ||
+		strings.HasSuffix(name, ".gadx")
 }
 
 // splitRecursive strips a trailing "/..." (or a lone "...") recursion marker,
@@ -962,6 +1035,28 @@ func matchAnyRe(res reList, candidates ...string) bool {
 func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (string, error) {
 	shebang, rest := gadbridge.SplitShebang(string(src))
 
+	// Resolve the indentation unit, defaulting to a tab (so a zero-value
+	// fmtOptions still indents).
+	indent := o.indentPrefix
+	if indent == "" {
+		indent = "\t"
+	}
+
+	// `.gadx` files are the indentation/pug-style template dialect: format them
+	// with the Gadx source formatter (tags/components/indentation), applying the
+	// same indent unit and the column-aware GAD rules to embedded code.
+	if strings.HasSuffix(name, ".gadx") {
+		res := gadbridge.FormatGadx(rest, gadbridge.GadxFormatOptions{
+			Indent:     indent,
+			EmbedFlags: o.codeFlags,
+			MaxColumns: o.maxColumns,
+		})
+		if !res.OK {
+			return "", fmt.Errorf("%s: %s", name, gadxDiagMessage(res.Diagnostics))
+		}
+		return shebang + res.Source, nil
+	}
+
 	fileSet := source.NewFileSet()
 	srcFile := fileSet.AddFileData(name, -1, []byte(rest))
 
@@ -980,7 +1075,7 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 
 	opts := []node.CodeOption{
 		node.CodeWithFlags(o.codeFlags),
-		node.CodeWithPrefix("\t"),
+		node.CodeWithPrefix(indent),
 		node.CodeWithComments(srcFile, file.Comments),
 	}
 	if o.maxColumns > 0 {
@@ -1011,7 +1106,11 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 		return "", err
 	}
 
-	formatted, err = o.formatSource(t.displayName(), src, t.transpile)
+	name := t.displayName()
+	if t.fromStdin && o.stdinName != "" {
+		name = o.stdinName // let editors type a piped buffer for dialect detection
+	}
+	formatted, err = o.formatSource(name, src, t.transpile)
 	if err != nil {
 		return "", err
 	}

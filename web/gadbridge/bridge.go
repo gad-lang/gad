@@ -135,9 +135,22 @@ func formatGad(src string, mixed bool) FormatResult {
 	return FormatResult{OK: true, Source: out}
 }
 
-// formatGadx formats Gadx (.gadx) source, re-emitting it in Gadx syntax (tags,
-// components, indentation) via the Gadx code writer rather than lowering to Gad.
-func formatGadx(src string) FormatResult {
+// GadxFormatOptions configures the Gadx source formatter.
+type GadxFormatOptions struct {
+	// Indent is the indentation unit written per nesting level (default "\t").
+	Indent string
+	// EmbedFlags are the GAD formatting flags applied to embedded GAD code
+	// (attribute expressions, conditions, `~` code, declaration values). Zero
+	// keeps the column-aware NEW_LINE_CALC default.
+	EmbedFlags node.CodeWriteContextFlag
+	// MaxColumns is the column budget for embedded GAD (0 uses the default).
+	MaxColumns int
+}
+
+// FormatGadx formats Gadx (.gadx) source with the given options, re-emitting it
+// in Gadx syntax (tags, components, indentation) and formatting embedded GAD code
+// per opts. src must already have any shebang stripped (see SplitShebang).
+func FormatGadx(src string, opts GadxFormatOptions) FormatResult {
 	fileSet := source.NewFileSet()
 	srcFile := fileSet.AddFileData(sourceName+".gadx", -1, []byte(src))
 	f, err := gadxparser.NewParser(srcFile).ParseFile()
@@ -145,12 +158,25 @@ func formatGadx(src string) FormatResult {
 		return FormatResult{OK: false, Source: src, Diagnostics: errorDiagnostics(err)}
 	}
 	var buf bytes.Buffer
-	f.WriteGadx(gadxnode.NewGadxCodeContext(&buf))
+	cctx := gadxnode.NewGadxCodeContext(&buf)
+	if opts.Indent != "" {
+		cctx.Prefix = opts.Indent
+	}
+	if opts.EmbedFlags != 0 {
+		cctx.EmbedFlags = opts.EmbedFlags
+	}
+	cctx.MaxColumns = opts.MaxColumns
+	f.WriteGadx(cctx)
 	out := buf.String()
 	if len(out) == 0 || out[len(out)-1] != '\n' {
 		out += "\n"
 	}
 	return FormatResult{OK: true, Source: out}
+}
+
+// formatGadx formats Gadx source with the default options (used by FormatSource).
+func formatGadx(src string) FormatResult {
+	return FormatGadx(src, GadxFormatOptions{})
 }
 
 // Transpile rewrites a Gad source into plain Gad with template text and

@@ -4,3 +4,9 @@
 # keep-on-one-line keys (no-array-item-in-new-line, …) are therefore obsolete and
 # no fmt options are needed here. To force a construct onto separate lines use the
 # opt-in flags/keys (array-item-in-new-line, …) or --format.
+#
+# The indentation unit is configurable and applies to every dialect
+# (.gad / .gadt / .gadx). It defaults to a single tab; uncomment to change it:
+#
+# fmt:
+#   indent: "2"     # 2 spaces per level ("tab" = one tab, "2t" = two tabs, …)
