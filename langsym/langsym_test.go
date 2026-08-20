@@ -14,7 +14,8 @@ func parse(t *testing.T, src string) (*parser.File, *source.File) {
 	t.Helper()
 	fs := source.NewFileSet()
 	sf := fs.AddFileData("t.gad", -1, []byte(src))
-	f, err := parser.NewParser(sf, nil).ParseFile()
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
+	f, err := parser.NewParserWithOptions(sf, po, nil).ParseFile()
 	require.NoError(t, err, src)
 	return f, sf
 }
@@ -69,6 +70,48 @@ func TestDefinitionShadowing(t *testing.T) {
 	def, ok = langsym.Definition(f, sf, nth(src, "c := a", 0)+len("c := "))
 	require.True(t, ok)
 	require.Equal(t, innerA, def, "c's a should be the inner a")
+}
+
+func TestCompletionsInScopeWithDoc(t *testing.T) {
+	src := "" +
+		"/// The greeting shown to the user.\n" +
+		"msg := \"hi\"\n" +
+		"count := 3\n" +
+		"later := 9\n" +
+		"println(m)\n"
+	f, sf := parse(t, src)
+
+	// at the `m` in println(m): msg and count are in scope; `later` too (declared
+	// earlier). The completion list carries msg's lead doc comment.
+	syms := langsym.Completions(f, sf, nth(src, "println(m", 0)+len("println("))
+	byName := map[string]langsym.Symbol{}
+	for _, s := range syms {
+		byName[s.Label] = s
+	}
+	require.Contains(t, byName, "msg")
+	require.Contains(t, byName, "count")
+	require.Equal(t, "The greeting shown to the user.", byName["msg"].Doc)
+	require.Equal(t, "variable", byName["msg"].Kind)
+}
+
+func TestCompletionsScopeVisibility(t *testing.T) {
+	src := "" +
+		"a := 1\n" +
+		"f := func() {\n" +
+		"\tb := 2\n" +
+		"\tprintln(b)\n" + // here: a, f, b visible; c not (declared after)
+		"\tc := 3\n" +
+		"}\n"
+	f, sf := parse(t, src)
+	syms := langsym.Completions(f, sf, nth(src, "println(b", 0)+len("println("))
+	names := map[string]bool{}
+	for _, s := range syms {
+		names[s.Label] = true
+	}
+	require.True(t, names["a"], "outer a visible")
+	require.True(t, names["b"], "local b visible")
+	require.True(t, names["f"], "sibling f visible")
+	require.False(t, names["c"], "c declared after the caret must not be visible")
 }
 
 func TestDefinitionParam(t *testing.T) {

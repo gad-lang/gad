@@ -14,12 +14,13 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-// Decl is a declared name, where it was declared, and the declaring node (for
-// documentation lookup).
+// Decl is a declared name, where it was declared, the declaring node, and its
+// lead doc comment (when the declaration carries one).
 type Decl struct {
 	Name string
 	Pos  source.Pos
 	Node node.Node
+	Doc  *ast.CommentGroup
 }
 
 // scope is one lexical scope: its declarations (in source order) and its span,
@@ -33,24 +34,45 @@ type scope struct {
 }
 
 func (s *scope) add(name string, pos source.Pos, n node.Node) {
+	s.addDoc(name, pos, n, nil)
+}
+
+func (s *scope) addDoc(name string, pos source.Pos, n node.Node, doc *ast.CommentGroup) {
 	if name != "" && name != "_" {
-		s.decls = append(s.decls, Decl{Name: name, Pos: pos, Node: n})
+		s.decls = append(s.decls, Decl{Name: name, Pos: pos, Node: n, Doc: doc})
 	}
 }
 
 // resolver builds and queries the scope tree for a file.
 type resolver struct {
-	file *source.File
-	root *scope
+	file     *source.File
+	root     *scope
+	comments []*ast.CommentGroup
 }
 
 func newResolver(f *parser.File, sf *source.File) *resolver {
-	r := &resolver{file: sf}
+	r := &resolver{file: sf, comments: f.Comments}
 	r.root = &scope{start: f.Pos(), end: f.End() + 1}
 	for _, s := range f.Stmts {
 		r.walk(s, r.root)
 	}
 	return r
+}
+
+// leadDoc returns the free-floating comment group immediately preceding the
+// declaration at pos (its last line is the line just above pos), used for `:=`
+// declarations whose AST node carries no Doc field of its own.
+func (r *resolver) leadDoc(pos source.Pos) *ast.CommentGroup {
+	line := r.file.SafePosition(pos).Line
+	if line <= 1 {
+		return nil
+	}
+	for _, g := range r.comments {
+		if r.file.SafePosition(g.End()).Line == line-1 {
+			return g
+		}
+	}
+	return nil
 }
 
 func (r *resolver) pos(offset int) source.Pos { return source.Pos(r.file.Base + offset) }
@@ -84,9 +106,16 @@ func (r *resolver) walk(n ast.Node, sc *scope) {
 	switch x := n.(type) {
 	case *node.AssignStmt:
 		if x.Token == token.Define {
+			// A doc on a `name := func … {}` lives on the function literal.
+			var doc *ast.CommentGroup
+			if len(x.RHS) == 1 {
+				if fe, ok := x.RHS[0].(*node.FuncExpr); ok {
+					doc = fe.Doc
+				}
+			}
 			for _, lhs := range x.LHS {
 				if id, ok := lhs.(*node.IdentExpr); ok && !id.Empty {
-					sc.add(id.Name, id.Pos(), id)
+					sc.addDoc(id.Name, id.Pos(), id, doc)
 				}
 			}
 		}
@@ -99,8 +128,12 @@ func (r *resolver) walk(n ast.Node, sc *scope) {
 		for _, spec := range x.Specs {
 			switch sp := spec.(type) {
 			case *node.ValueSpec:
+				doc := sp.Doc
+				if doc == nil {
+					doc = x.Doc // a single-spec group's doc sits on the GenDecl
+				}
 				for _, id := range sp.Idents {
-					sc.add(id.Name, id.Pos(), id)
+					sc.addDoc(id.Name, id.Pos(), id, doc)
 				}
 				if sp.Pattern != nil {
 					r.addTypedIdents(sp.Pattern, sc)
