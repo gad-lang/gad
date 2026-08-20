@@ -46,7 +46,7 @@ keys / array shape / module values.)
 - [ ] Stage 2: `gad complete` — in-scope idents + keywords + builtins, with docs.
 - [x] Stage 3: imported module members (with docs) — via runtime introspection.
 - [x] Stage 4: member/index/nested/class/instance via runtime introspection (with docs).
-- [ ] Stage 5: wire IntelliJ (CompletionContributor + real GotoDeclaration) and
+- [x] Stage 5: wire IntelliJ (CompletionContributor + `gad def` GotoDeclaration) and
       VS Code (CompletionItemProvider + DefinitionProvider) to the engine.
 
 ## Foundation already in place
