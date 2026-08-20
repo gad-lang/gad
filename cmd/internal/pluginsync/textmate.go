@@ -7,13 +7,16 @@ import (
 
 // tmRule is a TextMate grammar rule (a subset: match or begin/end with a name).
 type tmRule struct {
-	Name     string           `json:"name,omitempty"`
-	Match    string           `json:"match,omitempty"`
-	Begin    string           `json:"begin,omitempty"`
-	End      string           `json:"end,omitempty"`
-	Include  string           `json:"include,omitempty"`
-	Patterns []tmRule         `json:"patterns,omitempty"`
-	Captures map[string]tmCap `json:"captures,omitempty"`
+	Name          string           `json:"name,omitempty"`
+	ContentName   string           `json:"contentName,omitempty"`
+	Match         string           `json:"match,omitempty"`
+	Begin         string           `json:"begin,omitempty"`
+	End           string           `json:"end,omitempty"`
+	Include       string           `json:"include,omitempty"`
+	Patterns      []tmRule         `json:"patterns,omitempty"`
+	Captures      map[string]tmCap `json:"captures,omitempty"`
+	BeginCaptures map[string]tmCap `json:"beginCaptures,omitempty"`
+	EndCaptures   map[string]tmCap `json:"endCaptures,omitempty"`
 }
 
 type tmCap struct {
@@ -91,15 +94,19 @@ func TextMateGrammar() ([]byte, error) {
 				{Name: "constant.character.escape.gad", Match: `\\.`},
 			}},
 		}},
-		// A `{ … }` interpolation island inside a `#`-string: the braces are
-		// embedded-section punctuation and the body is full Gad (via $self). It
+		// A `{ … }` interpolation island inside a `#`-string. The braces are
+		// embedded-section punctuation; the body is marked `meta.embedded` (so
+		// TextMate hosts — VS Code and the IntelliJ TextMate engine — re-highlight
+		// it as code rather than string) and matched as full Gad via $self. It
 		// includes itself first so nested `{ … }` (e.g. a map/block literal in the
 		// expression) balances instead of closing the island at the first `}`.
 		"interpolation": {
-			Name:     "meta.interpolation.gad",
-			Begin:    `\{`,
-			End:      `\}`,
-			Captures: map[string]tmCap{"0": {Name: "punctuation.section.embedded.gad"}},
+			Name:          "meta.interpolation.gad",
+			Begin:         `\{`,
+			End:           `\}`,
+			BeginCaptures: map[string]tmCap{"0": {Name: "punctuation.section.embedded.begin.gad"}},
+			EndCaptures:   map[string]tmCap{"0": {Name: "punctuation.section.embedded.end.gad"}},
+			ContentName:   "meta.embedded.gad",
 			Patterns: []tmRule{
 				{Include: "#interpolation"},
 				{Include: "$self"},

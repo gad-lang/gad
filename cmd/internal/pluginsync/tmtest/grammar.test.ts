@@ -70,9 +70,11 @@ function scopesOf(line: string, needle: string): string[] {
 test("cooked double interpolation highlights the embedded expression", () => {
   const line = 'x := #"a { x + 1 } b"';
   expect(scopesOf(line, "a")).toContain("string.quoted.double.interpolated.gad");
-  expect(scopesOf(line, "{")).toContain("punctuation.section.embedded.gad");
-  expect(scopesOf(line, "}")).toContain("punctuation.section.embedded.gad");
-  // The body is real Gad: operators and numbers colorize inside the island.
+  expect(scopesOf(line, "{")).toContain("punctuation.section.embedded.begin.gad");
+  expect(scopesOf(line, "}")).toContain("punctuation.section.embedded.end.gad");
+  // The body is real Gad: it is marked meta.embedded (so hosts re-highlight it as
+  // code, not string) and operators/numbers get their code scopes.
+  expect(scopesOf(line, "+")).toContain("meta.embedded.gad");
   expect(scopesOf(line, "+")).toContain("keyword.operator.gad");
   expect(scopesOf(line, "1")).toContain("constant.numeric.gad");
   expect(scopesOf(line, "1")).toContain("meta.interpolation.gad");
@@ -85,7 +87,7 @@ test("triple and raw interpolated forms embed expressions too", () => {
 
   const raw = "y := #`r { x } e`";
   expect(scopesOf(raw, "r")).toContain("string.quoted.raw.interpolated.gad");
-  expect(scopesOf(raw, "{")).toContain("punctuation.section.embedded.gad");
+  expect(scopesOf(raw, "{")).toContain("punctuation.section.embedded.begin.gad");
 });
 
 test("cooked forms keep \\{ and \\} as escapes, not island starts", () => {
