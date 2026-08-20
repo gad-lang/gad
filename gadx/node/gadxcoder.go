@@ -99,7 +99,9 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		case *gnode.MixedTextStmt:
 			ctx.WriteLine("| " + s.String())
 		case *gnode.MixedValueStmt:
-			ctx.WriteLine("| {" + s.String() + "}")
+			// s.String() already carries the interpolation delimiters
+			// (`{= expr }`); do not wrap them again.
+			ctx.WriteLine("| " + s.String())
 		default:
 			ctx.WriteLine("| " + s.String())
 		}
@@ -107,44 +109,40 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine(t.Name)
-	ctx.Depth++
+	// Attributes are written inline on the tag line (`div.card[href=x]`), the
+	// canonical gadx form; emitting them as separate indented lines does not
+	// re-parse. The body/text follows indented below.
+	line := t.Name
 	for _, attr := range t.Attributes {
-		attr.writeGadx(ctx)
+		line += attr.fragment(ctx)
 	}
+	ctx.WriteLine(line)
+	ctx.Depth++
 	ctx.WriteStmts(t.Body)
 	ctx.Depth--
 }
 
-func (a *TagAttribute) writeGadx(ctx *GadxCodeWriteContext) {
+// fragment returns the attribute's inline gadx form, to be appended to the tag
+// line, as a `[name=value]` (or `[**spread]`) bracket group. The bracket form is
+// used for every attribute — including class/id — because it re-parses reliably,
+// whereas the `.class` / `#id` shorthands do not round-trip for all values.
+func (a *TagAttribute) fragment(ctx *GadxCodeWriteContext) string {
 	cond := ""
 	if a.Condition != nil {
 		cond = " ? " + ctx.gadExpr(a.Condition)
 	}
 	if a.Spread != nil {
-		ctx.WriteLine("[**" + ctx.gadExpr(a.Spread) + cond + "]")
-		return
+		return "[**" + ctx.gadExpr(a.Spread) + cond + "]"
 	}
-	switch a.Name {
-	case "id":
-		ctx.WriteLine("#" + ctx.gadExpr(a.Value) + cond)
-	case "class":
-		ctx.WriteLine("." + ctx.gadExpr(a.Value) + cond)
-	default:
-		s := "[" + a.Name
-		if a.IsFlag {
-			s += cond
-		} else if a.Value != nil {
-			if a.IsRaw {
-				s += "=\"" + ctx.gadExpr(a.Value) + "\""
-			} else {
-				s += "=" + ctx.gadExpr(a.Value)
-			}
-			s += cond
-		}
-		s += "]"
-		ctx.WriteLine(s)
+	s := "[" + a.Name
+	if a.IsFlag {
+		s += cond
+	} else if a.Value != nil {
+		// The Gad formatter already renders a string literal with its quotes and
+		// an expression without, so IsRaw needs no extra quoting here.
+		s += "=" + ctx.gadExpr(a.Value) + cond
 	}
+	return s + "]"
 }
 
 // WriteGadx emits the HTML region as pug-style gadx: its parsed children
@@ -348,6 +346,16 @@ func (s *ConstStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *GlobalStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	if s.Decl != nil {
+		// s.Decl renders `global (…)`; re-emit it as the `@global` directive
+		// (Decl takes precedence over Names, e.g. `@global Model`).
+		ctx.WriteLine("@global " + strings.TrimSpace(strings.TrimPrefix(s.Decl.String(), "global")))
+		return
+	}
+	if len(s.Names) == 0 {
+		ctx.WriteLine("@global")
+		return
+	}
 	ctx.WriteLine("@global " + strings.Join(s.Names, " "))
 }
 

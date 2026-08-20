@@ -1046,13 +1046,21 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 	// with the Gadx source formatter (tags/components/indentation), applying the
 	// same indent unit and the column-aware GAD rules to embedded code.
 	if strings.HasSuffix(name, ".gadx") {
-		res := gadbridge.FormatGadx(rest, gadbridge.GadxFormatOptions{
+		gopts := gadbridge.GadxFormatOptions{
 			Indent:     indent,
 			EmbedFlags: o.codeFlags,
 			MaxColumns: o.maxColumns,
-		})
+		}
+		res := gadbridge.FormatGadx(rest, gopts)
 		if !res.OK {
 			return "", fmt.Errorf("%s: %s", name, gadxDiagMessage(res.Diagnostics))
+		}
+		// Safety net: since `gad fmt` rewrites in place, never emit output that
+		// does not round-trip. Re-format the result; a correct formatting is
+		// stable, so if the second pass fails or differs the formatter could not
+		// faithfully round-trip this file — leave it unchanged and report.
+		if again := gadbridge.FormatGadx(res.Source, gopts); !again.OK || again.Source != res.Source {
+			return "", fmt.Errorf("%s: refusing to rewrite — the Gadx formatter does not round-trip this file", name)
 		}
 		return shebang + res.Source, nil
 	}

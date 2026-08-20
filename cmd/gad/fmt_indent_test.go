@@ -61,3 +61,31 @@ func TestFormatSourceGadxDispatch(t *testing.T) {
 	require.Contains(t, out2, "\n  div")
 	require.False(t, strings.Contains(out2, "\n\tdiv"), "must not use tabs when --indent 2")
 }
+
+// TestFormatSourceGadxRoundTrip checks that formatting a representative Gadx file
+// (tags with attributes, interpolation, @global, @if/@for) is stable: since
+// `gad fmt` rewrites in place, the output must re-parse to the same text.
+func TestFormatSourceGadxRoundTrip(t *testing.T) {
+	src := []byte("@global Model\n" +
+		"@comp card(title, items)\n" +
+		"    div[class=\"card\", data=(active ? \"on\" : \"off\")]\n" +
+		"        h2 {= title }\n" +
+		"        @if len(items) > 0\n" +
+		"            ul\n" +
+		"                @for i in items\n" +
+		"                    li {= i }\n")
+
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	first, err := o.formatSource("x.gadx", src, false)
+	require.NoError(t, err)
+
+	second, err := o.formatSource("x.gadx", []byte(first), false)
+	require.NoError(t, err)
+	require.Equal(t, first, second, "Gadx formatting must be idempotent (round-trip)")
+
+	// Content preserved: inline attributes, interpolation and the @global name.
+	require.Contains(t, first, `div[class="card"]`)
+	require.Contains(t, first, "@global")
+	require.Contains(t, first, "Model")
+	require.Contains(t, first, "{=title}")
+}
