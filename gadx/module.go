@@ -21,5 +21,6 @@ func newModule() gad.Dict {
 		"attr":   BuiltinAttr,
 		"attrs":  BuiltinAttrs,
 		"write":  BuiltinTextWrite,
+		"render": BuiltinRender,
 	}
 }

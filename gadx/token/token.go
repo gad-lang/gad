@@ -41,6 +41,7 @@ const (
 	TextBlock // @text — raw literal-text block
 	Para      // @p — paragraph block
 	Md        // @md — Markdown block
+	Test      // @test — test block (lowers to Gad `test NAME { … }`)
 	tokMax
 )
 
@@ -81,6 +82,7 @@ var tokNames = [...]string{
 	TextBlock:    "TEXT_BLOCK",
 	Para:         "PARA",
 	Md:           "MD",
+	Test:         "TEST",
 }
 
 // String returns a human-readable name for a gadx token.

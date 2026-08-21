@@ -15,6 +15,7 @@ import (
 	"time"
 
 	gad "github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/gadx"
 	gadtest "github.com/gad-lang/gad/stdlib/test"
 	cc "github.com/moisespsena-go/command-context"
 )
@@ -134,10 +135,17 @@ func (o *testOptions) runFile(ctx *cc.CommandContext, path string) (pass, fail, 
 		return 0, 1, 0
 	}
 
-	builtins := gad.NewBuiltins().Build()
-	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
-		ModuleMap: DefaultModuleMap(".", &sourcePath),
-	}}
+	// A `_test.gadx` file compiles through the Gadx front-end (selected by the
+	// `.gadx` ModuleFile) with the `gadx.*` builtins added; `_test.gad` compiles
+	// as ordinary Gad.
+	base := gad.NewBuiltins()
+	co := gad.CompilerOptions{ModuleMap: DefaultModuleMap(".", &sourcePath)}
+	if strings.HasSuffix(path, ".gadx") {
+		base = gadx.AppendBuiltins(base)
+		co.ModuleFile = path
+	}
+	builtins := base.Build()
+	opts := gad.CompileOptions{CompilerOptions: co}
 	eval := gad.NewEval(builtins, defaultSymbolTable(builtins.Builtins().NameSet), opts,
 		&gad.RunOpts{StdOut: io.Discard, StdErr: io.Discard})
 	eval.VM.Builtins = builtins
@@ -394,7 +402,7 @@ func testFiles(arg string) ([]string, error) {
 	}
 	var out []string
 	for _, f := range all {
-		if strings.HasSuffix(f, "_test.gad") {
+		if strings.HasSuffix(f, "_test.gad") || strings.HasSuffix(f, "_test.gadx") {
 			out = append(out, f)
 		}
 	}

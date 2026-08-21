@@ -153,6 +153,8 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		return p.parseParaBlock()
 	case gadxtoken.Md:
 		return p.parseMdBlock()
+	case gadxtoken.Test:
+		return p.parseTest()
 	case gadxtoken.HTML:
 		return p.parseHTML()
 	case gadxtoken.Tag:
@@ -430,6 +432,35 @@ func (p *Parser) parseMdBlock() *gadxnode.MdBlockStmt {
 		}
 	}
 	return mb
+}
+
+// parseTest parses a `@test NAME` block and its indented body. NAME is a bare
+// identifier or a quoted string; the body becomes a Gad `test NAME { … }` block.
+func (p *Parser) parseTest() *gadxnode.TestDecl {
+	tok := p.Token
+	p.expect(gadxtoken.Test)
+
+	raw := strings.TrimSpace(stringData(tok, "value", ""))
+	name, quoted := raw, false
+	if len(raw) >= 2 && strings.HasPrefix(raw, `"`) && strings.HasSuffix(raw, `"`) {
+		if unq, err := strconv.Unquote(raw); err == nil {
+			name, quoted = unq, true
+		}
+	}
+
+	td := &gadxnode.TestDecl{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+		Name:    name,
+		Quoted:  quoted,
+	}
+	if p.Token.Token == gadxtoken.Indent {
+		td.Body = p.parseBlock(td)
+		if len(td.Body) > 0 {
+			td.NodeEnd = td.Body[len(td.Body)-1].End()
+		}
+	}
+	return td
 }
 
 func (p *Parser) parseHTML() *gadxnode.HTMLStmt {

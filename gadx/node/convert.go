@@ -166,6 +166,8 @@ func convertStmt(s gnode.Stmt) gnode.Stmts {
 		return convertEnum(st)
 	case *ExportStmt:
 		return convertExport(st)
+	case *TestDecl:
+		return convertTestDecl(st)
 	case *SlotDecl:
 		return convertSlot(st)
 	case *SlotPassStmt:
@@ -292,6 +294,21 @@ func convertCompDecl(c *CompDecl) gnode.Stmts {
 		})
 	}
 	return stmts
+}
+
+// convertTestDecl lowers a `@test NAME` block to a Gad `test NAME { … }`
+// statement (discovered by the `gad test` runner, with an injected `t`). The
+// body is lowered like a component fragment, so template content builds an
+// implicit `tag` while `~` code can assert with `t`.
+func convertTestDecl(t *TestDecl) gnode.Stmts {
+	body := fragmentStmts(gnode.LNil(t.Pos()), convertBody(t.Body), t.Pos(), t.End())
+	return gnode.Stmts{&gnode.TestStmt{
+		Kind:   gnode.TestKindTest,
+		KwPos:  t.Pos(),
+		Name:   t.Name,
+		Quoted: t.Quoted,
+		Body:   gnode.SBlock(t.Pos(), t.End(), body...),
+	}}
 }
 
 func recursiveFuncStmts(name string, fn *gnode.FuncExpr, pos source.Pos) gnode.Stmts {

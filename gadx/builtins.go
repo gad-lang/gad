@@ -1,6 +1,7 @@
 package gadx
 
 import (
+	"bytes"
 	"strings"
 
 	"github.com/gad-lang/gad"
@@ -298,6 +299,28 @@ var (
 		Module:   ModuleSpec,
 		Value: func(call gad.Call) (_ gad.Object, err error) {
 			return call.VM.Builtins.Call(gad.BuiltinWrite, call)
+		},
+	}
+
+	// BuiltinRender renders a gadx element (a Tag / Text, e.g. the value a
+	// component returns) to its HTML string. Handy in `@test` blocks:
+	// `t.equal(gadx.render(greeting(; name="Gad")), "<span>Hello Gad</span>")`.
+	BuiltinRender = &gad.Function{
+		FuncName: "gadx.render",
+		Module:   ModuleSpec,
+		Value: func(call gad.Call) (_ gad.Object, err error) {
+			if err = call.Args.CheckLen(1); err != nil {
+				return
+			}
+			el, ok := call.Args.GetOnly(0).(Element)
+			if !ok {
+				return nil, gad.NewArgumentTypeError("1st", "gadx element", call.Args.GetOnly(0).Type().Name())
+			}
+			var buf bytes.Buffer
+			if _, err = el.WriteTo(call.VM, &buf); err != nil {
+				return
+			}
+			return gad.Str(buf.String()), nil
 		},
 	}
 )

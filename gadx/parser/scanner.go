@@ -164,6 +164,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanMdBlock(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanTest(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanGlobal(); tok.Valid() {
 			return tok
 		}
@@ -1225,6 +1228,18 @@ func (s *scanner) scanMatch() gadparser.PToken {
 	if sm := rgxMatch.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
 		return s.newToken(gadxtoken.Match, sm[0], sm[1])
+	}
+	return gadparser.PToken{}
+}
+
+var rgxTest = regexp.MustCompile(`^@test\s+(.+?)\s*$`)
+
+// scanTest matches a `@test NAME` directive (NAME is a bare identifier or a
+// quoted string). Its indented body becomes a Gad `test NAME { … }` block.
+func (s *scanner) scanTest() gadparser.PToken {
+	if sm := rgxTest.FindStringSubmatch(s.buffer); len(sm) != 0 {
+		s.consume(len(sm[0]))
+		return s.newToken(gadxtoken.Test, sm[0], sm[1])
 	}
 	return gadparser.PToken{}
 }

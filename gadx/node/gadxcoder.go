@@ -3,6 +3,7 @@ package node
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	gnode "github.com/gad-lang/gad/parser/node"
@@ -431,6 +432,18 @@ func (w *WrapStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.Depth--
 }
 
+func (t *TestDecl) WriteGadx(ctx *GadxCodeWriteContext) {
+	writeDoc(ctx, t.Doc)
+	name := t.Name
+	if t.Quoted {
+		name = strconv.Quote(t.Name)
+	}
+	ctx.WriteLine("@test " + name)
+	ctx.Depth++
+	ctx.WriteStmts(t.Body)
+	ctx.Depth--
+}
+
 func (s *MatchStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.WriteLine("@match " + ctx.gadCond(s.Tag))
 	ctx.Depth++
@@ -530,4 +543,5 @@ var (
 	_ GadxCoder = (*GlobalStmt)(nil)
 	_ GadxCoder = (*ParamStmt)(nil)
 	_ GadxCoder = (*ExportStmt)(nil)
+	_ GadxCoder = (*TestDecl)(nil)
 )

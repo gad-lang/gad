@@ -909,6 +909,28 @@ func (e *ExportStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 	}
 }
 
+// TestDecl — `@test NAME` block (lowers to Gad `test NAME { … }`)
+// =============================================================================
+
+type TestDecl struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Name    string // the test name (identifier spelling or string value)
+	Quoted  bool   // NAME was written as a quoted string
+	Body    gnode.Stmts
+	Doc     string // lead `/** … */` doc comment text, or ""
+}
+
+func (t *TestDecl) Pos() source.Pos { return t.NodePos }
+func (t *TestDecl) End() source.Pos { return t.NodeEnd }
+func (t *TestDecl) StmtNode()       {}
+func (t *TestDecl) String() string  { return fmt.Sprintf("gadx.Test(%s)", t.Name) }
+
+func (t *TestDecl) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertTestDecl(t)...)
+}
+
 // =============================================================================
 // Helpers
 // =============================================================================
