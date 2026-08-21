@@ -242,6 +242,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanComment(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanPipeBlock(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanText(); tok.Valid() {
 			return tok
 		}
@@ -513,6 +516,24 @@ func (s *scanner) scanTextBlock() gadparser.PToken {
 		s.consume(len(s.buffer))
 		s.pushForce(false)
 		return s.newToken(gadxtoken.TextBlock, lit, "")
+	}
+	return gadparser.PToken{}
+}
+
+var rgxPipeBlock = regexp.MustCompile(`^\|\s*$`)
+
+// scanPipeBlock matches a bare `|` on its own line, opening a YAML-style literal
+// text block: every deeper-indented line is literal text, so text does not need
+// a `| ` prefix on each line. It reuses the `@text` force-text machinery (the
+// token is marked "pipe" so the parser emits a pipe-style TextBlockStmt).
+func (s *scanner) scanPipeBlock() gadparser.PToken {
+	if rgxPipeBlock.MatchString(s.buffer) {
+		lit := s.buffer
+		s.consume(len(s.buffer))
+		s.pushForce(false)
+		pt := s.newToken(gadxtoken.TextBlock, lit, "")
+		pt.Set("pipe", true)
+		return pt
 	}
 	return gadparser.PToken{}
 }

@@ -68,6 +68,9 @@ type TextBlockStmt struct {
 	NodePos source.Pos
 	NodeEnd source.Pos
 	Body    gnode.Stmts // one TextStmt per source line (position-preserving)
+	// Pipe marks the YAML-style `|` block form (a bare `|` opening the block)
+	// rather than the `@text` directive; both share this node and body.
+	Pipe bool
 }
 
 func (t *TextBlockStmt) Pos() source.Pos { return t.NodePos }

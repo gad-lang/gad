@@ -374,9 +374,11 @@ func (p *Parser) parseTextBlock() *gadxnode.TextBlockStmt {
 	tok := p.Token
 	p.expect(gadxtoken.TextBlock)
 
+	pipe, _ := tok.Get("pipe").(bool)
 	tb := &gadxnode.TextBlockStmt{
 		NodePos: tok.Pos,
 		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+		Pipe:    pipe,
 	}
 	if p.Token.Token == gadxtoken.Indent {
 		tb.Body = p.parseBlock(tb)

@@ -213,7 +213,14 @@ func (ctx *GadxCodeWriteContext) writeRawBlock(directive string, body gnode.Stmt
 	ctx.Depth--
 }
 
-func (t *TextBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) { ctx.writeRawBlock("@text", t.Body) }
+func (t *TextBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	// A YAML-style `|` block emits a bare `|`; the `@text` directive emits `@text`.
+	directive := "@text"
+	if t.Pipe {
+		directive = "|"
+	}
+	ctx.writeRawBlock(directive, t.Body)
+}
 func (t *ParaBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) { ctx.writeRawBlock("@p", t.Body) }
 func (t *MdBlockStmt) WriteGadx(ctx *GadxCodeWriteContext)   { ctx.writeRawBlock("@md", t.Body) }
 
