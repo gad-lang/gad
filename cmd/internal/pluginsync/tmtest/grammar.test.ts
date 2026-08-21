@@ -113,3 +113,34 @@ test("nested braces balance and do not leak past the island", () => {
   expect(tail?.scopes).toContain("string.quoted.double.interpolated.gad");
   expect(tail?.scopes).not.toContain("meta.interpolation.gad");
 });
+
+test("a `///` doc comment does not bleed into the next line (interpolation)", () => {
+  // Regression: `///` embedding the Markdown grammar continued a paragraph
+  // across lines, so the interpolated string on the next line lost its scopes
+  // until a blank line. Tokenize line-by-line threading the rule stack.
+  const doc = "/// := declares; = reassigns an existing binding.";
+  const code = 'greeting := #"{name} is a fast language."';
+
+  let r = grammar.tokenizeLine(doc, null);
+  // the comment line is a doc comment
+  expect(r.tokens.some((t) => t.scopes.some((s) => s.includes("comment.line.documentation.gad")))).toBe(true);
+
+  // the NEXT line, with the doc's end-of-line rule stack, is code — the string
+  // interpolates and is not swallowed by the comment/markdown.
+  const next = grammar.tokenizeLine(code, r.ruleStack);
+  const toks = next.tokens.map((t) => ({ text: code.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+  const str = toks.find((t) => t.text.includes("is a fast"));
+  expect(str, `no string token in ${JSON.stringify(toks)}`).toBeDefined();
+  expect(str!.scopes.some((s) => s.includes("string.quoted"))).toBe(true);
+  // and it must NOT be inside a comment/markdown embed leaked from the line above
+  expect(next.tokens.some((t) => t.scopes.some((s) => s.includes("comment") || s.includes("markdown")))).toBe(false);
+});
+
+test("a single-line `/** x **/` block doc does not bleed to the next line", () => {
+  const doc = "/** the name **/";
+  const code = 'greeting := #"{name} v1"';
+  let r = grammar.tokenizeLine(doc, null);
+  const next = grammar.tokenizeLine(code, r.ruleStack);
+  // next line is code, not still inside the block doc / markdown
+  expect(next.tokens.some((t) => t.scopes.some((s) => s.includes("comment") || s.includes("markdown")))).toBe(false);
+});

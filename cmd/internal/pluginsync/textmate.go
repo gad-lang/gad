@@ -76,13 +76,13 @@ func TextMateGrammar() ([]byte, error) {
 				ContentName: "meta.embedded.block.markdown",
 				Patterns:    []tmRule{{Include: "text.html.markdown"}},
 			},
-			{
-				Name:        "comment.line.documentation.gad",
-				Begin:       `///(?!/)`,
-				End:         `$`,
-				ContentName: "meta.embedded.line.markdown",
-				Patterns:    []tmRule{{Include: "text.html.markdown"}},
-			},
+			// A `///` line doc is highlighted as a doc comment but does NOT embed
+			// the Markdown grammar: `text.html.markdown` continues a paragraph
+			// across lines (a `while`-based block), so on a single-line comment it
+			// would bleed into the following code line until a blank line. Only the
+			// fenced block docs (`/** … **/`), which have a hard closing fence,
+			// embed Markdown.
+			{Name: "comment.line.documentation.gad", Match: `///(?!/).*$`},
 			{Name: "comment.line.double-slash.gad", Match: `//.*$`},
 			{Name: "comment.block.gad", Begin: `/\*`, End: `\*/`},
 		}},
