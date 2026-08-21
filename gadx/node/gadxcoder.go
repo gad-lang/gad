@@ -37,6 +37,40 @@ func NewGadxCodeContext(w io.Writer) *GadxCodeWriteContext {
 	}
 }
 
+// gadxInterp renders a text interpolation (MixedValueStmt) as the canonical
+// gadx output form `{[mark] = expr [mark]}`. It always uses the output `=` (a
+// MixedValueStmt always outputs — it lowers to a write() call), and preserves
+// the trim markers: `-` strips adjacent spaces but keeps a line break, `--`
+// strips all adjacent whitespace (newlines included). Example: `{-=v--}` →
+// `{- = v --}`.
+func (c *GadxCodeWriteContext) gadxInterp(s *gnode.MixedValueStmt) string {
+	leftMark, rightMark := "", ""
+	switch {
+	case s.RemoveLeftAll:
+		leftMark = "--"
+	case s.RemoveLeftSpace:
+		leftMark = "-"
+	}
+	switch {
+	case s.RemoveRightAll:
+		rightMark = "--"
+	case s.RemoveRightSpace:
+		rightMark = "-"
+	}
+	var b strings.Builder
+	b.WriteString("{")
+	b.WriteString(leftMark)
+	if leftMark != "" {
+		b.WriteString(" ")
+	}
+	b.WriteString("= ")
+	b.WriteString(c.gadExpr(s.Expr))
+	b.WriteString(" ")
+	b.WriteString(rightMark)
+	b.WriteString("}")
+	return b.String()
+}
+
 // gadExpr renders an embedded GAD expression with the configured formatting
 // rules. It returns "" for a nil expression.
 func (c *GadxCodeWriteContext) gadExpr(e gnode.Expr) string {
@@ -104,13 +138,7 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		case *gnode.MixedTextStmt:
 			b.WriteString(s.Lit.Value)
 		case *gnode.MixedValueStmt:
-			// A MixedValueStmt always OUTPUTS its expression (it lowers to a
-			// write(...) call), so it must be emitted as the output form
-			// `{= expr }` — with the `=`. The source Eq flag is cosmetic: an HTML
-			// region's `{expr}` parses with Eq=false but still outputs, and in
-			// pug/gadx text a `{expr}` without `=` is a non-output code island, so
-			// dropping the `=` would change the meaning.
-			b.WriteString("{= " + ctx.gadExpr(s.Expr) + " }")
+			b.WriteString(ctx.gadxInterp(s))
 		default:
 			b.WriteString(s.String())
 		}
