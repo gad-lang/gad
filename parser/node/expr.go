@@ -780,6 +780,17 @@ func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteString(t.LHS.String() + " " + t.Token.String() + " " + t.RHS.String())
 			ctx.WriteString(e.RParen.Token.String())
 		}
+	case *UnaryExpr:
+		// A UnaryExpr already writes its own parentheses, so a normal `(` paren
+		// around it delegates to the child instead of adding a second pair —
+		// otherwise `(!x)` would grow to `((!x))` on every format pass.
+		if e.LParen.Token == token.LParen {
+			t.WriteCode(ctx)
+		} else {
+			ctx.WriteString(e.LParen.Token.String())
+			t.WriteCode(ctx)
+			ctx.WriteString(e.RParen.Token.String())
+		}
 	default:
 		ctx.WriteString(e.LParen.Token.String())
 		e.Expr.WriteCode(ctx)
