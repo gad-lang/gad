@@ -1,9 +1,12 @@
 # Gadx
 
-- [ ] quando clica para ir para a definicao do IDENT nao faz nada
-      <!-- VERIFICADO: `gad def` não parseia `.gadx` (usa o front-end gad e falha:
-           "Parse Error"). O langsym precisa compilar `.gadx` pelo front-end gadx
-           (ModuleFile=.gadx) para o go-to-def funcionar. PENDENTE. -->
+- [x] quando clica para ir para a definicao do IDENT nao faz nada
+      <!-- FEITO: `gad def`/`gad complete` agora tratam `.gadx` (langsymParse parseia
+           pelo front-end gadx e lowre para gad com posições preservadas). O plugin
+           passa --stdin-name para detectar o dialeto. -->
+- [x] (gad) go-to-def levava o cursor ao início do arquivo
+      <!-- FEITO: o handler navega para o offset exato da declaração via
+           FakePsiElement + OpenFileDescriptor (antes findElementAt caía no offset 0). -->
 - [x] em goland, nao está colorindo doc comments como markdown
       <!-- FEITO: a grammar gadx agora marca o corpo de `/** … **/` como
            meta.embedded.block.markdown (text.html.markdown). Reinstale/reinicie o GoLand. -->
@@ -24,7 +27,6 @@
       <!-- FEITO: um doc multi-linha mantém `/**` e `**/` em linhas próprias. -->
 
 # Gad
-- [ ] quando clica para ir para a definicao do IDENT o cursor vai para o inicio do arquivo
-      <!-- VERIFICADO: o motor `gad def` retorna o offset CORRETO (ex.: uso de `y`
-           -> decl na linha 2, offset 7). O bug está no PLUGIN IntelliJ (conversão
-           byte→char / navegação PSI cai no offset 0). PENDENTE (plugin). -->
+- [x] quando clica para ir para a definicao do IDENT o cursor vai para o inicio do arquivo
+      <!-- FEITO: o handler agora navega para o offset exato via FakePsiElement +
+           OpenFileDescriptor (o motor `gad def` já retornava o offset correto). -->
