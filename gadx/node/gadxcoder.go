@@ -25,6 +25,10 @@ type GadxCodeWriteContext struct {
 	// MaxColumns is the line-width budget for the embedded GAD (0 uses the GAD
 	// formatter's default).
 	MaxColumns int
+	// raw is set while emitting a literal-text block body (@text / @p / @md):
+	// its text lines are written verbatim (no `| ` prefix) and blank lines are
+	// preserved.
+	raw bool
 }
 
 // NewGadxCodeContext creates a new context writing to w, with 1-tab indentation
@@ -127,23 +131,26 @@ func (f *File) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	text := ctx.buildMixed(t.Stmts)
+
+	// Inside a literal-text block (@text / @p / @md) each line is emitted
+	// verbatim, with no `| ` prefix, and blank lines are preserved.
+	if ctx.raw {
+		for _, line := range strings.Split(text, "\n") {
+			if line == "" {
+				ctx.write("\n")
+			} else {
+				ctx.WriteLine(line)
+			}
+		}
+		return
+	}
+
 	// Reconstruct the mixed run (literal text interleaved with interpolations)
 	// as one string, then emit each source line as its own `| ` line. Keeping a
-	// run like `x = {=v} (y)` on a single line preserves the spaces around the
+	// run like `x = {= v } (y)` on a single line preserves the spaces around the
 	// interpolations — a bare `| ` line strips only trailing whitespace, which
 	// would otherwise be lost when the segments are split across lines.
-	var b strings.Builder
-	for _, stmt := range t.Stmts {
-		switch s := stmt.(type) {
-		case *gnode.MixedTextStmt:
-			b.WriteString(s.Lit.Value)
-		case *gnode.MixedValueStmt:
-			b.WriteString(ctx.gadxInterp(s))
-		default:
-			b.WriteString(s.String())
-		}
-	}
-	text := b.String()
 	if strings.TrimSpace(text) == "" {
 		return // drop a whitespace-only run: `| ` strips it and it does not survive
 	}
@@ -151,6 +158,40 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		ctx.WriteLine("| " + line)
 	}
 }
+
+// buildMixed reconstructs a run of mixed statements (literal text interleaved
+// with `{= expr }` interpolations) into a single string.
+func (c *GadxCodeWriteContext) buildMixed(stmts gnode.Stmts) string {
+	var b strings.Builder
+	for _, stmt := range stmts {
+		switch s := stmt.(type) {
+		case *gnode.MixedTextStmt:
+			b.WriteString(s.Lit.Value)
+		case *gnode.MixedValueStmt:
+			b.WriteString(c.gadxInterp(s))
+		default:
+			b.WriteString(s.String())
+		}
+	}
+	return b.String()
+}
+
+// writeRawBlock emits a literal-text block directive (`@text` / `@p` / `@md`)
+// and its body verbatim (text lines with no `| ` prefix, blank lines preserved).
+// Non-text nodes in the body (e.g. `@if` inside `@md`) render normally.
+func (ctx *GadxCodeWriteContext) writeRawBlock(directive string, body gnode.Stmts) {
+	ctx.WriteLine(directive)
+	ctx.Depth++
+	prev := ctx.raw
+	ctx.raw = true
+	ctx.WriteStmts(body)
+	ctx.raw = prev
+	ctx.Depth--
+}
+
+func (t *TextBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) { ctx.writeRawBlock("@text", t.Body) }
+func (t *ParaBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) { ctx.writeRawBlock("@p", t.Body) }
+func (t *MdBlockStmt) WriteGadx(ctx *GadxCodeWriteContext)   { ctx.writeRawBlock("@md", t.Body) }
 
 func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	// Attributes are written inline on the tag line (`div.card[href=x]`), the
@@ -404,6 +445,7 @@ func (s *GlobalStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *ParamStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	writeDoc(ctx, s.Doc) // a lead `/** … **/` doc is attached to the ParamStmt
 	if s.Decl == nil {
 		ctx.WriteLine("@param")
 		return
