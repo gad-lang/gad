@@ -97,12 +97,17 @@ func (c *GadxCodeWriteContext) gadCond(e gnode.Expr) string {
 }
 
 // gadCode renders any GAD coder (expression or statement) with the context's
-// formatting flags and column budget, matching `gad fmt`. A trailing newline is
-// trimmed so the result can be embedded inline.
+// formatting flags, matching `gad fmt` but always on a single line. Gadx is
+// line-oriented (`~` code, `{= … }`, attribute values, `@if` conditions), so
+// embedded GAD must never wrap: column-aware wrapping would split it across
+// lines that the gadx grammar cannot represent, and with no indentation prefix
+// the wrapped separators collapse (e.g. `f(a, raw "b")` → `f(araw "b")`). An
+// effectively unbounded column budget keeps it inline. A trailing newline is
+// trimmed so the result can be embedded.
 func (c *GadxCodeWriteContext) gadCode(n gnode.Coder) string {
-	opts := []gnode.CodeOption{gnode.CodeWithFlags(c.EmbedFlags)}
-	if c.MaxColumns > 0 {
-		opts = append(opts, gnode.CodeWithMaxColumns(c.MaxColumns))
+	opts := []gnode.CodeOption{
+		gnode.CodeWithFlags(c.EmbedFlags),
+		gnode.CodeWithMaxColumns(1 << 30),
 	}
 	return strings.TrimRight(gnode.Code(n, opts...), "\n")
 }
