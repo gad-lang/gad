@@ -991,6 +991,18 @@ func parseAttributeEntry(entry string, base source.Pos) *gadxnode.TagAttribute {
 	for i < len(entry) && (entry[i] == ' ' || entry[i] == '\t' || entry[i] == '\n' || entry[i] == '\r') {
 		i++
 	}
+
+	// A `**expr` spread attribute: its expression is a dict / keyValueArray of
+	// name→value. Emitted by the formatter for interpolated-name attributes
+	// (`data-{key}=v`), so it must round-trip.
+	if strings.HasPrefix(entry[i:], "**") {
+		exprStr := strings.TrimSpace(entry[i+2:])
+		if exprStr == "" {
+			return nil
+		}
+		return &gadxnode.TagAttribute{Spread: parseExprStr(exprStr, base+source.Pos(i+2))}
+	}
+
 	nameStart := i
 	for i < len(entry) && isAttrNameChar(entry[i]) {
 		i++

@@ -155,6 +155,13 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		return // drop a whitespace-only run: `| ` strips it and it does not survive
 	}
 	for _, line := range strings.Split(text, "\n") {
+		// Trim edge whitespace: a `| ` line strips trailing space on parse and a
+		// leading run collapses, so `|  x ` would not round-trip. This matches the
+		// HTML rule that whitespace at a text run's edges collapses.
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
 		ctx.WriteLine("| " + line)
 	}
 }
