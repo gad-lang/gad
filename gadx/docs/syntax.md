@@ -187,18 +187,57 @@ accurate). Runnable examples are in `samples/gadx/html.gadx` and
 
 ## Text
 
-Inline text:
+Inline text — right after a tag on the same line:
 
 ```gadx
 p Hello world
 ```
 
-Text block:
+Per-line `| ` text. Consecutive `| ` lines are joined with **no** separator:
 
 ```gadx
 p
-    | This is plain text.
-    | It can span multiple lines.
+    | first
+    | second
+```
+
+renders `<p>firstsecond</p>`. `{= expr }` interpolation works in every text form.
+
+### Literal and folded blocks (`|` / `|>`)
+
+A bare `|` (or `|>`) on its own line opens a **YAML-style text block** whose
+indented lines carry no `| ` prefix — the two styles differ in how line breaks
+are handled, exactly like YAML’s `|` and `>`:
+
+| Marker | YAML  | Line breaks                    |
+|--------|-------|--------------------------------|
+| `\|`   | `\|`  | **kept** (literal)             |
+| `\|>`  | `>`   | become **spaces** (folded)     |
+
+```gadx
+pre
+    |
+        one
+        two          # -> "one\ntwo"
+
+p
+    |>
+        one
+        two
+        three        # -> "one two three"
+```
+
+### `@text` — verbatim literal block
+
+`@text` emits its indented body verbatim: no tag/directive parsing (bare words
+stay words), line breaks and blank lines preserved. `{= expr }` still
+interpolates. Use it for preformatted content (license headers, ASCII art,
+`<pre>` bodies). `@p` is the paragraph variant (blank lines split `<p>` tags).
+
+```gadx
+@text
+    License (c) {= year }
+      indented lines keep their spaces
 ```
 
 ## Markdown block (`@md`)
@@ -525,3 +564,35 @@ Parameters may be **typed** — again like Gad's `param`, and unlike `@var`/`@co
 
 The type is a Gad type expression (a single type, a `|` union, a named interface
 or an inline `interface { … }`), enforced when the template is invoked.
+
+## Testing (`@test`)
+
+`@test NAME` is the Gadx form of Gad’s `test NAME { … }`. `gad test` discovers
+every `@test` in a `*_test.gadx` file and runs it with an injected `t` test
+context (the same assertions as `_test.gad`: `t.equal`, `t.true`, `t.nil`,
+`t.error`, `t.run`, …). Write assertions in `~` code.
+
+To assert a component’s HTML, render it with the `gadx.render(el)` builtin — it
+renders a tag / component result to its string.
+
+```gadx
+@comp greeting(; name = "world")
+    span Hello {= name }
+
+@test renders_with_name
+    ~ t.equal(gadx.render(greeting(; name = "Gad")), "<span>Hello Gad</span>")
+
+@test plain_assertions
+    ~ t.true(1 + 1 == 2)
+    ~ t.nil(nil)
+```
+
+Run them with:
+
+```sh
+gad test greeting_test.gadx      # a file
+gad test ./...                   # recurse, running *_test.gad and *_test.gadx
+```
+
+Each `@test` reports as `FILE/NAME`; a failed assertion records the failure and
+aborts that test. See `samples/gadx/greeting_test.gadx`.

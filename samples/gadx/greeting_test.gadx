@@ -1,0 +1,34 @@
+/**
+Gadx tests — `@test NAME`.
+
+`@test NAME` is the Gadx form of Gad's `test NAME { … }`: `gad test` discovers
+every `@test` in a `*_test.gadx` file and runs it with an injected `t` test
+context (the same `t.equal`, `t.true`, `t.nil`, `t.run`, … as `_test.gad`).
+
+Write assertions in `~` code. To assert a component's HTML, render it with the
+`gadx.render(el)` builtin — it renders a tag / component result to its string.
+
+Run these with:  gad test greeting_test.gadx
+**/
+
+@comp greeting(; name = "world")
+    span Hello {= name }
+
+@comp list(items)
+    ul
+        @for it in items
+            li {= it }
+
+@test renders_with_name
+    ~ t.equal(gadx.render(greeting(; name = "Gad")), "<span>Hello Gad</span>")
+
+@test renders_default
+    ~ t.equal(gadx.render(greeting()), "<span>Hello world</span>")
+
+@test renders_a_list
+    ~ html := gadx.render(list(["a", "b"]))
+    ~ t.equal(html, "<ul><li>a</li><li>b</li></ul>")
+
+@test plain_assertions
+    ~ t.true(1 + 1 == 2)
+    ~ t.nil(nil)
