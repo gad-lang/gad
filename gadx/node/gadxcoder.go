@@ -93,18 +93,34 @@ func (f *File) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	// Reconstruct text from mixed GAD statements
+	// Reconstruct the mixed run (literal text interleaved with interpolations)
+	// as one string, then emit each source line as its own `| ` line. Keeping a
+	// run like `x = {=v} (y)` on a single line preserves the spaces around the
+	// interpolations — a bare `| ` line strips only trailing whitespace, which
+	// would otherwise be lost when the segments are split across lines.
+	var b strings.Builder
 	for _, stmt := range t.Stmts {
 		switch s := stmt.(type) {
 		case *gnode.MixedTextStmt:
-			ctx.WriteLine("| " + s.String())
+			b.WriteString(s.Lit.Value)
 		case *gnode.MixedValueStmt:
-			// s.String() already carries the interpolation delimiters
-			// (`{= expr }`); do not wrap them again.
-			ctx.WriteLine("| " + s.String())
+			// A MixedValueStmt always OUTPUTS its expression (it lowers to a
+			// write(...) call), so it must be emitted as the output form
+			// `{= expr }` — with the `=`. The source Eq flag is cosmetic: an HTML
+			// region's `{expr}` parses with Eq=false but still outputs, and in
+			// pug/gadx text a `{expr}` without `=` is a non-output code island, so
+			// dropping the `=` would change the meaning.
+			b.WriteString("{= " + ctx.gadExpr(s.Expr) + " }")
 		default:
-			ctx.WriteLine("| " + s.String())
+			b.WriteString(s.String())
 		}
+	}
+	text := b.String()
+	if strings.TrimSpace(text) == "" {
+		return // drop a whitespace-only run: `| ` strips it and it does not survive
+	}
+	for _, line := range strings.Split(text, "\n") {
+		ctx.WriteLine("| " + line)
 	}
 }
 

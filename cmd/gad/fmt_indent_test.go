@@ -87,5 +87,6 @@ func TestFormatSourceGadxRoundTrip(t *testing.T) {
 	require.Contains(t, first, `div[class="card"]`)
 	require.Contains(t, first, "@global")
 	require.Contains(t, first, "Model")
-	require.Contains(t, first, "{=title}")
+	// A text interpolation is emitted as the output form `{= expr }` (with `=`).
+	require.Contains(t, first, "{= title }")
 }
