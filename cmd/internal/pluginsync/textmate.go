@@ -58,9 +58,31 @@ func TextMateGrammar() ([]byte, error) {
 			// `/*`/`//` comments. A block doc ends only at a line that is exactly the
 			// fence (`**/` / `***/`), so inline `**bold**` / `***hr***` Markdown in
 			// the doc text does not close it early. `///` is a single-line doc.
-			{Name: "comment.block.documentation.gad", Begin: `/\*\*\*`, End: `^\s*\*\*\*/\s*$`},
-			{Name: "comment.block.documentation.gad", Begin: `/\*\*`, End: `^\s*\*\*/\s*$`},
-			{Name: "comment.line.documentation.gad", Match: `///(?!/).*$`},
+			//
+			// Doc text is Markdown: its body is marked `meta.embedded…markdown` and
+			// the Markdown grammar (`text.html.markdown`) is embedded, so editors
+			// highlight it as Markdown while the fences stay comment-colored.
+			{
+				Name:        "comment.block.documentation.gad",
+				Begin:       `/\*\*\*`,
+				End:         `^\s*\*\*\*/\s*$`,
+				ContentName: "meta.embedded.block.markdown",
+				Patterns:    []tmRule{{Include: "text.html.markdown"}},
+			},
+			{
+				Name:        "comment.block.documentation.gad",
+				Begin:       `/\*\*`,
+				End:         `^\s*\*\*/\s*$`,
+				ContentName: "meta.embedded.block.markdown",
+				Patterns:    []tmRule{{Include: "text.html.markdown"}},
+			},
+			{
+				Name:        "comment.line.documentation.gad",
+				Begin:       `///(?!/)`,
+				End:         `$`,
+				ContentName: "meta.embedded.line.markdown",
+				Patterns:    []tmRule{{Include: "text.html.markdown"}},
+			},
 			{Name: "comment.line.double-slash.gad", Match: `//.*$`},
 			{Name: "comment.block.gad", Begin: `/\*`, End: `\*/`},
 		}},
