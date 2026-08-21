@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/gad-lang/gad"
@@ -19,6 +20,12 @@ import (
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 )
+
+// gadxSyntheticID matches the synthetic names the Gadx lowering derives from a
+// source position ($slot792_0, $$slots792, $slot$d520$, slots.d520). The
+// position shifts when formatting changes offsets, so the digits are normalized
+// away before the semantic-equivalence comparison in GadxLowered.
+var gadxSyntheticID = regexp.MustCompile(`(\$slot\$d|\$\$slots|\$slot|slots\.d)\d+`)
 
 // Severity classifies a diagnostic.
 type Severity string
@@ -192,10 +199,12 @@ func GadxLowered(src string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	// Trim edge artifacts (a leading empty statement `; …` from a blank line and
-	// edge whitespace); internal `;` runs are left intact so a real semantic
-	// change is never hidden.
-	return strings.Trim(string(out), "; \t\n"), true
+	// Normalize position-derived synthetic slot names so a mere offset shift is
+	// not read as a semantic change, then trim edge artifacts (a leading empty
+	// statement `; …` and edge whitespace). Internal `;` runs are left intact so
+	// a real semantic change is never hidden.
+	normalized := gadxSyntheticID.ReplaceAllString(string(out), "${1}#")
+	return strings.Trim(normalized, "; \t\n"), true
 }
 
 // Transpile rewrites a Gad source into plain Gad with template text and

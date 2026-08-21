@@ -656,6 +656,9 @@ func (c *CompCallStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	}
 	ctx.WriteLine(line)
 	ctx.Depth++
+	// Call-scope `~` code (InitStmts) is emitted first — a slot's interpolated
+	// name / body may reference the values it declares — then the slot passes.
+	ctx.WriteStmts(c.InitStmts)
 	for _, sp := range c.SlotPass {
 		sp.WriteGadx(ctx)
 	}
@@ -671,7 +674,11 @@ func (s *SlotDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 	}
 	line := "@slot " + name
 	if s.Scope != nil {
-		line += s.Scope.String()
+		// Emit the scope from its rendered params, suppressing an empty `()` (the
+		// LParen position is synthetic, so it cannot gate emission).
+		if sc := s.Scope.String(); sc != "" && sc != "()" {
+			line += sc
+		}
 	}
 	ctx.WriteLine(line)
 	ctx.Depth++
@@ -686,8 +693,12 @@ func (s *SlotPassStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	} else if s.Name != nil {
 		line += s.Name.String()
 	}
-	if s.FuncType != nil && s.FuncType.Params.LParen.IsValid() {
-		line += s.FuncType.Params.String()
+	if s.FuncType != nil {
+		// The scope `(it)` must survive; LParen.IsValid() is false for a parsed
+		// slot-pass scope, so gate on the rendered params (suppress empty `()`).
+		if p := s.FuncType.Params.String(); p != "" && p != "()" {
+			line += p
+		}
 	}
 	ctx.WriteLine(line)
 	ctx.Depth++

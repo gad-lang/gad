@@ -90,3 +90,28 @@ func TestFormatBlankBeforeLeadingComment(t *testing.T) {
 		t.Fatalf("blank line should precede the leading comment:\n%s", out)
 	}
 }
+
+// TestFormatSlotScope: a slot declaration/pass keeps its `(scope)` (the LParen
+// position is synthetic, so emission gates on the rendered params) and a
+// component call keeps its call-scope `~` InitStmts.
+func TestFormatSlotScope(t *testing.T) {
+	src := "@export comp list(items)\n" +
+		"    @for it in items\n" +
+		"        @slot row(it)\n" +
+		"            span {= it }\n" +
+		"@main\n" +
+		"    +list([1])\n" +
+		"        ~ const target = 1\n" +
+		"        @slot #row(it)\n" +
+		"            b {= it }\n"
+	out := transpileGadx(t, src)
+	for _, want := range []string{"@slot row(it)", "@slot #row(it)", "~ const target = 1"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+	// An empty scope is not emitted as `()`.
+	if strings.Contains(out, "@slot row()") {
+		t.Fatalf("empty scope should be suppressed:\n%s", out)
+	}
+}
