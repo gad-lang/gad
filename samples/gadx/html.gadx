@@ -18,7 +18,7 @@ more-indented body render as children of the enclosing element. See
 html_control_flow.gadx.
 **/
 
-@global (title, url, active)
+@global (url, active; title = "The Link")
 
 @main
     <nav class="menu">
