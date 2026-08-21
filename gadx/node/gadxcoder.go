@@ -84,6 +84,18 @@ func (c *GadxCodeWriteContext) gadExpr(e gnode.Expr) string {
 	return c.gadCode(e)
 }
 
+// gadCond renders a directive condition (`@if` / `@for` / `@match` / `@case`).
+// It unwraps a single enclosing ParenExpr first: the formatter renders a
+// condition parenthesised (e.g. a unary `!x` as `(!x)`), so re-parsing the
+// emitted `(cond)` yields a ParenExpr that would otherwise gain another paren
+// layer on every format pass.
+func (c *GadxCodeWriteContext) gadCond(e gnode.Expr) string {
+	if p, ok := e.(*gnode.ParenExpr); ok && p.Expr != nil {
+		e = p.Expr
+	}
+	return c.gadExpr(e)
+}
+
 // gadCode renders any GAD coder (expression or statement) with the context's
 // formatting flags and column budget, matching `gad fmt`. A trailing newline is
 // trimmed so the result can be embedded inline.
@@ -279,12 +291,12 @@ func writeDoc(ctx *GadxCodeWriteContext, doc string) {
 }
 
 func (s *IfStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine("@if " + ctx.gadExpr(s.Cond))
+	ctx.WriteLine("@if " + ctx.gadCond(s.Cond))
 	ctx.Depth++
 	ctx.WriteStmts(s.Body)
 	ctx.Depth--
 	for _, eif := range s.ElseIfs {
-		ctx.WriteLine("@else if " + ctx.gadExpr(eif.Cond))
+		ctx.WriteLine("@else if " + ctx.gadCond(eif.Cond))
 		ctx.Depth++
 		ctx.WriteStmts(eif.Body)
 		ctx.Depth--
@@ -298,7 +310,7 @@ func (s *IfStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *ForStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine("@for " + ctx.gadExpr(s.Cond))
+	ctx.WriteLine("@for " + ctx.gadCond(s.Cond))
 	ctx.Depth++
 	ctx.WriteStmts(s.Body)
 	ctx.Depth--
@@ -396,10 +408,10 @@ func (w *WrapStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *MatchStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine("@match " + ctx.gadExpr(s.Tag))
+	ctx.WriteLine("@match " + ctx.gadCond(s.Tag))
 	ctx.Depth++
 	for _, c := range s.Cases {
-		ctx.WriteLine("@case " + ctx.gadExpr(c.Expr))
+		ctx.WriteLine("@case " + ctx.gadCond(c.Expr))
 		ctx.Depth++
 		ctx.WriteStmts(c.Body)
 		ctx.Depth--
