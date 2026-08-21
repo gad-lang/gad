@@ -10,15 +10,14 @@ tags — but `{= expr }` interpolation is still available.
 `@p` is a shortcut for prose: instead of writing an explicit `p` tag per
 paragraph, write the paragraphs separated by blank lines.
 **/
-
-@param (; author = "the Gadx team")
+@param (; author="the Gadx team")
 
 @main
-    article
-        @p
-            Gadx turns indentation-structured templates into HTML.
-            This first paragraph spans two source lines.
+	article
+		@p
+			Gadx turns indentation-structured templates into HTML.
+			This first paragraph spans two source lines.
 
-            The blank line above started a second paragraph.
+			The blank line above started a second paragraph.
 
-            Signed, {= author }.
+			Signed, {= author }.

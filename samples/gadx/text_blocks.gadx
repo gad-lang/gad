@@ -15,32 +15,29 @@ Gadx has several text forms; they differ in how line breaks are handled:
 
 `{= expr }` interpolation works in every form.
 **/
-
-@param (; name = "Gad")
+@param (; name="Gad")
 
 @main
-    //- inline text after the tag
-    h1 Hello {= name }
+	//- inline text after the tag
+	h1 Hello {= name }
+	//- per-line `| `: the two lines concatenate -> "firstsecond"
+	p
+		| first
+		| second
+	//- `|` literal block: line breaks kept -> "one\ntwo"
+	pre
+		|
+			one
+			two {= name }
 
-    //- per-line `| `: the two lines concatenate -> "firstsecond"
-    p
-        | first
-        | second
+	//- `|>` folded block: line breaks become spaces -> "one two three"
+	p
+		|>
+			one
+			two
+			three
 
-    //- `|` literal block: line breaks kept -> "one\ntwo"
-    pre
-        |
-            one
-            two {= name }
-
-    //- `|>` folded block: line breaks become spaces -> "one two three"
-    p
-        |>
-            one
-            two
-            three
-
-    //- `@text`: verbatim, no tag parsing (bare words stay words)
-    @text
-        License (c) {= name }
-          indented lines keep their spaces
+	//- `@text`: verbatim, no tag parsing (bare words stay words)
+	@text
+		License (c) {= name }
+		  indented lines keep their spaces

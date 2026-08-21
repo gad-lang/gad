@@ -13,15 +13,14 @@ diagnostics point at the right column.
 Use `@text` for preformatted content (license headers, ASCII art, embedded
 config, `<pre>` bodies) where you want the text as-is.
 **/
-
-@param (; name = "world")
+@param (; name="world")
 
 @main
-    @text
-        Dear {= name },
+	@text
+		Dear {= name },
 
-        Thank you for trying Gadx.
-        This whole block is literal text — <b>tags</b> are not parsed,
-        and the blank line above is preserved.
+		Thank you for trying Gadx.
+		This whole block is literal text — <b>tags</b> are not parsed,
+		and the blank line above is preserved.
 
-            indented lines keep their extra spaces too.
+		    indented lines keep their extra spaces too.
