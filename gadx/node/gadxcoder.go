@@ -214,10 +214,14 @@ func (ctx *GadxCodeWriteContext) writeRawBlock(directive string, body gnode.Stmt
 }
 
 func (t *TextBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	// A YAML-style `|` block emits a bare `|`; the `@text` directive emits `@text`.
+	// A YAML-style block emits `|` (literal) or `|>` (folded); the `@text`
+	// directive emits `@text`.
 	directive := "@text"
 	if t.Pipe {
 		directive = "|"
+		if t.Fold {
+			directive = "|>"
+		}
 	}
 	ctx.writeRawBlock(directive, t.Body)
 }

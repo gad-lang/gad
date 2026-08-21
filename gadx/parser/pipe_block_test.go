@@ -28,3 +28,21 @@ func TestPipeBlock(t *testing.T) {
 		t.Fatalf("not idempotent:\n--- first ---\n%s\n--- second ---\n%s", out, again)
 	}
 }
+
+// TestPipeFoldBlock checks the folded `|>` block: its marker is preserved (so
+// literal `|` and folded `|>` stay distinct) and it round-trips.
+func TestPipeFoldBlock(t *testing.T) {
+	src := "@main\n" +
+		"    div\n" +
+		"        |>\n" +
+		"            line one\n" +
+		"            line two\n"
+
+	out := transpileGadx(t, src)
+	if !strings.Contains(out, "\t\t|>\n") {
+		t.Fatalf("expected a `|>` folded block opener:\n%s", out)
+	}
+	if again := transpileGadx(t, out); again != out {
+		t.Fatalf("not idempotent:\n--- first ---\n%s\n--- second ---\n%s", out, again)
+	}
+}

@@ -863,10 +863,16 @@ func textCall(pos, end source.Pos, values ...gnode.Expr) *gnode.CallExpr {
 // original line breaks are preserved. Interpolation (`{ … }`) inside a line keeps
 // its source position because each line reuses convertText.
 func convertTextBlock(t *TextBlockStmt) gnode.Stmts {
+	// The folded style (`|>`, YAML `>`) joins lines with a space; the literal
+	// style (`|` / `@text`) preserves line breaks.
+	sep := "\n"
+	if t.Fold {
+		sep = " "
+	}
 	var out gnode.Stmts
 	for i, stmt := range t.Body {
 		if i > 0 {
-			out.Append(gnode.SExpr(textCall(t.NodePos, t.NodePos, gnode.Str("\n", t.NodePos))))
+			out.Append(gnode.SExpr(textCall(t.NodePos, t.NodePos, gnode.Str(sep, t.NodePos))))
 		}
 		if ts, ok := stmt.(*TextStmt); ok {
 			out = append(out, convertText(ts)...)

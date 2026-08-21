@@ -71,6 +71,9 @@ type TextBlockStmt struct {
 	// Pipe marks the YAML-style `|` block form (a bare `|` opening the block)
 	// rather than the `@text` directive; both share this node and body.
 	Pipe bool
+	// Fold marks the YAML folded style `|>`: body line breaks become spaces
+	// (YAML `>`), instead of being preserved (`|`). Only meaningful with Pipe.
+	Fold bool
 }
 
 func (t *TextBlockStmt) Pos() source.Pos { return t.NodePos }

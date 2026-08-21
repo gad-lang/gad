@@ -520,19 +520,24 @@ func (s *scanner) scanTextBlock() gadparser.PToken {
 	return gadparser.PToken{}
 }
 
-var rgxPipeBlock = regexp.MustCompile(`^\|\s*$`)
+var rgxPipeBlock = regexp.MustCompile(`^\|(>)?\s*$`)
 
-// scanPipeBlock matches a bare `|` on its own line, opening a YAML-style literal
-// text block: every deeper-indented line is literal text, so text does not need
-// a `| ` prefix on each line. It reuses the `@text` force-text machinery (the
-// token is marked "pipe" so the parser emits a pipe-style TextBlockStmt).
+// scanPipeBlock matches a bare `|` (or `|>`) on its own line, opening a
+// YAML-style text block: every deeper-indented line is literal text, so text
+// does not need a `| ` prefix on each line. `|` is the literal style (line
+// breaks preserved, like YAML `|`); `|>` is the folded style (line breaks become
+// spaces, like YAML `>`). It reuses the `@text` force-text machinery; the token
+// is marked "pipe" (and "fold" for `|>`) so the parser emits the right block.
 func (s *scanner) scanPipeBlock() gadparser.PToken {
-	if rgxPipeBlock.MatchString(s.buffer) {
+	if sm := rgxPipeBlock.FindStringSubmatch(s.buffer); sm != nil {
 		lit := s.buffer
 		s.consume(len(s.buffer))
 		s.pushForce(false)
 		pt := s.newToken(gadxtoken.TextBlock, lit, "")
 		pt.Set("pipe", true)
+		if sm[1] == ">" {
+			pt.Set("fold", true)
+		}
 		return pt
 	}
 	return gadparser.PToken{}
