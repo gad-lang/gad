@@ -430,15 +430,50 @@ func identName(e node.Expr) string {
 	return e.String()
 }
 
-// rootBlocks returns the Markdown content of each ROOT_BLOCK (`/***`) comment, in
-// source order.
-func rootBlocks(groups []*ast.CommentGroup) []string {
+// rootBlocks returns the Markdown content of the module-level documentation
+// blocks, in source order. It accepts two forms (matching gadbridge.ExtractDoc):
+//   - every explicit `/*** … ***/` root block, and
+//   - a leading `/** … **/` block that is DETACHED from the code — followed by a
+//     blank line, or with no statement below it. An attached `/** … **/` block
+//     documents its declaration, not the module, so it is skipped.
+//
+// f gives source positions for the detachment check (nil disables it, keeping
+// only the `/***` blocks).
+func rootBlocks(file *parser.File, f *source.File) []string {
+	firstStmtLine := -1
+	if f != nil && len(file.Stmts) > 0 {
+		firstStmtLine = f.SafePosition(file.Stmts[0].Pos()).Line
+	}
+	// detached reports whether a comment group is separated from the first
+	// statement by a blank line (or has no statement after it).
+	detached := func(g *ast.CommentGroup) bool {
+		if f == nil {
+			return false
+		}
+		return firstStmtLine < 0 || firstStmtLine > f.SafePosition(g.End()-1).Line+1
+	}
+
 	var out []string
-	for _, g := range groups {
-		if len(g.List) > 0 && strings.HasPrefix(g.List[0].Text, "/***") {
-			if c := blockContent(g.List[0].Text, "/***", "***/"); c != "" {
+	leadDone := false // only the first `/**` block is the module prose
+	for _, g := range file.Comments {
+		if len(g.List) == 0 {
+			continue
+		}
+		text := g.List[0].Text
+		switch {
+		case strings.HasPrefix(text, "/***"):
+			if c := blockContent(text, "/***", "***/"); c != "" {
 				out = append(out, c)
 			}
+		case strings.HasPrefix(text, "/**"):
+			// A leading, detached `/** … **/` block is the module prose (matches
+			// gadbridge.ExtractDoc); an attached one documents its declaration.
+			if !leadDone && detached(g) {
+				if c := blockContent(text, "/**", "**/"); c != "" {
+					out = append(out, c)
+				}
+			}
+			leadDone = true
 		}
 	}
 	return out

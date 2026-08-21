@@ -71,9 +71,16 @@ func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
 	exp := bucketize(exported)
 
 	var b strings.Builder
-	b.WriteString("# " + moduleName(path) + "\n")
+	roots := rootBlocks(file, f)
 
-	for _, root := range rootBlocks(file.Comments) {
+	// Synthesize a `# name` module heading only when the leading module prose does
+	// not already lead with its own `# Title` (mirrors the md.gadx template's
+	// proseHasTitle), so a documented file is not double-titled.
+	if len(roots) == 0 || !strings.HasPrefix(strings.TrimSpace(roots[0]), "# ") {
+		b.WriteString("# " + moduleName(path) + "\n")
+	}
+
+	for _, root := range roots {
 		b.WriteString("\n" + root + "\n")
 	}
 
