@@ -146,16 +146,45 @@ type GadxCoder interface {
 
 func (f *File) WriteGadx(ctx *GadxCodeWriteContext) {
 	// Separate top-level declaration directives (`@comp`, `@func`, `@param`,
-	// `@test`, …) with a blank line, like Go separates top-level decls. The blank
-	// line goes before the node — hence before its doc comment.
+	// `@test`, …) with a blank line, like Go separates top-level decls. When a
+	// directive is preceded by leading `//-`/`//` comments, the blank line goes
+	// before the first of those comments so the comment stays attached to the
+	// directive it documents.
+	blank := blankBefore(f.Stmts)
 	for i, stmt := range f.Stmts {
-		if gc, ok := stmt.(GadxCoder); ok {
-			if i > 0 && isBlockDirective(stmt) {
-				ctx.write("\n")
+		gc, ok := stmt.(GadxCoder)
+		if !ok {
+			continue
+		}
+		if blank[i] {
+			ctx.write("\n")
+		}
+		gc.WriteGadx(ctx)
+	}
+}
+
+// blankBefore marks the statements that should be preceded by a blank line: each
+// top-level block directive that is not the first, credited to the start of its
+// leading comment run so the blank lands before the comment, not between the
+// comment and the directive.
+func blankBefore(stmts gnode.Stmts) []bool {
+	blank := make([]bool, len(stmts))
+	for i, s := range stmts {
+		if !isBlockDirective(s) {
+			continue
+		}
+		start := i
+		for start > 0 {
+			if _, ok := stmts[start-1].(*CommentStmt); !ok {
+				break
 			}
-			gc.WriteGadx(ctx)
+			start--
+		}
+		if start > 0 {
+			blank[start] = true
 		}
 	}
+	return blank
 }
 
 // isBlockDirective reports whether a top-level statement is a declaration
@@ -435,9 +464,9 @@ func (c *CommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		// A `/* … */` block comment (silent); a `/** … **/` doc comment (gad
 		// convention) when it carries doc.
 		if c.Doc {
-			ctx.WriteLine("/** " + c.Text + " **/")
+			ctx.writeBlockComment("/**", c.Text, "**/")
 		} else {
-			ctx.WriteLine("/* " + c.Text + " */")
+			ctx.writeBlockComment("/*", c.Text, "*/")
 		}
 		return
 	}
@@ -455,21 +484,25 @@ func (c *CommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 
 // writeDoc emits a decl's `/** … **/` doc comment line (gad convention), if any.
 func writeDoc(ctx *GadxCodeWriteContext, doc string) {
-	if doc == "" {
+	if doc != "" {
+		ctx.writeBlockComment("/**", doc, "**/")
+	}
+}
+
+// writeBlockComment emits a block comment/doc. A single-line body is written
+// compactly as `open text close`; a multi-line body keeps open and close on
+// their own lines with the text between, so the opening/closing line breaks
+// survive a round-trip.
+func (ctx *GadxCodeWriteContext) writeBlockComment(open, text, close string) {
+	if !strings.Contains(text, "\n") {
+		ctx.WriteLine(open + " " + text + " " + close)
 		return
 	}
-	// A single-line doc is written compactly as `/** text **/`; a multi-line doc
-	// keeps `/**` and `**/` on their own lines with the text between, so the
-	// opening/closing line breaks survive a round-trip.
-	if !strings.Contains(doc, "\n") {
-		ctx.WriteLine("/** " + doc + " **/")
-		return
-	}
-	ctx.WriteLine("/**")
-	for _, line := range strings.Split(doc, "\n") {
+	ctx.WriteLine(open)
+	for _, line := range strings.Split(text, "\n") {
 		ctx.WriteLine(line)
 	}
-	ctx.WriteLine("**/")
+	ctx.WriteLine(close)
 }
 
 func (s *IfStmt) WriteGadx(ctx *GadxCodeWriteContext) {
@@ -609,6 +642,25 @@ func (t *TestDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.Depth--
 }
 
+func (s *EnumStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	writeDoc(ctx, s.Doc)
+	if s.Decl == nil {
+		ctx.WriteLine("@enum " + s.Name)
+		return
+	}
+	// The Decl renders as `enum Name { fields }`; re-emit it as the `@enum`
+	// directive `@enum Name (fields)`.
+	code := ctx.gadCode(s.Decl)
+	open := strings.IndexByte(code, '{')
+	closeB := strings.LastIndexByte(code, '}')
+	if open >= 0 && closeB > open {
+		fields := strings.TrimSpace(code[open+1 : closeB])
+		ctx.WriteLine("@enum " + s.Name + " (" + fields + ")")
+		return
+	}
+	ctx.WriteLine("@enum " + s.Name)
+}
+
 func (s *CallLineStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	parts := make([]string, 0, len(s.Args)+1)
 	parts = append(parts, ctx.gadExpr(s.Callee))
@@ -719,4 +771,5 @@ var (
 	_ GadxCoder = (*ExportStmt)(nil)
 	_ GadxCoder = (*TestDecl)(nil)
 	_ GadxCoder = (*CallLineStmt)(nil)
+	_ GadxCoder = (*EnumStmt)(nil)
 )

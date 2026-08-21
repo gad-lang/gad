@@ -64,10 +64,29 @@ func TestFormatBlankLineBeforeDirective(t *testing.T) {
 }
 
 // TestFormatMultilineDoc: a multi-line doc comment keeps `/**` and `**/` on
-// their own lines (the trailing newline before `**/` survives).
+// their own lines (the trailing newline before `**/` survives), for both a
+// declaration doc and a standalone block comment.
 func TestFormatMultilineDoc(t *testing.T) {
 	out := transpileGadx(t, "/**\nline one\nline two\n**/\n@comp main()\n    p x\n")
 	if !strings.Contains(out, "/**\nline one\nline two\n**/") {
 		t.Fatalf("expected block doc form:\n%s", out)
+	}
+}
+
+// TestFormatEnumPreserved: an `@enum` declaration is emitted (not silently
+// dropped) as `@enum Name (fields)`.
+func TestFormatEnumPreserved(t *testing.T) {
+	out := transpileGadx(t, "@enum Perm (Read, Write, Exec = 10, Delete)\n@main\n    p x\n")
+	if !strings.Contains(out, "@enum Perm (Read, Write, Exec = 10, Delete)") {
+		t.Fatalf("@enum not preserved:\n%s", out)
+	}
+}
+
+// TestFormatBlankBeforeLeadingComment: the blank line before a directive lands
+// before its leading `//-` comment, not between the comment and the directive.
+func TestFormatBlankBeforeLeadingComment(t *testing.T) {
+	out := transpileGadx(t, "@comp a()\n    p x\n//- doc for b\n@comp b()\n    p y\n")
+	if !strings.Contains(out, "\n\n//- doc for b\n@comp b()") {
+		t.Fatalf("blank line should precede the leading comment:\n%s", out)
 	}
 }
