@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 
 	"github.com/gad-lang/gad/langsym"
-	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
 	cc "github.com/moisespsena-go/command-context"
 )
@@ -16,7 +15,10 @@ func init() { registerCommand("def", defCommand) }
 // none is found. Scope-aware (blocks, functions, shadowing). Editor plugins call
 // it for precise go-to-declaration.
 func defCommand() *cc.Command {
-	var offset int
+	var (
+		offset    int
+		stdinName string
+	)
 	return &cc.Command{
 		Name:  "def",
 		Usage: "--offset N [PATH]",
@@ -25,6 +27,8 @@ func defCommand() *cc.Command {
 			"the caret. Output is JSON {offset, line, column} or null.",
 		New: func(ctx *cc.CommandContext) error {
 			ctx.Flags().IntVar(&offset, "offset", -1, "0-based caret byte offset")
+			ctx.Flags().StringVar(&stdinName, "stdin-name", "",
+				"assumed file name for stdin, so its dialect (.gad/.gadx) is detected")
 			return nil
 		},
 		Run: func(ctx *cc.CommandContext) error {
@@ -32,10 +36,10 @@ func defCommand() *cc.Command {
 			if err != nil {
 				return err
 			}
-			fs := source.NewFileSet()
-			sf := fs.AddFileData(name, -1, data)
-			po := &parser.ParserOptions{Mode: parser.ParseComments}
-			file, err := parser.NewParserWithOptions(sf, po, nil).ParseFile()
+			if name == "<stdin>" && stdinName != "" {
+				name = stdinName
+			}
+			file, sf, err := langsymParse(name, data)
 			if err != nil {
 				return err
 			}

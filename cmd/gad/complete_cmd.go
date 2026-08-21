@@ -21,8 +21,9 @@ func init() { registerCommand("complete", completeCommand) }
 // call it for precise, doc-carrying auto-completion.
 func completeCommand() *cc.Command {
 	var (
-		offset int
-		prefix string
+		offset    int
+		prefix    string
+		stdinName string
 	)
 	return &cc.Command{
 		Name:  "complete",
@@ -35,12 +36,17 @@ func completeCommand() *cc.Command {
 			fs := ctx.Flags()
 			fs.IntVar(&offset, "offset", -1, "0-based caret byte offset")
 			fs.StringVar(&prefix, "prefix", "", "only labels starting with this prefix (case-insensitive)")
+			fs.StringVar(&stdinName, "stdin-name", "",
+				"assumed file name for stdin, so its dialect (.gad/.gadx) is detected")
 			return nil
 		},
 		Run: func(ctx *cc.CommandContext) error {
 			data, name, err := astReadInput(ctx.Args)
 			if err != nil {
 				return err
+			}
+			if name == "<stdin>" && stdinName != "" {
+				name = stdinName
 			}
 
 			var items []langsym.Symbol
@@ -50,10 +56,7 @@ func completeCommand() *cc.Command {
 			if member, ok := memberCompletions(string(data), offset); ok {
 				items = member
 			} else {
-				fs := source.NewFileSet()
-				sf := fs.AddFileData(name, -1, data)
-				po := &parser.ParserOptions{Mode: parser.ParseComments}
-				file, perr := parser.NewParserWithOptions(sf, po, nil).ParseFile()
+				file, sf, perr := langsymParse(name, data)
 				if perr != nil {
 					return perr
 				}
