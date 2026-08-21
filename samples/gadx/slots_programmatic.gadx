@@ -14,50 +14,22 @@ empty function) as its first argument. Append the component's own result with
 `tag += …`.
 **/
 
-@export comp box(;slots={})
-    div
-        @slot main
-            span default
+@export comp box(; slots={})
+	div
+		@slot main
+			span default
 
-@export comp list(items;slots={})
-    ul
-        @for i, it in items
-            li
-                @slot row(i, it)
-                    {=i}: {=it}
+@export comp list(items; slots={})
+	ul
+		@for i, it in items
+			li
+				@slot row(i, it)
+					| {= i }: {= it }
 
 @main
-    //- 1) equivalent to: +box { @slot #main { b hi; +super } }
-    ~~
-    tag += box(; slots={
-        main: func(super) {
-            tag := gadx.Tag()
-            gadx.Text(tag, raw "<b>hi</b>")
-            tag += super(func(*_){})     // render the default (super's super = empty)
-            return tag
-        },
-    })
-    ~~
-
-    //- 2) a scoped slot, ignoring super — receives (super, i, it)
-    ~~
-    tag += list(["a", "b"]; slots={
-        row: func(super, i, it) {
-            tag := gadx.Tag()
-            gadx.Text(tag, raw "<b>" + it + "</b>")
-            return tag
-        },
-    })
-    ~~
-
-    //- 3) a scoped slot forwarding the scope to super: super(empty, i, it)
-    ~~
-    tag += list(["a", "b"]; slots={
-        row: func(super, i, it) {
-            tag := gadx.Tag()
-            gadx.Text(tag, raw "* ")
-            tag += super(func(*_){}, i, it)
-            return tag
-        },
-    })
-    ~~
+	//- 1) equivalent to: +box { @slot #main { b hi; +super } }
+	~ tag += box(; slots={ main(super) {tag := gadx.Tag(); gadx.Text(tag, raw "<b>hi</b>"); tag += super(func(*_) {}); return tag} })
+	//- 2) a scoped slot, ignoring super — receives (super, i, it)
+	~ tag += list(["a", "b"]; slots={ row(super, i, it) {tag := gadx.Tag(); gadx.Text(tag, ((raw "<b>" + it) + "</b>")); return tag} })
+	//- 3) a scoped slot forwarding the scope to super: super(empty, i, it)
+	~ tag += list(["a", "b"]; slots={ row(super, i, it) {tag := gadx.Tag(); gadx.Text(tag, raw "* "); tag += super(func(*_) {}, i, it); return tag} })

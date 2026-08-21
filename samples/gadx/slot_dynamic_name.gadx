@@ -11,23 +11,22 @@ Here each row of `list` declares its own slot `item[{i}]`, so a caller can
 override an individual row by its computed name.
 **/
 
-@comp list(items;slots={})
-    @for i, it in items
-        @slot "item[{i}]"(it)
-            li {= it }
+@comp list(items; slots={})
+	@for i, it in items
+		@slot "item[{i}]"(it)
+			li {= it }
 
 @main
-    ul
-        //- default rows
-        +list(["a", "b", "c"])
-
-    ul
-        //- Call-block `~` code is hoisted to call scope, before the slot passes,
-        //- so an interpolated slot name may reference it.
-        +list(["a", "b", "c"])
-            ~ const target = 1
-
-            //- override only row `target`, rendering the default via +super(it)
-            @slot #"item[{target}]"(super, it)
-                li.hit {= it }*
-                +super(it)
+	ul
+		//- default rows
+		+list(["a", "b", "c"])
+	ul
+		//- Call-block `~` code is hoisted to call scope, before the slot passes,
+		//- so an interpolated slot name may reference it.
+		+list(["a", "b", "c"])
+			~ const target = 1
+			@slot #main(*args; **kwargs)
+				//- override only row `target`, rendering the default via +super(it)
+			@slot #"item[{target}]"(super, it)
+				li[class="hit"] {= it }*
+				+super(it)

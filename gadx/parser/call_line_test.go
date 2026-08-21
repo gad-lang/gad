@@ -115,3 +115,18 @@ func TestFormatSlotScope(t *testing.T) {
 		t.Fatalf("empty scope should be suppressed:\n%s", out)
 	}
 }
+
+// TestFormatFileDocStandalone: a `/** … **/` block doc separated from the first
+// directive by a blank line is a file/section doc and must keep that blank line
+// (otherwise it re-attaches to the directive as its own doc — changing the
+// parse). A doc immediately before a directive (no blank) stays attached.
+func TestFormatFileDocStandalone(t *testing.T) {
+	standalone := transpileGadx(t, "/** file doc **/\n\n@comp a()\n    p x\n")
+	if !strings.Contains(standalone, "/** file doc **/\n\n@comp a()") {
+		t.Fatalf("file doc should keep its blank line:\n%s", standalone)
+	}
+	attached := transpileGadx(t, "/** comp doc **/\n@comp a()\n    p x\n")
+	if !strings.Contains(attached, "/** comp doc **/\n@comp a()") {
+		t.Fatalf("attached doc should stay attached:\n%s", attached)
+	}
+}

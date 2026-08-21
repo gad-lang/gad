@@ -220,29 +220,44 @@ func (f *File) WriteGadx(ctx *GadxCodeWriteContext) {
 	}
 }
 
-// blankBefore marks the statements that should be preceded by a blank line: each
-// top-level block directive that is not the first, credited to the start of its
-// leading comment run so the blank lands before the comment, not between the
-// comment and the directive.
+// blankBefore marks the statements that should be preceded by a blank line:
+//   - each top-level block directive that is not the first, credited to the
+//     start of its leading `//`/`//-` comment run so the blank lands before the
+//     comment (which documents the directive), not between them;
+//   - a directive (or any statement) immediately following a standalone
+//     `/** … **/` block-doc comment, so the doc stays a file/section doc rather
+//     than re-attaching to the directive as its own doc (which changes the
+//     parse: a blank line is what keeps a leading block doc standalone).
 func blankBefore(stmts gnode.Stmts) []bool {
 	blank := make([]bool, len(stmts))
 	for i, s := range stmts {
-		if !isBlockDirective(s) {
-			continue
-		}
-		start := i
-		for start > 0 {
-			if _, ok := stmts[start-1].(*CommentStmt); !ok {
-				break
+		if isBlockDirective(s) {
+			start := i
+			for start > 0 {
+				// A standalone block-doc comment is a section/file doc, not part
+				// of the directive's attached `//-` run — stop before it.
+				if c, ok := stmts[start-1].(*CommentStmt); !ok || isStandaloneDoc(c) {
+					break
+				}
+				start--
 			}
-			start--
+			if start > 0 {
+				blank[start] = true
+			}
 		}
-		if start > 0 {
-			blank[start] = true
+		// Keep a blank line after a standalone block-doc comment.
+		if i > 0 {
+			if c, ok := stmts[i-1].(*CommentStmt); ok && isStandaloneDoc(c) {
+				blank[i] = true
+			}
 		}
 	}
 	return blank
 }
+
+// isStandaloneDoc reports whether a comment is a `/** … **/` block-doc comment
+// (which, when it appears as its own top-level statement, is a file/section doc).
+func isStandaloneDoc(c *CommentStmt) bool { return c.Block && c.Doc }
 
 // isBlockDirective reports whether a top-level statement is a declaration
 // directive that should be preceded by a blank line when it is not the first.

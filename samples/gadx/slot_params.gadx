@@ -7,23 +7,21 @@ to it (`+super(i, item)`) to render the component's default for that row.
 **/
 
 @export comp list(items)
-    ul
-        @for i, item in items
-            li
-                @slot row(i, item)
-                    {= i }: {= item }
+	ul
+		@for i, item in items
+			li
+				@slot row(i, item)
+					| {= i }: {= item }
 
 @main
-    //- 1) defaults — the component renders each row itself
-    +list(["a", "b"])
-
-    //- 2) override the scoped slot, using the (i, item) it passes
-    +list(["a", "b"])
-        @slot #row(i, item)
-            b {= item }
-
-    //- 3) override, then render the default via super, forwarding the scope
-    +list(["a", "b"])
-        @slot #row(super, i, item)
-            em ★
-            +super(i, item)
+	//- 1) defaults — the component renders each row itself
+	+list(["a", "b"])
+	//- 2) override the scoped slot, using the (i, item) it passes
+	+list(["a", "b"])
+		@slot #row(i, item)
+			b {= item }
+	//- 3) override, then render the default via super, forwarding the scope
+	+list(["a", "b"])
+		@slot #row(super, i, item)
+			em ★
+			+super(i, item)
