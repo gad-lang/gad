@@ -319,15 +319,39 @@ escapes only `'`, so framework expressions keep their double quotes and operator
 
 ## Code Block
 
-Use `~~` for Gad source sections.
+A single `~` line is one Gad statement. It is **not** limited to one physical
+line: it continues across lines until its brackets `()`/`[]`/`{}` balance, so a
+call or func literal can span several lines:
+
+```gadx
+@main
+    ~ items := ["a", "b", "c"]
+    ~ t.run("group", func(t) {
+        t.equal(1, 1)
+    })
+```
+
+Use `~~ … ~~` for a block of several statements (or when you prefer an explicit
+block):
 
 ```gadx
 ~~
 const title = "Hello"
+const items = ["a", "b"]
 ~~
 
 @main
     h1 {= title}
+```
+
+A `+comp(…)` component call likewise reads across lines until its parentheses
+close, so its arguments may be written one per line:
+
+```gadx
++card(;
+    title = "Hello",
+    body = "…",
+)
 ```
 
 ## Variables And Assignment
@@ -569,22 +593,45 @@ or an inline `interface { … }`), enforced when the template is invoked.
 
 `@test NAME` is the Gadx form of Gad’s `test NAME { … }`. `gad test` discovers
 every `@test` in a `*_test.gadx` file and runs it with an injected `t` test
-context (the same assertions as `_test.gad`: `t.equal`, `t.true`, `t.nil`,
-`t.error`, `t.run`, …). Write assertions in `~` code.
+context (the same assertions as `_test.gad`: `t.equal`, `t.true`, `t.false`,
+`t.nil`, `t.error`, `t.run`, …).
 
 To assert a component’s HTML, render it with the `gadx.render(el)` builtin — it
 renders a tag / component result to its string.
+
+### Calling the test context
+
+There are two ways to invoke `t` (or any callable):
+
+- `! callee arg1 arg2 …` — the **fluent call statement** (idiomatic in tests).
+  It lowers to `callee(arg1, arg2, …)`. Each space-separated part is one
+  argument; whitespace inside `()`/`[]`/`{}`/quotes does not split a part, so an
+  argument that itself contains spaces (operators) is **parenthesized**:
+  `! t.true (a == b)`. It works with any callable — `! t.equal …`, `! myAssert …`.
+- `~ callee(arg1, arg2, …)` — a plain `~` code line with the explicit call. Use
+  it for anything the fluent form does not cover: locals, richer expressions, or
+  a function-literal argument. A `~` line spans several lines until its brackets
+  balance (so `~ t.run("x", func(t) { … })` works); use a `~~` block for several
+  independent statements.
 
 ```gadx
 @comp greeting(; name = "world")
     span Hello {= name }
 
+//- fluent `!` form — the idiomatic style
 @test renders_with_name
-    ~ t.equal(gadx.render(greeting(; name = "Gad")), "<span>Hello Gad</span>")
+    ! t.equal gadx.render(greeting(; name = "Gad")) "<span>Hello Gad</span>"
 
-@test plain_assertions
-    ~ t.true(1 + 1 == 2)
-    ~ t.nil(nil)
+@test boolean_and_nil
+    ! t.true (1 + 1 == 2)
+    ! t.false (1 == 2)
+    ! t.nil nil
+
+//- explicit `~` form — for locals or several steps
+@test explicit_form
+    ~ html := gadx.render(greeting())
+    ~ t.equal(html, "<span>Hello world</span>")
+    ~ t.true(len(html) > 0)
 ```
 
 Run them with:

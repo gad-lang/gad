@@ -444,6 +444,15 @@ func (t *TestDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.Depth--
 }
 
+func (s *CallLineStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	parts := make([]string, 0, len(s.Args)+1)
+	parts = append(parts, ctx.gadExpr(s.Callee))
+	for _, a := range s.Args {
+		parts = append(parts, ctx.gadExpr(a))
+	}
+	ctx.WriteLine("! " + strings.Join(parts, " "))
+}
+
 func (s *MatchStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.WriteLine("@match " + ctx.gadCond(s.Tag))
 	ctx.Depth++
@@ -544,4 +553,5 @@ var (
 	_ GadxCoder = (*ParamStmt)(nil)
 	_ GadxCoder = (*ExportStmt)(nil)
 	_ GadxCoder = (*TestDecl)(nil)
+	_ GadxCoder = (*CallLineStmt)(nil)
 )

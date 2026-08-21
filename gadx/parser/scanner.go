@@ -200,6 +200,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanDoctype(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanCall(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanCondition(); tok.Valid() {
 			return tok
 		}
@@ -419,14 +422,76 @@ var rgxCode = regexp.MustCompile(`^\s*~\s+(.+)$`)
 func (s *scanner) scanCode() gadparser.PToken {
 	if sm := rgxCode.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
+		content := sm[1]
+
+		// `~` is GAD code: when the line has an open `(`/`[`/`{` (e.g. a call or a
+		// func literal spanning several lines), keep reading continuation lines
+		// until the brackets balance, so `~ t.run("x", func(t) {` … `})` works as
+		// one statement — the same way `+EXPR` (component call) does.
+		if bracketDepth(content) > 0 {
+			pt := s.newToken(gadxtoken.Code, "", "")
+			lines := []string{content}
+			positions := []source.Pos{pt.Pos + source.Pos(len(sm[0])-len(content))}
+			depth := bracketDepth(content)
+			for depth > 0 {
+				s.ensureBuffer()
+				if s.state == gadxtoken.ScnEOF {
+					break
+				}
+				line := s.buffer
+				s.consume(len(s.buffer))
+				lines = append(lines, line)
+				positions = append(positions, s.lastTokenPos)
+				depth += bracketDepth(line)
+			}
+			// A multi-line Code token is signalled by an empty Literal (like `~~`).
+			pt.Set("values", lines)
+			pt.Set("valuePos", positions)
+			return pt
+		}
+
 		pt := s.newToken(gadxtoken.Code, sm[0], "")
-		pt.Set("values", []string{sm[1]})
+		pt.Set("values", []string{content})
 		// Absolute position of the code content (sm[1]) so parseCode can map
 		// the parsed statement back onto the original source line/column.
-		pt.Set("valuePos", []source.Pos{pt.Pos + source.Pos(len(sm[0])-len(sm[1]))})
+		pt.Set("valuePos", []source.Pos{pt.Pos + source.Pos(len(sm[0])-len(content))})
 		return pt
 	}
 	return gadparser.PToken{}
+}
+
+// bracketDepth returns the net open-bracket depth of s — `(`/`[`/`{` minus
+// `)`/`]`/`}` — ignoring anything inside single/double/back quotes. A positive
+// result means the line has unclosed brackets (its statement continues).
+func bracketDepth(s string) int {
+	var (
+		depth   int
+		quote   byte
+		escaped bool
+	)
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		}
+	}
+	return depth
 }
 
 var rgxMCode = regexp.MustCompile(`^\s*~~\s*$`)
@@ -753,7 +818,15 @@ func (s *scanner) readBalanced(start int, open, close byte) (string, int, bool) 
 	depth := 0
 	inString := byte(0)
 	escaped := false
-	for i := start; i < len(s.buffer); i++ {
+	for i := start; ; i++ {
+		// The group may span several lines (e.g. a `+comp(…)` call with one
+		// argument per line): when the scan reaches the end of the buffer with the
+		// brackets still open, pull the next source line in and keep going.
+		if i >= len(s.buffer) {
+			if !s.pullLine() {
+				return "", start, false
+			}
+		}
 		c := s.buffer[i]
 		if inString != 0 {
 			if escaped {
@@ -781,7 +854,24 @@ func (s *scanner) readBalanced(start int, open, close byte) (string, int, bool) 
 			}
 		}
 	}
-	return "", start, false
+}
+
+// pullLine appends the next source line to the buffer (joined with a newline),
+// returning false at EOF. Used to continue scanning a construct that spans
+// several lines (a multi-line `(…)` group). Mirrors the line-pulling in
+// scanBlockComment.
+func (s *scanner) pullLine() bool {
+	buf, err := s.reader.ReadString('\n')
+	if len(buf) == 0 {
+		return false
+	}
+	s.offset += len(buf)
+	if buf[len(buf)-1] == '\n' {
+		buf = buf[:len(buf)-1]
+	}
+	s.buffer += "\n" + buf
+	s.line++
+	return err == nil || len(buf) > 0
 }
 
 // readQuotedName reads a `"…"` interpolated name string beginning at start
@@ -1232,6 +1322,19 @@ func (s *scanner) scanMatch() gadparser.PToken {
 	return gadparser.PToken{}
 }
 
+var rgxCall = regexp.MustCompile(`^!\s+(.+?)\s*$`)
+
+// scanCall matches a `! recv.method arg1 arg2 …` fluent call statement: a `!`,
+// whitespace, then a callable expression followed by space-separated arguments.
+// The leading whitespace distinguishes it from the `!!! …` doctype.
+func (s *scanner) scanCall() gadparser.PToken {
+	if sm := rgxCall.FindStringSubmatch(s.buffer); len(sm) != 0 {
+		s.consume(len(sm[0]))
+		return s.newToken(gadxtoken.Call, sm[0], sm[1])
+	}
+	return gadparser.PToken{}
+}
+
 var rgxTest = regexp.MustCompile(`^@test\s+(.+?)\s*$`)
 
 // scanTest matches a `@test NAME` directive (NAME is a bare identifier or a
@@ -1286,7 +1389,10 @@ func (s *scanner) scanCompCall() gadparser.PToken {
 			return gadparser.PToken{}
 		}
 		args = balanced[1 : len(balanced)-1]
-		tail := strings.TrimSpace(line[end:])
+		// readBalanced may have pulled continuation lines into s.buffer (a
+		// multi-line `(…)` call), so index the current buffer, not the stale
+		// first-line snapshot.
+		tail := strings.TrimSpace(s.buffer[end:])
 		switch tail {
 		case "":
 		case "~":
@@ -1294,9 +1400,9 @@ func (s *scanner) scanCompCall() gadparser.PToken {
 		default:
 			return gadparser.PToken{}
 		}
-		consumed = len(line)
+		consumed = len(s.buffer)
 	}
-	lit := line[:consumed]
+	lit := s.buffer[:consumed]
 	s.consume(consumed)
 	pt := s.newToken(gadxtoken.CompCall, lit, name)
 	pt.Set("args", args)

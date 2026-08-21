@@ -931,6 +931,27 @@ func (t *TestDecl) WriteCode(ctx *gnode.CodeWriteContext) {
 	ctx.WriteStmts(convertTestDecl(t)...)
 }
 
+// CallLineStmt — `! recv.method arg1 arg2 …` fluent call statement, lowering to
+// `recv.method(arg1, arg2, …)`.
+// =============================================================================
+
+type CallLineStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Callee  gnode.Expr   // the callable expression (e.g. `t.equal`, `myfunc`)
+	Args    []gnode.Expr // the space-separated arguments
+}
+
+func (s *CallLineStmt) Pos() source.Pos { return s.NodePos }
+func (s *CallLineStmt) End() source.Pos { return s.NodeEnd }
+func (s *CallLineStmt) StmtNode()       {}
+func (s *CallLineStmt) String() string  { return "gadx.Call" }
+
+func (s *CallLineStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertCallLine(s)...)
+}
+
 // =============================================================================
 // Helpers
 // =============================================================================

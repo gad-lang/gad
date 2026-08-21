@@ -168,6 +168,8 @@ func convertStmt(s gnode.Stmt) gnode.Stmts {
 		return convertExport(st)
 	case *TestDecl:
 		return convertTestDecl(st)
+	case *CallLineStmt:
+		return convertCallLine(st)
 	case *SlotDecl:
 		return convertSlot(st)
 	case *SlotPassStmt:
@@ -309,6 +311,13 @@ func convertTestDecl(t *TestDecl) gnode.Stmts {
 		Quoted: t.Quoted,
 		Body:   gnode.SBlock(t.Pos(), t.End(), body...),
 	}}
+}
+
+// convertCallLine lowers `! callee arg1 arg2 …` to the call statement
+// `callee(arg1, arg2, …)`.
+func convertCallLine(s *CallLineStmt) gnode.Stmts {
+	call := gnode.ECall(s.Callee, s.Pos(), s.End(), gnode.NewCallExprArgs(nil, s.Args...))
+	return gnode.Stmts{gnode.SExpr(call)}
 }
 
 func recursiveFuncStmts(name string, fn *gnode.FuncExpr, pos source.Pos) gnode.Stmts {

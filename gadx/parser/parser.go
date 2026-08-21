@@ -155,6 +155,8 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		return p.parseMdBlock()
 	case gadxtoken.Test:
 		return p.parseTest()
+	case gadxtoken.Call:
+		return p.parseCall()
 	case gadxtoken.HTML:
 		return p.parseHTML()
 	case gadxtoken.Tag:
@@ -432,6 +434,98 @@ func (p *Parser) parseMdBlock() *gadxnode.MdBlockStmt {
 		}
 	}
 	return mb
+}
+
+// parseCall parses a `! callee arg1 arg2 …` fluent call statement into
+// `callee(arg1, arg2, …)`. The first space-separated part is the callable
+// expression; the rest are arguments. Whitespace inside parentheses, brackets,
+// braces or quotes does not split a part.
+func (p *Parser) parseCall() *gadxnode.CallLineStmt {
+	tok := p.Token
+	p.expect(gadxtoken.Call)
+
+	content := stringData(tok, "value", "")
+	base := tok.Pos + source.Pos(strings.Index(string(tok.Literal), content))
+	st := &gadxnode.CallLineStmt{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+	}
+	for i, span := range splitCallParts(content) {
+		expr := parseExprStr(content[span.start:span.end], base+source.Pos(span.start))
+		if i == 0 {
+			st.Callee = expr
+		} else {
+			st.Args = append(st.Args, expr)
+		}
+	}
+	return st
+}
+
+// splitCallParts splits s into whitespace-separated parts, ignoring whitespace
+// inside parentheses, brackets, braces or quotes.
+func splitCallParts(s string) []attrSpan {
+	var spans []attrSpan
+	var (
+		paren, bracket, brace int
+		quote                 byte
+		escaped               bool
+		start                 = -1
+	)
+	flush := func(end int) {
+		if start >= 0 {
+			spans = append(spans, attrSpan{start, end})
+			start = -1
+		}
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"', '`':
+			if start < 0 {
+				start = i
+			}
+			quote = c
+		case '(':
+			paren++
+		case ')':
+			if paren > 0 {
+				paren--
+			}
+		case '[':
+			bracket++
+		case ']':
+			if bracket > 0 {
+				bracket--
+			}
+		case '{':
+			brace++
+		case '}':
+			if brace > 0 {
+				brace--
+			}
+		case ' ', '\t', '\n', '\r':
+			if paren == 0 && bracket == 0 && brace == 0 {
+				flush(i)
+				continue
+			}
+		}
+		if start < 0 && c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+			start = i
+		}
+	}
+	flush(len(s))
+	return spans
 }
 
 // parseTest parses a `@test NAME` block and its indented body. NAME is a bare

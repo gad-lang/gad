@@ -42,6 +42,7 @@ const (
 	Para      // @p — paragraph block
 	Md        // @md — Markdown block
 	Test      // @test — test block (lowers to Gad `test NAME { … }`)
+	Call      // `! recv.method arg1 arg2` — fluent call statement
 	tokMax
 )
 
@@ -83,6 +84,7 @@ var tokNames = [...]string{
 	Para:         "PARA",
 	Md:           "MD",
 	Test:         "TEST",
+	Call:         "CALL",
 }
 
 // String returns a human-readable name for a gadx token.
