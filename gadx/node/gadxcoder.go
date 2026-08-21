@@ -376,7 +376,13 @@ func (c *CompCallStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *SlotDecl) WriteGadx(ctx *GadxCodeWriteContext) {
-	line := "@slot " + s.Name
+	name := s.Name
+	if s.NameExpr != nil {
+		// A dynamic (interpolated) name — `@slot "item[{i}]"` — must stay quoted;
+		// emitting the bare name does not re-parse as a dynamic slot.
+		name = `"` + s.Name + `"`
+	}
+	line := "@slot " + name
 	if s.Scope != nil {
 		line += s.Scope.String()
 	}
@@ -388,7 +394,9 @@ func (s *SlotDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 
 func (s *SlotPassStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	line := "@slot #"
-	if s.Name != nil {
+	if s.NameExpr != nil && s.Name != nil {
+		line += `"` + s.Name.String() + `"` // dynamic pass name stays quoted
+	} else if s.Name != nil {
 		line += s.Name.String()
 	}
 	if s.FuncType != nil && s.FuncType.Params.LParen.IsValid() {
