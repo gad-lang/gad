@@ -49,7 +49,7 @@ func TestFormatSourceGadxDispatch(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
 	out, err := o.formatSource("x.gadx", src, false)
 	require.NoError(t, err)
-	require.Contains(t, out, "@comp main()")
+	require.Contains(t, out, "@main")
 	require.Contains(t, out, "\tdiv")
 	require.Contains(t, out, "a ? b : c")
 	require.NotContains(t, out, "a?b:c")

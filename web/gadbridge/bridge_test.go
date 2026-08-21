@@ -50,7 +50,7 @@ func TestFormatSourceGadx(t *testing.T) {
 	if !r.OK {
 		t.Fatalf("not ok: %v", r.Diagnostics)
 	}
-	for _, want := range []string{"@comp main()", "h1", "@for (i in [1, 2, 3])"} {
+	for _, want := range []string{"@main", "h1", "@for i in [1, 2, 3]"} {
 		if !strings.Contains(r.Source, want) {
 			t.Fatalf("gadx format missing %q:\n%s", want, r.Source)
 		}

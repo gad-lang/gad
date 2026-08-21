@@ -1055,12 +1055,19 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 		if !res.OK {
 			return "", fmt.Errorf("%s: %s", name, gadxDiagMessage(res.Diagnostics))
 		}
-		// Safety net: since `gad fmt` rewrites in place, never emit output that
-		// does not round-trip. Re-format the result; a correct formatting is
-		// stable, so if the second pass fails or differs the formatter could not
-		// faithfully round-trip this file — leave it unchanged and report.
+		// Safety net (since `gad fmt` rewrites in place): never emit output that
+		// (1) does not round-trip textually, or (2) changes the file's meaning.
+		// The second check compares the Gad code the original and the formatted
+		// source lower to — a semantic-equivalence guard that catches formatter
+		// bugs a text round-trip cannot (idempotent output that still lowers
+		// differently). Either failure leaves the file unchanged and reports.
 		if again := gadbridge.FormatGadx(res.Source, gopts); !again.OK || again.Source != res.Source {
 			return "", fmt.Errorf("%s: refusing to rewrite — the Gadx formatter does not round-trip this file", name)
+		}
+		before, ok1 := gadbridge.GadxLowered(rest)
+		after, ok2 := gadbridge.GadxLowered(res.Source)
+		if !ok1 || !ok2 || before != after {
+			return "", fmt.Errorf("%s: refusing to rewrite — formatting would change the Gadx semantics", name)
 		}
 		return shebang + res.Source, nil
 	}

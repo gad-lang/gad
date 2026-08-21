@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	gnode "github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/token"
 )
 
 // =============================================================================
@@ -83,6 +84,62 @@ func (c *GadxCodeWriteContext) gadExpr(e gnode.Expr) string {
 		return ""
 	}
 	return c.gadCode(e)
+}
+
+// forCond renders a `@for` condition in its canonical gadx form. The gadx
+// parser parses the header as a plain expression, so `@for k, v in it` is stored
+// as an array `[k, v in it]` (and `@for v in it` as a binary `v in it`); the
+// lowering (convertFor) recognizes those shapes. Rendering the stored expression
+// verbatim would parenthesize the `in` (`[k, (v in it)]`), which the lowering no
+// longer recognizes — breaking semantics. So reconstruct the header explicitly.
+func (ctx *GadxCodeWriteContext) forCond(cond gnode.Expr) string {
+	if k, v, iter, ok := forInPair(cond); ok {
+		return ctx.gadExpr(k) + ", " + ctx.gadExpr(v) + " in " + ctx.gadExpr(iter)
+	}
+	if bin, ok := cond.(*gnode.BinaryExpr); ok && bin.Token == token.In {
+		if _, ok := bin.LHS.(*gnode.IdentExpr); ok {
+			return ctx.gadExpr(bin.LHS) + " in " + ctx.gadExpr(bin.RHS)
+		}
+	}
+	return ctx.gadCond(cond) // C-style `i := 0; i < n; i++` or any other form
+}
+
+// forInPair extracts (key, value, iterable) from the `[key, value in iterable]`
+// shape the parser produces for `@for key, value in iterable` — an ArrayExpr or
+// MultiParenExpr of two elements whose second is `value in iterable`.
+func forInPair(cond gnode.Expr) (key, val, iter gnode.Expr, ok bool) {
+	var elems []gnode.Expr
+	switch c := cond.(type) {
+	case *gnode.ArrayExpr:
+		elems = c.Elements
+	case *gnode.MultiParenExpr:
+		elems = c.PositionalElements
+	default:
+		return nil, nil, nil, false
+	}
+	if len(elems) != 2 {
+		return nil, nil, nil, false
+	}
+	if _, ok := elems[0].(*gnode.IdentExpr); !ok {
+		return nil, nil, nil, false
+	}
+	bin := unwrapParen(elems[1])
+	b, isBin := bin.(*gnode.BinaryExpr)
+	if !isBin || b.Token != token.In {
+		return nil, nil, nil, false
+	}
+	if _, ok := b.LHS.(*gnode.IdentExpr); !ok {
+		return nil, nil, nil, false
+	}
+	return elems[0], b.LHS, b.RHS, true
+}
+
+// unwrapParen strips a single enclosing ParenExpr.
+func unwrapParen(e gnode.Expr) gnode.Expr {
+	if p, ok := e.(*gnode.ParenExpr); ok && p.Expr != nil {
+		return p.Expr
+	}
+	return e
 }
 
 // gadCond renders a directive condition (`@if` / `@for` / `@match` / `@case`).
@@ -525,7 +582,7 @@ func (s *IfStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *ForStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteLine("@for " + ctx.gadCond(s.Cond))
+	ctx.WriteLine("@for " + ctx.forCond(s.Cond))
 	ctx.Depth++
 	ctx.WriteStmts(s.Body)
 	ctx.Depth--
@@ -567,9 +624,24 @@ func (f *FuncDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 
 func (c *CompDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 	writeDoc(ctx, c.Doc)
-	line := "@comp " + c.Name
+	// `@main` is the anonymous entry component (auto-rendered): it must not be
+	// re-emitted as `@comp main()`, which would define an unused component and
+	// render nothing. `@export comp` marks an exported component.
+	var line string
+	switch {
+	case c.Main:
+		line = "@main"
+	case c.Exported:
+		line = "@export comp " + c.Name
+	default:
+		line = "@comp " + c.Name
+	}
 	if c.Params != nil {
-		line += c.Params.String()
+		// Suppress an empty `()` on `@main` (the entry block reads globals, not
+		// params) so it stays the canonical bare `@main`.
+		if p := c.Params.String(); !(c.Main && p == "()") {
+			line += p
+		}
 	}
 	ctx.WriteLine(line)
 	ctx.Depth++

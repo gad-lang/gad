@@ -179,6 +179,25 @@ func formatGadx(src string) FormatResult {
 	return FormatGadx(src, GadxFormatOptions{})
 }
 
+// GadxLowered returns the Gad code a Gadx source lowers to — i.e. its semantics —
+// or ("", false) when it does not parse. It uses the SAME lowering the compiler
+// uses (gad.TranspileGadxSource → ConvertFile), so comparing the lowering of the
+// original and the formatted source is a faithful semantic-equivalence check:
+// formatting is only safe to write when the lowered Gad is unchanged. This is a
+// stronger guard than a text round-trip (which can be idempotent while silently
+// changing meaning) and than the node WriteCode lowering (which diverges from
+// the compiler for slots/`@for`).
+func GadxLowered(src string) (string, bool) {
+	out, err := gad.TranspileGadxSource(sourceName+".gadx", []byte(src))
+	if err != nil {
+		return "", false
+	}
+	// Trim edge artifacts (a leading empty statement `; …` from a blank line and
+	// edge whitespace); internal `;` runs are left intact so a real semantic
+	// change is never hidden.
+	return strings.Trim(string(out), "; \t\n"), true
+}
+
 // Transpile rewrites a Gad source into plain Gad with template text and
 // `{%= … %}` expressions turned into write(...) calls, using the default
 // gad.TranspileOptions unless overridden. When mixed is set the source is parsed
