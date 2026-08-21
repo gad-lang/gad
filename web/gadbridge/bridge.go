@@ -199,12 +199,22 @@ func GadxLowered(src string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	// Normalize position-derived synthetic slot names so a mere offset shift is
-	// not read as a semantic change, then trim edge artifacts (a leading empty
-	// statement `; …` and edge whitespace). Internal `;` runs are left intact so
-	// a real semantic change is never hidden.
+	// Normalize benign, non-semantic artifacts of the lowering so a reformat that
+	// preserves meaning is not refused:
+	//   - position-derived synthetic slot names ($slotN / $$slotsN / slots.dN),
+	//     whose numbers shift with offsets;
+	//   - blank lines (empty statements from blank lines in the source).
+	// Code content is left untouched, so a real change is never hidden.
 	normalized := gadxSyntheticID.ReplaceAllString(string(out), "${1}#")
-	return strings.Trim(normalized, "; \t\n"), true
+	var b strings.Builder
+	for _, line := range strings.Split(normalized, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	return b.String(), true
 }
 
 // Transpile rewrites a Gad source into plain Gad with template text and
