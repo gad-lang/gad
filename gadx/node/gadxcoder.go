@@ -145,7 +145,28 @@ type GadxCoder interface {
 // =============================================================================
 
 func (f *File) WriteGadx(ctx *GadxCodeWriteContext) {
-	ctx.WriteStmts(f.Stmts)
+	// Separate top-level declaration directives (`@comp`, `@func`, `@param`,
+	// `@test`, …) with a blank line, like Go separates top-level decls. The blank
+	// line goes before the node — hence before its doc comment.
+	for i, stmt := range f.Stmts {
+		if gc, ok := stmt.(GadxCoder); ok {
+			if i > 0 && isBlockDirective(stmt) {
+				ctx.write("\n")
+			}
+			gc.WriteGadx(ctx)
+		}
+	}
+}
+
+// isBlockDirective reports whether a top-level statement is a declaration
+// directive that should be preceded by a blank line when it is not the first.
+func isBlockDirective(s gnode.Stmt) bool {
+	switch s.(type) {
+	case *CompDecl, *FuncDecl, *ParamStmt, *GlobalStmt, *VarStmt, *ConstStmt,
+		*EnumStmt, *ExportStmt, *TestDecl, *SlotDecl:
+		return true
+	}
+	return false
 }
 
 func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
@@ -230,17 +251,149 @@ func (t *ParaBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) { ctx.writeRawBlock
 func (t *MdBlockStmt) WriteGadx(ctx *GadxCodeWriteContext)   { ctx.writeRawBlock("@md", t.Body) }
 
 func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	// Attributes are written inline on the tag line (`div.card[href=x]`), the
-	// canonical gadx form; emitting them as separate indented lines does not
-	// re-parse. The body/text follows indented below.
-	line := t.Name
-	for _, attr := range t.Attributes {
-		line += attr.fragment(ctx)
+	// Attributes merge into a single `[a=v, b=x]` group (canonical gadx); spread
+	// and conditional attributes keep their own group (their `? cond` is
+	// group-scoped). The result is written inline on the tag line.
+	groups := ctx.attrGroups(t.Attributes)
+	inline := t.Name
+	for _, g := range groups {
+		inline += g.inline()
 	}
-	ctx.WriteLine(line)
+
+	if !ctx.overflows(inline) {
+		// A tag whose whole body is a single short text run is written inline as
+		// `tag text` (so `<span>one</span>` → `span one`, not `span` + `| one`).
+		if text, ok := ctx.inlineTagText(t.Body); ok && !ctx.overflows(inline+" "+text) {
+			ctx.WriteLine(inline + " " + text)
+			return
+		}
+		ctx.WriteLine(inline)
+	} else {
+		// Overflow: wrap the merged attribute group one item per line.
+		ctx.writeWrappedTag(t.Name, groups)
+	}
 	ctx.Depth++
 	ctx.WriteStmts(t.Body)
 	ctx.Depth--
+}
+
+// attrGroup is either a merged group (comma-joined items) or a raw `[…]` group
+// (a spread or conditional attribute that must stay on its own).
+type attrGroup struct {
+	items  []string
+	raw    string
+	merged bool
+}
+
+func (g attrGroup) inline() string {
+	if g.merged {
+		return "[" + strings.Join(g.items, ", ") + "]"
+	}
+	return g.raw
+}
+
+// mergeable reports whether the attribute can be combined into a shared bracket
+// group: it has no group-scoped condition and is not a spread.
+func (a *TagAttribute) mergeable() bool { return a.Condition == nil && a.Spread == nil }
+
+// inner renders the attribute as a bracket-group item (`name`, `name=value`),
+// without the surrounding `[ ]`.
+func (a *TagAttribute) inner(ctx *GadxCodeWriteContext) string {
+	s := a.Name
+	if !a.IsFlag && a.Value != nil {
+		s += "=" + ctx.gadExpr(a.Value)
+	}
+	return s
+}
+
+// attrGroups builds the tag's attribute groups: consecutive mergeable
+// attributes fold into one group (order preserved), each spread/conditional
+// attribute is its own group.
+func (ctx *GadxCodeWriteContext) attrGroups(attrs []*TagAttribute) []attrGroup {
+	var groups []attrGroup
+	var run []string
+	flush := func() {
+		if len(run) > 0 {
+			groups = append(groups, attrGroup{items: run, merged: true})
+			run = nil
+		}
+	}
+	for _, a := range attrs {
+		if a.mergeable() {
+			run = append(run, a.inner(ctx))
+			continue
+		}
+		flush()
+		groups = append(groups, attrGroup{raw: a.fragment(ctx)})
+	}
+	flush()
+	return groups
+}
+
+// writeWrappedTag emits a tag whose attributes overflow the column budget with
+// the merged group expanded one item per line:
+//
+//	div[
+//	    a="v"
+//	    b="x"
+//	]
+//
+// A tag that also has non-mergeable groups is emitted inline (accepting the
+// overflow) rather than reordered.
+func (ctx *GadxCodeWriteContext) writeWrappedTag(name string, groups []attrGroup) {
+	if len(groups) == 1 && groups[0].merged {
+		ctx.WriteLine(name + "[")
+		ctx.Depth++
+		for _, it := range groups[0].items {
+			ctx.WriteLine(it)
+		}
+		ctx.Depth--
+		ctx.WriteLine("]")
+		return
+	}
+	line := name
+	for _, g := range groups {
+		line += g.inline()
+	}
+	ctx.WriteLine(line)
+}
+
+// overflows reports whether the line (at the current indent) exceeds the column
+// budget.
+func (ctx *GadxCodeWriteContext) overflows(line string) bool {
+	max := ctx.MaxColumns
+	if max <= 0 {
+		max = gnode.DefaultMaxColumns
+	}
+	return len(ctx.indent())+len(line) > max
+}
+
+// inlineTagText returns the inline text for a tag body that is a single
+// single-line text run (no interpolation newlines), and whether it qualifies.
+// Such a body is emitted as `tag text` on the tag line rather than an indented
+// `| text`.
+func (ctx *GadxCodeWriteContext) inlineTagText(body gnode.Stmts) (string, bool) {
+	if len(body) != 1 {
+		return "", false
+	}
+	ts, ok := body[0].(*TextStmt)
+	if !ok {
+		return "", false
+	}
+	// Trim edge whitespace exactly as the `| ` text path does, so a tag body that
+	// came from an HTML region (with surrounding whitespace text nodes) inlines to
+	// the same result on every pass (idempotent).
+	text := strings.TrimSpace(ctx.buildMixed(ts.Stmts))
+	if text == "" || strings.ContainsAny(text, "\n") {
+		return "", false
+	}
+	// A leading `|`/`<`/`@`/`!`/`+`/`~` would be re-parsed as a directive rather
+	// than inline text, so keep those on their own `| ` line.
+	switch text[0] {
+	case '|', '<', '@', '!', '+', '~', '.', '#':
+		return "", false
+	}
+	return text, true
 }
 
 // fragment returns the attribute's inline gadx form, to be appended to the tag
@@ -302,9 +455,21 @@ func (c *CommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 
 // writeDoc emits a decl's `/** … **/` doc comment line (gad convention), if any.
 func writeDoc(ctx *GadxCodeWriteContext, doc string) {
-	if doc != "" {
-		ctx.WriteLine("/** " + doc + " **/")
+	if doc == "" {
+		return
 	}
+	// A single-line doc is written compactly as `/** text **/`; a multi-line doc
+	// keeps `/**` and `**/` on their own lines with the text between, so the
+	// opening/closing line breaks survive a round-trip.
+	if !strings.Contains(doc, "\n") {
+		ctx.WriteLine("/** " + doc + " **/")
+		return
+	}
+	ctx.WriteLine("/**")
+	for _, line := range strings.Split(doc, "\n") {
+		ctx.WriteLine(line)
+	}
+	ctx.WriteLine("**/")
 }
 
 func (s *IfStmt) WriteGadx(ctx *GadxCodeWriteContext) {

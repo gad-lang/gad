@@ -28,7 +28,8 @@ func transpileGadx(t *testing.T, src string) string {
 // (tags, `.class`/`#id`, `[attr]` groups, `| text`) rather than raw HTML.
 func TestHtmlWriteGadx(t *testing.T) {
 	out := transpileGadx(t, "@main\n    <a href=\"/x\" title=\"hi\">Home</a>\n")
-	for _, want := range []string{"a", `[href="/x"]`, `[title="hi"]`, "| Home"} {
+	// Attributes merge into one group and a single text body is inlined on the tag.
+	for _, want := range []string{`a[href="/x", title="hi"] Home`} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("transpiled gadx missing %q:\n%s", want, out)
 		}
@@ -55,7 +56,8 @@ func TestHtmlWriteGadxInterleave(t *testing.T) {
 // TestHtmlWriteGadxNested checks nested elements and an interpolated attribute.
 func TestHtmlWriteGadxNested(t *testing.T) {
 	out := transpileGadx(t, "@global u\n@main\n    <ul><li><a href={u}>x</a></li></ul>\n")
-	for _, want := range []string{"ul", "li", "a", "[href=u]", "| x"} {
+	// The innermost `<a href={u}>x</a>` inlines its single text: `a[href=u] x`.
+	for _, want := range []string{"ul", "li", "a[href=u] x"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("transpiled gadx missing %q:\n%s", want, out)
 		}

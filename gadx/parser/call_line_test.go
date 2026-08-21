@@ -31,3 +31,43 @@ func TestCallLine(t *testing.T) {
 		t.Fatalf("not idempotent:\n--- first ---\n%s\n--- second ---\n%s", out, again)
 	}
 }
+
+// TestFormatInlineText: a tag whose whole body is one short text run is inlined
+// as `tag text` (from ERROS.md).
+func TestFormatInlineText(t *testing.T) {
+	out := transpileGadx(t, "@main\n    <span>one</span>\n")
+	if !strings.Contains(out, "span one") || strings.Contains(out, "| one") {
+		t.Fatalf("expected inline `span one`:\n%s", out)
+	}
+}
+
+// TestFormatMergeAttrs: separate attribute groups merge into one, and a long
+// group wraps one item per line (from ERROS.md).
+func TestFormatMergeAttrs(t *testing.T) {
+	merged := transpileGadx(t, "@main\n    div[a=\"v\"][b=\"x\"]\n")
+	if !strings.Contains(merged, `div[a="v", b="x"]`) {
+		t.Fatalf("expected merged group:\n%s", merged)
+	}
+	long := transpileGadx(t, "@main\n    div[alpha=\"1\"][beta=\"2\"][gamma=\"3\"][delta=\"4\"][epsilon=\"5\"][zeta=\"6\"][eta=\"7\"][theta=\"8\"]\n")
+	if !strings.Contains(long, "div[\n") {
+		t.Fatalf("expected wrapped group on overflow:\n%s", long)
+	}
+}
+
+// TestFormatBlankLineBeforeDirective: a blank line separates top-level directive
+// declarations (from ERROS.md).
+func TestFormatBlankLineBeforeDirective(t *testing.T) {
+	out := transpileGadx(t, "@param (; a = 1)\n@comp main()\n    p x\n")
+	if !strings.Contains(out, ")\n\n@comp") {
+		t.Fatalf("expected blank line before @comp:\n%s", out)
+	}
+}
+
+// TestFormatMultilineDoc: a multi-line doc comment keeps `/**` and `**/` on
+// their own lines (the trailing newline before `**/` survives).
+func TestFormatMultilineDoc(t *testing.T) {
+	out := transpileGadx(t, "/**\nline one\nline two\n**/\n@comp main()\n    p x\n")
+	if !strings.Contains(out, "/**\nline one\nline two\n**/") {
+		t.Fatalf("expected block doc form:\n%s", out)
+	}
+}
