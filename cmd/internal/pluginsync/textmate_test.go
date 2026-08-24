@@ -26,7 +26,7 @@ func TestTextMateGrammar(t *testing.T) {
 		}
 	}
 	// Doc-comment scopes must be present.
-	for _, scope := range []string{"comment.block.documentation.gad", "comment.line.documentation.gad"} {
+	for _, scope := range []string{"comment.documentation.block.gad", "comment.documentation.line.gad"} {
 		if !strings.Contains(s, scope) {
 			t.Fatalf("grammar missing scope %q", scope)
 		}

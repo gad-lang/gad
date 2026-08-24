@@ -59,30 +59,37 @@ func TextMateGrammar() ([]byte, error) {
 			// fence (`**/` / `***/`), so inline `**bold**` / `***hr***` Markdown in
 			// the doc text does not close it early. `///` is a single-line doc.
 			//
-			// Doc text is Markdown: its body is marked `meta.embedded…markdown` and
-			// the Markdown grammar (`text.html.markdown`) is embedded, so editors
-			// highlight it as Markdown while the fences stay comment-colored.
+			// The scope name starts with `comment.documentation` on purpose: the
+			// IntelliJ TextMate integration maps that prefix to the shared DOC_COMMENT
+			// color key (`comment.line`/`comment.block` map to the ordinary comment
+			// colors), so a user can color Gad doc comments by setting the IDE's "Doc
+			// Comment" color. VS Code themes still see the `comment` root; the Gad
+			// extension's configurationDefaults tint these scopes.
+			//
+			// The block body embeds the Markdown grammar (`text.html.markdown`): its
+			// plain text carries the doc-comment scope (→ orange), while `markup.bold`
+			// / `markup.italic` / fenced code keep their own Markdown colors. The
+			// content scope also starts with `comment.documentation` so the body text
+			// is DOC_COMMENT-colored in IntelliJ too.
 			{
-				Name:        "comment.block.documentation.gad",
+				Name:        "comment.documentation.block.gad",
 				Begin:       `/\*\*\*`,
 				End:         `^\s*\*\*\*/\s*$`,
-				ContentName: "meta.embedded.block.markdown",
+				ContentName: "comment.documentation.block.markdown.gad",
 				Patterns:    []tmRule{{Include: "text.html.markdown"}},
 			},
 			{
-				Name:        "comment.block.documentation.gad",
+				Name:        "comment.documentation.block.gad",
 				Begin:       `/\*\*`,
 				End:         `^\s*\*\*/\s*$`,
-				ContentName: "meta.embedded.block.markdown",
+				ContentName: "comment.documentation.block.markdown.gad",
 				Patterns:    []tmRule{{Include: "text.html.markdown"}},
 			},
-			// A `///` line doc is highlighted as a doc comment but does NOT embed
-			// the Markdown grammar: `text.html.markdown` continues a paragraph
-			// across lines (a `while`-based block), so on a single-line comment it
-			// would bleed into the following code line until a blank line. Only the
-			// fenced block docs (`/** … **/`), which have a hard closing fence,
-			// embed Markdown.
-			{Name: "comment.line.documentation.gad", Match: `///(?!/).*$`},
+			// A `///` line doc does NOT embed Markdown: `text.html.markdown` continues
+			// a paragraph across lines (a `while`-based block), so on a single-line
+			// comment it would bleed into the following code line until a blank line.
+			// Only the fenced block docs, which have a hard closing fence, embed it.
+			{Name: "comment.documentation.line.gad", Match: `///(?!/).*$`},
 			{Name: "comment.line.double-slash.gad", Match: `//.*$`},
 			{Name: "comment.block.gad", Begin: `/\*`, End: `\*/`},
 		}},

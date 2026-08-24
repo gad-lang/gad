@@ -123,7 +123,7 @@ test("a `///` doc comment does not bleed into the next line (interpolation)", ()
 
   let r = grammar.tokenizeLine(doc, null);
   // the comment line is a doc comment
-  expect(r.tokens.some((t) => t.scopes.some((s) => s.includes("comment.line.documentation.gad")))).toBe(true);
+  expect(r.tokens.some((t) => t.scopes.some((s) => s.includes("comment.documentation.line.gad")))).toBe(true);
 
   // the NEXT line, with the doc's end-of-line rule stack, is code — the string
   // interpolates and is not swallowed by the comment/markdown.

@@ -103,5 +103,5 @@ test("`+ EXPR` component call: marker + name, args embedded gad", () => {
 test("doc comment body is embedded markdown", () => {
   // opening line of a /** … **/ block
   const toks = tokenize("/** # Title **/");
-  expect(toks.some((t) => t.scopes.some((x) => x.includes("comment.block.documentation.gadx")))).toBe(true);
+  expect(toks.some((t) => t.scopes.some((x) => x.includes("comment.documentation.block.gadx")))).toBe(true);
 });
