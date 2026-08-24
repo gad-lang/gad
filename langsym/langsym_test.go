@@ -122,3 +122,20 @@ func TestDefinitionParam(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, nth(src, "p", 0), def)
 }
+
+// TestDefinitionInInterpolation resolves an identifier used inside a `#"…{x}…"`
+// string interpolation (the island is parsed on demand; the literal text around
+// it is not an identifier).
+func TestDefinitionInInterpolation(t *testing.T) {
+	src := "name := \"x\"\nprintln(#\"{name}abc\")\n"
+	f, sf := parse(t, src)
+
+	// `name` inside the interpolation resolves to the `name` declared at offset 0.
+	def, ok := langsym.Definition(f, sf, nth(src, "name", 1))
+	require.True(t, ok)
+	require.Equal(t, 0, def)
+
+	// the literal `abc` after the island is not an identifier declaration.
+	_, ok = langsym.Definition(f, sf, nth(src, "abc", 0))
+	require.False(t, ok)
+}
