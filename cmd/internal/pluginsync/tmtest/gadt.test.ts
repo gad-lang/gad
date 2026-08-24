@@ -45,7 +45,7 @@ function toks(line: string) {
 
 test("a `{% … %}` code island embeds Gad; literal text stays plain", () => {
   const t = toks('Hello {% x := "hi" + 1 %} world');
-  expect(t.find((x) => x.text.startsWith("{%"))?.scopes.some((s) => s.includes("punctuation.section.embedded.begin.gadt"))).toBe(true);
+  expect(t.find((x) => x.text.startsWith("{%"))?.scopes.some((s) => s.includes("keyword.control.template.begin.gadt"))).toBe(true);
   expect(t.find((x) => x.text.includes("hi"))?.scopes.some((s) => s.includes("string.quoted"))).toBe(true);
   expect(t.find((x) => x.text === "1")?.scopes.some((s) => s.includes("constant.numeric"))).toBe(true);
   // literal "world" is not embedded Gad code
