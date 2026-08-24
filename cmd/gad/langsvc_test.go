@@ -40,6 +40,20 @@ func TestLangsymParseGadx(t *testing.T) {
 	require.Equal(t, nthIndex(src, "name", 0), def)
 }
 
+// TestLangsymParseGadt checks that a `.gadt` template is parsed in mixed mode,
+// so the `{% … %}` code islands resolve (plain-Gad parsing chokes on the literal
+// text). Go-to-definition on a value used in an output island resolves to its
+// declaration in the code island.
+func TestLangsymParseGadt(t *testing.T) {
+	src := "{% x := 1 %}Hi {%= x %}\n"
+	file, sf, err := langsymParse("t.gadt", []byte(src))
+	require.NoError(t, err)
+
+	def, ok := langsym.Definition(file, sf, nthIndex(src, "x", 1))
+	require.True(t, ok, "definition should resolve for a .gadt code island")
+	require.Equal(t, nthIndex(src, "x", 0), def)
+}
+
 // TestLangsymParseGad checks the plain-Gad path still works.
 func TestLangsymParseGad(t *testing.T) {
 	src := "x := 1\ny := x + 1\nprintln(y)\n"

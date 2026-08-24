@@ -14,6 +14,8 @@ import (
 //
 //   - `.gadx` is parsed with the Gadx front-end and lowered to Gad statements
 //     (positions are preserved, so caret offsets map back to the .gadx source);
+//   - `.gadt` is parsed in mixed/template mode so the `{% … %}` / `{%= … %}`
+//     code islands resolve while the literal text is skipped;
 //   - everything else is parsed as plain Gad.
 //
 // name comes from the PATH argument or --stdin-name; data is the buffer.
@@ -34,7 +36,18 @@ func langsymParse(name string, data []byte) (*parser.File, *source.File, error) 
 	}
 
 	po := &parser.ParserOptions{Mode: parser.ParseComments}
-	file, err := parser.NewParserWithOptions(sf, po, nil).ParseFile()
+	var so *parser.ScannerOptions
+	if strings.HasSuffix(name, ".gadt") {
+		// A `.gadt` template is mixed source: literal text with `{% … %}` code
+		// islands. Parse it in mixed mode so the code resolves (plain-Gad parsing
+		// chokes on the leading literal text).
+		po.Mode |= parser.ParseMixed
+		so = &parser.ScannerOptions{
+			Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
+			MixedDelimiter: parser.DefaultMixedDelimiter,
+		}
+	}
+	file, err := parser.NewParserWithOptions(sf, po, so).ParseFile()
 	if err != nil {
 		return nil, nil, err
 	}
