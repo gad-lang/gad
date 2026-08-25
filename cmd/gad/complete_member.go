@@ -116,8 +116,19 @@ func evalReceiver(src string, recvStart, dot int, recv string) (val gad.Object, 
 		}
 	}()
 
+	// Replace the caret line in place with `return RECEIVER`, keeping the rest of
+	// the file so all enclosing blocks stay balanced. This matters for a receiver
+	// that lives inside a loop or conditional (e.g. `for i, u in users { u.‸ }`):
+	// cutting the source at the line start would leave the `for` block open (a
+	// parse error), and the loop variable would not be in scope. With the block
+	// intact, `return` fires on the first iteration with the variable bound, and
+	// the untouched tail keeps the source parseable.
 	lineStart := strings.LastIndexByte(src[:recvStart], '\n') + 1
-	prelude := src[:lineStart] + "return " + recv + "\n"
+	lineEnd := lineStart + strings.IndexByte(src[lineStart:], '\n')
+	if lineEnd < lineStart {
+		lineEnd = len(src)
+	}
+	prelude := src[:lineStart] + "return " + recv + "\n" + src[lineEnd:]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
