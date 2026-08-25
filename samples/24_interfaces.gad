@@ -26,6 +26,10 @@ A `**name` member is a **rest capture** used with the transforming cast
 class/interface-typed fields into their declared shape and gathers the keys not
 named by the interface into a dict bound to `name`.
 
+`[]` written after the `interface` keyword makes it match an **array** of
+satisfying elements: `interface[] P` a flat array, `interface[][][] P` an array
+nested three deep (see [interface of arrays](39_interface_arrays_test.gad)).
+
 ## Context-function members (`funcs { … }`)
 
 A `funcs { FnExpr <header>; … }` section requires, per entry, a **free function

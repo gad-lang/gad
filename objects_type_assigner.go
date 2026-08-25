@@ -109,6 +109,9 @@ func AssignToType(vm *VM, obj, to Object) (Object, error) {
 // exactly like AssignToType (a checked cast that returns obj unchanged).
 func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 	if iface, ok := to.(*Interface); ok {
+		if iface.ArrayDepth > 0 {
+			return iface.coerceArray(vm, obj, iface.ArrayDepth)
+		}
 		if d, ok := asTransformDict(vm, obj); ok {
 			return iface.coerceDict(vm, d)
 		}

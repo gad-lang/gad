@@ -76,7 +76,12 @@ func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 //	}
 type InterfaceExpr struct {
 	InterfaceToken TokenLit
-	NameExpr       Expr   // *IdentExpr or nil (anonymous)
+	// ArrayDepth is the number of `[]` written right after the `interface` keyword
+	// (`interface[] P`, `interface[][][] P`): the interface then matches an array
+	// nested to this depth whose leaf elements each satisfy the body. 0 for a plain
+	// interface.
+	ArrayDepth int
+	NameExpr   Expr // *IdentExpr or nil (anonymous)
 	Parents        []Expr // *Parent spreads — no alias
 	ExtendsDoc     *ast.CommentGroup
 	Members        []*InterfaceMemberExpr      // fields, getters, setters, props (source order)
@@ -216,6 +221,9 @@ func (e *InterfaceExpr) NameIdent() *IdentExpr {
 func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
 	ctx.WriteString("interface")
+	for i := 0; i < e.ArrayDepth; i++ {
+		ctx.WriteString("[]")
+	}
 	if e.NameExpr != nil {
 		ctx.WriteString(" ")
 		e.NameExpr.WriteCode(ctx)

@@ -129,6 +129,11 @@ type Interface struct {
 	// keys not named by the interface are gathered into a dict bound to this name
 	// in the result. Empty when the interface has no `**` member.
 	Rest string
+	// ArrayDepth is the number of `[]` after the `interface` keyword
+	// (`interface[] P`, `interface[][][] P`): the interface matches an array nested
+	// to this depth whose leaf elements each satisfy the members. 0 for a plain
+	// interface.
+	ArrayDepth int
 	// Native, when set, is a builtin interface's satisfaction check (e.g. the
 	// `iterable` interface delegates to IsIterable). It replaces the structural
 	// member check, so such interfaces can match Go-backed behaviour that is not
@@ -227,6 +232,11 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 	if obj == nil || obj == Nil {
 		return false, nil
 	}
+	// `interface[] P` (ArrayDepth > 0) matches an array nested to that depth whose
+	// leaf elements each satisfy the members.
+	if i.ArrayDepth > 0 {
+		return i.satisfiesArrayDepth(vm, obj, i.ArrayDepth)
+	}
 	if vm != nil {
 		if typ, ok := ifaceCacheableType(obj); ok {
 			key := ifaceSatKey{iface: i, typ: typ}
@@ -241,6 +251,26 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 		}
 	}
 	return i.canAssignVMUncached(vm, obj)
+}
+
+// satisfiesArrayDepth reports whether obj is an array nested to depth whose leaf
+// elements each satisfy the interface's members (`interface[] P` is depth 1). At
+// depth 0 it is the plain member check; deeper, obj must be an Array and every
+// element must satisfy depth-1.
+func (i *Interface) satisfiesArrayDepth(vm *VM, obj Object, depth int) (bool, error) {
+	if depth == 0 {
+		return i.canAssignVMUncached(vm, obj)
+	}
+	arr, ok := obj.(Array)
+	if !ok {
+		return false, nil
+	}
+	for _, el := range arr {
+		if ok, err := i.satisfiesArrayDepth(vm, el, depth-1); err != nil || !ok {
+			return ok, err
+		}
+	}
+	return true, nil
 }
 
 // ifaceCacheableType returns obj's ObjectType and true when that type fully
@@ -568,6 +598,37 @@ func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Obj
 // typed by a class/interface are built from their nested dicts (recursively), and
 // whose keys not named by the interface are gathered under the `**name` rest
 // field when one is declared. A missing non-nullable field is an error.
+// coerceArray implements `array ::: interface[] P`: it returns a NEW array nested
+// to depth whose leaf elements are each transformed by coerceDict (so their
+// class/interface-typed fields are built). A non-array at a non-zero depth, or a
+// leaf that cannot be coerced, is an error.
+func (i *Interface) coerceArray(vm *VM, obj Object, depth int) (Object, error) {
+	if depth == 0 {
+		if d, ok := asTransformDict(vm, obj); ok {
+			return i.coerceDict(vm, d)
+		}
+		if ok, err := i.canAssignVMUncached(vm, obj); err != nil {
+			return nil, err
+		} else if !ok {
+			return nil, ErrType.NewErrorf("%s does not satisfy the interface", obj.Type().Name())
+		}
+		return obj, nil
+	}
+	arr, ok := obj.(Array)
+	if !ok {
+		return nil, ErrType.NewErrorf("expected an array, got %s", obj.Type().Name())
+	}
+	out := make(Array, len(arr))
+	for j, el := range arr {
+		c, err := i.coerceArray(vm, el, depth-1)
+		if err != nil {
+			return nil, err
+		}
+		out[j] = c
+	}
+	return out, nil
+}
+
 func (i *Interface) coerceDict(vm *VM, d Dict) (Object, error) {
 	out := make(Dict, len(d))
 	for k, v := range d {

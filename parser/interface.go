@@ -13,15 +13,29 @@ func (p *Parser) ParseInterfaceExpr() node.Expr {
 	}
 	doc := p.leadComment
 	tok := p.ExpectToken(token.Interface)
+	depth := p.parseInterfaceArrayDepth()
 	var name node.Expr
 	if p.Token.Token == token.Ident {
 		name = p.ParseIdent()
 	}
 	iface := p.parseInterfaceBody(tok, name)
 	if iface != nil {
+		iface.ArrayDepth = depth
 		iface.Doc = doc
 	}
 	return iface
+}
+
+// parseInterfaceArrayDepth consumes the `[]` pairs written right after the
+// `interface` keyword (`interface[][] P`) and returns their count (the array
+// nesting depth), 0 when there is none.
+func (p *Parser) parseInterfaceArrayDepth() (depth int) {
+	for p.Token.Token == token.LBrack {
+		p.Next()
+		p.Expect(token.RBrack)
+		depth++
+	}
+	return
 }
 
 // ParseInterfaceStmt parses the statement form. `interface Name { … }` becomes
@@ -33,6 +47,7 @@ func (p *Parser) ParseInterfaceStmt() node.Stmt {
 	}
 	doc := p.leadComment
 	tok := p.ExpectToken(token.Interface)
+	depth := p.parseInterfaceArrayDepth()
 
 	var name node.Expr
 	if p.Token.Token == token.Ident {
@@ -43,6 +58,7 @@ func (p *Parser) ParseInterfaceStmt() node.Stmt {
 	if iface == nil {
 		return &node.BadStmt{From: tok.Pos, To: p.Token.Pos}
 	}
+	iface.ArrayDepth = depth
 	iface.Doc = doc
 
 	if name == nil {

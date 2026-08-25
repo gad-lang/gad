@@ -1,0 +1,112 @@
+/**
+# Interface of arrays (`interface[] P`)
+
+Writing one or more `[]` right after the `interface` keyword makes the
+[interface](24_interfaces.gad) match an **array** whose elements each satisfy the
+body — `interface[] P` matches a flat array, `interface[][][] P` an array nested
+three deep. The number of `[]` is the required nesting depth.
+
+- With the checked cast [`::`](14_user_operators.gad) the (nested) array must
+  already hold satisfying elements; the array is returned unchanged.
+- With the transforming cast [`:::`](38_transform_cast_test.gad) each leaf element
+  is coerced into the interface's declared shape (its class-typed fields are
+  built), at any depth.
+
+An array interface also works as a parameter type. An empty array satisfies any
+array interface vacuously.
+
+Run it: `gad test samples/39_interface_arrays_test.gad`
+**/
+
+class Point { x int; y int }
+
+/**
+`interface[] P` matches a flat array whose every element satisfies `P`. `::`
+checks and returns the array unchanged; a non-array, a missing field or a wrong
+nesting depth is rejected.
+**/
+test "flat array interface" {
+    interface[] points { x int, y int }
+
+    ps := [{x: 1, y: 2}, {x: 3, y: 4}] :: points
+    t.equal(2, len(ps))
+    t.equal(1, ps[0].x)
+    t.equal(4, ps[1].y)
+
+    // An empty array satisfies vacuously.
+    t.equal(0, len([] :: points))
+
+    // A non-array is rejected.
+    threw := false
+    try {
+        d := {x: 1, y: 2}
+        d :: points
+    } catch {
+        threw = true
+    }
+    t.true(threw)
+
+    // An element missing a required field is rejected.
+    threw2 := false
+    try {
+        [{x: 1}] :: points
+    } catch {
+        threw2 = true
+    }
+    t.true(threw2)
+}
+
+/**
+Each extra `[]` adds one level of array nesting: `interface[][][] P` matches an
+array of arrays of arrays whose leaves satisfy `P`.
+**/
+test "nested array interface" {
+    interface[][][] nestedPoints { x int, y int }
+
+    r := [[[{x: 1, y: 2}, {x: 3, y: 4}]]] :: nestedPoints
+    t.equal(4, r[0][0][1].y)
+
+    // The wrong depth (too shallow) is rejected.
+    threw := false
+    try {
+        [{x: 1, y: 2}] :: nestedPoints
+    } catch {
+        threw = true
+    }
+    t.true(threw)
+}
+
+/**
+An array interface is a type like any other, so it works as a parameter type: the
+argument must be an array of satisfying elements.
+**/
+test "as a parameter type" {
+    interface[] points { x int, y int }
+
+    func total(ps points) {
+        sum := 0
+        for p in ps {
+            sum += p.x + p.y
+        }
+        return sum
+    }
+
+    t.equal(10, total([{x: 1, y: 2}, {x: 3, y: 4}]))
+}
+
+/**
+The transforming cast `:::` coerces each leaf element into the interface's shape —
+here every element's `p` dict becomes a real `Point` — recursively through nested
+arrays.
+**/
+test "transforming an array" {
+    // Depth 1: each element's `p` is built into a Point.
+    wrapped := [{p: {x: 1, y: 2}}, {p: {x: 3, y: 4}}] ::: interface[] { p Point }
+    t.equal("Point", typeName(wrapped[0].p))
+    t.equal(4, wrapped[1].p.y)
+
+    // Depth 3: leaves inside nested arrays are coerced too.
+    deep := [[[{p: {x: 9, y: 8}}]]] ::: interface[][][] { p Point }
+    t.equal("Point", typeName(deep[0][0][0].p))
+    t.equal(9, deep[0][0][0].p.x)
+}

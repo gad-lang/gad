@@ -2339,7 +2339,7 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 	if name == "" {
 		name = c.newInterfaceName()
 	}
-	iface := &Interface{IName: name, Module: c.module}
+	iface := &Interface{IName: name, Module: c.module, ArrayDepth: nd.ArrayDepth}
 	if nd.Rest != nil {
 		iface.Rest = nd.Rest.Name
 	}
