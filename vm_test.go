@@ -2363,6 +2363,14 @@ return str([
 		c: nil,
 		d: 1,
 		e: "abc",
+		f: 1
+	}›,
+	‹class instance of ‹(main).Point›: {
+		a: nil,
+		b: nil,
+		c: nil,
+		d: 1,
+		e: "abc",
 		f: 2
 	}›,
 	‹class instance of ‹(main).Point›: {
@@ -2372,14 +2380,6 @@ return str([
 		d: 1,
 		e: "abc",
 		f: 3
-	}›,
-	‹class instance of ‹(main).Point›: {
-		a: nil,
-		b: nil,
-		c: nil,
-		d: 1,
-		e: "abc",
-		f: 4
 	}›
 ]`))
 

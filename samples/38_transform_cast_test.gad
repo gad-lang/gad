@@ -11,7 +11,7 @@ Two things happen on `dict ::: interface { … }`:
 
 - **Field coercion** — each field typed by a class is built into an instance of
   that class from its nested dict (recursively, at any depth, like
-  [nested class fields](37_class_field_types.gad)); a field typed by a nested
+  [nested class fields](class/field_types.gad)); a field typed by a nested
   `interface { … }` keeps its dict but coerces ITS fields the same way.
 - **Rest capture** — a `**name` member gathers every key NOT named by the
   interface into a dict bound to `name` in the result.

@@ -950,7 +950,7 @@ func TestVMClassFeatures(t *testing.T) {
 	testExpectRun(t, `
 	n := 0
 	C := Class("C"; fields=(; id = (= n++)))
-	return [C().id, C().id, C().id]`, nil, Array{Int(1), Int(2), Int(3)})
+	return [C().id, C().id, C().id]`, nil, Array{Int(0), Int(1), Int(2)})
 
 	// --- methods (overloaded by arity/type) ---
 	testExpectRun(t, `
@@ -1060,7 +1060,7 @@ func TestVMClassSyntax(t *testing.T) {
 	testExpectRun(t, `
 	n := 0
 	class C { id = (= n++) }
-	return [C().id, C().id, C().id]`, nil, Array{Int(1), Int(2), Int(3)})
+	return [C().id, C().id, C().id]`, nil, Array{Int(0), Int(1), Int(2)})
 
 	// methods: typed `this` enables type/arity overload dispatch.
 	testExpectRun(t, `

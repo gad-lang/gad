@@ -469,7 +469,12 @@ type Class struct {
 	fieldsMap     map[string]*ClassField    // declared fields, by name
 	propertiesMap map[string]*ClassProperty // getter/setter properties, by name
 	methodsMap    map[string]*ClassMethod   // methods, by name
-	fieldDefaults []CallerObject            // field-default initialisers run on construction
+	// initFields is a single no-argument callable that computes the defaults of
+	// every field whose default is a non-literal expression that is not a `(= …)`
+	// ComputedExpr (those are stored per field). It runs once per construction and
+	// returns a key-value array of {fieldName: value}, so several such fields are
+	// initialised with ONE call. Set from the `initFields=` arg of Class.Define.
+	initFields CallerObject
 }
 
 // NewClass returns an empty Class with the given name and defining module, its
@@ -648,9 +653,21 @@ func (t *Class) Define(c Call) (err error) {
 				return t.CallExtends(Call{VM: c.VM, Args: Args{value.(Array)}})
 			},
 		}
+
+		initFields = &NamedArgVar{
+			Name:          "initFields",
+			TypeAssertion: NewTypeAssertion(TypeAssertions(WithCallable())),
+			// A single no-arg callable returning a key-value array of the
+			// non-literal, non-ComputedExpr field defaults; run once per
+			// construction (see Class.initFields and ClassInstance.Init).
+			Do: func(value Object) error {
+				t.initFields, _ = value.(CallerObject)
+				return nil
+			},
+		}
 	)
 
-	return c.NamedArgs.GetDo(constructor, fields, methods, properties, extends)
+	return c.NamedArgs.GetDo(constructor, fields, methods, properties, extends, initFields)
 }
 
 func (t *Class) String() string {
@@ -1145,11 +1162,6 @@ func (t *Class) CallAddFields(call Call) (err error) {
 			Name:          "items",
 			TypeAssertion: TypeAssertionFromTypes(TKeyValueArray),
 		}
-
-		defaults = &NamedArgVar{
-			Name:          "defaults",
-			TypeAssertion: NewTypeAssertion(TypeAssertions(WithRawCallable())),
-		}
 	)
 
 	if err = call.Args.Destructure(items); err != nil {
@@ -1179,10 +1191,6 @@ func (t *Class) CallAddFields(call Call) (err error) {
 		if err = t.AddField(f); err != nil {
 			return
 		}
-	}
-
-	if defaults.Value != nil {
-		t.fieldDefaults = append(t.fieldDefaults, defaults.Value.(CallerObject))
 	}
 	return nil
 }

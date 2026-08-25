@@ -67,7 +67,11 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 		inner.AppendS("extends", classExtendsExpr(nd))
 	}
 	if len(nd.Fields) > 0 {
-		inner.AppendS("fields", classFieldsExpr(nd))
+		fieldsExpr, initFieldsExpr := classFieldsExpr(nd)
+		inner.AppendS("fields", fieldsExpr)
+		if initFieldsExpr != nil {
+			inner.AppendS("initFields", initFieldsExpr)
+		}
 	}
 	if len(nd.Props) > 0 {
 		props, err := c.classPropertiesExpr(nd, nil)
@@ -133,20 +137,57 @@ func classExtendsExpr(nd *node.ClassExpr) node.Expr {
 	return &node.ArrayExpr{Elements: elems}
 }
 
-// classFieldsExpr builds the `fields=(; …)` key-value array. A plain field name
-// becomes a string key; a typed field keeps its *TypedIdent key. The value is
-// the field default (a *ComputedExpr `(= expr)` is evaluated per instance) or
-// absent (a flag) when the field has no default.
-func classFieldsExpr(nd *node.ClassExpr) node.Expr {
+// classFieldsExpr builds the `fields=(; …)` key-value array and, when any field
+// has a per-instance (non-literal, non-ComputedExpr) default, the matching
+// `initFields=() => (; name=expr, …)` closure that computes them all with one
+// call.
+//
+// A field's default is kept inline as its value when it is a literal (evaluated
+// once, shared) or a `(= expr)` ComputedExpr (evaluated per field, per instance).
+// Any other default expression (`g + 5`, `f()`, `[1, 2]`) would otherwise be
+// evaluated a single time at class-definition and shared across instances, so it
+// is moved into initFields and re-evaluated per construction. Such a field is
+// emitted with no inline value (a flag), so it has no shared static default.
+func classFieldsExpr(nd *node.ClassExpr) (fields node.Expr, initFields node.Expr) {
 	elems := make(node.Exprs, len(nd.Fields))
+	var inits node.Exprs
 	for i, f := range nd.Fields {
 		var key node.Expr = f.Name
 		if len(f.Name.Type) == 0 {
 			key = f.Name.Ident
 		}
-		elems[i] = &node.KeyValueLit{Key: key, Value: f.Value}
+		value := f.Value
+		if value != nil && !isStaticFieldDefault(value) {
+			inits = append(inits, &node.KeyValueLit{Key: f.Name.Ident, Value: value})
+			value = nil // emit the field as a flag: no shared static default
+		}
+		elems[i] = &node.KeyValueLit{Key: key, Value: value}
 	}
-	return &node.KeyValueArrayLit{Elements: elems}
+	fields = &node.KeyValueArrayLit{Elements: elems}
+	if len(inits) > 0 {
+		// () => (; name1 = expr1, name2 = expr2, …)
+		initFields = node.EClosure(
+			&node.FuncParams{},
+			nd.Pos(),
+			token.Lambda,
+			&node.KeyValueArrayLit{Elements: inits},
+		)
+	}
+	return
+}
+
+// isStaticFieldDefault reports whether a field default may stay inline in the
+// `fields=(; …)` array: a scalar literal (shared, evaluated once) or a `(= expr)`
+// ComputedExpr (evaluated per field per instance). Every other expression is a
+// per-instance default that must move into initFields (see classFieldsExpr).
+func isStaticFieldDefault(e node.Expr) bool {
+	switch e.(type) {
+	case *node.IntLit, *node.UintLit, *node.FloatLit, *node.DecimalLit,
+		*node.BoolLit, *node.FlagLit, *node.CharLit, *node.StrLit, *node.NilLit,
+		*node.ComputedExpr:
+		return true
+	}
+	return false
 }
 
 // classMethodsExpr builds the `methods=[…]` array of named functions; each

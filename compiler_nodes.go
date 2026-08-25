@@ -1713,7 +1713,19 @@ func (c *Compiler) compileComputedExpr(nd *node.ComputedExpr) (err error) {
 	stmts := nd.Stmts
 	switch t := stmts[len(stmts)-1].(type) {
 	case *node.IncDecStmt:
-		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
+		// A trailing postfix `n++` / `n--` yields the value BEFORE the change
+		// (post-increment semantics; the prefix `++n` / `--n`, a UnaryExpr, yields
+		// the new value via the ExprStmt case below). Save the operand, apply the
+		// in/decrement, then return the saved (old) value.
+		tmp := node.EIdent("$postincdec", t.Pos())
+		save := &node.AssignStmt{
+			TokenPos: t.Pos(),
+			Token:    token.Define,
+			LHS:      []node.Expr{tmp},
+			RHS:      []node.Expr{t.Expr},
+		}
+		stmts = append(stmts[:len(stmts)-1], save, t,
+			&node.ReturnStmt{Return: node.Return{Result: tmp}})
 	case *node.ExprStmt:
 		stmts = append(stmts[:len(stmts)-1], &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
 	}

@@ -1,0 +1,102 @@
+/**
+# Class field defaults
+
+A class field default is evaluated in one of three ways, chosen by the compiler
+from the default expression:
+
+- **Literal** (`x = 2`, `s = "hi"`, `ok = true`) — a scalar constant, stored
+  once and shared by every instance. Cheap and immutable, so sharing is safe.
+- **`(= expr)` lazy default** (`seq = (= n++)`) — a
+  [ComputedExpr](../03_functions.gad) re-evaluated **per field, per instance**: each
+  field with a `(=)` default is its own function call on construction.
+- **Any other expression** (`y = g + 5`, `id = next()`, `items = [1, 2]`) — a
+  per-instance default too, but all such fields of a class are computed together
+  by a **single** `initFields` function call per construction (one call for many
+  fields). This is why a composite default like `[1, 2]` is a fresh, independent
+  value in every instance — never one shared object.
+
+An explicitly passed field value always wins over its computed default.
+
+The compiler lowers a class to a `Class("Name", (cls, define) => define(; …))`
+call; a class with plain non-literal defaults gets an
+`initFields = () => (; name = expr, …)` named argument (see classFieldsExpr).
+
+Run it: `gad test samples/class`
+**/
+
+/**
+A literal default is shared; a plain non-literal default (`nextId()`) is computed
+fresh per instance — here an auto-incrementing id.
+**/
+test "per-instance non-literal default" {
+    seq := 0
+    nextId := func() { seq++; return seq }
+
+    class User {
+        id = nextId()   // per instance: 1, 2, 3, …
+        name = "?"      // literal: shared default
+    }
+
+    t.equal(1, User().id)
+    t.equal(2, User().id)
+    t.equal(3, User().id)
+    t.equal("?", User().name)
+}
+
+/**
+A composite default (`[1, 2]`) is a fresh value per instance, so mutating one
+instance's field never affects another's.
+**/
+test "fresh composite default per instance" {
+    class Bag { items = [1, 2] }
+
+    a := Bag()
+    b := Bag()
+    a.items[0] = 99
+
+    t.equal(99, a.items[0])   // a was mutated
+    t.equal(1, b.items[0])    // b is independent (not a shared array)
+}
+
+/**
+The `(= expr)` form is a per-field lazy default: each `(=)` field is its own call
+on construction. Useful for a per-instance counter or a fresh value. Postfix
+`n++` yields the value **before** the increment; prefix `++n` the value after.
+**/
+test "(= expr) lazy default per field" {
+    n := 0
+    class Post { id = (= n++) }   // post-increment: old value
+    t.equal(0, Post().id)
+    t.equal(1, Post().id)
+    t.equal(2, Post().id)
+
+    m := 0
+    class Pre { id = (= ++m) }    // pre-increment: new value
+    t.equal(1, Pre().id)
+    t.equal(2, Pre().id)
+    t.equal(3, Pre().id)
+}
+
+/**
+All three default kinds coexist: the literal is shared, the `(=)` field and the
+plain non-literal are each per instance, and a passed value overrides its default.
+**/
+test "mixed defaults and override" {
+    g := 100
+    n := 0
+    class C {
+        x = 1           // literal
+        y = g + 1       // plain non-literal -> initFields
+        seq = (= n++)   // ComputedExpr -> per field
+    }
+
+    c1 := C()
+    c2 := C()
+    t.equal(1, c1.x)
+    t.equal(101, c1.y)
+    t.equal(0, c1.seq)   // post-increment: first instance gets 0
+    t.equal(1, c2.seq)
+
+    // A passed value wins over the computed default.
+    t.equal(7, C(; y = 7).y)
+}

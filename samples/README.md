@@ -37,7 +37,10 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `07_error_handling.gad`       | errors, `try`/`catch`/`finally`, the `or` fallback |
 | `08_strings_bytes_regex.gad`  | strings, `b"…"`/`h"…"` bytes, `/regex/` literals  |
 | `10_functions_with_methods.gad` | typed params, func-with-methods, `met`, `prop` |
-| `11_classes.gad`              | classes: fields, methods, properties, inheritance |
+| `class/classes.gad`           | classes via the `Class(…)` builtin: fields, methods, properties, inheritance |
+| `class/syntax.gad`            | the `class` keyword (expression + statement forms) |
+| `class/field_types.gad`       | typed & nullable class fields (`x int`, `x? int|str`) |
+| `class/field_defaults_test.gad` | field defaults: literal, `(= expr)` and per-instance `initFields` |
 | `12_method_interfaces.gad`   | `<…>` func headers, `meti` interfaces, `implements` |
 | `13_ranges.gad`               | the `..` range operator, steps, temporal ranges   |
 | `14_user_operators.gad`       | user operators `<<<` `>>>` `%%` via `gad.binOp`  |
@@ -45,7 +48,6 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `16_doc_comments.gad`         | doc comments and `>>>` examples                    |
 | `17_unary_operators.gad`      | unary `!` `-` `+` `^` `++` `--` and `gad.unOp`   |
 | `18_with.gad`                 | the `with` context manager (statement + expression) |
-| `19_class_syntax.gad`         | the `class` keyword (expression + statement forms) |
 | `20_enum.gad`                 | the `enum` keyword: values, signs, bit flags, members |
 | `21_heredocs.gad`             | heredocs `"""…"""` / `` ```…``` `` and template heredocs |
 | `22_key_value_array.gad`      | `keyValue` / `keyValueArray` (`(;…)`): flags, funcs, typed keys |

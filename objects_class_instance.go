@@ -186,13 +186,23 @@ func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 		delete(fields, "@parents")
 	}
 
-	for i, fd := range o.class.fieldDefaults {
-		if _, err = fd.Call(Call{
-			SafeArgs: true,
-			VM:       vm,
-			Args:     Args{Array{o.fields}},
-		}); err != nil {
-			return ErrNewClassInstance.NewErrorf("initialize field defaults[%d]: %v", i, err)
+	// initFields computes the non-literal, non-ComputedExpr field defaults with a
+	// single call and returns them as a key-value array; apply each into o.fields.
+	// Runs before the passed fields below, so an explicitly provided value wins.
+	if o.class.initFields != nil {
+		ret, err := o.class.initFields.Call(Call{SafeArgs: true, VM: vm})
+		if err != nil {
+			return ErrNewClassInstance.NewErrorf("initialize field defaults: %v", err)
+		}
+		switch r := ret.(type) {
+		case KeyValueArray:
+			for _, kv := range r {
+				o.fields[kv.K.ToString()] = kv.V
+			}
+		case Dict:
+			for k, v := range r {
+				o.fields[k] = v
+			}
 		}
 	}
 

@@ -19,7 +19,7 @@ structurally, methods optimistically / duck-typed).
 
 A required field marked with a `?` after its name (`x? int`) is **nullable**: a
 member that is `nil` — or absent — still satisfies it, so `?` marks an optional
-field (see [typed & nullable fields](37_class_field_types.gad)).
+field (see [typed & nullable fields](class/field_types.gad)).
 
 A `**name` member is a **rest capture** used with the transforming cast
 [`:::`](38_transform_cast_test.gad): `d ::: interface { … }` coerces the source's
