@@ -7,9 +7,7 @@ import (
 
 	gad "github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/langsym"
-	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
-	"github.com/gad-lang/gad/parser/source"
 )
 
 // memberCompletions handles `x.` / `x.partial` / `x[` completion by runtime
@@ -154,8 +152,11 @@ func evalReceiver(name, src string, recvStart, dot int, recv string) (val gad.Ob
 //     bind names), append `return recv`, and close any block still open at the
 //     caret (a `for … begin` whose `end` is in a later island).
 func receiverPrelude(name, src string, recvStart int, recv string) (string, bool) {
-	if strings.HasSuffix(name, ".gadt") {
-		return mixedReceiverPrelude(src, recvStart, recv)
+	// Template dialects hold their code in constructs (`{% … %}` islands in
+	// `.gadt`, indentation blocks in `.gadx`) that RunScript cannot execute as-is,
+	// so rebuild the caret's scope as runnable Gad from the parsed AST.
+	if strings.HasSuffix(name, ".gadt") || strings.HasSuffix(name, ".gadx") {
+		return astReceiverPrelude(name, src, recvStart, recv)
 	}
 	lineStart := strings.LastIndexByte(src[:recvStart], '\n') + 1
 	lineEnd := lineStart + strings.IndexByte(src[lineStart:], '\n')
@@ -165,24 +166,19 @@ func receiverPrelude(name, src string, recvStart int, recv string) (string, bool
 	return src[:lineStart] + "return " + recv + "\n" + src[lineEnd:], true
 }
 
-// mixedReceiverPrelude assembles a runnable plain-Gad program from a mixed
-// (`.gadt`) source so recv's value can be introspected. It parses the template
-// (tolerantly — the caret line is mid-edit), then rebuilds the scope at the caret
-// as real Gad: every top-level and enclosing declaration before the caret, plus
-// the header of each `for … in …` that contains the caret (as `for k, v in it {`
-// opening a block). `return recv` then runs on the first loop iteration with the
-// loop variables bound, and the opened blocks are closed. String matching on
-// `{% %}` is avoided so `%}`/`{%` inside island strings or doc comments (e.g. the
-// leading `/** … `{%= … %}` … **/` block) cannot corrupt the extraction.
-func mixedReceiverPrelude(src string, caret int, recv string) (string, bool) {
-	fs := source.NewFileSet()
-	sf := fs.AddFileData("x.gadt", -1, []byte(src))
-	po := &parser.ParserOptions{Mode: parser.ParseComments | parser.ParseMixed}
-	so := &parser.ScannerOptions{
-		Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
-		MixedDelimiter: parser.DefaultMixedDelimiter,
-	}
-	file, _ := parser.NewParserWithOptions(sf, po, so).ParseFileTolerant()
+// astReceiverPrelude assembles a runnable plain-Gad program from a template
+// (`.gadt` mixed source or `.gadx` indentation source) so recv's value can be
+// introspected. It parses the source through the dialect front-end (langsymParse,
+// which lowers `.gadx` to Gad and parses `.gadt` in mixed mode, both preserving
+// positions), then rebuilds the scope at the caret as real Gad: every enclosing
+// declaration before the caret, plus the header of each `for … in …` that
+// contains the caret (as `for k, v in it {` opening a block). `return recv` then
+// runs on the first loop iteration with the loop variables bound, and the opened
+// blocks are closed. Working from the AST (not `{%`/`%}` string matching) means
+// island strings or a leading doc comment whose prose contains `{% … %}` cannot
+// corrupt the extraction.
+func astReceiverPrelude(name, src string, caret int, recv string) (string, bool) {
+	file, sf, _ := langsymParse(name, []byte(src))
 	if file == nil {
 		return "", false
 	}
@@ -202,6 +198,23 @@ func mixedReceiverPrelude(src string, caret int, recv string) (string, bool) {
 			return ""
 		}
 		return strings.TrimSpace(src[p:q])
+	}
+	// identName returns a loop variable's name, or "_" when absent/blank.
+	identName := func(id *node.IdentExpr) string {
+		if id == nil || id.Empty || id.Name == "" {
+			return "_"
+		}
+		return id.Name
+	}
+	// iterableSrc returns runnable source for a `for … in` iterable. A plain
+	// identifier is taken by name (the `.gadx` front-end lowers to synthetic nodes
+	// whose positions do not slice back to clean source, so source extraction is
+	// used only for the richer `.gadt` positions).
+	iterableSrc := func(e node.Expr) string {
+		if id, ok := e.(*node.IdentExpr); ok {
+			return identName(id)
+		}
+		return exprSrc(e)
 	}
 
 	var walk func(stmts []node.Stmt)
@@ -225,14 +238,14 @@ func mixedReceiverPrelude(src string, caret int, recv string) (string, bool) {
 			// This statement contains the caret; descend, opening any binding block.
 			switch st := s.(type) {
 			case *node.ForInStmt:
-				it := exprSrc(st.Iterable)
+				it := iterableSrc(st.Iterable)
 				if it == "" {
 					return // iterable not yet typed; cannot evaluate
 				}
-				if st.Value != nil {
-					b.WriteString("for " + exprSrc(st.Key) + ", " + exprSrc(st.Value) + " in " + it + " {\n")
+				if st.Value != nil && !st.Value.Empty {
+					b.WriteString("for " + identName(st.Key) + ", " + identName(st.Value) + " in " + it + " {\n")
 				} else {
-					b.WriteString("for " + exprSrc(st.Key) + " in " + it + " {\n")
+					b.WriteString("for " + identName(st.Key) + " in " + it + " {\n")
 				}
 				opens++
 				if st.Body != nil {

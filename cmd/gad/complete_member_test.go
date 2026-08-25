@@ -56,3 +56,14 @@ func TestMemberCompletionGadtLoopVar(t *testing.T) {
 	require.Contains(t, labels, "name")
 	require.Contains(t, labels, "admin")
 }
+
+// TestMemberCompletionGadxLoopVar checks the `.gadx` path: the front-end lowers
+// to Gad with synthetic nodes whose positions do not slice back to source, so the
+// loop header is rebuilt from the variables' names (not source spans).
+func TestMemberCompletionGadxLoopVar(t *testing.T) {
+	src := "~~\nusers := [{name: \"joe\", admin: true}]\n~~\n" +
+		"ul\n\t@for i, u in users\n\t\tli {u.}\n"
+	labels := labelsOfName(t, "t.gadx", src)
+	require.Contains(t, labels, "name")
+	require.Contains(t, labels, "admin")
+}
