@@ -2,7 +2,7 @@
 # The `class` keyword
 
 The `class` keyword is a readable block syntax that lowers to the
-[`Class(...)` builtin](11_classes.gad). A `class` block reads top to bottom:
+[`Class(...)` builtin](classes.gad). A `class` block reads top to bottom:
 optional parent spreads (`*Parent`), bare fields, then `props {}`, `new` and
 `methods {}` groups (items separated by newlines or commas).
 
@@ -15,10 +15,15 @@ defines a const; there are also anonymous expression and `export class` forms.
 Everything else — field defaults, typed fields, inheritance, overloaded
 methods/constructors — works exactly as in the `Class(...)` builtin.
 
+A typed field is enforced on construction (a value of the wrong type is
+rejected); a `?` after the field name (`x? int`, `x? int|str`) makes it
+**nullable**, so it also accepts `nil`. See
+[typed & nullable fields](field_types.gad).
+
 Doc comments attach to the class and its members (`///`, `/** … **/`,
 `/*** … ***/`). The Example below is a runnable tour.
 
-## Example — `19_class_syntax.gad`
+## Example — `syntax.gad`
 
 ```gad
 /**

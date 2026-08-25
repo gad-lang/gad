@@ -17,6 +17,19 @@ against any member-bearing value: class instances, dicts/key-value arrays (field
 match keys, methods match callable keys) and reflected Go values (fields matched
 structurally, methods optimistically / duck-typed).
 
+A required field marked with a `?` after its name (`x? int`) is **nullable**: a
+member that is `nil` — or absent — still satisfies it, so `?` marks an optional
+field (see [typed & nullable fields](class/field_types.gad)).
+
+A `**name` member is a **rest capture** used with the transforming cast
+[`:::`](38_transform_cast_test.gad): `d ::: interface { … }` coerces the source's
+class/interface-typed fields into their declared shape and gathers the keys not
+named by the interface into a dict bound to `name`.
+
+`[]` written after the `interface` keyword makes it match an **array** of
+satisfying elements: `interface[] P` a flat array, `interface[][][] P` an array
+nested three deep (see [interface of arrays](39_interface_arrays_test.gad)).
+
 ## Context-function members (`funcs { … }`)
 
 A `funcs { FnExpr <header>; … }` section requires, per entry, a **free function
@@ -146,6 +159,15 @@ println("renderable:  ", (r :: Renderable).name)   // Ada — render handles it
 noObj := func(indent int) => indent
 NotRenderable := interface { funcs { noObj <(indent int, @self)> } }
 println("ctx reject:  ", r :: NotRenderable or "no renderer")  // no renderer
+
+/// A `?` after a required field name makes it **nullable**: a member that is
+/// `nil` — or absent — still satisfies the interface, so `?` marks an optional
+/// field.
+interface Tagged { name str; tag? int|str }
+
+println("tag present: ", ({name: "a", tag: 3} :: Tagged).tag)  // 3
+println("tag nil:     ", ({name: "b", tag: nil} :: Tagged).name) // b — nil tag is fine
+println("tag absent:  ", ({name: "c"} :: Tagged).name)          // c — absent tag is fine
 
 return ok
 ```

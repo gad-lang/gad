@@ -1,0 +1,43 @@
+# html
+
+Inline HTML regions.
+
+A line starting with `<` is parsed as inline HTML: it runs from the opening
+tag to its matching close tag (spanning multiple lines). Internally it is
+compiled to the same gadx.Tag / gadx.Text elements as the pug-style tag
+syntax (so `<br>` renders as `<br />`, `<input disabled>` as
+`disabled="disabled"`), and runs of whitespace collapse to a single space.
+
+Attributes may be interpolated with `{expr}` — both the value (`href={uri}`)
+and the name (`data-{key}={value}`). An interpolated value is auto-quoted and
+escaped. `{expr}` also interpolates text content. `<> … </>` is a fragment
+(renders its children with no wrapping element).
+
+Block-level gadx statements (`@if`, `@for`, `@match`, `+comp`, `~code`) may
+be interleaved inside an HTML region by indentation: the directive and its
+more-indented body render as children of the enclosing element. See
+html_control_flow.gadx.
+
+## Components
+
+### main
+
+## Example — `html.gadx`
+
+```gadx
+@global (url, active; title = "The Link")
+
+@main
+    <nav class="menu">
+        <a href={url} class="link" data-{active}="1">
+            {title}
+        </a>
+
+        <img src="/logo.png" alt="logo"/>
+
+        <>
+            <span>one</span>
+            <span>two</span>
+        </>
+    </nav>
+```

@@ -393,10 +393,31 @@ func collectGadxPages(dir string, order []string) ([]*page, error) {
 }
 
 // langLinkRe matches a Markdown link to a sibling sample file (a `.gad`/`.gadt`/
-// `.gadx`/`.md` target with no scheme or path separator) so the cross-references
-// the samples use (`[03_functions.gad](03_functions.gad)`) resolve to the
-// prefixed `lang-<name>.html` pages.
-var langLinkRe = regexp.MustCompile(`\]\(([0-9A-Za-z_-]+)\.(?:gad|gadt|gadx|md)(#[A-Za-z0-9_-]+)?\)`)
+// `.gadx`/`.md` target, no scheme) so the cross-references the samples use
+// (`[03_functions.gad](03_functions.gad)`, `[classes](class/classes.gad)`,
+// `[..](../24_interfaces.gad)`) resolve to the flat `lang-<slug>.html` pages. The
+// path may contain `/` and `.` for links into and out of sample subdirectories.
+var langLinkRe = regexp.MustCompile(`\]\(([0-9A-Za-z_./-]+)\.(?:gad|gadt|gadx|md)(#[A-Za-z0-9_-]+)?\)`)
+
+// langSlug is the flat page slug for a language chapter name, which may carry a
+// subdirectory (`class/classes` -> `lang-class-classes`).
+func langSlug(name string) string {
+	return "lang-" + strings.ReplaceAll(name, "/", "-")
+}
+
+// rewriteLangLinks rewrites the sample-to-sample markdown links in a chapter to
+// the flat `lang-<slug>.html` pages, resolving each target relative to the
+// chapter's own directory so links between the top level and subdirectories
+// (e.g. samples/class/) point to the right page.
+func rewriteLangLinks(src, pageName string) string {
+	pageDir := path.Dir(pageName) // "." at the top level, "class" under class/
+	return langLinkRe.ReplaceAllStringFunc(src, func(m string) string {
+		sub := langLinkRe.FindStringSubmatch(m)
+		target, frag := sub[1], sub[2]
+		resolved := path.Clean(path.Join(pageDir, target))
+		return "](" + langSlug(resolved) + ".html" + frag + ")"
+	})
+}
 
 // collectLangPages renders the language chapters generated into doc/samples as the
 // "Language" nav section. Pages are emitted as `lang-<name>.html`; intra-sample
@@ -411,11 +432,30 @@ func collectLangPages(dir, samplesDir string) ([]*page, error) {
 		}
 		return nil, err
 	}
-	// Names present on disk (without .md), curated order first then the rest.
+	// Names present on disk (without .md). Top-level pages are always eligible;
+	// pages one level down in a subdirectory (e.g. class/) are eligible only when
+	// langOrder curates them, so the module/stdlib/testing sample subdirectories
+	// (which have their own README sections) do not leak into the Language nav.
 	present := map[string]bool{}
+	topLevel := map[string]bool{}
 	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
-			present[strings.TrimSuffix(e.Name(), ".md")] = true
+		if e.IsDir() {
+			subDir := filepath.Join(dir, e.Name())
+			subEntries, subErr := os.ReadDir(subDir)
+			if subErr != nil {
+				continue
+			}
+			for _, se := range subEntries {
+				if !se.IsDir() && strings.HasSuffix(se.Name(), ".md") {
+					present[e.Name()+"/"+strings.TrimSuffix(se.Name(), ".md")] = true
+				}
+			}
+			continue
+		}
+		if strings.HasSuffix(e.Name(), ".md") {
+			name := strings.TrimSuffix(e.Name(), ".md")
+			present[name] = true
+			topLevel[name] = true
 		}
 	}
 	var order []string
@@ -427,7 +467,7 @@ func collectLangPages(dir, samplesDir string) ([]*page, error) {
 		}
 	}
 	var rest []string
-	for n := range present {
+	for n := range topLevel {
 		if !seen[n] {
 			rest = append(rest, n)
 		}
@@ -440,20 +480,21 @@ func collectLangPages(dir, samplesDir string) ([]*page, error) {
 		readme *page
 	)
 	for _, name := range order {
-		src, err := os.ReadFile(filepath.Join(dir, name+".md"))
+		src, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(name)+".md"))
 		if err != nil {
 			return nil, err
 		}
-		rewritten := langLinkRe.ReplaceAllString(string(src), "](lang-$1.html$2)")
+		rewritten := rewriteLangLinks(string(src), name)
 		body, headings := renderMarkdown(rewritten)
 		title := firstHeading(headings)
 		if title == "" {
 			title = name
 		}
+		slug := langSlug(name)
 		p := &page{
-			Slug:     "lang-" + name,
+			Slug:     slug,
 			Title:    title,
-			OutFile:  "lang-" + name + ".html",
+			OutFile:  slug + ".html",
 			Section:  "Language",
 			BodyHTML: template.HTML(body),
 			Headings: headings,

@@ -1,0 +1,80 @@
+# greeting_test
+
+Gadx tests — `@test NAME`.
+
+`@test NAME` is the Gadx form of Gad's `test NAME { … }`: `gad test` discovers
+every `@test` in a `*_test.gadx` file and runs it with an injected `t` test
+context (the same assertions as `_test.gad`: `t.equal`, `t.true`, `t.false`,
+`t.nil`, `t.error`, `t.run`, …).
+
+Two ways to call the test context:
+
+- `! callee arg1 arg2 …`  — the idiomatic fluent call statement. It lowers to
+  `callee(arg1, arg2, …)`. Each space-separated part is one argument; an argument
+  that itself contains spaces (operators) is parenthesized: `! t.true (a == b)`.
+  It works with any callable (`! t.equal …`, `! myAssert …`).
+- `~ callee(arg1, arg2, …)` — a plain `~` code line with the explicit call. Use
+  it for anything the fluent form does not cover: locals, several steps,
+  assignments, function-literal arguments.
+
+To assert a component's HTML, render it with the `gadx.render(el)` builtin.
+
+Run these with:  gad test greeting_test.gadx
+
+## Components
+
+### greeting
+
+```gadx
+greeting(; name="world")
+```
+
+### list
+
+```gadx
+list(items)
+```
+
+## Example — `greeting_test.gadx`
+
+```gadx
+@comp greeting(; name="world")
+	span Hello {= name }
+
+@comp list(items)
+	ul
+		@for it in items
+			li {= it }
+
+//- fluent `!` form — the idiomatic style
+@test renders_with_name
+	! t.equal gadx.render(greeting(; name="Gad")) "<span>Hello Gad</span>"
+
+@test renders_default
+	! t.equal gadx.render(greeting()) "<span>Hello world</span>"
+
+@test renders_a_list
+	! t.equal gadx.render(list(["a", "b"])) "<ul><li>a</li><li>b</li></ul>"
+
+@test boolean_and_nil
+	! t.true ((1 + 1) == 2)
+	! t.false (1 == 2)
+	! t.nil nil
+
+//- explicit `~` form — a single `~` line spans until its brackets balance
+@test explicit_form
+	~ t.true((len(gadx.render(list(["x"]))) > 0))
+
+//- a `~` line reads across lines until the brackets close, so a multi-line
+//- call/func-literal works without a `~~` block
+@test grouped
+	~ t.run("greets Gad", func(t) {t.equal(gadx.render(greeting(; name="Gad")), "<span>Hello Gad</span>")})
+
+//- a `~~` block is still available for several independent statements / locals
+@test multi_step
+	~~
+	html := gadx.render(list(["x"]))
+	t.equal(html, "<ul><li>x</li></ul>")
+	t.true((len(html) > 0))
+	~~
+```

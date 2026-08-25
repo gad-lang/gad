@@ -245,8 +245,10 @@ generate-api: version
 	go generate -run gaddoc ./...
 
 samples-doc: generate-api
+	# `./...` recurses into sample subdirectories (e.g. samples/class/) so their
+	# .md render alongside the flat samples; `.` alone would skip them.
 	cd samples && go run ../cmd/gad doc --out ../doc/samples \
-		--doc-template-md ../doc-templates/md.gadx .
+		--doc-template-md ../doc-templates/md.gadx ./...
 
 # Run the web workspace's JS/TS tests. `bun test` auto-discovers every
 # *.test.ts under web/** (across all workspace members), so new tests are picked

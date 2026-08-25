@@ -1,0 +1,141 @@
+
+# Typed class fields
+
+A class field may declare the type(s) it accepts — `x int`, `v int|str`, a class
+(`a Point`) or an [interface](../24_interfaces.gad) it must satisfy. The type is
+enforced when an instance is constructed, using the **same value-based
+assignability as function parameters** (the [`::` operator](../14_user_operators.gad)):
+
+- A value of a **matching type** is stored as-is.
+- A **`dict` passed for a class-typed field** is constructed into an instance of
+  that class, so nested classes initialise from plain literals — recursively, at
+  any depth (github.com/gad-lang/gad issue #4).
+- A value of a **different type is rejected** with a `TypeError`.
+- An **untyped field** accepts anything.
+- A field marked **nullable** with a `?` after the name (`x? int`, `x? int|str`)
+  also accepts `nil`; a plain typed field rejects it.
+
+Fields declared with `class Name { … }` and with the
+[`Class(...)` builtin](classes.gad) behave identically. The same `name? T`
+marker works on an [interface](../24_interfaces.gad) field, where `nil` (or an
+absent member) satisfies it.
+
+## Example — `field_types.gad`
+
+```gad
+class Point { x int; y int }
+
+/**
+A class-typed field: `a`/`b` are declared as `Point`, so a dict literal passed
+for them is turned into a real `Point` instance.
+**/
+class Rect { a Point; b Point }
+
+r := Rect(; a = {x: 0, y: 0}, b = {x: 3, y: 4})
+println("a is a:   ", typeName(r.a))               // Point
+println("b.y:      ", r.b.y, "(", typeName(r.b.y), ")") // 4 ( int )
+
+/**
+Nesting composes to any depth: `Scene.rect` is a `Rect`, whose `a`/`b` are
+`Point`s — all built from one nested dict literal.
+**/
+class Scene { name str; rect Rect }
+
+s := Scene(; name = "s1", rect = {a: {x: 1, y: 2}, b: {x: 3, y: 4}})
+println("deep:     ", typeName(s.rect), typeName(s.rect.a), s.rect.a.y) // Rect Point 2
+
+/**
+An already-built instance is stored unchanged (not re-wrapped); a field that is
+not provided defaults to nil.
+**/
+p := Point(; x = 9, y = 9)
+println("kept:     ", Rect(; a = p, b = {x: 1, y: 1}).a.x) // 9
+println("missing:  ", Rect(; a = {x: 1, y: 2}).b)          // nil
+
+// --- Type enforcement ------------------------------------------------------
+/**
+A typed field rejects a value of a different type. The raised `TypeError` names
+the field and the expected type(s): `field "x" expects int, got str`.
+**/
+try {
+    Point(; x = "hello", y = 1)
+} catch {
+    println("rejected:  x is not int")
+}
+
+/// A union type (`int|str`) accepts any listed type and rejects the rest.
+class Box { v int|str }
+println("union int:", Box(; v = 7).v)              // 7
+println("union str:", Box(; v = "hi").v)           // hi
+try {
+    Box(; v = true)                                // field "v" expects int|str, got bool
+} catch {
+    println("union no:  bool is not int|str")
+}
+
+/// An untyped field accepts any value.
+class Bag { any }
+println("untyped:  ", typeName(Bag(; any = 1).any), typeName(Bag(; any = "x").any)) // int str
+
+// --- Interface-typed fields ------------------------------------------------
+/**
+A field may be typed by an interface: the value must structurally satisfy it (the
+same check the `::` operator and interface parameters use). Both class instances
+and dicts qualify.
+**/
+interface Greeter { name str; greet() <str> }
+
+class Person { name = ""; methods { greet() => "hi " + this.name } }
+
+/// `main` accepts anything that is a `Greeter`.
+class Registry { main Greeter }
+
+println("iface inst:", Registry(; main = Person(; name = "Ada")).main.greet())  // hi Ada
+println("iface dict:", Registry(; main = {name: "Bo", greet: func() => "hi Bo"}).main.greet()) // hi Bo
+
+/// A value that does not satisfy the interface is rejected.
+try {
+    Registry(; main = 42)
+} catch e {
+    println("iface no:  not a Greeter")
+}
+
+// --- Nullable fields (`name? T`) -------------------------------------------
+/**
+A field marked with a `?` after its name is **nullable**: it accepts `nil` in
+addition to its declared type(s). Use it for optional data — a value that may be
+absent — instead of widening the type or dropping it entirely.
+
+Without the `?`, a typed field rejects `nil` just like a non-nullable parameter,
+so the marker documents intent and is enforced: a plain `int` field can never
+hold `nil`, while an `int?` field can.
+**/
+class Config {
+    /// required — must be a non-nil int
+    port int
+    /// optional — an int or nil
+    host? str
+    /// optional union — int, str or nil
+    tag? int|str
+}
+
+c := Config(; port = 8080, host = nil, tag = "beta")
+println("nullable:  ", c.port, c.host, c.tag)      // 8080 nil beta
+
+/// A non-nullable field rejects an explicit nil.
+try {
+    Config(; port = nil)                           // field "port" expects int, got nil
+} catch {
+    println("port nil:  rejected")
+}
+
+/**
+The `name? T` marker works the same way on an **interface** field: a value whose
+member is `nil` (or absent) still satisfies the interface, while a non-nullable
+field requires a present value of the right type.
+**/
+interface HasTag { tag? int|str }
+
+println("iface nil: ", ({} :: HasTag) != nil)      // true — absent tag is fine
+println("iface val: ", ({tag: 3} :: HasTag).tag)   // 3
+```

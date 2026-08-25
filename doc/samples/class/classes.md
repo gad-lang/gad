@@ -4,7 +4,7 @@
 Gad's class system is built on the `Class(name, define)` builtin. A class
 describes **fields**, **methods**, **properties** and one or more
 **constructors**, and can **extend** other classes; calling a class creates an
-instance. The high-level [`class` keyword](19_class_syntax.gad) lowers to this
+instance. The high-level [`class` keyword](syntax.gad) lowers to this
 builtin.
 
 ## Defining
@@ -50,7 +50,7 @@ implementation for super/around wrapping.
 
 The Example below is a runnable tour.
 
-## Example — `11_classes.gad`
+## Example — `classes.gad`
 
 ```gad
 // --- a class with fields, a constructor and methods ---

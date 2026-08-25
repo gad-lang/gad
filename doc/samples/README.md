@@ -12,7 +12,6 @@
 - [08_strings_bytes_regex](08_strings_bytes_regex.md)
 - [09_template](09_template.md)
 - [10_functions_with_methods](10_functions_with_methods.md)
-- [11_classes](11_classes.md)
 - [12_method_interfaces](12_method_interfaces.md)
 - [13_ranges](13_ranges.md)
 - [14_user_operators](14_user_operators.md)
@@ -20,7 +19,6 @@
 - [16_doc_comments](16_doc_comments.md)
 - [17_unary_operators](17_unary_operators.md)
 - [18_with](18_with.md)
-- [19_class_syntax](19_class_syntax.md)
 - [20_enum](20_enum.md)
 - [21_heredocs](21_heredocs.md)
 - [22_key_value_array](22_key_value_array.md)
@@ -38,5 +36,15 @@
 - [34_metaprogramming](34_metaprogramming.md)
 - [35_type_unions](35_type_unions.md)
 - [36_type_parameters](36_type_parameters.md)
+- [38_transform_cast_test](38_transform_cast_test.md)
+- [39_interface_arrays_test](39_interface_arrays_test.md)
 - [builtins](builtins.md)
 - [types](types.md)
+
+## Subdirectories
+
+- [class](class/README.md)
+- [gadx](gadx/README.md)
+- [modules](modules/README.md)
+- [stdlib](stdlib/README.md)
+- [testing](testing/README.md)

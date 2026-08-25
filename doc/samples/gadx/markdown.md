@@ -1,0 +1,77 @@
+# markdown
+
+## Components
+
+### main
+
+## Parameters
+
+### @param
+
+```gadx
+@param(; title="Gadx", tagline="fast, embeddable, typed")
+```
+
+@md — a Markdown block, lowered to gadx tags.
+
+Lines indented under `@md` are literal Markdown. At compile (and transpile)
+time the block's content is converted to an HTML fragment by goldmark with
+the full extension set enabled (GFM tables/strikethrough/task lists/autolinks,
+typographer, definition lists and footnotes) plus auto heading ids, and that
+HTML is parsed into the same `gadx.Tag` / `gadx.Text` elements as the pug-style
+and inline-HTML syntax. So `@md` produces a real tag tree — not a runtime
+Markdown string — and `gad transpile` emits it as plain gadx tag code. The
+renderer is the package-level `gadx.Markdown` variable, so an embedding Go
+program can customize or replace it before compiling (add extensions, tighten
+the HTML sanitizer, …).
+
+Three things make `@md` more than a static Markdown file:
+  • `{= expr }` interpolation becomes a dynamic value inserted into the fixed
+    HTML structure — the Markdown layout is decided at compile time, the value
+    is evaluated at render time (so an interpolated value is not re-parsed as
+    Markdown).
+  • Inline and block HTML mixed into the Markdown is supported; it flows
+    through goldmark and is parsed into tags like the rest.
+  • Nested `@` directives (a `@`-prefixed line and its indented body) render
+    inline as their own tags; Markdown text before/after is its own section.
+
+Source positions of `{ … }` interpolations are preserved (in the AST and the
+bytecode source map), so runtime errors and debug stepping map back to this
+`.gadx` file. A literal brace in the Markdown text is written `\{` / `\}` (the
+same escape used by `@text` and interpolated strings).
+
+## Example — `markdown.gadx`
+
+````gadx
+@param (; title="Gadx", tagline="fast, embeddable, typed")
+
+@main
+	@md
+		# {= title } release notes
+
+		Gadx is a **template language** for Go with _first-class_ HTML.
+
+		## Highlights
+
+		| Feature | Ready |
+		| ------- | :---: |
+		| Templates | ✅ |
+		| Markdown  | ✅ |
+
+		In three words: _{= tagline }_.
+
+		A fenced code sample:
+
+		```gad
+		name := "world"
+		print("hi " + name)
+		```
+
+		A nested directive rendered inline:
+
+		@p
+			This paragraph is produced by a nested @p directive and then
+			embedded into the surrounding Markdown as HTML.
+
+		> Blockquotes, - lists and other Markdown all work here.
+````

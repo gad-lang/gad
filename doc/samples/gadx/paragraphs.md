@@ -1,0 +1,40 @@
+# paragraphs
+
+## Components
+
+### main
+
+## Parameters
+
+### @param
+
+```gadx
+@param(; author="the Gadx team")
+```
+
+@p — a paragraph block.
+
+Lines indented under `@p` are grouped into `<p>` elements. A run of
+consecutive non-blank lines becomes one paragraph (their text joined by
+newlines); one or more blank lines end the current paragraph and start a new
+one. Like `@text`, the body is literal text — bare words are not parsed as
+tags — but `{= expr }` interpolation is still available.
+
+`@p` is a shortcut for prose: instead of writing an explicit `p` tag per
+paragraph, write the paragraphs separated by blank lines.
+
+## Example — `paragraphs.gadx`
+
+```gadx
+@param (; author="the Gadx team")
+
+@main
+	article
+		@p
+			Gadx turns indentation-structured templates into HTML.
+			This first paragraph spans two source lines.
+
+			The blank line above started a second paragraph.
+
+			Signed, {= author }.
+```

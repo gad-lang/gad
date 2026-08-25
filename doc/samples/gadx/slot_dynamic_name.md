@@ -1,0 +1,46 @@
+# slot_dynamic_name
+
+Dynamic (interpolated) slot names.
+
+A simple slot name is a bare identifier (`@slot header`). A dynamic name is
+written as a double-quoted interpolated string, so `{expr}` is evaluated at
+render time and used as the `slots[…]` key:
+  @slot "name[{expr}]"      — declaration
+  @slot #"name[{expr}]"     — pass (override)
+
+Here each row of `list` declares its own slot `item[{i}]`, so a caller can
+override an individual row by its computed name.
+
+## Components
+
+### list
+
+```gadx
+list(items; slots={})
+```
+
+### main
+
+## Example — `slot_dynamic_name.gadx`
+
+```gadx
+@comp list(items; slots={})
+	@for i, it in items
+		@slot "item[{i}]"(it)
+			li {= it }
+
+@main
+	ul
+		//- default rows
+		+list(["a", "b", "c"])
+	ul
+		//- Call-block `~` code is hoisted to call scope, before the slot passes,
+		//- so an interpolated slot name may reference it.
+		+list(["a", "b", "c"])
+			~ const target = 1
+			@slot #main(*args; **kwargs)
+				//- override only row `target`, rendering the default via +super(it)
+			@slot #"item[{target}]"(super, it)
+				li[class="hit"] {= it }*
+				+super(it)
+```

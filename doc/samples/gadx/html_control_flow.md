@@ -1,0 +1,33 @@
+# html_control_flow
+
+Control flow interleaved inside inline HTML.
+
+Block-level gadx statements can appear as children of an HTML element by
+indentation: the directive line (`@if`/`@for`/`@else`/…) and every line
+indented deeper than it form the block, which may itself contain HTML. The
+block renders in source order alongside sibling HTML on the same level.
+
+## Components
+
+### main
+
+## Example — `html_control_flow.gadx`
+
+```gadx
+@global (user, items)
+
+@main
+    <nav class="menu">
+        <a href="/">Home</a>
+
+        @if user
+            <a href="/account">{user.name}</a>
+        @else
+            <a href="/login">Sign in</a>
+
+        <ul class="items">
+            @for item in items
+                <li class="item">{item}</li>
+        </ul>
+    </nav>
+```
