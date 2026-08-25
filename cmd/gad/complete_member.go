@@ -7,6 +7,9 @@ import (
 
 	gad "github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/langsym"
+	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 )
 
 // memberCompletions handles `x.` / `x.partial` / `x[` completion by runtime
@@ -14,13 +17,13 @@ import (
 // the source up to it (in a sandbox with a timeout and panic recovery), and lists
 // the resulting value's members — dict keys, class fields/properties/methods,
 // module exports. ok is false when the caret is not a member-access context.
-func memberCompletions(src string, offset int) (items []langsym.Symbol, ok bool) {
+func memberCompletions(name, src string, offset int) (items []langsym.Symbol, ok bool) {
 	recv, recvStart, dot, ok := memberContext(src, offset)
 	if !ok {
 		return nil, false
 	}
 
-	val, ok := evalReceiver(src, recvStart, dot, recv)
+	val, ok := evalReceiver(name, src, recvStart, dot, recv)
 	if !ok {
 		return nil, true // it IS a member context; we just could not evaluate it
 	}
@@ -109,26 +112,17 @@ func matchOpen(src string, close int) int {
 // and returns the resulting value. It runs in a goroutine-safe Eval with a short
 // timeout and recovers from any panic, so a malformed or side-effecting prefix
 // can never hang or crash the command.
-func evalReceiver(src string, recvStart, dot int, recv string) (val gad.Object, ok bool) {
+func evalReceiver(name, src string, recvStart, dot int, recv string) (val gad.Object, ok bool) {
 	defer func() {
 		if recover() != nil {
 			val, ok = nil, false
 		}
 	}()
 
-	// Replace the caret line in place with `return RECEIVER`, keeping the rest of
-	// the file so all enclosing blocks stay balanced. This matters for a receiver
-	// that lives inside a loop or conditional (e.g. `for i, u in users { u.‸ }`):
-	// cutting the source at the line start would leave the `for` block open (a
-	// parse error), and the loop variable would not be in scope. With the block
-	// intact, `return` fires on the first iteration with the variable bound, and
-	// the untouched tail keeps the source parseable.
-	lineStart := strings.LastIndexByte(src[:recvStart], '\n') + 1
-	lineEnd := lineStart + strings.IndexByte(src[lineStart:], '\n')
-	if lineEnd < lineStart {
-		lineEnd = len(src)
+	prelude, ok := receiverPrelude(name, src, recvStart, recv)
+	if !ok {
+		return nil, false
 	}
-	prelude := src[:lineStart] + "return " + recv + "\n" + src[lineEnd:]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
@@ -144,6 +138,127 @@ func evalReceiver(src string, recvStart, dot int, recv string) (val gad.Object, 
 		return nil, false
 	}
 	return ret, true
+}
+
+// receiverPrelude builds a runnable plain-Gad program whose result is the value
+// of recv, evaluated in the scope it has at the caret. The strategy depends on
+// the dialect (chosen by name's extension):
+//
+//   - plain .gad: replace the caret line in place with `return recv`, keeping the
+//     untouched tail so all enclosing blocks stay balanced — a receiver inside a
+//     `for { … }` / `if { … }` block resolves because `return` fires with the
+//     block variables bound.
+//   - .gadt (mixed template): the code lives in `{% … %}` islands interleaved with
+//     literal text, which RunScript cannot execute directly. Extract the code
+//     islands before the caret (skipping `{%= … %}` output islands, which do not
+//     bind names), append `return recv`, and close any block still open at the
+//     caret (a `for … begin` whose `end` is in a later island).
+func receiverPrelude(name, src string, recvStart int, recv string) (string, bool) {
+	if strings.HasSuffix(name, ".gadt") {
+		return mixedReceiverPrelude(src, recvStart, recv)
+	}
+	lineStart := strings.LastIndexByte(src[:recvStart], '\n') + 1
+	lineEnd := lineStart + strings.IndexByte(src[lineStart:], '\n')
+	if lineEnd < lineStart {
+		lineEnd = len(src)
+	}
+	return src[:lineStart] + "return " + recv + "\n" + src[lineEnd:], true
+}
+
+// mixedReceiverPrelude assembles a runnable plain-Gad program from a mixed
+// (`.gadt`) source so recv's value can be introspected. It parses the template
+// (tolerantly — the caret line is mid-edit), then rebuilds the scope at the caret
+// as real Gad: every top-level and enclosing declaration before the caret, plus
+// the header of each `for … in …` that contains the caret (as `for k, v in it {`
+// opening a block). `return recv` then runs on the first loop iteration with the
+// loop variables bound, and the opened blocks are closed. String matching on
+// `{% %}` is avoided so `%}`/`{%` inside island strings or doc comments (e.g. the
+// leading `/** … `{%= … %}` … **/` block) cannot corrupt the extraction.
+func mixedReceiverPrelude(src string, caret int, recv string) (string, bool) {
+	fs := source.NewFileSet()
+	sf := fs.AddFileData("x.gadt", -1, []byte(src))
+	po := &parser.ParserOptions{Mode: parser.ParseComments | parser.ParseMixed}
+	so := &parser.ScannerOptions{
+		Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
+		MixedDelimiter: parser.DefaultMixedDelimiter,
+	}
+	file, _ := parser.NewParserWithOptions(sf, po, so).ParseFileTolerant()
+	if file == nil {
+		return "", false
+	}
+	base := int(sf.Base)
+
+	var b strings.Builder
+	opens := 0
+	pos := func(n node.Node) int { return int(n.Pos()) - base }
+	end := func(n node.Node) int { return int(n.End()) - base }
+	// exprSrc returns an expression's verbatim source, or "" if out of range.
+	exprSrc := func(e node.Expr) string {
+		if e == nil {
+			return ""
+		}
+		p, q := pos(e), end(e)
+		if p < 0 || q > len(src) || q < p {
+			return ""
+		}
+		return strings.TrimSpace(src[p:q])
+	}
+
+	var walk func(stmts []node.Stmt)
+	walk = func(stmts []node.Stmt) {
+		for _, s := range stmts {
+			sp, se := pos(s), end(s)
+			if se <= caret {
+				// A declaration fully before the caret binds names in scope.
+				switch s.(type) {
+				case *node.DeclStmt, *node.AssignStmt:
+					if sp >= 0 && se <= len(src) {
+						b.WriteString(src[sp:se])
+						b.WriteByte('\n')
+					}
+				}
+				continue
+			}
+			if sp > caret {
+				continue // starts after the caret — not in scope yet
+			}
+			// This statement contains the caret; descend, opening any binding block.
+			switch st := s.(type) {
+			case *node.ForInStmt:
+				it := exprSrc(st.Iterable)
+				if it == "" {
+					return // iterable not yet typed; cannot evaluate
+				}
+				if st.Value != nil {
+					b.WriteString("for " + exprSrc(st.Key) + ", " + exprSrc(st.Value) + " in " + it + " {\n")
+				} else {
+					b.WriteString("for " + exprSrc(st.Key) + " in " + it + " {\n")
+				}
+				opens++
+				if st.Body != nil {
+					walk(st.Body.Stmts)
+				}
+			case *node.IfStmt:
+				if st.Body != nil {
+					walk(st.Body.Stmts)
+				}
+				if b2, ok := st.Else.(*node.BlockStmt); ok {
+					walk(b2.Stmts)
+				}
+			case *node.BlockStmt:
+				walk(st.Stmts)
+			}
+		}
+	}
+	walk(file.Stmts)
+
+	b.WriteString("return ")
+	b.WriteString(recv)
+	b.WriteByte('\n')
+	for ; opens > 0; opens-- {
+		b.WriteString("}\n")
+	}
+	return b.String(), true
 }
 
 // classMemberDocs returns the source doc comments for the members of val, when

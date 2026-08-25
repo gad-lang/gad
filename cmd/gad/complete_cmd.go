@@ -53,7 +53,7 @@ func completeCommand() *cc.Command {
 			// Member access (`x.` / `x[`) is resolved first by runtime
 			// introspection: the file need not parse (it is mid-edit), and a
 			// member context suppresses the in-scope/keyword candidates.
-			if member, ok := memberCompletions(string(data), offset); ok {
+			if member, ok := memberCompletions(name, string(data), offset); ok {
 				items = member
 			} else {
 				file, sf, perr := langsymParse(name, data)

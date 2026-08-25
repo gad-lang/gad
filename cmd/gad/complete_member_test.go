@@ -10,9 +10,14 @@ import (
 // labelsOf returns the member labels reported at the caret just after the `.`.
 func labelsOf(t *testing.T, src string) []string {
 	t.Helper()
+	return labelsOfName(t, "t.gad", src)
+}
+
+func labelsOfName(t *testing.T, name, src string) []string {
+	t.Helper()
 	caret := strings.Index(src, "u.") + len("u.")
 	require.GreaterOrEqual(t, caret, len("u."), "source must contain a `u.` receiver")
-	items, ok := memberCompletions(src, caret)
+	items, ok := memberCompletions(name, src, caret)
 	require.True(t, ok, "should be a member-access context")
 	var labels []string
 	for _, it := range items {
@@ -35,6 +40,19 @@ func TestMemberCompletionDict(t *testing.T) {
 func TestMemberCompletionLoopVar(t *testing.T) {
 	src := "users := [{name: \"joe\", admin: true}]\nfor i, u in users {\n  x := u.\n}\n"
 	labels := labelsOf(t, src)
+	require.Contains(t, labels, "name")
+	require.Contains(t, labels, "admin")
+}
+
+// TestMemberCompletionGadtLoopVar checks the mixed-template (`.gadt`) path: the
+// loop variable's dict keys resolve even though the code lives in `{% … %}`
+// islands interleaved with literal text (and a leading doc-comment island whose
+// prose contains `{% … %}`, which must not corrupt the extraction).
+func TestMemberCompletionGadtLoopVar(t *testing.T) {
+	src := "{%--\n/** doc mentioning `{%= x %}` here **/\n--%}\n" +
+		"{% users := [{name: \"joe\", admin: true}] %}\n" +
+		"{%-- for i, u in users begin %}\n<li>{%= u. %}</li>\n{%-- end %}\n"
+	labels := labelsOfName(t, "t.gadt", src)
 	require.Contains(t, labels, "name")
 	require.Contains(t, labels, "admin")
 }
