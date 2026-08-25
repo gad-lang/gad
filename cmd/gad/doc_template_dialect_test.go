@@ -65,3 +65,16 @@ func TestDocTemplateDocComments(t *testing.T) {
 	require.Contains(t, md, "const **PI**")
 	require.Contains(t, md, "Pi constant.")
 }
+
+// TestDocTemplateModuleProse: a `/** … **/` block inside the LEADING
+// `{%-- … --%}` code island of a `.gadt` (as in samples/23_template.gadt) is the
+// module prose — even though its `CodeBeginStmt` precedes it and the closing
+// island markers sit on the same line. rootBlocks must skip mixed-mode
+// structural nodes when deciding the block is detached module prose.
+func TestDocTemplateModuleProse(t *testing.T) {
+	src := []byte("{%--\n/**\n# Templates\n\nModule prose here.\n**/\n--%}\n{%\nvar x = 1\n--%}\n<p>{%= x %}</p>\n")
+	md, err := generateDoc("m.gadt", src, true)
+	require.NoError(t, err)
+	require.Contains(t, md, "# Templates")
+	require.Contains(t, md, "Module prose here.")
+}

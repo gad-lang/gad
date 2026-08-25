@@ -440,17 +440,25 @@ func identName(e node.Expr) string {
 // f gives source positions for the detachment check (nil disables it, keeping
 // only the `/***` blocks).
 func rootBlocks(file *parser.File, f *source.File) []string {
-	firstStmtLine := -1
-	if f != nil && len(file.Stmts) > 0 {
-		firstStmtLine = f.SafePosition(file.Stmts[0].Pos()).Line
-	}
-	// detached reports whether a comment group is separated from the first
-	// statement by a blank line (or has no statement after it).
+	// detached reports whether a comment group is separated from the code it
+	// could document by a blank line (or has no such code below it) — i.e. it is
+	// module prose, not a declaration doc. The relevant statement is the first
+	// documentable one AFTER the comment: mixed-mode structural nodes
+	// (`{% %}` / `{%= %}` island markers and literal text) are skipped, so a
+	// `/** … **/` inside a leading `{%-- … --%}` island in a `.gadt` is recognized
+	// as module prose (its `CodeBeginStmt` sits before it, not after).
 	detached := func(g *ast.CommentGroup) bool {
 		if f == nil {
 			return false
 		}
-		return firstStmtLine < 0 || firstStmtLine > f.SafePosition(g.End()-1).Line+1
+		endLine := f.SafePosition(g.End() - 1).Line
+		for _, s := range file.Stmts {
+			if s.Pos() < g.End() || isMixedStructural(s) {
+				continue
+			}
+			return f.SafePosition(s.Pos()).Line > endLine+1
+		}
+		return true // no documentable statement after the comment
 	}
 
 	var out []string
@@ -477,6 +485,19 @@ func rootBlocks(file *parser.File, f *source.File) []string {
 		}
 	}
 	return out
+}
+
+// isMixedStructural reports whether s is a mixed-mode (`.gadt`) structural node
+// — a `{% %}` / `{%= %}` island marker or literal template text — none of which
+// can carry a doc comment. They are skipped when locating the statement a leading
+// `/** … **/` documents, so a module-prose block inside the leading code island
+// is not mistaken for a declaration doc (its `CodeBeginStmt` precedes it).
+func isMixedStructural(s node.Stmt) bool {
+	switch s.(type) {
+	case *node.CodeBeginStmt, *node.CodeEndStmt, *node.MixedTextStmt, *node.MixedValueStmt:
+		return true
+	}
+	return false
 }
 
 // docContent extracts the Markdown body of a doc comment group (markers
