@@ -39,8 +39,10 @@ func defCommand() *cc.Command {
 			if name == "<stdin>" && stdinName != "" {
 				name = stdinName
 			}
+			// Resolve against the partial AST even when parsing fails (mid-edit
+			// source) so go-to-definition keeps working; only bail if nothing parsed.
 			file, sf, err := langsymParse(name, data)
-			if err != nil {
+			if file == nil {
 				return err
 			}
 

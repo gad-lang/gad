@@ -238,6 +238,37 @@ func (p *Parser) ParseFile() (file *File, err error) {
 	return
 }
 
+// ParseFileTolerant parses like ParseFile but always returns the partial AST
+// assembled from whatever statements parsed, even when there are errors — the
+// errors are still reported via the returned err. Language services use it so
+// completion and go-to-definition keep working on mid-edit source (e.g. an
+// empty expression slot) instead of getting a nil file. Only a catastrophic
+// bailout (too many errors) still yields a nil file.
+func (p *Parser) ParseFileTolerant() (file *File, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			if _, ok := e.(bailout); !ok {
+				panic(e)
+			}
+		}
+		p.Errors.Sort()
+		err = p.Errors.Err()
+	}()
+
+	if p.Trace {
+		defer untracep(tracep(p, "File"))
+	}
+
+	stmts := p.ParseStmtList()
+	p.Expect(token.EOF)
+	file = &File{
+		InputFile: p.File,
+		Stmts:     stmts,
+		Comments:  p.comments,
+	}
+	return
+}
+
 // ParseFileH parses the source and returns an AST file unit.
 func (p *Parser) ParseFileH(listHandler ParseListHandler) (file *File, err error) {
 	defer func() {

@@ -54,6 +54,25 @@ func TestLangsymParseGadt(t *testing.T) {
 	require.Equal(t, nthIndex(src, "x", 0), def)
 }
 
+// TestCompleteMidEditGadt reproduces completion inside a mid-edit `.gadt` where
+// the caret sits in an empty expression slot (`for i, u in ‸ begin`): the buffer
+// does not fully parse, but the tolerant parse still yields a partial AST so the
+// in-scope variable is offered instead of "no suggestions".
+func TestCompleteMidEditGadt(t *testing.T) {
+	src := "{% users := [1, 2, 3] %}\n{%-- for i, u in  begin %}\n{%= u %}\n{%-- end %}\n"
+	caret := strings.Index(src, "in  begin") + len("in ")
+
+	file, sf, err := langsymParse("t.gadt", []byte(src))
+	require.Error(t, err, "mid-edit source should not fully parse")
+	require.NotNil(t, file, "a partial AST must still be returned")
+
+	var labels []string
+	for _, s := range completionItems(file, sf, caret) {
+		labels = append(labels, s.Label)
+	}
+	require.Contains(t, labels, "users", "the in-scope variable must be a candidate")
+}
+
 // TestLangsymParseGad checks the plain-Gad path still works.
 func TestLangsymParseGad(t *testing.T) {
 	src := "x := 1\ny := x + 1\nprintln(y)\n"

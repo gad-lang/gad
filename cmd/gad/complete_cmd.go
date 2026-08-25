@@ -57,10 +57,28 @@ func completeCommand() *cc.Command {
 				items = member
 			} else {
 				file, sf, perr := langsymParse(name, data)
-				if perr != nil {
-					return perr
+				if file == nil {
+					// The buffer is mid-edit and did not parse — often an empty slot
+					// where an expression is expected (`for i, u in ‸ begin`, `x := ‸`),
+					// which is exactly where completion matters most. Splice a sentinel
+					// identifier at the caret so the expression becomes syntactically
+					// valid, then complete at that position.
+					if patched, ok := spliceIdent(data, offset); ok {
+						if f2, sf2, _ := langsymParse(name, patched); f2 != nil {
+							file, sf = f2, sf2
+						}
+					}
 				}
-				items = completionItems(file, sf, offset)
+				if file != nil {
+					items = completionItems(file, sf, offset)
+				} else {
+					// Still unparseable: offer the static candidates (keywords,
+					// constants, builtins) rather than nothing.
+					items = staticCompletions()
+					if len(items) == 0 {
+						return perr
+					}
+				}
 			}
 			items = filterByPrefix(items, prefix)
 
@@ -87,18 +105,47 @@ func completionItems(file *parser.File, sf *source.File, offset int) []langsym.S
 	for _, s := range langsym.Completions(file, sf, offset) {
 		add(s)
 	}
-
-	lang := pluginsync.Extract()
-	for _, kw := range lang.Keywords {
-		add(langsym.Symbol{Label: kw, Kind: "keyword"})
-	}
-	for _, c := range lang.Constants {
-		add(langsym.Symbol{Label: c, Kind: "constant"})
-	}
-	for _, b := range lang.Builtins {
-		add(langsym.Symbol{Label: b, Kind: "function", Doc: builtinDoc(b)})
+	for _, s := range staticCompletions() {
+		add(s)
 	}
 	return items
+}
+
+// staticCompletions is the scope-independent candidate set: the language
+// keywords, constants and global builtin functions (with docs). It is the
+// fallback when the buffer cannot be parsed at all, so a code context still
+// offers something instead of "no suggestions".
+func staticCompletions() []langsym.Symbol {
+	lang := pluginsync.Extract()
+	items := make([]langsym.Symbol, 0, len(lang.Keywords)+len(lang.Constants)+len(lang.Builtins))
+	for _, kw := range lang.Keywords {
+		items = append(items, langsym.Symbol{Label: kw, Kind: "keyword"})
+	}
+	for _, c := range lang.Constants {
+		items = append(items, langsym.Symbol{Label: c, Kind: "constant"})
+	}
+	for _, b := range lang.Builtins {
+		items = append(items, langsym.Symbol{Label: b, Kind: "function", Doc: builtinDoc(b)})
+	}
+	return items
+}
+
+// spliceIdent inserts a sentinel identifier at the caret byte offset, returning
+// the patched buffer. It turns an empty expression slot (where the parser fails
+// because a term is expected, e.g. `for x in ‸ begin`) into valid source that
+// parses, so completions can resolve the scope at the caret. The sentinel is an
+// unlikely name that will not shadow real symbols. Reports false if the offset
+// is out of range.
+func spliceIdent(data []byte, offset int) ([]byte, bool) {
+	if offset < 0 || offset > len(data) {
+		return nil, false
+	}
+	const sentinel = "gadCompletionCaret"
+	out := make([]byte, 0, len(data)+len(sentinel))
+	out = append(out, data[:offset]...)
+	out = append(out, sentinel...)
+	out = append(out, data[offset:]...)
+	return out, true
 }
 
 // builtinDoc returns the documentation of a global builtin function, if any.

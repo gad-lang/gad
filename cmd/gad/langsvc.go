@@ -25,14 +25,16 @@ func langsymParse(name string, data []byte) (*parser.File, *source.File, error) 
 
 	if strings.HasSuffix(name, ".gadx") {
 		gf, err := gadxparser.NewParser(sf).ParseFile()
-		if err != nil {
-			return nil, nil, err
+		if gf == nil {
+			return nil, sf, err
 		}
 		// Lower the Gadx AST to Gad statements (params, locals, interpolations
 		// keep their original source positions), then present them as a gad File
-		// so the scope resolver works on real identifiers.
+		// so the scope resolver works on real identifiers. err is returned (may be
+		// non-nil for mid-edit source) alongside the partial file so the language
+		// service can still offer completions/definitions from what parsed.
 		file := &parser.File{InputFile: sf, Stmts: gadxnode.Convert(gf.Stmts)}
-		return file, sf, nil
+		return file, sf, err
 	}
 
 	po := &parser.ParserOptions{Mode: parser.ParseComments}
@@ -47,9 +49,12 @@ func langsymParse(name string, data []byte) (*parser.File, *source.File, error) 
 			MixedDelimiter: parser.DefaultMixedDelimiter,
 		}
 	}
-	file, err := parser.NewParserWithOptions(sf, po, so).ParseFile()
-	if err != nil {
-		return nil, nil, err
+	// ParseFileTolerant returns a partial AST even on error (mid-edit source), so
+	// the language service can still resolve completions and definitions from the
+	// statements that did parse instead of failing outright.
+	file, err := parser.NewParserWithOptions(sf, po, so).ParseFileTolerant()
+	if file == nil {
+		return nil, sf, err
 	}
-	return file, sf, nil
+	return file, sf, err
 }
