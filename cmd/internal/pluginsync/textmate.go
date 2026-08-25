@@ -55,9 +55,11 @@ func TextMateGrammar() ([]byte, error) {
 	repo := map[string]tmRule{
 		"comments": {Patterns: []tmRule{
 			// Doc comments first so `/**`/`/***`/`///` are not read as ordinary
-			// `/*`/`//` comments. A block doc ends only at a line that is exactly the
-			// fence (`**/` / `***/`), so inline `**bold**` / `***hr***` Markdown in
-			// the doc text does not close it early. `///` is a single-line doc.
+			// `/*`/`//` comments. A block doc ends at a fence (`**/` / `***/`) that
+			// finishes a line (`\s*$`), so a single-line `/** foo **/` closes on its
+			// own line while inline `**bold**` / `***hr***` and an embedded `***/` in
+			// the middle of the doc text (e.g. mentioning the `/*** … ***/` form) do
+			// NOT close it early. `///` is a single-line doc.
 			//
 			// The scope name starts with `comment.documentation` on purpose: the
 			// IntelliJ TextMate integration maps that prefix to the shared DOC_COMMENT
@@ -74,14 +76,14 @@ func TextMateGrammar() ([]byte, error) {
 			{
 				Name:        "comment.documentation.block.gad",
 				Begin:       `/\*\*\*`,
-				End:         `^\s*\*\*\*/\s*$`,
+				End:         `\*\*\*/\s*$`,
 				ContentName: "comment.documentation.block.markdown.gad",
 				Patterns:    []tmRule{{Include: "text.html.markdown"}},
 			},
 			{
 				Name:        "comment.documentation.block.gad",
 				Begin:       `/\*\*`,
-				End:         `^\s*\*\*/\s*$`,
+				End:         `\*\*/\s*$`,
 				ContentName: "comment.documentation.block.markdown.gad",
 				Patterns:    []tmRule{{Include: "text.html.markdown"}},
 			},

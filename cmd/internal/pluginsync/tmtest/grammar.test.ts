@@ -42,9 +42,17 @@ beforeAll(async () => {
     createOnigString: (s: string) => new oniguruma.OnigString(s),
   });
   const raw = generateGrammar();
+  // Stub `text.html.markdown` so the doc-comment rules' `include` resolves (real
+  // editors ship it). Without this the doc block's include fails to load and the
+  // engine silently falls back to the plain `/* */` comment rule, which closes on
+  // any `*/` and so hides the doc-fence end bugs this suite must catch.
+  const markdownStub = { scopeName: "text.html.markdown", patterns: [] };
   const registry = new Registry({
     onigLib,
-    loadGrammar: async (scope) => (scope === "source.gad" ? (raw as any) : null),
+    loadGrammar: async (scope) =>
+      scope === "source.gad" ? (raw as any)
+      : scope === "text.html.markdown" ? (markdownStub as any)
+      : null,
   });
   const g = await registry.loadGrammar("source.gad");
   if (!g) throw new Error("failed to load source.gad grammar");
@@ -136,11 +144,37 @@ test("a `///` doc comment does not bleed into the next line (interpolation)", ()
   expect(next.tokens.some((t) => t.scopes.some((s) => s.includes("comment") || s.includes("markdown")))).toBe(false);
 });
 
-test("a single-line `/** x **/` block doc does not bleed to the next line", () => {
+test("a single-line `/** x **/` block doc closes on its own line", () => {
   const doc = "/** the name **/";
   const code = 'greeting := #"{name} v1"';
   let r = grammar.tokenizeLine(doc, null);
+  // the line IS a doc comment (not the plain `/* */` fallback) …
+  expect(r.tokens.some((t) => t.scopes.some((s) => s.includes("comment.documentation.block.gad")))).toBe(true);
+  // … and it closes here — the block-doc end must match `**/` at end of line, not
+  // only a fence alone on its own line, or a single-line doc would never close.
   const next = grammar.tokenizeLine(code, r.ruleStack);
-  // next line is code, not still inside the block doc / markdown
   expect(next.tokens.some((t) => t.scopes.some((s) => s.includes("comment") || s.includes("markdown")))).toBe(false);
+});
+
+test("an embedded `***/` in block-doc prose does not close the doc early", () => {
+  // The doc text mentions the `/*** … ***/` fence form; the `***/` is mid-line, so
+  // the end (`**/` at end of line) must not fire until the real fence line.
+  const lines = [
+    "/**",
+    "wrapping a `/*** … ***/` root comment, like this one.",
+    "**/",
+    "export PI = 3.14",
+  ];
+  let stack: any = null;
+  const scoped = lines.map((ln) => {
+    const r = grammar.tokenizeLine(ln, stack);
+    stack = r.ruleStack;
+    return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+  });
+  // the prose line stays entirely inside the doc-comment markdown body
+  expect(scoped[1].every((t) => t.scopes.some((s) => s.includes("comment.documentation.block.markdown.gad")))).toBe(true);
+  // and the code after the closing fence is real code, not leaked comment/markdown
+  const code = scoped[3];
+  expect(code.some((t) => t.scopes.some((s) => s.includes("keyword.control.gad")))).toBe(true);
+  expect(code.some((t) => t.scopes.some((s) => s.includes("comment") || s.includes("markdown")))).toBe(false);
 });

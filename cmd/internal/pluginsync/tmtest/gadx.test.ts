@@ -105,3 +105,26 @@ test("doc comment body is embedded markdown", () => {
   const toks = tokenize("/** # Title **/");
   expect(toks.some((t) => t.scopes.some((x) => x.includes("comment.documentation.block.gadx")))).toBe(true);
 });
+
+test("an embedded `***/` in block-doc prose does not close the doc early", () => {
+  // The `***/` sits mid-line inside the prose; the block-doc end (`**/` at end of
+  // line) must not fire there, or the rest of the doc leaks out as tag markup.
+  const lines = [
+    "/**",
+    "wrapping a `/*** … ***/` root comment, like this one.",
+    "**/",
+    "div hello",
+  ];
+  let stack: any = null;
+  const scoped = lines.map((ln) => {
+    const r = grammar.tokenizeLine(ln, stack);
+    stack = r.ruleStack;
+    return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+  });
+  // the prose line stays entirely inside the doc-comment markdown body
+  expect(scoped[1].every((t) => t.scopes.some((s) => s.includes("comment.documentation.block.markdown.gadx")))).toBe(true);
+  // the tag after the closing fence is real markup, not leaked comment/markdown
+  const tag = scoped[3];
+  expect(tag.some((t) => t.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
+  expect(tag.some((t) => t.scopes.some((s) => s.includes("comment") || s.includes("markdown")))).toBe(false);
+});
