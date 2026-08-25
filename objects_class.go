@@ -41,6 +41,8 @@ type ClassField struct {
 	Types FieldTypes
 	index int
 	Value Object
+	// Nullable marks the field as also accepting nil, written `name? T` (`x? int`).
+	Nullable bool
 }
 
 func (f *ClassField) IsFalsy() bool {
@@ -684,11 +686,12 @@ func (t *Class) AddField(field ...*ClassField) error {
 		}
 
 		t.fieldsMap[field.Name] = &ClassField{
-			class: t,
-			Name:  field.Name,
-			Types: field.Types,
-			Value: field.Value,
-			index: len(t.fieldsMap),
+			class:    t,
+			Name:     field.Name,
+			Types:    field.Types,
+			Value:    field.Value,
+			index:    len(t.fieldsMap),
+			Nullable: field.Nullable,
 		}
 	}
 	return nil
@@ -1134,6 +1137,7 @@ func (t *Class) CallAddFields(call Call) (err error) {
 			}
 			f.Name = tk.Name
 			f.Types = types
+			f.Nullable = tk.Nullable
 		default:
 			f.Name = value.K.ToString()
 		}

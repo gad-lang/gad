@@ -2371,9 +2371,19 @@ func (p *Parser) ParseIdent() *node.IdentExpr {
 }
 
 func (p *Parser) ParseTypedIdent() *node.TypedIdentExpr {
+	ident := p.ParseIdent()
+	// A `?` right after the name marks the identifier nullable — it accepts nil in
+	// addition to its declared types (`x? int`, `x? int|str`).
+	var nullable bool
+	if p.Token.Is(token.Question) {
+		nullable = true
+		p.Next()
+		p.SkipSpace()
+	}
 	return &node.TypedIdentExpr{
-		Ident: p.ParseIdent(),
-		Type:  p.ParseTypes(),
+		Ident:    ident,
+		Type:     p.ParseTypes(),
+		Nullable: nullable,
 	}
 }
 

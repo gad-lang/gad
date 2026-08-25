@@ -212,13 +212,21 @@ func NewTypedIdentFunc(c Call) (ret Object, err error) {
 		}
 	)
 
-	if err = c.Args.Destructure(nameArg, typesArg); err != nil {
+	// The optional third argument is the nullable marker (`x? int`); most typed
+	// idents are non-nullable and pass only name + types.
+	extra, err := c.Args.DestructureRangeVar(1, nameArg, typesArg)
+	if err != nil {
 		return
+	}
+	var nullable bool
+	if len(extra) > 0 {
+		nullable = !extra[0].IsFalsy()
 	}
 
 	ret = &TypedIdent{
-		Name:  string(nameArg.Value.(Str)),
-		Types: typesArg.Value.(Array),
+		Name:     string(nameArg.Value.(Str)),
+		Types:    typesArg.Value.(Array),
+		Nullable: nullable,
 	}
 	return
 }

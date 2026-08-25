@@ -15,6 +15,11 @@ defines a const; there are also anonymous expression and `export class` forms.
 Everything else — field defaults, typed fields, inheritance, overloaded
 methods/constructors — works exactly as in the `Class(...)` builtin.
 
+A typed field is enforced on construction (a value of the wrong type is
+rejected); a `?` after the field name (`x? int`, `x? int|str`) makes it
+**nullable**, so it also accepts `nil`. See
+[typed & nullable fields](37_class_field_types.gad).
+
 Doc comments attach to the class and its members (`///`, `/** … **/`,
 `/*** … ***/`). The Example below is a runnable tour.
 **/

@@ -85,3 +85,67 @@ func TestClassFieldInterfaceType(t *testing.T) {
 	// A value that does not satisfy the interface is rejected.
 	expectErrHas(t, base+`return Registry(;main=42)`, nil, `field "main" expects`)
 }
+
+// TestClassFieldNullable covers the `name? T` nullable field marker: the field
+// accepts nil in addition to its declared type(s), while a non-nullable typed
+// field rejects nil.
+func TestClassFieldNullable(t *testing.T) {
+	// A nullable field accepts nil and a value of its type.
+	testExpectRun(t, `class P { x? int; y int }; return P(;x=nil, y=1).x == nil`, nil, True)
+	testExpectRun(t, `class P { x? int; y int }; return P(;x=5, y=1).x`, nil, Int(5))
+
+	// A non-nullable typed field rejects an explicit nil.
+	expectErrHas(t, `class P { x? int; y int }; return P(;x=1, y=nil)`,
+		nil, `field "y" expects int, got nil`)
+
+	// Nullable works with a union type.
+	testExpectRun(t, `class B { v? int|str }; return B(;v=nil).v == nil`, nil, True)
+	testExpectRun(t, `class B { v? int|str }; return B(;v="a").v`, nil, Str("a"))
+	expectErrHas(t, `class B { v? int|str }; return B(;v=true)`,
+		nil, `field "v" expects int|str, got bool`)
+}
+
+// TestInterfaceFieldNullable covers `name? T` on an interface field: nil (or an
+// absent member) satisfies a nullable field, while a non-nullable field requires
+// a present value of its type.
+func TestInterfaceFieldNullable(t *testing.T) {
+	// A nil (or absent) value satisfies a nullable interface field.
+	testExpectRun(t, `interface I { x? int }; d := {x: nil}; return (d :: I).x == nil`, nil, True)
+	testExpectRun(t, `interface I { x? int }; d := {}; return (d :: I) != nil`, nil, True)
+	testExpectRun(t, `interface I { x? int }; d := {x: 5}; return (d :: I).x`, nil, Int(5))
+
+	// A non-nullable field is not satisfied by a nil member.
+	expectErrHas(t, `interface I { y int }; d := {y: nil}; return d :: I`,
+		nil, "not assignable")
+}
+
+// TestPropertySetterNil documents property-setter behavior around nil: a typed
+// setter rejects nil (parameter type checking), while an untyped setter accepts
+// it. (`x? int` cannot mark a setter parameter — in parameter position `?` is the
+// ternary operator — so a nil-accepting setter uses an untyped parameter.)
+func TestPropertySetterNil(t *testing.T) {
+	typed := `
+	class Box {
+		v = 0
+		props { val { () => this.v; (x int) { this.v = x } } }
+	}
+	b := Box(); b.val = 5; return b.val`
+	testExpectRun(t, typed, nil, Int(5))
+
+	// nil finds no matching typed setter overload.
+	expectErrHas(t, `
+	class Box {
+		v = 0
+		props { val { () => this.v; (x int) { this.v = x } } }
+	}
+	b := Box(); b.val = nil; return b.val`, nil, "setter")
+
+	// An untyped setter accepts nil.
+	untyped := `
+	class Box {
+		v = 0
+		props { val { () => this.v; (x) { this.v = x } } }
+	}
+	b := Box(); b.val = nil; return b.val == nil`
+	testExpectRun(t, untyped, nil, True)
+}

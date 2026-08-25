@@ -425,6 +425,9 @@ func (e *TypeUnionExpr) WriteCode(ctx *CodeWriteContext) {
 type TypedIdentExpr struct {
 	Ident *IdentExpr
 	Type  []*TypeExpr
+	// Nullable marks the identifier as accepting nil in addition to its declared
+	// types, written with a `?` after the name (`x? int`, `x? int|str`).
+	Nullable bool
 }
 
 func (e *TypedIdentExpr) ExprNode() {}
@@ -453,9 +456,13 @@ func (e *TypedIdentExpr) End() source.Pos {
 
 func (e *TypedIdentExpr) String() string {
 	if e != nil {
+		name := e.Ident.String()
+		if e.Nullable {
+			name += "?"
+		}
 		l := len(e.Type)
 		if l == 0 {
-			return e.Ident.String()
+			return name
 		}
 		var s = make([]string, l)
 		for i, t := range e.Type {
@@ -464,12 +471,22 @@ func (e *TypedIdentExpr) String() string {
 		types := strings.Join(s, "|")
 		// An unnamed entry (an unnamed union return type, `<int|str>`) has no
 		// leading name — render just the type union.
-		if name := e.Ident.String(); name != "" {
+		if name != "" {
 			return name + " " + types
 		}
 		return types
 	}
 	return nullRep
+}
+
+// nameCode is the identifier as written, with a trailing `?` when nullable.
+// Empty for an unnamed entry (e.g. an unnamed union return type `<int|str>`).
+func (e *TypedIdentExpr) nameCode() string {
+	name := e.Ident.String()
+	if name != "" && e.Nullable {
+		name += "?"
+	}
+	return name
 }
 
 func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
@@ -478,7 +495,7 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 		return
 	}
 	if len(e.Type) == 0 {
-		ctx.WriteString(e.Ident.String())
+		ctx.WriteString(e.nameCode())
 		return
 	}
 
@@ -500,7 +517,7 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 		return
 	}
 
-	if name := e.Ident.String(); name != "" {
+	if name := e.nameCode(); name != "" {
 		ctx.WriteString(name, " ")
 	}
 	ctx.Depth++ // continuation lines indent one extra level
@@ -514,7 +531,7 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 func (e *TypedIdentExpr) writeInlineUnion(ctx *CodeWriteContext) {
 	// An unnamed entry (an unnamed union return type, `<int|str>`) has no leading
 	// name — render just the union.
-	if name := e.Ident.String(); name != "" {
+	if name := e.nameCode(); name != "" {
 		ctx.WriteString(name, " ")
 	}
 	for i, t := range e.Type {

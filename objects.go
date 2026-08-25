@@ -2594,6 +2594,9 @@ type TypedIdent struct {
 	// Self marks the `@self` type placeholder in an interface context-function
 	// header: this param's type is the interface itself (see InterfaceContextFunc).
 	Self bool
+	// Nullable marks the ident as accepting nil in addition to its Types, written
+	// `name? T` (`x? int`). It flows to a class field's nil acceptance.
+	Nullable bool
 }
 
 // resolveTypes returns the ident's types, resolving TypesSymbols against vm when

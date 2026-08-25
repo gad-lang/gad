@@ -2367,7 +2367,7 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 		}
 		switch m.Kind {
 		case node.IfaceField:
-			iface.Fields = append(iface.Fields, &InterfaceField{Iface: iface, Name: mname, TypesSymbols: syms})
+			iface.Fields = append(iface.Fields, &InterfaceField{Iface: iface, Name: mname, TypesSymbols: syms, Nullable: m.Name.Nullable})
 		case node.IfaceGet:
 			iface.Props = append(iface.Props, &InterfaceProp{Iface: iface, Name: mname, Getter: getter(mname, syms)})
 		case node.IfaceSet:
@@ -3866,14 +3866,20 @@ func (c *Compiler) compileTypedIdentExpr(nd *node.TypedIdentExpr) error {
 	for i, expr := range nd.Type {
 		types[i] = expr.Expr
 	}
+	values := []node.Expr{
+		node.Str(nd.Ident.Name, nd.Ident.NamePos),
+		node.Array(nd.Pos(), nd.End(), types...),
+	}
+	// Pass the nullable marker (`x? int`) as a third argument only when set, so
+	// the common non-nullable case keeps the two-argument typedIdent call.
+	if nd.Nullable {
+		values = append(values, node.Bool(true, nd.Pos()))
+	}
 	return c.compileCallExpr(&node.CallExpr{
 		Func: node.EIdent(BuiltinTypedIdent.String(), nd.Pos()),
 		CallArgs: node.CallArgs{
 			Args: node.CallExprPositionalArgs{
-				Values: []node.Expr{
-					node.Str(nd.Ident.Name, nd.Ident.NamePos),
-					node.Array(nd.Pos(), nd.End(), types...),
-				},
+				Values: values,
 			},
 		},
 	})

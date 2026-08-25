@@ -149,6 +149,8 @@ type InterfaceField struct {
 	Name         string
 	TypesSymbols ParamType   // compile-time type symbols
 	Types        ObjectTypes // resolved types (when built at run time)
+	// Nullable marks the field as also satisfied by nil (`name? T`, `x? int`).
+	Nullable bool
 }
 
 // InterfaceProp is a getter and/or setter property of an interface.
@@ -410,6 +412,11 @@ func (i *Interface) genericSatisfies(vm *VM, obj Object) (bool, error) {
 	for _, f := range i.Fields {
 		v, ok := indexMember(vm, obj, f.Name)
 		if !ok {
+			// indexMember reports a nil (or absent) member as not-present; a
+			// nullable field (`name? T`) is satisfied by exactly that.
+			if f.Nullable {
+				continue
+			}
 			return false, nil
 		}
 		if ok, err := ifaceFieldTypeOK(vm, f, v); err != nil || !ok {
@@ -453,6 +460,10 @@ func indexMember(vm *VM, obj Object, name string) (Object, bool) {
 // ifaceFieldTypeOK reports whether v is assignable to the interface field's
 // declared type(s). An untyped field only requires presence.
 func ifaceFieldTypeOK(vm *VM, f *InterfaceField, v Object) (bool, error) {
+	// A nullable field (`name? T`) is also satisfied by nil.
+	if (v == Nil || v == nil) && f.Nullable {
+		return true, nil
+	}
 	types := f.Types
 	if len(types) == 0 && vm != nil {
 		for _, sym := range f.TypesSymbols {

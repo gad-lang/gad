@@ -12,9 +12,13 @@ assignability as function parameters** (the [`::` operator](14_user_operators.ga
   any depth (github.com/gad-lang/gad issue #4).
 - A value of a **different type is rejected** with a `TypeError`.
 - An **untyped field** accepts anything.
+- A field marked **nullable** with a `?` after the name (`x? int`, `x? int|str`)
+  also accepts `nil`; a plain typed field rejects it.
 
 Fields declared with `class Name { … }` and with the
-[`Class(...)` builtin](11_classes.gad) behave identically.
+[`Class(...)` builtin](11_classes.gad) behave identically. The same `name? T`
+marker works on an [interface](24_interfaces.gad) field, where `nil` (or an
+absent member) satisfies it.
 **/
 
 class Point { x int; y int }
@@ -83,3 +87,42 @@ try {
 } catch e {
     println("iface no:  not a Greeter")
 }
+
+// --- Nullable fields (`name? T`) -------------------------------------------
+/**
+A field marked with a `?` after its name is **nullable**: it accepts `nil` in
+addition to its declared type(s). Use it for optional data — a value that may be
+absent — instead of widening the type or dropping it entirely.
+
+Without the `?`, a typed field rejects `nil` just like a non-nullable parameter,
+so the marker documents intent and is enforced: a plain `int` field can never
+hold `nil`, while an `int?` field can.
+**/
+class Config {
+    /// required — must be a non-nil int
+    port int
+    /// optional — an int or nil
+    host? str
+    /// optional union — int, str or nil
+    tag? int|str
+}
+
+c := Config(; port = 8080, host = nil, tag = "beta")
+println("nullable:  ", c.port, c.host, c.tag)      // 8080 nil beta
+
+/// A non-nullable field rejects an explicit nil.
+try {
+    Config(; port = nil)                           // field "port" expects int, got nil
+} catch {
+    println("port nil:  rejected")
+}
+
+/**
+The `name? T` marker works the same way on an **interface** field: a value whose
+member is `nil` (or absent) still satisfies the interface, while a non-nullable
+field requires a present value of the right type.
+**/
+interface HasTag { tag? int|str }
+
+println("iface nil: ", ({} :: HasTag) != nil)      // true — absent tag is fine
+println("iface val: ", ({tag: 3} :: HasTag).tag)   // 3

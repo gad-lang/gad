@@ -188,9 +188,16 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		m.RBrace = p.Expect(token.RBrace)
 		iface.Methods = append(iface.Methods, m)
 	default:
+		// A `?` right after the name marks the field nullable (`x? int`).
+		var nullable bool
+		if p.Token.Is(token.Question) {
+			nullable = true
+			p.Next()
+			p.SkipSpace()
+		}
 		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
 			Kind: node.IfaceField,
-			Name: &node.TypedIdentExpr{Ident: name, Type: p.ParseTypes()},
+			Name: &node.TypedIdentExpr{Ident: name, Type: p.ParseTypes(), Nullable: nullable},
 			Doc:  doc,
 		})
 	}

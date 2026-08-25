@@ -134,8 +134,17 @@ func (o *ClassInstance) Name() string {
 // typed field can never hold a value of the wrong type. The dict cloned for class
 // construction leaves the caller's literal unmutated.
 func acceptFieldValue(vm *VM, field *ClassField, v Object) (Object, error) {
-	if len(field.Types) == 0 || v == Nil || v == nil {
-		return v, nil
+	if len(field.Types) == 0 {
+		return v, nil // untyped: accepts anything
+	}
+	if v == Nil || v == nil {
+		// nil is accepted only for a nullable field (`name? T`); a plain typed
+		// field rejects it, like a non-nullable parameter.
+		if field.Nullable {
+			return v, nil
+		}
+		return nil, ErrType.NewErrorf("field %q expects %s, got nil",
+			field.Name, field.Types.String())
 	}
 
 	// Dict -> single class-typed field: build the nested instance.
