@@ -67,3 +67,14 @@ func TestMemberCompletionGadxLoopVar(t *testing.T) {
 	require.Contains(t, labels, "name")
 	require.Contains(t, labels, "admin")
 }
+
+// TestMemberCompletionGadxComplexIterable checks a non-identifier iterable
+// (`users[:]`): the header is rendered from the AST's String() (not source
+// spans), so complex iterables resolve in the position-lossy `.gadx` lowering.
+func TestMemberCompletionGadxComplexIterable(t *testing.T) {
+	src := "~~\nusers := [{name: \"joe\", admin: true}]\n~~\n" +
+		"ul\n\t@for i, u in users[:]\n\t\tli {u.}\n"
+	labels := labelsOfName(t, "t.gadx", src)
+	require.Contains(t, labels, "name")
+	require.Contains(t, labels, "admin")
+}

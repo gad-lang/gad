@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -188,17 +189,6 @@ func astReceiverPrelude(name, src string, caret int, recv string) (string, bool)
 	opens := 0
 	pos := func(n node.Node) int { return int(n.Pos()) - base }
 	end := func(n node.Node) int { return int(n.End()) - base }
-	// exprSrc returns an expression's verbatim source, or "" if out of range.
-	exprSrc := func(e node.Expr) string {
-		if e == nil {
-			return ""
-		}
-		p, q := pos(e), end(e)
-		if p < 0 || q > len(src) || q < p {
-			return ""
-		}
-		return strings.TrimSpace(src[p:q])
-	}
 	// identName returns a loop variable's name, or "_" when absent/blank.
 	identName := func(id *node.IdentExpr) string {
 		if id == nil || id.Empty || id.Name == "" {
@@ -206,15 +196,16 @@ func astReceiverPrelude(name, src string, caret int, recv string) (string, bool)
 		}
 		return id.Name
 	}
-	// iterableSrc returns runnable source for a `for … in` iterable. A plain
-	// identifier is taken by name (the `.gadx` front-end lowers to synthetic nodes
-	// whose positions do not slice back to clean source, so source extraction is
-	// used only for the richer `.gadt` positions).
+	// iterableSrc returns runnable source for a `for … in` iterable via the AST's
+	// own String() rendering. This is dialect-independent and handles complex
+	// iterables (`items.filter(f)`), unlike slicing the source by position — the
+	// `.gadx` front-end lowers to synthetic nodes whose positions do not slice
+	// back to clean source.
 	iterableSrc := func(e node.Expr) string {
-		if id, ok := e.(*node.IdentExpr); ok {
-			return identName(id)
+		if s, ok := e.(fmt.Stringer); ok {
+			return strings.TrimSpace(s.String())
 		}
-		return exprSrc(e)
+		return ""
 	}
 
 	var walk func(stmts []node.Stmt)
