@@ -42,17 +42,9 @@ beforeAll(async () => {
     createOnigString: (s: string) => new oniguruma.OnigString(s),
   });
   const raw = generateGrammar();
-  // Stub `text.html.markdown` so the doc-comment rules' `include` resolves (real
-  // editors ship it). Without this the doc block's include fails to load and the
-  // engine silently falls back to the plain `/* */` comment rule, which closes on
-  // any `*/` and so hides the doc-fence end bugs this suite must catch.
-  const markdownStub = { scopeName: "text.html.markdown", patterns: [] };
   const registry = new Registry({
     onigLib,
-    loadGrammar: async (scope) =>
-      scope === "source.gad" ? (raw as any)
-      : scope === "text.html.markdown" ? (markdownStub as any)
-      : null,
+    loadGrammar: async (scope) => (scope === "source.gad" ? (raw as any) : null),
   });
   const g = await registry.loadGrammar("source.gad");
   if (!g) throw new Error("failed to load source.gad grammar");
@@ -171,10 +163,30 @@ test("an embedded `***/` in block-doc prose does not close the doc early", () =>
     stack = r.ruleStack;
     return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
   });
-  // the prose line stays entirely inside the doc-comment markdown body
-  expect(scoped[1].every((t) => t.scopes.some((s) => s.includes("comment.documentation.block.markdown.gad")))).toBe(true);
-  // and the code after the closing fence is real code, not leaked comment/markdown
+  // the prose line stays entirely inside the doc-comment body
+  expect(scoped[1].every((t) => t.scopes.some((s) => s.includes("comment.documentation.block.gad")))).toBe(true);
+  // and the code after the closing fence is real code, not leaked comment
   const code = scoped[3];
   expect(code.some((t) => t.scopes.some((s) => s.includes("keyword.control.gad")))).toBe(true);
-  expect(code.some((t) => t.scopes.some((s) => s.includes("comment") || s.includes("markdown")))).toBe(false);
+  expect(code.some((t) => t.scopes.some((s) => s.includes("comment")))).toBe(false);
+});
+
+test("a `[link](x)` then another line inside a block doc keeps the doc scope", () => {
+  // Regression for the IntelliJ breakage: with the Markdown grammar embedded, a
+  // body line after a `[link](url)` (and the closing `**/`) lost the doc-comment
+  // scope in IntelliJ's engine. With no embed the whole body is uniformly scoped.
+  const lines = ["/**", "See [Templates](09_template.gad).", "abc", "**/", "export X = 1"];
+  let stack: any = null;
+  const scoped = lines.map((ln) => {
+    const r = grammar.tokenizeLine(ln, stack);
+    stack = r.ruleStack;
+    return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+  });
+  // every line from `/**` through the closing `**/` is doc-comment scoped
+  for (let i = 0; i <= 3; i++) {
+    expect(scoped[i].every((t) => t.scopes.some((s) => s.includes("comment.documentation.block.gad")))).toBe(true);
+  }
+  // and the line after `**/` is code
+  expect(scoped[4].some((t) => t.scopes.some((s) => s.includes("keyword.control.gad")))).toBe(true);
+  expect(scoped[4].some((t) => t.scopes.some((s) => s.includes("comment")))).toBe(false);
 });

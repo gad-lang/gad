@@ -38,15 +38,11 @@ beforeAll(async () => {
   });
   const gad = generateGadGrammar();
   const gadx = JSON.parse(fs.readFileSync(gadxPath, "utf8"));
-  // A minimal stub for the embedded Markdown grammar, so the doc-comment
-  // include resolves in-test (real editors ship text.html.markdown).
-  const markdownStub = { scopeName: "text.html.markdown", patterns: [] };
   const registry = new Registry({
     onigLib,
     loadGrammar: async (scope) =>
       scope === "source.gad" ? (gad as any)
       : scope === "source.gadx" ? (gadx as any)
-      : scope === "text.html.markdown" ? (markdownStub as any)
       : null,
   });
   const g = await registry.loadGrammar("source.gadx");
@@ -100,8 +96,7 @@ test("`+ EXPR` component call: marker + name, args embedded gad", () => {
   expect(scopesOf("    +box(; a=1)", "box")).toContain("entity.name.function.gadx");
 });
 
-test("doc comment body is embedded markdown", () => {
-  // opening line of a /** … **/ block
+test("a single-line `/** … **/` block doc is doc-comment scoped", () => {
   const toks = tokenize("/** # Title **/");
   expect(toks.some((t) => t.scopes.some((x) => x.includes("comment.documentation.block.gadx")))).toBe(true);
 });
@@ -121,10 +116,10 @@ test("an embedded `***/` in block-doc prose does not close the doc early", () =>
     stack = r.ruleStack;
     return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
   });
-  // the prose line stays entirely inside the doc-comment markdown body
-  expect(scoped[1].every((t) => t.scopes.some((s) => s.includes("comment.documentation.block.markdown.gadx")))).toBe(true);
-  // the tag after the closing fence is real markup, not leaked comment/markdown
+  // the prose line stays entirely inside the doc-comment body
+  expect(scoped[1].every((t) => t.scopes.some((s) => s.includes("comment.documentation.block.gadx")))).toBe(true);
+  // the tag after the closing fence is real markup, not leaked comment
   const tag = scoped[3];
   expect(tag.some((t) => t.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
-  expect(tag.some((t) => t.scopes.some((s) => s.includes("comment") || s.includes("markdown")))).toBe(false);
+  expect(tag.some((t) => t.scopes.some((s) => s.includes("comment")))).toBe(false);
 });
