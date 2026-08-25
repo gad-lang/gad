@@ -193,13 +193,16 @@ func NewTypedIdentFunc(c Call) (ret Object, err error) {
 		typesArg = &Arg{
 			Name: "types",
 			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				// Each element must be a TypeAssigner: a plain ObjectType or a
+				// structural type such as an interface (so a typed ident — e.g. a
+				// class field — may be typed by an interface it must satisfy).
 				"arrayOfTypes": func(v Object) (ok bool) {
 					var arr Array
 					if arr, ok = v.(Array); !ok {
 						return false
 					}
 					for _, o := range arr {
-						if !IsType(o) {
+						if _, ok := o.(TypeAssigner); !ok {
 							return false
 						}
 					}

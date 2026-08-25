@@ -2387,7 +2387,7 @@ return str([
 Point := Class(
 	"Point"; 
 	fields=(;
-		x int|bool
+		x int|bool|uint
 		y
 	),
 	properties={
@@ -2503,7 +2503,7 @@ return repr([
 	testExpectRun(t, s1+`;return str(Point;indent)`,
 		nil, Str(`‹class (main).Point: {
 	fields: {
-		x: ‹class field ‹x› of ‹(main).Point›: int|bool›,
+		x: ‹class field ‹x› of ‹(main).Point›: int|bool|uint›,
 		y: ‹class field ‹y› of ‹(main).Point›: any›
 	},
 	methods: {
@@ -2521,7 +2521,7 @@ return repr([
 	testExpectRun(t, s1+`;return repr(Point;indent,indexes)`,
 		nil, Str(`‹class (main).Point: {
 	fields: ‹dict: {
-		x: ‹class field ‹x› of ‹(main).Point›: int|bool›,
+		x: ‹class field ‹x› of ‹(main).Point›: int|bool|uint›,
 		y: ‹class field ‹y› of ‹(main).Point›: any›
 	}›,
 	methods: ‹dict: {

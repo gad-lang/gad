@@ -117,6 +117,54 @@ func (o *ClassInstance) Name() string {
 	return o.ReprTypeName()
 }
 
+// acceptFieldValue validates (and, where needed, converts) the value v assigned
+// to a typed field:
+//
+//   - An untyped field (no declared types) accepts anything.
+//   - Nil is accepted (an explicit "unset"), matching the default for a field
+//     that is not provided.
+//   - A Dict passed for a field whose sole declared type is a class is
+//     constructed into an instance of that class, so nested class fields
+//     initialise recursively (`a Point` given `{x: 0, y: 0}` becomes a Point).
+//   - Otherwise v must satisfy at least one declared type: an interface type via
+//     structural satisfaction (CanAssignVM), a class type by being an instance of
+//     it or a subclass, any other type by exact type equality.
+//
+// A value matching none of the declared types is rejected with a TypeError, so a
+// typed field can never hold a value of the wrong type. The dict cloned for class
+// construction leaves the caller's literal unmutated.
+func acceptFieldValue(vm *VM, field *ClassField, v Object) (Object, error) {
+	if len(field.Types) == 0 || v == Nil || v == nil {
+		return v, nil
+	}
+
+	// Dict -> single class-typed field: build the nested instance.
+	if len(field.Types) == 1 {
+		if cls, ok := field.Types[0].(*Class); ok {
+			if d, ok := v.(Dict); ok {
+				clone := make(Dict, len(d))
+				for k, val := range d {
+					clone[k] = val
+				}
+				return cls.NewInstanceWithFields(vm, clone)
+			}
+		}
+	}
+
+	// Validate with the same value-based assignability the parameter/`::` checker
+	// uses (AssignToType → TypeAssigner.CanAssignVM): it accepts an exact type, a
+	// subclass of a class type, and a value that structurally satisfies an
+	// interface type, resolving structural checks through the VM. The field
+	// accepts the union of its declared types.
+	for _, t := range field.Types {
+		if _, err := AssignToType(vm, v, t); err == nil {
+			return v, nil
+		}
+	}
+	return nil, ErrType.NewErrorf("field %q expects %s, got %s",
+		field.Name, field.Types.String(), v.Type().Name())
+}
+
 func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 	o.fields = make(Dict, len(o.class.fieldsMap))
 	o.parents = make(map[string]*ClassInstance, len(o.class.parents))
@@ -142,7 +190,7 @@ func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 		// class does not declare itself, but a parent does, is set on that
 		// embedded parent instance so the promoted accessor and the parent's
 		// inherited methods share one value.
-		if _, declaredHere := o.class.fieldsMap[name]; !declaredHere {
+		if fd, declaredHere := o.class.fieldsMap[name]; !declaredHere {
 			if parent := o.class.parentDeclaringField(name); parent != nil {
 				pf, _ := parentsFields[parent.Alias].(Dict)
 				if pf == nil {
@@ -155,6 +203,8 @@ func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 				pf[name] = v
 				continue
 			}
+		} else if v, err = acceptFieldValue(vm, fd, v); err != nil {
+			return err
 		}
 		o.fields[name] = v
 	}

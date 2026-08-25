@@ -3,6 +3,7 @@ package gad
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
@@ -16,13 +17,28 @@ type ClassParent struct {
 	Type  *Class
 }
 
+// FieldTypes are the declared types a class field accepts. Each is a TypeAssigner
+// — a plain ObjectType (int, str, a class, …) or a structural type such as an
+// interface — so a field may be typed by an interface it must satisfy, matching
+// what a function parameter accepts. An empty list means the field is untyped.
+type FieldTypes []TypeAssigner
+
+// String renders the accepted types as `A|B|C` (their type-assigner names).
+func (t FieldTypes) String() string {
+	s := make([]string, len(t))
+	for i, ta := range t {
+		s[i] = TypeAssignerName(ta)
+	}
+	return strings.Join(s, "|")
+}
+
 // ClassField is a declared field of a Class: its Name, optional accepted Types,
 // positional index within the instance, and default Value (an initialiser or nil
 // when the field has no default).
 type ClassField struct {
 	class *Class
 	Name  string
-	Types ObjectTypes
+	Types FieldTypes
 	index int
 	Value Object
 }
@@ -1112,9 +1128,9 @@ func (t *Class) CallAddFields(call Call) (err error) {
 		f := &ClassField{class: t}
 		switch tk := value.K.(type) {
 		case *TypedIdent:
-			types := make(ObjectTypes, len(tk.Types))
+			types := make(FieldTypes, len(tk.Types))
 			for i, t := range tk.Types {
-				types[i] = t.(ObjectType)
+				types[i] = t.(TypeAssigner)
 			}
 			f.Name = tk.Name
 			f.Types = types
