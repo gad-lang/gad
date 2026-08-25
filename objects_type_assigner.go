@@ -108,12 +108,23 @@ func AssignToType(vm *VM, obj, to Object) (Object, error) {
 // unnamed keys (see Interface.coerceDict). For every other combination it behaves
 // exactly like AssignToType (a checked cast that returns obj unchanged).
 func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
-	if iface, ok := to.(*Interface); ok {
-		if iface.ArrayDepth > 0 {
-			return iface.coerceArray(vm, obj, iface.ArrayDepth)
+	switch t := to.(type) {
+	case *Interface:
+		if t.ArrayDepth > 0 {
+			return t.coerceArray(vm, obj, t.ArrayDepth)
 		}
 		if d, ok := asTransformDict(vm, obj); ok {
-			return iface.coerceDict(vm, d)
+			return t.coerceDict(vm, d)
+		}
+	case *Class:
+		// `src ::: Class` builds an instance of the target class from the source's
+		// members, keeping only the fields the class declares — a conversion between
+		// class shapes. An instance already of the class is returned unchanged.
+		if _, err := AssignToType(vm, obj, t); err == nil {
+			return obj, nil
+		}
+		if d, ok := asTransformDict(vm, obj); ok {
+			return t.coerceFrom(vm, d)
 		}
 	}
 	return AssignToType(vm, obj, to)

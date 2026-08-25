@@ -106,3 +106,33 @@ func TestTransformCastMissingField(t *testing.T) {
 		r := d ::: interface { a? int, **rest }
 		return [r.rest.b, r.a == nil]`, nil, Array{Int(2), True})
 }
+
+// TestTransformCastClassToClass covers github.com/gad-lang/gad issue #7: `:::` to
+// a class builds an instance of that class from the source's members, keeping
+// only the fields the target declares — a conversion between class shapes.
+func TestTransformCastClassToClass(t *testing.T) {
+	base := "class User { name str; isAdmin? bool }\nclass Tag { name str }\n"
+
+	// User -> Tag keeps `name`, drops the undeclared `isAdmin`.
+	testExpectRun(t, base+`
+		u := User(; name = "Jonh", isAdmin = true)
+		return repr(u ::: Tag) == repr(Tag(; name = "Jonh"))`, nil, True)
+
+	// Chained: User -> Tag -> User; the round-trip drops isAdmin (nullable -> nil).
+	testExpectRun(t, base+`
+		u := User(; name = "Jonh", isAdmin = true)
+		return repr(u ::: Tag ::: User) == repr(User(; name = "Jonh"))`, nil, True)
+
+	// A dict source works too.
+	testExpectRun(t, base+`
+		return repr({name: "Ann", extra: 1} ::: Tag) == repr(Tag(; name = "Ann"))`, nil, True)
+
+	// An instance already of the target class is returned unchanged.
+	testExpectRun(t, base+`
+		tg := Tag(; name = "x")
+		return (tg ::: Tag).name`, nil, Str("x"))
+
+	// A missing required (non-nullable) target field is an error.
+	expectErrHas(t, base+`
+		return Tag(; name = "n") ::: interface { z int }`, nil, `field "z"`)
+}

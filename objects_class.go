@@ -778,6 +778,35 @@ func (t *Class) NewInstanceWithFields(vm *VM, fields Dict) (*ClassInstance, erro
 	return instance, instance.Init(vm, fields)
 }
 
+// coerceFrom implements `src ::: Class`: it builds an instance of t taking, for
+// each field t declares (its own or a parent's), the matching value from src (a
+// dict of the source's members). Source keys t does not declare are dropped, and
+// t's own field types/coercions/defaults apply — so it converts between shapes,
+// e.g. a `User{name, isAdmin}` becomes a `Tag{name}`.
+func (t *Class) coerceFrom(vm *VM, src Dict) (Object, error) {
+	fields := make(Dict, len(src))
+	for name, v := range src {
+		if t.declaresField(name) {
+			fields[name] = v
+		}
+	}
+	return t.NewInstanceWithFields(vm, fields)
+}
+
+// declaresField reports whether t or one of its parents declares a field named
+// name.
+func (t *Class) declaresField(name string) bool {
+	if _, ok := t.fieldsMap[name]; ok {
+		return true
+	}
+	for _, p := range t.parents {
+		if p.Type.declaresField(name) {
+			return true
+		}
+	}
+	return false
+}
+
 // NewInstance allocates an uninitialised instance of t (its fields are not yet
 // populated; call Init or use NewInstanceWithFields).
 func (t *Class) NewInstance() (o *ClassInstance) {

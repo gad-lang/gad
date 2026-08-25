@@ -19,6 +19,10 @@ Two things happen on `dict ::: interface { … }`:
 The source need not be a dict literal: any item-getter works — a key-value array
 (`(; a=1)`) or a class instance — its members feed the transform.
 
+`::: Class` (a class target) converts between class shapes: it builds an instance
+of the target class from the source's members, keeping only the fields that class
+declares — e.g. a `User{name, isAdmin}` becomes a `Tag{name}`.
+
 Run it: `gad test samples/38_transform_cast_test.gad`
 **/
 
@@ -132,4 +136,23 @@ test "required and nullable fields" {
     got := ({b: 2}) ::: interface { a? int, **rest }
     t.equal(nil, got.a)
     t.equal(2, got.rest.b)
+}
+
+/**
+`:::` to a **class** converts between class shapes: it builds an instance of the
+target class from the source's members, keeping only the fields the target
+declares (extra source fields are dropped). The source may be another class
+instance, a dict or any item-getter.
+**/
+test "transform from one class to another" {
+    class User { name str; isAdmin? bool }
+    class Tag { name str }
+
+    user := User(; name = "Jonh", isAdmin = true)
+
+    // User -> Tag keeps `name`, drops the undeclared `isAdmin`.
+    t.equal(repr(Tag(; name = user.name)), repr(user ::: Tag))
+
+    // Chained: User -> Tag -> User; the round-trip drops isAdmin (nullable -> nil).
+    t.equal(repr(User(; name = user.name)), repr(user ::: Tag ::: User))
 }
