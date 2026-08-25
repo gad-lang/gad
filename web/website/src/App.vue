@@ -2,7 +2,8 @@
 import { computed, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme, useDisplay } from "vuetify";
-import { loadContent, appBase, type SiteContent, type SearchDoc } from "./content";
+import { loadContent, appBase, type SiteContent, type SearchDoc, type NavPage } from "./content";
+import NavItem from "./NavItem.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -16,24 +17,39 @@ const site = computed(() => content.value?.site);
 const groups = computed(() => content.value?.groups ?? []);
 const logo = appBase() + "gad.svg";
 
-// A nav page's href may be an absolute URL (an external site, e.g. a plugin's
-// GitHub Pages) or a site-relative path. Absolute URLs open in a new tab and are
-// used verbatim; relative ones are resolved against the app base.
-const isExternal = (href: string) => /^https?:\/\//.test(href);
-const navHref = (href: string) => (isExternal(href) ? href : appBase() + href);
-
 const onDocs = computed(() => String(route.name || "").startsWith("docs"));
 const drawer = ref(true);
 watch(mdAndUp, (v) => (drawer.value = v), { immediate: true });
 
-// Collapsible nav sections: keep only the group holding the current page open.
+// Collapsible nav sections: keep open the group — and any submenu(s) — holding
+// the current page. Submenu `v-list-group`s use the `nav:<title>` open value.
 const openGroups = ref<string[]>([]);
 const activeSlug = computed(() => (onDocs.value ? String(route.params.slug || "") : ""));
+
+// navTrail returns the open-values of the submenu chain leading to the page with
+// `slug`, or null when it is not under this item, recursing into children.
+function navTrail(items: NavPage[], slug: string, trail: string[] = []): string[] | null {
+  for (const it of items) {
+    if (it.slug === slug) return trail;
+    if (it.children) {
+      const found = navTrail(it.children, slug, [...trail, "nav:" + it.title]);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 watch(
   [groups, activeSlug],
   () => {
-    const g = groups.value.find((gr) => gr.pages.some((p) => p.slug === activeSlug.value));
-    openGroups.value = g ? [g.name] : groups.value[0] ? [groups.value[0].name] : [];
+    for (const g of groups.value) {
+      const trail = navTrail(g.pages, activeSlug.value);
+      if (trail) {
+        openGroups.value = [g.name, ...trail];
+        return;
+      }
+    }
+    openGroups.value = groups.value[0] ? [groups.value[0].name] : [];
   },
   { immediate: true },
 );
@@ -129,18 +145,7 @@ function go(slug: string) {
               class="group-title text-uppercase text-caption font-weight-bold"
             />
           </template>
-          <v-list-item
-            v-for="p in g.pages"
-            :key="p.slug"
-            :title="p.title"
-            :to="p.href ? undefined : { name: 'docs', params: { slug: p.slug } }"
-            :href="p.href ? navHref(p.href) : undefined"
-            :target="p.href && isExternal(p.href) ? '_blank' : undefined"
-            :rel="p.href && isExternal(p.href) ? 'noopener' : undefined"
-            :append-icon="p.href && isExternal(p.href) ? 'mdi-open-in-new' : undefined"
-            color="primary"
-            density="compact"
-          />
+          <NavItem v-for="p in g.pages" :key="p.slug || p.title" :item="p" />
         </v-list-group>
       </v-list>
     </v-navigation-drawer>

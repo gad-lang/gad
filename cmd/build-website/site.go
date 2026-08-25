@@ -81,6 +81,10 @@ type page struct {
 	Section  string
 	BodyHTML template.HTML
 	Headings []Heading
+	// NavPath is the page's logical name with any subdirectory (`class/classes`,
+	// `03_functions`). The nav builder groups pages sharing a directory prefix into
+	// an expandable submenu, recursively. Empty means a flat top-level entry.
+	NavPath string
 	// plain is the searchable plain text of the page.
 	plain string
 	// Source is the sample source file backing a generated chapter page, with
@@ -496,6 +500,7 @@ func collectLangPages(dir, samplesDir string) ([]*page, error) {
 			Title:    title,
 			OutFile:  slug + ".html",
 			Section:  "Language",
+			NavPath:  name,
 			BodyHTML: template.HTML(body),
 			Headings: headings,
 			plain:    plainText(rewritten),

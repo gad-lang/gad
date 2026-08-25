@@ -17,9 +17,12 @@ export interface DocPage {
 }
 
 export interface NavPage {
-  slug: string;
+  slug?: string;
   title: string;
   href?: string;
+  // children is set for a submenu entry: a subdirectory of pages with no page of
+  // its own, nested recursively.
+  children?: NavPage[];
 }
 
 export interface NavGroup {

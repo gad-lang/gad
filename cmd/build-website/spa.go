@@ -29,6 +29,9 @@ type jsonNavPage struct {
 	// Href is set for an external nav entry (e.g. the Playground app), in which
 	// case there is no doc page to route to.
 	Href string `json:"href,omitempty"`
+	// Children is set for a submenu entry: a directory of pages (e.g. class/) with
+	// no page of its own. Nested recursively for deeper subdirectories.
+	Children []jsonNavPage `json:"children,omitempty"`
 }
 
 type jsonNavGroup struct {
@@ -88,6 +91,74 @@ func tocEntries(hs []Heading) []jsonToc {
 	return out
 }
 
+// navNode is an intermediate nav tree node: a leaf (a page) or a directory with
+// ordered children keyed by their path segment.
+type navNode struct {
+	item     jsonNavPage
+	isDir    bool
+	children []*navNode
+	byName   map[string]*navNode
+}
+
+// buildNavTree turns a group's ordered pages into a nav tree: a page whose
+// NavPath carries a subdirectory (`class/classes`) nests under a submenu named
+// for the directory, recursively for deeper paths. Pages keep their group order;
+// a directory takes the position of its first page. Pages with no NavPath (or no
+// `/`) stay flat top-level entries, so existing sections are unchanged.
+func buildNavTree(pages []*page) []jsonNavPage {
+	root := &navNode{isDir: true, byName: map[string]*navNode{}}
+
+	for _, p := range pages {
+		leaf := jsonNavPage{Slug: slugOf(p.OutFile), Title: p.Title}
+		if p.BodyHTML == "" {
+			leaf = jsonNavPage{Title: p.Title, Href: p.OutFile}
+		}
+
+		segments := []string{}
+		if p.NavPath != "" {
+			segments = strings.Split(p.NavPath, "/")
+		}
+		// Walk directory segments (all but the last, which is the page itself),
+		// creating submenu nodes as needed.
+		node := root
+		for i := 0; i+1 < len(segments); i++ {
+			dir := segments[i]
+			child := node.byName[dir]
+			if child == nil {
+				child = &navNode{isDir: true, byName: map[string]*navNode{}, item: jsonNavPage{Title: navDirTitle(dir)}}
+				node.byName[dir] = child
+				node.children = append(node.children, child)
+			}
+			node = child
+		}
+		node.children = append(node.children, &navNode{item: leaf})
+	}
+	return flattenNav(root.children)
+}
+
+// flattenNav converts nav nodes to jsonNavPages, attaching each directory node's
+// children recursively.
+func flattenNav(nodes []*navNode) []jsonNavPage {
+	out := make([]jsonNavPage, 0, len(nodes))
+	for _, n := range nodes {
+		it := n.item
+		if n.isDir {
+			it.Children = flattenNav(n.children)
+		}
+		out = append(out, it)
+	}
+	return out
+}
+
+// navDirTitle makes a readable submenu label from a directory segment
+// (`class` -> `Class`).
+func navDirTitle(dir string) string {
+	if dir == "" {
+		return dir
+	}
+	return strings.ToUpper(dir[:1]) + dir[1:]
+}
+
 // writeContent emits content.json from the navigation groups. A page with body
 // HTML becomes a routed doc page; a page without (the external Playground app) is
 // a plain link.
@@ -105,21 +176,21 @@ func writeContent(outDir string, groups []navGroup, cfg siteConfig) error {
 		Pages: map[string]jsonDoc{},
 	}
 	for _, g := range groups {
-		jg := jsonNavGroup{Name: g.Name}
+		// Register every doc page (flat), then build the group's nav items as a tree
+		// so pages sharing a subdirectory prefix (NavPath `class/…`) nest under an
+		// expandable submenu.
 		for _, p := range g.Pages {
 			slug := slugOf(p.OutFile)
 			if p.BodyHTML == "" {
-				jg.Pages = append(jg.Pages, jsonNavPage{Slug: slug, Title: p.Title, Href: p.OutFile})
-				continue
+				continue // external link: no doc page to register
 			}
-			jg.Pages = append(jg.Pages, jsonNavPage{Slug: slug, Title: p.Title})
 			c.Pages[slug] = jsonDoc{
 				Slug: slug, Title: p.Title, HTML: string(p.BodyHTML), Toc: tocEntries(p.Headings),
 				Source: p.Source, SourceLang: p.SourceLang, SourcePath: p.SourcePath,
 			}
 			c.Search = append(c.Search, jsonSearch{Slug: slug, Title: p.Title, Text: p.plain})
 		}
-		c.Groups = append(c.Groups, jg)
+		c.Groups = append(c.Groups, jsonNavGroup{Name: g.Name, Pages: buildNavTree(g.Pages)})
 	}
 	data, err := json.Marshal(&c)
 	if err != nil {
