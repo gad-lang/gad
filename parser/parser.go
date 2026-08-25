@@ -110,22 +110,26 @@ func NewParserWithOptions(
 	if scannerOptions == nil {
 		scannerOptions = &ScannerOptions{}
 	}
-	if scannerOptions.Mode == 0 {
-		if opts.Mode.Has(ParseComments) {
-			scannerOptions.Mode.Set(ScanComments)
-		}
-		if opts.Mode.Has(ParseFloatAsDecimal) {
-			scannerOptions.Mode.Set(ScanFloatAsDecimal)
-		}
-		if opts.Mode.Has(ParseMixed) {
-			scannerOptions.Mode.Set(ScanMixed)
-		}
-		if opts.Mode.Has(ParseConfigDisabled) {
-			scannerOptions.Mode.Set(ScanConfigDisabled)
-		}
-		if opts.Mode.Has(ParseMixedExprAsValue) {
-			scannerOptions.Mode.Set(ScanMixedExprAsValue)
-		}
+	// Ensure the scanner mode carries the flags the parser mode implies, even when
+	// the caller pre-set an explicit scanner mode (e.g. ScanMixed). Only ADD flags,
+	// never remove — a caller's explicit modes are preserved. Previously these were
+	// applied only when scannerOptions.Mode == 0, so a caller that set ScanMixed by
+	// hand silently lost ScanComments, and `/** … **/` doc comments inside
+	// `{% … %}` islands were dropped (doc panel showed no docs for .gadt).
+	if opts.Mode.Has(ParseComments) {
+		scannerOptions.Mode.Set(ScanComments)
+	}
+	if opts.Mode.Has(ParseFloatAsDecimal) {
+		scannerOptions.Mode.Set(ScanFloatAsDecimal)
+	}
+	if opts.Mode.Has(ParseMixed) {
+		scannerOptions.Mode.Set(ScanMixed)
+	}
+	if opts.Mode.Has(ParseConfigDisabled) {
+		scannerOptions.Mode.Set(ScanConfigDisabled)
+	}
+	if opts.Mode.Has(ParseMixedExprAsValue) {
+		scannerOptions.Mode.Set(ScanMixedExprAsValue)
 	}
 	return NewParserWithScanner(NewScanner(file, scannerOptions), opts)
 }

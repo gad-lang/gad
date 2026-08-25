@@ -54,3 +54,14 @@ func TestDocTemplatesInSyncWithEmbedded(t *testing.T) {
 			"doc-templates/%s drifted from the embedded default (cmd/gad/doctemplates/%s)", name, name)
 	}
 }
+
+// TestDocTemplateDocComments: a `/** … **/` doc comment inside a `.gadt`
+// template's `{% … %}` code island is attached and rendered (the mixed-mode
+// scanner must carry ScanComments — it previously dropped island comments).
+func TestDocTemplateDocComments(t *testing.T) {
+	src := []byte("{%\n/** Pi constant. **/\nexport PI = 3.14\n%}\nHello {%= PI %}\n")
+	md, err := generateDoc("m.gadt", src, true)
+	require.NoError(t, err)
+	require.Contains(t, md, "const **PI**")
+	require.Contains(t, md, "Pi constant.")
+}
