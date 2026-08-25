@@ -105,14 +105,9 @@ fails when a nested dict is not already the declared type — while `:::` coerce
 test "checked vs transforming" {
     data := {rect: {a: {x: 1, y: 2}, b: {x: 5, y: 6}}}
 
-    // `::` does not coerce: `rect` is a dict, not a Rect -> not assignable.
-    threw := false
-    try {
-        data :: interface { rect Rect }
-    } catch {
-        threw = true
-    }
-    t.true(threw)
+    // `::` does not coerce: `rect` is a dict, not a Rect -> not assignable, so the
+    // cast throws and `bool(…) or false` is false.
+    t.true(!(bool(data :: interface { rect Rect }) or false))
 
     // `:::` coerces and succeeds.
     t.equal("Rect", typeName((data ::: interface { rect Rect }).rect))
@@ -123,14 +118,8 @@ A required field absent from the source fails the transform; a nullable field
 (`name? T`) may be absent — it is simply left out.
 **/
 test "required and nullable fields" {
-    // A missing required field is an error.
-    threw := false
-    try {
-        ({b: 2}) ::: interface { a int, **rest }
-    } catch {
-        threw = true
-    }
-    t.true(threw)
+    // A missing required field is an error (the transform throws).
+    t.true(!(bool(({b: 2}) ::: interface { a int, **rest }) or false))
 
     // A nullable field may be absent; the rest still captures the extras.
     got := ({b: 2}) ::: interface { a? int, **rest }

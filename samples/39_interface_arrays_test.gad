@@ -36,24 +36,12 @@ test "flat array interface" {
     // An empty array satisfies vacuously.
     t.equal(0, len([] :: points))
 
-    // A non-array is rejected.
-    threw := false
-    try {
-        d := {x: 1, y: 2}
-        d :: points
-    } catch {
-        threw = true
-    }
-    t.true(threw)
+    // A non-array is rejected: the cast throws, so `bool(…) or false` is false.
+    d := {x: 1, y: 2}
+    t.true(!(bool(d :: points) or false))
 
     // An element missing a required field is rejected.
-    threw2 := false
-    try {
-        [{x: 1}] :: points
-    } catch {
-        threw2 = true
-    }
-    t.true(threw2)
+    t.true(!(bool([{x: 1}] :: points) or false))
 }
 
 /**
@@ -67,13 +55,7 @@ test "nested array interface" {
     t.equal(4, r[0][0][1].y)
 
     // The wrong depth (too shallow) is rejected.
-    threw := false
-    try {
-        [{x: 1, y: 2}] :: nestedPoints
-    } catch {
-        threw = true
-    }
-    t.true(threw)
+    t.true(!(bool([{x: 1, y: 2}] :: nestedPoints) or false))
 }
 
 /**
