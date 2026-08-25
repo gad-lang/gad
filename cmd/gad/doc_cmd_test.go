@@ -311,3 +311,47 @@ func TestDocResolveDirDst(t *testing.T) {
 	o3.resolveDir(&d3)
 	require.False(t, d3.skip)
 }
+
+// TestGenerateDocTypeMembers verifies a class, enum and interface expose their
+// members — class fields (with types) and their docs, methods, enum variants and
+// interface requirements — not just the type's own heading and doc.
+func TestGenerateDocTypeMembers(t *testing.T) {
+	src := "" +
+		"/** A 2D point. **/\n" +
+		"class Point {\n" +
+		"  /// horizontal coordinate\n" +
+		"  x int\n" +
+		"  y int\n" +
+		"  methods {\n" +
+		"    /// distance from origin\n" +
+		"    norm() => (this.x**2 + this.y**2)\n" +
+		"  }\n" +
+		"}\n" +
+		"/** Color choices. **/\n" +
+		"enum Color { Red = 1; Green = 2 }\n" +
+		"/** Something that can greet. **/\n" +
+		"interface Greeter { name str; greet() <str> }\n"
+
+	md, err := generateDoc("m.gad", []byte(src), false)
+	require.NoError(t, err)
+
+	// class members: field with its type, its doc, and a method with its doc.
+	require.Contains(t, md, "### class **Point**")
+	require.Contains(t, md, "**Fields**")
+	require.Contains(t, md, "```gad\nx int\n```")
+	require.Contains(t, md, "horizontal coordinate")
+	require.Contains(t, md, "**Methods**")
+	require.Contains(t, md, "```gad\nnorm()\n```")
+	require.Contains(t, md, "distance from origin")
+
+	// enum variants.
+	require.Contains(t, md, "### enum **Color**")
+	require.Contains(t, md, "**Variants**")
+	require.Contains(t, md, "```gad\nRed = 1\n```")
+
+	// interface appears and lists its required members.
+	require.Contains(t, md, "### interface **Greeter**")
+	require.Contains(t, md, "**Required**")
+	require.Contains(t, md, "```gad\nname str\n```")
+	require.Contains(t, md, "```gad\ngreet() <str>\n```")
+}

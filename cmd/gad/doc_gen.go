@@ -65,6 +65,15 @@ type docMethod struct {
 	doc string
 }
 
+// docMember is one member of a type (a class field/constructor/property/method,
+// an enum variant, or an interface requirement), rendered under its group inside
+// the type's entry.
+type docMember struct {
+	group string // "Fields", "Constructors", "Properties", "Methods", "Variants", "Required"
+	sig   string // the code line, e.g. "x int", "norm() <int>", "Red = 1"
+	doc   string // rendered Markdown doc body; may be empty
+}
+
 // docEntry is one exported, documented symbol.
 type docEntry struct {
 	name    string
@@ -73,6 +82,7 @@ type docEntry struct {
 	code    []string    // signature/value lines shown in a code block
 	doc     string      // rendered Markdown doc body
 	methods []docMethod // for func-with-methods: rendered as default + others
+	members []docMember // for a type: its fields, methods, variants, … in order
 }
 
 // generateDoc renders the godoc-style Markdown for a Gad source file. It is a
@@ -200,13 +210,22 @@ func internalStmtEntry(stmt node.Stmt, doc string) (docEntry, bool) {
 		if name == "" {
 			return docEntry{}, false
 		}
-		return docEntry{name: name, kind: docType, keyword: "class", code: []string{"class " + name}, doc: doc}, true
+		return docEntry{name: name, kind: docType, keyword: "class",
+			code: []string{"class " + name}, doc: doc, members: classMembers(&s.ClassExpr)}, true
 	case *node.EnumStmt:
 		name := identName(s.NameExpr)
 		if name == "" {
 			return docEntry{}, false
 		}
-		return docEntry{name: name, kind: docType, keyword: "enum", code: []string{"enum " + name}, doc: doc}, true
+		return docEntry{name: name, kind: docType, keyword: "enum",
+			code: []string{"enum " + name}, doc: doc, members: enumMembers(&s.EnumExpr)}, true
+	case *node.InterfaceStmt:
+		name := identName(s.NameExpr)
+		if name == "" {
+			return docEntry{}, false
+		}
+		return docEntry{name: name, kind: docType, keyword: "interface",
+			code: []string{"interface " + name}, doc: doc, members: interfaceMembers(&s.InterfaceExpr)}, true
 	case *node.PropStmt:
 		name := identName(s.NameExpr)
 		if name == "" {
@@ -263,10 +282,13 @@ func assignEntry(name string, rhs node.Expr, doc string) docEntry {
 			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
 	case *node.ClassExpr:
 		return docEntry{name: name, kind: docType, keyword: "class",
-			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
+			code: []string{name + " = " + firstLine(v.String())}, doc: doc, members: classMembers(v)}
 	case *node.EnumExpr:
 		return docEntry{name: name, kind: docType, keyword: "enum",
-			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
+			code: []string{name + " = " + firstLine(v.String())}, doc: doc, members: enumMembers(v)}
+	case *node.InterfaceExpr:
+		return docEntry{name: name, kind: docType, keyword: "interface",
+			code: []string{name + " = " + firstLine(v.String())}, doc: doc, members: interfaceMembers(v)}
 	case *node.MethodInterfaceExpr:
 		return docEntry{name: name, kind: docType, keyword: "meti",
 			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
@@ -382,6 +404,77 @@ func methodsEntry(name string, e *node.FuncWithMethodsExpr, doc string) docEntry
 		})
 	}
 	return docEntry{name: name, kind: docType, keyword: "func", doc: doc, methods: methods}
+}
+
+// methodSig renders one method/constructor signature: `name(params) <ret>`.
+func methodSig(name string, m *node.FuncMethod) string {
+	return name + m.Params.String() + node.FormatFuncReturn(m.Return)
+}
+
+// classMembers collects a class's documented members — fields (with their types
+// and defaults), constructors, properties and methods — in source-friendly order.
+func classMembers(e *node.ClassExpr) []docMember {
+	var ms []docMember
+	for _, f := range e.Fields {
+		sig := f.Name.String()
+		if f.Value != nil {
+			sig += " = " + f.Value.String()
+		}
+		ms = append(ms, docMember{group: "Fields", sig: sig, doc: docContent(f.Doc)})
+	}
+	for _, m := range e.New {
+		ms = append(ms, docMember{group: "Constructors", sig: methodSig("new", m), doc: docContent(m.Doc)})
+	}
+	ms = append(ms, memberExprs("Properties", e.Props)...)
+	ms = append(ms, memberExprs("Methods", e.Methods)...)
+	return ms
+}
+
+// memberExprs flattens class property/method members into one docMember per
+// signature, carrying the member's doc (falling back to the per-signature doc).
+func memberExprs(group string, members []*node.ClassMemberExpr) []docMember {
+	var ms []docMember
+	for _, mem := range members {
+		name := identName(mem.NameExpr)
+		memberDoc := docContent(mem.Doc)
+		for _, fm := range mem.Methods {
+			doc := docContent(fm.Doc)
+			if doc == "" {
+				doc = memberDoc
+			}
+			ms = append(ms, docMember{group: group, sig: methodSig(name, fm), doc: doc})
+		}
+	}
+	return ms
+}
+
+// enumMembers collects an enum's variants (skipping the `_` placeholder), each
+// rendered as it appears in source (`Name`, `Name = Value`).
+func enumMembers(e *node.EnumExpr) []docMember {
+	var ms []docMember
+	for _, f := range e.Fields {
+		if f.Name == nil || f.Name.Name == "_" {
+			continue
+		}
+		ms = append(ms, docMember{group: "Variants", sig: f.String(), doc: docContent(f.Doc)})
+	}
+	return ms
+}
+
+// interfaceMembers collects an interface's required fields/accessors, methods and
+// context-function checks.
+func interfaceMembers(e *node.InterfaceExpr) []docMember {
+	var ms []docMember
+	for _, m := range e.Members {
+		ms = append(ms, docMember{group: "Required", sig: m.String(), doc: docContent(m.Doc)})
+	}
+	for _, m := range e.Methods {
+		ms = append(ms, docMember{group: "Required", sig: m.String(), doc: docContent(m.Doc)})
+	}
+	for _, cf := range e.ContextFuncs {
+		ms = append(ms, docMember{group: "Required", sig: cf.String(), doc: docContent(cf.Doc)})
+	}
+	return ms
 }
 
 // dictEntry builds an entry for one `export { key: value }` member.
@@ -623,7 +716,7 @@ var typeGroups = []struct {
 	{"Enums", []string{"enum"}},
 	{"Methods", []string{"met"}},
 	{"Properties", []string{"prop"}},
-	{"Interfaces", []string{"meti"}},
+	{"Interfaces", []string{"interface", "meti"}},
 }
 
 // writeTypesSection writes the Types section at the given heading level, grouping
@@ -685,6 +778,37 @@ func writeEntry(b *strings.Builder, level int, e docEntry) {
 	writeCode(b, e.code)
 	if e.doc != "" {
 		b.WriteString("\n" + e.doc + "\n")
+	}
+	writeMembers(b, e.members)
+}
+
+// memberGroupOrder is the order type-member groups are rendered in.
+var memberGroupOrder = []string{"Fields", "Constructors", "Properties", "Methods", "Variants", "Required"}
+
+// writeMembers renders a type's members grouped under bold sub-labels
+// (**Fields**, **Methods**, …), each member as a ```gad signature line followed
+// by its doc. Nothing is written when the type has no members.
+func writeMembers(b *strings.Builder, members []docMember) {
+	if len(members) == 0 {
+		return
+	}
+	for _, group := range memberGroupOrder {
+		var inGroup []docMember
+		for _, m := range members {
+			if m.group == group {
+				inGroup = append(inGroup, m)
+			}
+		}
+		if len(inGroup) == 0 {
+			continue
+		}
+		b.WriteString("\n**" + group + "**\n")
+		for _, m := range inGroup {
+			writeCode(b, []string{m.sig})
+			if m.doc != "" {
+				b.WriteString("\n" + m.doc + "\n")
+			}
+		}
 	}
 }
 
