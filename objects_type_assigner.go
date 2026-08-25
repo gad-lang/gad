@@ -102,6 +102,37 @@ func AssignToType(vm *VM, obj, to Object) (Object, error) {
 		ReprQuote(obj.Type().Name()), ReprQuote(TypeAssignerName(to.(TypeAssigner))))
 }
 
+// AssignToTypeTransform implements the `obj ::: to` transforming cast. For a dict
+// cast to an interface it coerces: fields typed by a class/interface are built
+// from their nested dicts and a `**name` rest member gathers the interface's
+// unnamed keys (see Interface.coerceDict). For every other combination it behaves
+// exactly like AssignToType (a checked cast that returns obj unchanged).
+func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
+	if iface, ok := to.(*Interface); ok {
+		if d, ok := asTransformDict(vm, obj); ok {
+			return iface.coerceDict(vm, d)
+		}
+	}
+	return AssignToType(vm, obj, to)
+}
+
+// asTransformDict materialises obj as a Dict for the `:::` transform. Besides a
+// plain Dict it accepts any key/value source that can enumerate its members — a
+// KeyValueArray (and any other ToDictConverter) or a class instance — so the
+// transform works for "any item getter", not only dict literals. Reports false
+// when obj has no enumerable members.
+func asTransformDict(vm *VM, obj Object) (Dict, bool) {
+	switch v := obj.(type) {
+	case Dict:
+		return v, true
+	case *ClassInstance:
+		return v.Fields(), true
+	case ToDictConverter:
+		return v.ToDict(), true
+	}
+	return nil, false
+}
+
 // assignerAcceptsType reports whether an arg of type t is accepted by the type
 // assigner a. For an ObjectType assigner it is plain type assignability; a
 // structural assigner (meti/interface) cannot be decided from a type alone in

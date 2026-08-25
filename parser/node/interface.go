@@ -82,9 +82,14 @@ type InterfaceExpr struct {
 	Members        []*InterfaceMemberExpr      // fields, getters, setters, props (source order)
 	Methods        []*InterfaceMethodExpr      // required methods (one or more signatures each)
 	ContextFuncs   []*InterfaceContextFuncExpr // context-function checks (`funcs { … }`)
-	LBrace         source.Pos
-	RBrace         source.Pos
-	Doc            *ast.CommentGroup // doc comment preceding the interface; or nil
+	// Rest is the `**name` rest-capture field: when the interface is used to cast
+	// a dict (`d :: I`), keys not named by the interface are collected into a dict
+	// bound to this name in the result. Nil when the interface has no `**` member.
+	Rest    *IdentExpr
+	RestDoc *ast.CommentGroup
+	LBrace  source.Pos
+	RBrace  source.Pos
+	Doc     *ast.CommentGroup // doc comment preceding the interface; or nil
 }
 
 // InterfaceContextFuncExpr is one entry of an interface's `funcs { … }` section:
@@ -231,6 +236,12 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 	for _, m := range e.Methods {
 		m.WriteCode(ctx)
+		ctx.WriteSemi()
+	}
+	if e.Rest != nil {
+		ctx.WriteLeadDoc(e.RestDoc)
+		ctx.WriteString("**")
+		e.Rest.WriteCode(ctx)
 		ctx.WriteSemi()
 	}
 	if len(e.ContextFuncs) > 0 {

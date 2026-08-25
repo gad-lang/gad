@@ -113,6 +113,7 @@ const (
 	OpDelete
 	OpSelfAssignN
 	OpInterfaceBind
+	OpAssignTransform
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -201,6 +202,7 @@ var OpcodeNames = [...]string{
 	OpDelete:            "DELETE",
 	OpSelfAssignN:       "SELFASSIGNN",
 	OpInterfaceBind:     "INTERFACEBIND",
+	OpAssignTransform:   "ASSIGNT",
 }
 
 // OpcodeOperands is the number of operands.
@@ -289,6 +291,7 @@ var OpcodeOperands = [...][]int{
 	OpDelete:            {},     // pop keys array and `this`; delete this[k] for each k
 	OpSelfAssignN:       {1, 1}, // operator, n; fused spread self-assign over n stack items
 	OpInterfaceBind:     {2},    // n; pop n context-func values + the interface, push the bound interface
+	OpAssignTransform:   {},     // obj ::: type -> coerced obj (or throw if not assignable)
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

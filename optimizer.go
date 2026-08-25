@@ -178,7 +178,8 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		// OpAssign (obj :: type) is not constant-folded: a failing cast must throw
 		// at runtime (catchable) rather than become a compile error via the
 		// optimizer's eval. The explicit false also sizes the array to include it.
-		OpAssign: false,
+		OpAssign:          false,
+		OpAssignTransform: false,
 		// The env / delete opcodes read or mutate VM state (the environment table,
 		// an object's keys) and must never be constant-folded. The explicit false
 		// on the highest one also sizes the array to include them all.

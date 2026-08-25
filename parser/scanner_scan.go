@@ -495,7 +495,12 @@ do:
 		case ':':
 			if s.Ch == ':' {
 				s.Next()
-				t.Token = token.DoubleColon
+				if s.Ch == ':' {
+					s.Next()
+					t.Token = token.TripleColon
+				} else {
+					t.Token = token.DoubleColon
+				}
 			} else {
 				t.Token = s.Switch2(token.Colon, token.Define)
 			}

@@ -147,27 +147,29 @@ func acceptFieldValue(vm *VM, field *ClassField, v Object) (Object, error) {
 			field.Name, field.Types.String())
 	}
 
-	// Dict -> single class-typed field: build the nested instance.
+	// Already of an accepted type: validate with the same value-based
+	// assignability the parameter/`::` checker uses (AssignToType →
+	// TypeAssigner.CanAssignVM) — an exact type, a subclass of a class type, or a
+	// value structurally satisfying an interface type. The field accepts the union
+	// of its declared types.
+	for _, t := range field.Types {
+		if _, err := AssignToType(vm, v, t); err == nil {
+			return v, nil
+		}
+	}
+
+	// Not directly assignable: a key/value source (a dict, key-value array or any
+	// item-getter) for a single class-typed field builds the nested instance,
+	// recursively (github.com/gad-lang/gad issue #4).
 	if len(field.Types) == 1 {
 		if cls, ok := field.Types[0].(*Class); ok {
-			if d, ok := v.(Dict); ok {
-				clone := make(Dict, len(d))
-				for k, val := range d {
+			if src, ok := asTransformDict(vm, v); ok {
+				clone := make(Dict, len(src))
+				for k, val := range src {
 					clone[k] = val
 				}
 				return cls.NewInstanceWithFields(vm, clone)
 			}
-		}
-	}
-
-	// Validate with the same value-based assignability the parameter/`::` checker
-	// uses (AssignToType → TypeAssigner.CanAssignVM): it accepts an exact type, a
-	// subclass of a class type, and a value that structurally satisfies an
-	// interface type, resolving structural checks through the VM. The field
-	// accepts the union of its declared types.
-	for _, t := range field.Types {
-		if _, err := AssignToType(vm, v, t); err == nil {
-			return v, nil
 		}
 	}
 	return nil, ErrType.NewErrorf("field %q expects %s, got %s",

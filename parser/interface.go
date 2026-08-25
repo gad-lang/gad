@@ -111,6 +111,18 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		return
 	}
 
+	// `**name` — a rest-capture field: on a dict cast (`d :: I`) the keys not named
+	// by the interface are collected into a dict bound to `name` in the result.
+	if p.Token.Token == token.Pow {
+		p.Next()
+		p.SkipSpace()
+		if name := p.ParseIdent(); name != nil {
+			iface.Rest = name
+			iface.RestDoc = doc
+		}
+		return
+	}
+
 	// `*Parent` — a parent interface, written as a spread body item.
 	if p.Token.Token == token.Mul {
 		p.Next()

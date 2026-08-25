@@ -125,6 +125,10 @@ type Interface struct {
 	// captured value (bound at run time, see OpInterfaceBind) must have a
 	// signature matching each header, with `@self` standing for this interface.
 	ContextFuncs []*InterfaceContextFunc
+	// Rest is the `**name` rest-capture field name: on a dict cast (`d :: I`) the
+	// keys not named by the interface are gathered into a dict bound to this name
+	// in the result. Empty when the interface has no `**` member.
+	Rest string
 	// Native, when set, is a builtin interface's satisfaction check (e.g. the
 	// `iterable` interface delegates to IsIterable). It replaces the structural
 	// member check, so such interfaces can match Go-backed behaviour that is not
@@ -489,6 +493,130 @@ func ifaceFieldTypeOK(vm *VM, f *InterfaceField, v Object) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// resolveAssigners returns the field's declared types as TypeAssigners — a plain
+// ObjectType (a class, int, …) or a structural type such as a nested interface —
+// resolving compile-time symbols against vm. Used by the `:::` transforming cast
+// to coerce a nested dict into the field's declared shape.
+func (f *InterfaceField) resolveAssigners(vm *VM) []TypeAssigner {
+	var out []TypeAssigner
+	for _, t := range f.Types {
+		out = append(out, t)
+	}
+	if len(out) == 0 && vm != nil {
+		for _, sym := range f.TypesSymbols {
+			if tv, err := vm.GetSymbolValue(sym); err == nil {
+				if ta, _ := tv.(TypeAssigner); ta != nil {
+					out = append(out, ta)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// declaredNames is the set of member names the interface declares (fields, props
+// and methods) — everything a `**rest` capture excludes.
+func (i *Interface) declaredNames() map[string]bool {
+	names := make(map[string]bool, len(i.Fields)+len(i.Props)+len(i.Methods))
+	for _, f := range i.Fields {
+		names[f.Name] = true
+	}
+	for _, p := range i.Props {
+		names[p.Name] = true
+	}
+	for _, m := range i.Methods {
+		names[m.Name] = true
+	}
+	return names
+}
+
+// coerceFieldToInterface converts v to satisfy an interface field's declared
+// type: a dict for a class field becomes an instance of that class, a dict for a
+// nested-interface field is transformed recursively (`:::`), and any other value
+// must already be assignable. Returns the coerced value.
+func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Object) (Object, error) {
+	if len(assigners) == 0 {
+		return v, nil // untyped field: keep as-is
+	}
+	// Already of an accepted type (an instance, a satisfying value, …): keep it.
+	var lastErr error
+	for _, a := range assigners {
+		if _, lastErr = AssignToType(vm, v, a); lastErr == nil {
+			return v, nil
+		}
+	}
+	// Not directly assignable — coerce a key/value source into the declared shape:
+	// a class field builds an instance, a nested-interface field transforms it.
+	if src, ok := asTransformDict(vm, v); ok && len(assigners) == 1 {
+		switch t := assigners[0].(type) {
+		case *Class:
+			clone := make(Dict, len(src))
+			for k, val := range src {
+				clone[k] = val
+			}
+			return t.NewInstanceWithFields(vm, clone)
+		case *Interface:
+			return t.coerceDict(vm, src)
+		}
+	}
+	return nil, ErrType.NewErrorf("field %q: %v", name, lastErr)
+}
+
+// coerceDict implements `dict ::: interface`: it returns a NEW dict whose fields
+// typed by a class/interface are built from their nested dicts (recursively), and
+// whose keys not named by the interface are gathered under the `**name` rest
+// field when one is declared. A missing non-nullable field is an error.
+func (i *Interface) coerceDict(vm *VM, d Dict) (Object, error) {
+	out := make(Dict, len(d))
+	for k, v := range d {
+		out[k] = v
+	}
+
+	for _, f := range i.Fields {
+		v, has := out[f.Name]
+		if !has || v == Nil {
+			if f.Nullable {
+				continue
+			}
+			return nil, ErrType.NewErrorf("field %q is required", f.Name)
+		}
+		coerced, err := coerceFieldToInterface(vm, f.Name, f.resolveAssigners(vm), v)
+		if err != nil {
+			return nil, err
+		}
+		out[f.Name] = coerced
+	}
+
+	// Props and methods must be present (checked, not transformed).
+	for _, p := range i.Props {
+		if _, has := out[p.Name]; !has {
+			return nil, ErrType.NewErrorf("property %q is required", p.Name)
+		}
+	}
+	for _, m := range i.Methods {
+		v, has := out[m.Name]
+		if !has {
+			return nil, ErrType.NewErrorf("method %q is required", m.Name)
+		}
+		if _, ok := v.(CallerObject); !ok {
+			return nil, ErrType.NewErrorf("method %q must be callable", m.Name)
+		}
+	}
+
+	if i.Rest != "" {
+		declared := i.declaredNames()
+		rest := Dict{}
+		for k, v := range out {
+			if !declared[k] {
+				rest[k] = v
+				delete(out, k)
+			}
+		}
+		out[i.Rest] = rest
+	}
+	return out, nil
 }
 
 func (i *Interface) Name() string { return i.IName }

@@ -194,9 +194,15 @@ const (
 	// a keyword nor shifts any existing token value; its operator behaviour comes
 	// from Precedence and an explicit compiler case, not group membership.
 	DoubleColon // ::
+	// TripleColon is the transforming cast operator `obj ::: Type`. Like `::` it
+	// checks assignability, but for a dict cast to an interface it also COERCES:
+	// each field typed by a class/interface is built from its nested dict, and a
+	// `**name` rest member gathers the interface's unnamed keys. Placed after
+	// DoubleColon so no existing token value shifts.
+	TripleColon // :::
 )
 
-const NumTokens = int(DoubleColon) + 1
+const NumTokens = int(TripleColon) + 1
 
 var keywords map[string]Token
 
@@ -376,6 +382,7 @@ var tokens = [...]string{
 	Enum:                "enum",
 	Interface:           "interface",
 	DoubleColon:         "::",
+	TripleColon:         ":::",
 }
 
 var tokenNames = [...]string{
@@ -543,6 +550,7 @@ var tokenNames = [...]string{
 	Interface:                    "Interface",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 	DoubleColon:                  "DoubleColon",
+	TripleColon:                  "TripleColon",
 }
 
 // FromName return a Token from name
@@ -583,8 +591,8 @@ func (tok Token) Precedence() int {
 		return 9
 	case Raw:
 		return 10
-	case DoubleColon:
-		// the assign-to-type operator binds tighter than arithmetic so that
+	case DoubleColon, TripleColon:
+		// the assign-to-type operators bind tighter than arithmetic so that
 		// `x + y :: int` groups as `x + (y :: int)`; parenthesise to cast a whole
 		// expression (`(x + y) :: int`).
 		return 11

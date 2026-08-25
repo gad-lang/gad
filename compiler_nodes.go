@@ -2340,6 +2340,9 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 		name = c.newInterfaceName()
 	}
 	iface := &Interface{IName: name, Module: c.module}
+	if nd.Rest != nil {
+		iface.Rest = nd.Rest.Name
+	}
 
 	for _, parent := range nd.Parents {
 		id := node.EType(parent).Ident()
@@ -2831,6 +2834,10 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 	case token.DoubleColon:
 		// `obj :: Type` yields obj when it is assignable to Type, else throws.
 		c.emit(nd, OpAssign)
+	case token.TripleColon:
+		// `obj ::: Type` also coerces: a dict cast to an interface builds its
+		// class/interface-typed fields and gathers `**name` rest keys.
+		c.emit(nd, OpAssignTransform)
 	case token.Equal:
 		c.emit(nd, OpEqual)
 	case token.NotEqual:

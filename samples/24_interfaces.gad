@@ -21,6 +21,11 @@ A required field marked with a `?` after its name (`x? int`) is **nullable**: a
 member that is `nil` — or absent — still satisfies it, so `?` marks an optional
 field (see [typed & nullable fields](37_class_field_types.gad)).
 
+A `**name` member is a **rest capture** used with the transforming cast
+[`:::`](38_transform_cast_test.gad): `d ::: interface { … }` coerces the source's
+class/interface-typed fields into their declared shape and gathers the keys not
+named by the interface into a dict bound to `name`.
+
 ## Context-function members (`funcs { … }`)
 
 A `funcs { FnExpr <header>; … }` section requires, per entry, a **free function
