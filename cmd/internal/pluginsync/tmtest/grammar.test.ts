@@ -215,3 +215,12 @@ test("doc-comment body styles inline Markdown (#docmarkup), guarded", () => {
   // the fence still closes, not consumed by an emphasis rule
   expect(scoped[3][0].scopes[scoped[3][0].scopes.length - 1]).toContain("comment.documentation.block.gad");
 });
+
+test("`:::` is one operator token (not `::` + `:`)", () => {
+  const toks = tokenize("x := a ::: T");
+  const op = toks.find((t) => t.text === ":::");
+  expect(op, `no ::: token in ${JSON.stringify(toks.map((t) => t.text))}`).toBeDefined();
+  expect(op!.scopes.some((s) => s.includes("keyword.operator.gad"))).toBe(true);
+  // `::` still tokenizes on its own.
+  expect(tokenize("x := a :: T").find((t) => t.text === "::")).toBeDefined();
+});

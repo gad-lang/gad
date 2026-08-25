@@ -179,7 +179,10 @@ func TextMateGrammar() ([]byte, error) {
 			{Name: "variable.language.gad", Match: `@[A-Za-z_$][\w$]*`},
 		}},
 		"operators": {Patterns: []tmRule{
-			{Name: "keyword.operator.gad", Match: `::|\?\?=?|\.\.|=>|:=|\|\||&&|\*\*=?|<<<?=?|>>>?=?|&\^=?|%%=?|===?|!==?|[-+*/%&|^!<>=]=?|[~?:]`},
+			// `:::` (transforming cast) before `::` (checked cast) so the longer
+			// operator wins; `**` covers both the power operator and an interface
+			// `**rest` member.
+			{Name: "keyword.operator.gad", Match: `:::|::|\?\?=?|\.\.|=>|:=|\|\||&&|\*\*=?|<<<?=?|>>>?=?|&\^=?|%%=?|===?|!==?|[-+*/%&|^!<>=]=?|[~?:]`},
 		}},
 	}
 
