@@ -190,3 +190,28 @@ test("a `[link](x)` then another line inside a block doc keeps the doc scope", (
   expect(scoped[4].some((t) => t.scopes.some((s) => s.includes("keyword.control.gad")))).toBe(true);
   expect(scoped[4].some((t) => t.scopes.some((s) => s.includes("comment")))).toBe(false);
 });
+
+test("doc-comment body styles inline Markdown (#docmarkup), guarded", () => {
+  const lines = [
+    "/**",
+    "Some **bold** and *italic* and `code` here.",
+    "use a*b and c*d in prose",
+    "**/",
+  ];
+  let stack: any = null;
+  const scoped = lines.map((ln) => {
+    const r = grammar.tokenizeLine(ln, stack);
+    stack = r.ruleStack;
+    return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+  });
+  const find = (i: number, text: string) => scoped[i].find((t) => t.text === text);
+  // inline markup carries its markup scope AND stays nested in the doc comment
+  expect(find(1, "**bold**")!.scopes.some((s) => s.includes("markup.bold.gad"))).toBe(true);
+  expect(find(1, "*italic*")!.scopes.some((s) => s.includes("markup.italic.gad"))).toBe(true);
+  expect(find(1, "`code`")!.scopes.some((s) => s.includes("markup.inline.raw"))).toBe(true);
+  expect(find(1, "**bold**")!.scopes.some((s) => s.includes("comment.documentation.block.gad"))).toBe(true);
+  // prose `a*b`/`c*d` must NOT be italicized (word-boundary guard)
+  expect(scoped[2].some((t) => t.scopes.some((s) => s.includes("markup.italic")))).toBe(false);
+  // the fence still closes, not consumed by an emphasis rule
+  expect(scoped[3][0].scopes[scoped[3][0].scopes.length - 1]).toContain("comment.documentation.block.gad");
+});

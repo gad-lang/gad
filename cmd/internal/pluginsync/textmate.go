@@ -68,31 +68,54 @@ func TextMateGrammar() ([]byte, error) {
 			// Comment" color. VS Code themes still see the `comment` root; the Gad
 			// extension's configurationDefaults tint these scopes.
 			//
-			// The block body is NOT the Markdown grammar. `text.html.markdown`'s
-			// paragraph is a `begin`/`while` block anchored with `\G`; IntelliJ's
-			// TextMate engine mishandles a `while`-based child nested inside a
-			// `begin`/`end` parent, so on some doc bodies (e.g. a line after a
-			// `[link](x)`) the block's closing `**/` and the lines before it lost the
-			// doc-comment scope and rendered as plain code. The reference engine
-			// (vscode-textmate) tokenizes it correctly, but the editors that ship this
-			// grammar do not, so the whole body just carries the doc-comment scope —
-			// reliable everywhere — at the cost of inline `**bold**` / heading colors
-			// inside doc comments.
+			// The block body does NOT embed `text.html.markdown`. Its paragraph is a
+			// `begin`/`while` block anchored with `\G`, and IntelliJ's TextMate engine
+			// mishandles a `while`-based child nested inside a `begin`/`end` parent —
+			// on some doc bodies (e.g. a line after a `[link](x)`) the closing `**/`
+			// and the lines before it lost the doc-comment scope and rendered as plain
+			// code (vscode-textmate tokenizes it fine, but the editors shipping this
+			// grammar do not). Instead `#docmarkup` re-adds a self-contained subset of
+			// inline Markdown as single-line `match` rules (no `begin`/`while`), which
+			// every TextMate engine handles: `**bold**`, `*italic*`, `` `code` ``,
+			// headings and `[links]`. Plain text keeps the doc-comment scope.
 			{
-				Name:  "comment.documentation.block.gad",
-				Begin: `/\*\*\*`,
-				End:   `\*\*\*/\s*$`,
+				Name:     "comment.documentation.block.gad",
+				Begin:    `/\*\*\*`,
+				End:      `\*\*\*/\s*$`,
+				Patterns: []tmRule{{Include: "#docmarkup"}},
 			},
 			{
-				Name:  "comment.documentation.block.gad",
-				Begin: `/\*\*`,
-				End:   `\*\*/\s*$`,
+				Name:     "comment.documentation.block.gad",
+				Begin:    `/\*\*`,
+				End:      `\*\*/\s*$`,
+				Patterns: []tmRule{{Include: "#docmarkup"}},
 			},
 			// A `///` line doc is a single line; block docs close at a fence that
-			// finishes a line, so neither needs (nor embeds) the Markdown grammar.
+			// finishes a line. Neither embeds the Markdown grammar (see #docmarkup).
 			{Name: "comment.documentation.line.gad", Match: `///(?!/).*$`},
 			{Name: "comment.line.double-slash.gad", Match: `//.*$`},
 			{Name: "comment.block.gad", Begin: `/\*`, End: `\*/`},
+		}},
+		// A self-contained subset of inline Markdown for doc-comment bodies, as
+		// single-line `match` rules only (no `begin`/`while` — those break IntelliJ's
+		// TextMate engine when nested in the doc block; see the "comments" note).
+		// Order matters: `code` first so `*`/`_` inside it are literal, then bold
+		// before italic so `**x**` is bold, not two italics. Emphasis is
+		// word-boundary guarded so prose like `a*b` or `some_id` is not styled, and
+		// the fence `**/` can never match (it needs a closing `**`/`_` with a
+		// non-space before it). Scopes mirror `text.html.markdown` so editors color
+		// them as they do Markdown elsewhere.
+		"docmarkup": {Patterns: []tmRule{
+			{Name: "markup.inline.raw.string.gad", Match: "`[^`\\n]+`"},
+			{Name: "markup.bold.gad", Match: `\*\*(?=\S)[^*\n]+?(?<=\S)\*\*`},
+			{Name: "markup.bold.gad", Match: `(?<![\w])__(?=\S)[^_\n]+?(?<=\S)__(?![\w])`},
+			{Name: "markup.italic.gad", Match: `(?:^|(?<=[\s(]))\*(?=\S)[^*\n]+?(?<=\S)\*(?=[\s).,;:!?]|$)`},
+			{Name: "markup.italic.gad", Match: `(?<![\w])_(?=\S)[^_\n]+?(?<=\S)_(?![\w])`},
+			{Name: "markup.heading.gad", Match: `^\s*#{1,6}\s+.*$`},
+			{Match: `(\[)([^\]\n]+)(\])(\()([^)\n]+)(\))`, Captures: map[string]tmCap{
+				"2": {Name: "string.other.link.title.gad"},
+				"5": {Name: "markup.underline.link.gad"},
+			}},
 		}},
 		"strings": {Patterns: []tmRule{
 			// Interpolated strings (`#`-prefixed): a `{ … }` island embeds a Gad

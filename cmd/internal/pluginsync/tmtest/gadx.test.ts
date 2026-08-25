@@ -123,3 +123,21 @@ test("an embedded `***/` in block-doc prose does not close the doc early", () =>
   expect(tag.some((t) => t.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
   expect(tag.some((t) => t.scopes.some((s) => s.includes("comment")))).toBe(false);
 });
+
+test("doc-comment body styles inline Markdown (#docmarkup)", () => {
+  const lines = ["/**", "Some **bold** and `code` here.", "**/", "div x"];
+  let stack: any = null;
+  const scoped = lines.map((ln) => {
+    const r = grammar.tokenizeLine(ln, stack);
+    stack = r.ruleStack;
+    return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+  });
+  const bold = scoped[1].find((t) => t.text === "**bold**")!;
+  const code = scoped[1].find((t) => t.text === "`code`")!;
+  expect(bold.scopes.some((s) => s.includes("markup.bold.gadx"))).toBe(true);
+  expect(bold.scopes.some((s) => s.includes("comment.documentation.block.gadx"))).toBe(true);
+  expect(code.scopes.some((s) => s.includes("markup.inline.raw"))).toBe(true);
+  // the fence still closes; the tag below is not comment
+  expect(scoped[2][0].scopes[scoped[2][0].scopes.length - 1]).toContain("comment.documentation.block.gadx");
+  expect(scoped[3].some((t) => t.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
+});
