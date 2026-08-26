@@ -20,25 +20,25 @@ fields auto-increment from the previous one. Render @main to see the values.
 ## Example — `enum.gadx`
 
 ```gadx
-//- auto-incrementing, with one explicit value (later fields resume from it)
+// auto-incrementing, with one explicit value (later fields resume from it)
 @enum Perm (Read, Write, Exec = 10, Delete)
 
-//- multi-line body, one field per line (like a grouped @var)
+// multi-line body, one field per line (like a grouped @var)
 @enum Color (Red, Green, Blue)
 
-//- power-of-two flags; a field may combine earlier ones
+// power-of-two flags; a field may combine earlier ones
 @enum Flags (bit List, Detail, Create, Read = (List | Detail))
 
 @main
 	ul
-		//- a member exposes .value, .name and .index
+		// a member exposes .value, .name and .index
 		li Perm.Exec = {= Perm.Exec.value } (index {= Perm.Exec.index })
 		li Perm.Delete = {= Perm.Delete.value }
-		//- index by member name
+		// index by member name
 		li Color["Green"] = {= Color["Green"].value }
-		//- bit flags
+		// bit flags
 		li Flags.Read = {= Flags.Read.value }
-		//- iterate in declaration order
+		// iterate in declaration order
 		li
 			@for name, v in Perm
 				span {= name }={= v.value };

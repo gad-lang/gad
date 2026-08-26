@@ -317,14 +317,12 @@ func (p *Parser) parseComment() *gadxnode.CommentStmt {
 	tok := p.Token
 	p.expect(gadxtoken.Comment)
 
-	mode := stringData(tok, "mode", "embed")
 	text := stringData(tok, "value", "")
 
 	c := &gadxnode.CommentStmt{
 		NodePos: tok.Pos,
 		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
 		Text:    text,
-		Silent:  mode == "silent",
 		Block:   stringData(tok, "block", "") == "true",
 		Doc:     stringData(tok, "doc", "") == "true",
 	}

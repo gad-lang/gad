@@ -192,7 +192,7 @@ empty function) as its first argument; its returned fragment is appended with
                     {=i}: {=it}
 
 @main
-    //- render every row bold, ignoring the default
+    // render every row bold, ignoring the default
     ~~
     tag += list(["a", "b"]; slots={
         row: func(super, i, it) {
@@ -203,7 +203,7 @@ empty function) as its first argument; its returned fragment is appended with
     })
     ~~
 
-    //- prefix each row, then render the default via super (scope forwarded)
+    // prefix each row, then render the default via super (scope forwarded)
     ~~
     tag += list(["a", "b"]; slots={
         row: func(super, i, it) {

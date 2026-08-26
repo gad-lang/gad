@@ -5,10 +5,10 @@ Render the `@main` block to see all four behaviors composed together.
 
 @export comp card(title)
 	div[class="card"]
-		//- optional slot: renders only when the caller provides a badge
+		// optional slot: renders only when the caller provides a badge
 		@slot badge
 		div[class="card-header"]
-			//- slot with default content
+			// slot with default content
 			@slot header
 				h3 {= title }
 		div[class="card-body"]
@@ -19,22 +19,22 @@ Render the `@main` block to see all four behaviors composed together.
 	ul[class="list"]
 		@for it in items
 			li
-				//- scoped slot: passes `it` to the caller's content
+				// scoped slot: passes `it` to the caller's content
 				@slot row(it)
 					span {= it }
 
 @main
-	//- 1) all defaults
+	// 1) all defaults
 	+card("Plain")
-	//- 2) override header, then render the default header via super
-	//- `super` is auto-injected as the override's first parameter.
+	// 2) override header, then render the default header via super
+	// `super` is auto-injected as the override's first parameter.
 	+card("Fancy")
 		@slot #badge
 			span[class="badge"] NEW
 		@slot #header
 			em ★
 			+super
-	//- 3) scoped slot override receiving the row value
+	// 3) scoped slot override receiving the row value
 	+list(["a", "b", "c"])
 		@slot #row(it)
 			a[href=("/item/" + it)] {= it }

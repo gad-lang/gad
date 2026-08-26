@@ -9,8 +9,9 @@ one multi-line description. It is the line-oriented analog of this `/** …
 
 | `
 block doc comment, so short notes read cleanly inline.
-| (A `//-` line is a silent comment instead: neither rendered in the output nor
-collected as documentation.)
+| (A plain `//` line is a silent comment instead: neither rendered in the output
+nor collected as documentation. To emit an HTML comment, write it inline as
+`<!-- … -->`.)
 | **/
 
 /** card renders a titled content box: title in the header, body below. **/

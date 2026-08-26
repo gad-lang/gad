@@ -31,15 +31,15 @@ list(items; slots={})
 
 @main
 	ul
-		//- default rows
+		// default rows
 		+list(["a", "b", "c"])
 	ul
-		//- Call-block `~` code is hoisted to call scope, before the slot passes,
-		//- so an interpolated slot name may reference it.
+		// Call-block `~` code is hoisted to call scope, before the slot passes,
+		// so an interpolated slot name may reference it.
 		+list(["a", "b", "c"])
 			~ const target = 1
 			@slot #main(*args; **kwargs)
-				//- override only row `target`, rendering the default via +super(it)
+				// override only row `target`, rendering the default via +super(it)
 			@slot #"item[{target}]"(super, it)
 				li[class="hit"] {= it }*
 				+super(it)

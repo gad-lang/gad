@@ -85,8 +85,8 @@ func TestFormatEnumPreserved(t *testing.T) {
 // TestFormatBlankBeforeLeadingComment: the blank line before a directive lands
 // before its leading `//-` comment, not between the comment and the directive.
 func TestFormatBlankBeforeLeadingComment(t *testing.T) {
-	out := transpileGadx(t, "@comp a()\n    p x\n//- doc for b\n@comp b()\n    p y\n")
-	if !strings.Contains(out, "\n\n//- doc for b\n@comp b()") {
+	out := transpileGadx(t, "@comp a()\n    p x\n// doc for b\n@comp b()\n    p y\n")
+	if !strings.Contains(out, "\n\n// doc for b\n@comp b()") {
 		t.Fatalf("blank line should precede the leading comment:\n%s", out)
 	}
 }

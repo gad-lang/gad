@@ -662,7 +662,7 @@ func (s *scanner) scanForcedTextLine() gadparser.PToken {
 
 var (
 	rgxDocComment = regexp.MustCompile(`^\/\/\/\s?(.*)$`)
-	rgxComment    = regexp.MustCompile(`^\/\/(-)?\s*(.*)$`)
+	rgxComment    = regexp.MustCompile(`^\/\/\s?(.*)$`)
 )
 
 func (s *scanner) scanComment() gadparser.PToken {
@@ -676,14 +676,13 @@ func (s *scanner) scanComment() gadparser.PToken {
 		pt.Set("doc", "true")
 		return pt
 	}
+	// `// …` is a plain single-line comment: silent (never rendered). To emit an
+	// HTML comment into the output, write it as an inline HTML region
+	// (`<!-- … -->`) instead.
 	if sm := rgxComment.FindStringSubmatch(s.buffer); len(sm) != 0 {
-		mode := "embed"
-		if len(sm[1]) != 0 {
-			mode = "silent"
-		}
 		s.consume(len(sm[0]))
-		pt := s.newToken(gadxtoken.Comment, sm[0], sm[2])
-		pt.Set("mode", mode)
+		pt := s.newToken(gadxtoken.Comment, sm[0], sm[1])
+		pt.Set("mode", "silent")
 		return pt
 	}
 	return gadparser.PToken{}

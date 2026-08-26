@@ -109,10 +109,9 @@ func gadxCompileFallback(c *Compiler, nd ast.Node) error {
 			TokenPos: n.NodePos,
 		})
 	case *gadxnode.CommentStmt:
-		if n.Silent {
-			return nil
-		}
-		return gadxCompileRendered(c, n)
+		// All gadx comments (`//`, `///`, `/* … */`) are silent — they compile to
+		// nothing. An HTML comment in the output is an inline `<!-- … -->` region.
+		return nil
 	case *gadxnode.FuncDecl,
 		*gadxnode.CompDecl,
 		*gadxnode.CompCallStmt,

@@ -7,8 +7,16 @@ Gadx uses indentation to describe HTML, components, and Gad control flow.
 Line comments start a line:
 
 ```gadx
-// rendered as an HTML comment: <!-- … -->
-//- silent: not emitted
+// a silent comment — never rendered
+/// a single-line doc comment (attaches to the next declaration)
+```
+
+A `//` line is a plain, silent comment. A `///` line is a documentation comment
+(see below). To emit an **HTML comment** into the output, write it inline as an
+HTML region instead — `<!-- … -->` is preserved verbatim:
+
+```gadx
+<!-- rendered into the output as an HTML comment -->
 ```
 
 Block comments `/* … */` are silent and may span multiple lines. They are only
@@ -649,7 +657,7 @@ There are two ways to invoke `t` (or any callable):
 @comp greeting(; name = "world")
     span Hello {= name }
 
-//- fluent `!` form — the idiomatic style
+// fluent `!` form — the idiomatic style
 @test renders_with_name
     ! t.equal gadx.render(greeting(; name = "Gad")) "<span>Hello Gad</span>"
 
@@ -658,7 +666,7 @@ There are two ways to invoke `t` (or any callable):
     ! t.false (1 == 2)
     ! t.nil nil
 
-//- explicit `~` form — for locals or several steps
+// explicit `~` form — for locals or several steps
 @test explicit_form
     ~ html := gadx.render(greeting())
     ~ t.equal(html, "<span>Hello world</span>")

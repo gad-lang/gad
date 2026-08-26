@@ -895,18 +895,20 @@ func convertTextBlock(t *TextBlockStmt) gnode.Stmts {
 	if t.Fold {
 		sep = " "
 	}
-	var out gnode.Stmts
+	var a textAccum
 	for i, stmt := range t.Body {
 		if i > 0 {
-			out.Append(gnode.SExpr(textCall(t.NodePos, t.NodePos, gnode.Str(sep, t.NodePos))))
+			a.sep(sep, t.NodePos)
 		}
 		if ts, ok := stmt.(*TextStmt); ok {
-			out = append(out, convertText(ts)...)
+			a.addText(ts)
 			continue
 		}
-		out.Append(stmt)
+		a.flush()
+		a.out.Append(stmt)
 	}
-	return out
+	a.flush()
+	return a.out
 }
 
 // convertParaBlock lowers an `@p` block: runs of consecutive non-blank lines
@@ -923,14 +925,16 @@ func convertParaBlock(t *ParaBlockStmt) gnode.Stmts {
 			return
 		}
 		ctor := gadxNew("Tag", t.NodePos, t.NodeEnd, tagIdent(t.NodePos), gnode.Str("p", t.NodePos))
-		inner := gnode.Stmts{defineTag(ctor, t.NodePos)}
+		var a textAccum
+		a.out = gnode.Stmts{defineTag(ctor, t.NodePos)}
 		for i, ts := range para {
 			if i > 0 {
-				inner.Append(gnode.SExpr(textCall(t.NodePos, t.NodePos, gnode.Str("\n", t.NodePos))))
+				a.sep("\n", t.NodePos)
 			}
-			inner = append(inner, convertText(ts)...)
+			a.addText(ts)
 		}
-		out.Append(gnode.SBlock(t.NodePos, t.NodeEnd, inner...))
+		a.flush()
+		out.Append(gnode.SBlock(t.NodePos, t.NodeEnd, a.out...))
 		para = nil
 	}
 	for _, stmt := range t.Body {
@@ -1169,28 +1173,54 @@ func convertDoctype(d *DoctypeStmt) gnode.Stmts {
 // interpolation segments coalesce into a single gadx.Text(tag, …) call, while
 // any interleaved statement is emitted as-is.
 func convertText(t *TextStmt) gnode.Stmts {
-	var (
-		out    gnode.Stmts
-		values []gnode.Expr
-	)
-	flush := func() {
-		if len(values) == 0 {
-			return
-		}
-		out.Append(gnode.SExpr(textCall(t.NodePos, t.NodeEnd, values...)))
-		values = nil
+	var a textAccum
+	a.addText(t)
+	a.flush()
+	return a.out
+}
+
+// textAccum coalesces consecutive text values (literal segments, `{= expr }`
+// interpolations and inter-line separators) into a single `gadx.Text(tag, v1, v2,
+// …)` call, so a block of text lines emits one call instead of one per segment or
+// line. A non-text control statement (a bare `{ expr }`) flushes the pending
+// values and is emitted on its own, then accumulation resumes.
+type textAccum struct {
+	out    gnode.Stmts
+	values []gnode.Expr
+	pos    source.Pos
+	end    source.Pos
+	hasPos bool
+}
+
+// sep appends a literal separator between text lines (e.g. "\n" or " ").
+func (a *textAccum) sep(s string, pos source.Pos) {
+	a.values = append(a.values, gnode.Str(s, pos))
+}
+
+// addText appends one text line's values, splitting the call around any embedded
+// control statement.
+func (a *textAccum) addText(t *TextStmt) {
+	if !a.hasPos {
+		a.pos, a.hasPos = t.NodePos, true
 	}
+	a.end = t.NodeEnd
 	for _, stmt := range t.Stmts {
 		switch s := stmt.(type) {
 		case *gnode.MixedTextStmt:
-			values = append(values, gnode.Str(s.Value(), s.Pos()))
+			a.values = append(a.values, gnode.Str(s.Value(), s.Pos()))
 		case *gnode.MixedValueStmt:
-			values = append(values, s.Expr)
+			a.values = append(a.values, s.Expr)
 		case gnode.Stmt:
-			flush()
-			out.Append(s)
+			a.flush()
+			a.out.Append(s)
 		}
 	}
-	flush()
-	return out
+}
+
+func (a *textAccum) flush() {
+	if len(a.values) == 0 {
+		return
+	}
+	a.out.Append(gnode.SExpr(textCall(a.pos, a.end, a.values...)))
+	a.values = nil
 }

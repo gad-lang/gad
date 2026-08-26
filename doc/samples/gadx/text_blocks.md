@@ -39,34 +39,34 @@ In text content, `{= expr }` **emits** the value; a bare `{ expr }` is a
 @param (; name="Gad")
 
 @main
-	//- {= expr } emits; a bare { expr } is control (runs, emits nothing)
+	// {= expr } emits; a bare { expr } is control (runs, emits nothing)
 	p
 		| Hi {= name }
 		{ name }
-	//- inline text after the tag
+	// inline text after the tag
 	h1 Hello {= name }
-	//- inline text AND an indented block: both are children of the h2
-	//- -> "<h2>Example —<code>demo.gad</code></h2>"
+	// inline text AND an indented block: both are children of the h2
+	// -> "<h2>Example —<code>demo.gad</code></h2>"
 	h2 Example —
 		code demo.gad
-	//- per-line `| `: the two lines concatenate -> "firstsecond"
+	// per-line `| `: the two lines concatenate -> "firstsecond"
 	p
 		| first
 		| second
-	//- `|` literal block: line breaks kept -> "one\ntwo"
+	// `|` literal block: line breaks kept -> "one\ntwo"
 	pre
 		|
 			one
 			two {= name }
 
-	//- `|>` folded block: line breaks become spaces -> "one two three"
+	// `|>` folded block: line breaks become spaces -> "one two three"
 	p
 		|>
 			one
 			two
 			three
 
-	//- `@text`: verbatim, no tag parsing (bare words stay words)
+	// `@text`: verbatim, no tag parsing (bare words stay words)
 	@text
 		License (c) {= name }
 		  indented lines keep their spaces

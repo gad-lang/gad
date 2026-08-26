@@ -542,9 +542,10 @@ func (c *CommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		}
 		return
 	}
+	// `///` is a single-line doc comment; `//` is a plain (silent) comment.
 	prefix := "//"
-	if c.Silent {
-		prefix = "//-"
+	if c.Doc {
+		prefix = "///"
 	}
 	ctx.WriteLine(prefix + " " + c.Text)
 	if len(c.Body) > 0 {

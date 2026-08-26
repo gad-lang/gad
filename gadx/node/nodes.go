@@ -173,10 +173,6 @@ func gadxCallExpr(method string, pos source.Pos) *gnode.CallExpr {
 	return gnode.ECall(gnode.ESelector(gnode.EIdent("gadx", pos), gnode.Str(method, 0)), 0, 0)
 }
 
-func rawStrExpr(s string) gnode.Expr {
-	return gnode.EToRaw(0, gnode.Str(s, 0))
-}
-
 func (t *TagStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 	ctx.WriteStmts(convertTag(t)...)
 }
@@ -294,9 +290,8 @@ type CommentStmt struct {
 	NodePos source.Pos
 	NodeEnd source.Pos
 	Text    string
-	Silent  bool
-	// Block is true for a `/* … */` block comment (always silent, may be
-	// multi-line), as opposed to a `//` / `//-` line comment.
+	// Block is true for a `/* … */` block comment (may be multi-line), as opposed
+	// to a `//` line comment. All gadx comments are silent (never rendered).
 	Block bool
 	// Doc is true for a `/** … */` doc block comment. When it immediately
 	// precedes a @comp/@func the parser moves its text to the decl's Doc and
@@ -310,12 +305,9 @@ func (c *CommentStmt) End() source.Pos { return c.NodeEnd }
 func (c *CommentStmt) StmtNode()       {}
 func (c *CommentStmt) String() string  { return "gadx.Comment" }
 
-func (c *CommentStmt) WriteCode(ctx *gnode.CodeWriteContext) {
-	if c.Silent {
-		return
-	}
-	writeRaw(ctx, "<!-- "+c.Text+" -->")
-}
+// WriteCode emits nothing: gadx comments (`//`, `///`, `/* … */`) are silent.
+// Use an inline HTML region (`<!-- … -->`) to emit an HTML comment into the output.
+func (c *CommentStmt) WriteCode(ctx *gnode.CodeWriteContext) {}
 
 // =============================================================================
 // IfStmt — conditional block
@@ -977,12 +969,6 @@ func Quote(s string) string {
 		}
 	}
 	return `"` + s + `"`
-}
-
-func writeRaw(ctx *gnode.CodeWriteContext, s string) {
-	writeCall := &gnode.CallExpr{Func: gnode.EIdent("write", 0)}
-	writeCall.Args.Values = append(writeCall.Args.Values, rawStrExpr(s))
-	ctx.WriteStmts(gnode.SExpr(writeCall))
 }
 
 var (

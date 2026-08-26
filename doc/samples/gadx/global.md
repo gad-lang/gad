@@ -33,13 +33,13 @@ not `@global (title = v, url, active)`.
 ## Example — `global.gadx`
 
 ```gadx
-//- a single global
+// a single global
 @global (siteName)
 
-//- several globals, with a defaulted one in the named section
+// several globals, with a defaulted one in the named section
 @global (url, active; title="Untitled")
 
-//- an absent-only default (`!?=`): kept only when `theme` is not provided at all
+// an absent-only default (`!?=`): kept only when `theme` is not provided at all
 @global (lang; theme="light")
 
 @main

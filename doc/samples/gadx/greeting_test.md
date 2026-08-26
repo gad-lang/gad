@@ -46,7 +46,7 @@ list(items)
 		@for it in items
 			li {= it }
 
-//- fluent `!` form — the idiomatic style
+// fluent `!` form — the idiomatic style
 @test renders_with_name
 	! t.equal gadx.render(greeting(; name="Gad")) "<span>Hello Gad</span>"
 
@@ -61,16 +61,16 @@ list(items)
 	! t.false (1 == 2)
 	! t.nil nil
 
-//- explicit `~` form — a single `~` line spans until its brackets balance
+// explicit `~` form — a single `~` line spans until its brackets balance
 @test explicit_form
 	~ t.true((len(gadx.render(list(["x"]))) > 0))
 
-//- a `~` line reads across lines until the brackets close, so a multi-line
-//- call/func-literal works without a `~~` block
+// a `~` line reads across lines until the brackets close, so a multi-line
+// call/func-literal works without a `~~` block
 @test grouped
 	~ t.run("greets Gad", func(t) {t.equal(gadx.render(greeting(; name="Gad")), "<span>Hello Gad</span>")})
 
-//- a `~~` block is still available for several independent statements / locals
+// a `~~` block is still available for several independent statements / locals
 @test multi_step
 	~~
 	html := gadx.render(list(["x"]))
