@@ -275,6 +275,31 @@ test: version generate lint
 .PHONY: generate-all
 generate-all: generate generate-docs
 
+# verify is the pre-commit gate: regenerate code and docs, lint, run every Go
+# test and build both the CLI and the WASM module. Run it before committing (or
+# once `make install-hooks` to run it automatically). It fails if regeneration
+# left the docs out of date so stale generated files never get committed;
+# `lint`'s check-delve does the same for generated Go (vm_loop_debug.go).
+.PHONY: verify
+verify: version
+	$(MAKE) generate
+	$(MAKE) generate-docs
+	@git diff --quiet -- doc/ || { \
+		echo "==> docs are stale — regenerated; review and 'git add' doc/:"; \
+		git diff --name-only -- doc/; exit 1; }
+	$(MAKE) lint
+	go test -count=1 ./...
+	$(MAKE) build
+	@echo "==> verify OK"
+
+# install-hooks wires scripts/pre-commit as the git pre-commit hook, so `make
+# verify` runs automatically before each commit. Run once per clone.
+.PHONY: install-hooks
+install-hooks:
+	@mkdir -p .git/hooks
+	@ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+	@echo "==> installed .git/hooks/pre-commit -> scripts/pre-commit"
+
 .PHONY: generate
 generate: version
 	go generate ./...

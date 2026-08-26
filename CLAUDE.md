@@ -82,5 +82,16 @@ Always run the full pipeline (Format + Test) automatically after any file edit, 
 ## Verification & Build
 * **Global Build Check**: `go build ./...`
 
+### Before every commit — `make verify`
+**Always run `make verify` before committing** (it is the single pre-commit
+gate). It regenerates generated code and docs, lints (staticcheck + `go vet` +
+`check-delve`), runs every Go test, and builds both the CLI and the WASM module —
+failing if regeneration left the docs stale (so generated files never drift out
+of sync). Do not commit while `make verify` fails.
+
+Run `make install-hooks` once per clone to wire `scripts/pre-commit` as the git
+`pre-commit` hook, which runs `make verify` automatically on every commit
+(bypass a single commit with `git commit --no-verify`).
+
 
 

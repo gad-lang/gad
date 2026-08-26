@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Git pre-commit hook: run the full verify gate (regenerate + lint + test +
+# docs + build) before allowing a commit. Install it with `make install-hooks`.
+#
+# Skip for a single commit with:  git commit --no-verify
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "==> pre-commit: make verify"
+make verify
