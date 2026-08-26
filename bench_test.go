@@ -142,6 +142,46 @@ func BenchmarkFuncCall(b *testing.B) {
 	return acc`)
 }
 
+// BenchmarkInvoker* compare a hot loop driven by a gad.invoker (overload resolved
+// once, args array reused, validation skipped) against the same loop calling the
+// function directly. The Str pair converts i via str() — dominated by string
+// building, so the win shows mostly in allocations; the Typed pair calls a typed
+// two-arg function whose per-call dispatch + validation is the cost, where the
+// invoker is both faster and lighter.
+func BenchmarkInvokerReused(b *testing.B) {
+	runVMBench(b, `
+	args := [int]
+	inv := gad.invoker(str, args)
+	acc := ""
+	for i := 0; i < 100000; i++ { args[0] = i; acc = inv() }
+	return acc`)
+}
+
+func BenchmarkInvokerDirectCall(b *testing.B) {
+	runVMBench(b, `
+	acc := ""
+	for i := 0; i < 100000; i++ { acc = str(i) }
+	return acc`)
+}
+
+func BenchmarkInvokerTypedReused(b *testing.B) {
+	runVMBench(b, `
+	f(a int, b int) => a + b
+	args := [int, int]
+	inv := gad.invoker(f, args)
+	acc := 0
+	for i := 0; i < 100000; i++ { args[0] = i; args[1] = i; acc = inv() }
+	return acc`)
+}
+
+func BenchmarkInvokerTypedDirectCall(b *testing.B) {
+	runVMBench(b, `
+	f(a int, b int) => a + b
+	acc := 0
+	for i := 0; i < 100000; i++ { acc = f(i, i) }
+	return acc`)
+}
+
 // BenchmarkVMDictAccess measures dict index/selector reads in a loop.
 func BenchmarkVMDictAccess(b *testing.B) {
 	bc := benchBytecode(b, `

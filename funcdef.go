@@ -93,6 +93,10 @@ type ReturnVar struct {
 	Name         string
 	TypesSymbols ParamType
 	Types        ObjectTypes
+	// Assigners carries structural return types (a builtin interface such as
+	// `callable`) that are not ObjectTypes and are not resolved through a compiled
+	// symbol. When set it takes precedence over Types/TypesSymbols for display.
+	Assigners TypeAssignerArray
 }
 
 type ReturnVars []*ReturnVar
@@ -149,11 +153,18 @@ func (v *ReturnVar) String() string {
 		b.WriteString(v.Name)
 		b.WriteByte(' ')
 	}
-	if len(v.TypesSymbols) > 0 {
+	switch {
+	case len(v.Assigners) > 0:
+		names := make([]string, len(v.Assigners))
+		for i, a := range v.Assigners {
+			names[i] = TypeAssignerName(a)
+		}
+		b.WriteString(strings.Join(names, "|"))
+	case len(v.TypesSymbols) > 0:
 		b.WriteString(v.TypesSymbols.String())
-	} else if len(v.Types) > 0 {
+	case len(v.Types) > 0:
 		b.WriteString(v.Types.String())
-	} else {
+	default:
 		b.WriteString(ObjectTypes{TAny}.String())
 	}
 	return b.String()
@@ -527,15 +538,19 @@ func (h *FunctionHeader) WithParams(builder func(newParam func(name string) *Par
 	return h
 }
 
-func (h *FunctionHeader) WithReturnVars(builder func(ret func(name string, typ ...ObjectType))) *FunctionHeader {
-	builder(func(name string, typ ...ObjectType) {
+// WithReturnVars declares the function's return types. A type may be any
+// TypeAssigner: an ObjectType (a concrete type) or a structural builtin interface
+// such as `callable`. It is intended for Go-registered builtins, so the types are
+// held directly (no compiled symbol).
+func (h *FunctionHeader) WithReturnVars(builder func(ret func(name string, typ ...TypeAssigner))) *FunctionHeader {
+	builder(func(name string, typ ...TypeAssigner) {
+		rv := &ReturnVar{Name: name}
 		if len(typ) == 0 {
-			typ = []ObjectType{TAny}
+			rv.Assigners = TypeAssignerArray{TAny}
+		} else {
+			rv.Assigners = append(rv.Assigners, typ...)
 		}
-		h.ReturnVars = append(h.ReturnVars, &ReturnVar{
-			Name:  name,
-			Types: typ,
-		})
+		h.ReturnVars = append(h.ReturnVars, rv)
 	})
 	return h
 }

@@ -77,6 +77,7 @@ const (
 
 	BuiltinStaticTypesStart_
 	BuiltinStaticTypeBuiltinFunction
+	BuiltinStaticTypeBoundInvoker
 	BuiltinStaticTypeCallWrapper
 	BuiltinStaticTypeCompiledFunction
 	BuiltinStaticTypeFunction

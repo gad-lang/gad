@@ -879,6 +879,15 @@ func FunctionWithNamedParams(builder func(newParam func(name string) *NamedParam
 	}
 }
 
+func FunctionWithReturnVars(builder func(newReturn func(name string, typ ...TypeAssigner))) FunctionOption {
+	return func(f *Function) {
+		if f.Header == nil {
+			f.Header = new(FunctionHeader)
+		}
+		f.Header.WithReturnVars(builder)
+	}
+}
+
 func FunctionWithUsage(usage string) FunctionOption {
 	return func(f *Function) {
 		f.Usage = usage
@@ -2286,7 +2295,7 @@ func (i *CallWrapper) Call(c Call) (Object, error) {
 	if len(c.NamedArgs.sources) > 0 {
 		nargs.Add(c.NamedArgs.UnreadPairs())
 	}
-	return i.Caller.Call(Call{VM: c.VM, Args: args, NamedArgs: nargs, SafeArgs: c.SafeArgs})
+	return i.Caller.Call(Call{VM: c.VM, Args: args, NamedArgs: nargs, SkipValidation: c.SkipValidation})
 }
 
 func (i *CallWrapper) Type() ObjectType {

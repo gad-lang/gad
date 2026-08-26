@@ -287,7 +287,40 @@ var (
 	gadParseFn     Object
 	gadParseFileFn Object
 	gadEvalFn      Object
+	gadInvokerFn   Object
 )
+
+// gadInvoker implements gad.invoker(fn, args array; **nargs) -> invoker. It
+// pre-resolves fn's overload for the parameter types held in args (each initial
+// element is a type, or a sample value whose type is used) and returns a
+// BoundInvoker bound to the SAME args array, so a hot loop can mutate the array
+// in place and call the invoker with no per-call dispatch, allocation or
+// validation. When fn has no overloads it is bound directly.
+func gadInvoker(c Call) (Object, error) {
+	fn := c.Args.Get(0)
+	callee, ok := fn.(CallerObject)
+	if !ok || !Callable(fn) {
+		return nil, ErrNotCallable.NewError("1st argument (fn)")
+	}
+	arr, ok := c.Args.Get(1).(Array)
+	if !ok {
+		return nil, ErrType.NewError("2nd argument (args) must be an " + ReprQuote("array"))
+	}
+	if mc, ok := fn.(MethodCaller); ok && mc.HasCallerMethods() {
+		types := make(ObjectTypeArray, len(arr))
+		for i, e := range arr {
+			if ot, isType := e.(ObjectType); isType {
+				types[i] = ot
+			} else {
+				types[i] = e.Type()
+			}
+		}
+		if m := mc.CallerMethodOfArgsTypes(types); m != nil {
+			callee = m
+		}
+	}
+	return NewBoundInvoker(callee, arr, c.NamedArgs.UnreadPairs()), nil
+}
 
 // buildGadNamespaceFuncs constructs gad.parse / gad.parseFile / gad.eval. gad.eval
 // is a type-dispatched callable: its overloads accept a source string (with a
@@ -324,6 +357,18 @@ func buildGadNamespaceFuncs() {
 		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("stmt").Type(StmtType) }),
 	)
 	gadEvalFn = AddMethod(evalStrFn, evalSourceFileFn, evalStmtsFn, evalStmtFn)
+
+	gadInvokerFn = NewFunction("invoker", gadInvoker,
+		FunctionWithModule(gadModuleSpec),
+		FunctionWithParams(func(p func(name string) *ParamBuilder) {
+			p("fn")
+			p("args").Type(TArray)
+		}),
+		FunctionWithNamedParams(func(np func(name string) *NamedParamBuilder) { np("nargs").Var() }),
+		FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) {
+			ret("ret", CallableInterface)
+		}),
+	)
 
 	buildGadQuoteFuncs()
 }

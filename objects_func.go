@@ -177,7 +177,7 @@ func (s *FuncSpec) Call(c Call) (Object, error) {
 		}
 		return nil, ErrNoMethodFound.NewErrorf("func %s no have method with params %s", ReprQuote(s.this.FullName()), types)
 	}
-	c.SafeArgs = !validate
+	c.SkipValidation = !validate
 	return YieldCall(caller, &c), nil
 }
 

@@ -335,7 +335,7 @@ func (t *ReflectType) NewDefault(c Call) (Object, error) {
 
 func (t *ReflectType) Call(c Call) (_ Object, err error) {
 	caller, validate := t.CallerMethodWithValidationCheckOfArgs(c.Args)
-	c.SafeArgs = !validate
+	c.SkipValidation = !validate
 	if c.Args.IsFalsy() {
 		c.Args = append(c.Args, Array{t})
 	} else {

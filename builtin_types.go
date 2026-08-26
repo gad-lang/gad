@@ -222,6 +222,7 @@ var (
 	TFunc,
 	TComputedValue,
 	TBuiltinFunction,
+	TBoundInvoker,
 	TCallWrapper,
 	TCompiledFunction,
 	TFunction,
@@ -273,6 +274,7 @@ func init() {
 	TComputedValue = RegisterBuiltinType(BuiltinComputedValue, "ComputedValue", ComputedValue{}, NewComputedValue).TypeKey()
 
 	TBuiltinFunction = RegisterBuiltinType(BuiltinStaticTypeBuiltinFunction, "builtinFunction", BuiltinFunction{}, nil).TypeKey()
+	TBoundInvoker = RegisterBuiltinType(BuiltinStaticTypeBoundInvoker, "invoker", BoundInvoker{}, nil).TypeKey()
 	TCallWrapper = RegisterBuiltinType(BuiltinStaticTypeCallWrapper, "callwrap", CallWrapper{}, nil).TypeKey()
 	TCompiledFunction = RegisterBuiltinType(BuiltinStaticTypeCompiledFunction, "compiledFunction", CompiledFunction{}, nil).TypeKey()
 	TFunction = RegisterBuiltinType(BuiltinStaticTypeFunction, "function", Function{}, nil).TypeKey()

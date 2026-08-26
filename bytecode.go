@@ -374,9 +374,9 @@ func (o *CompiledFunction) Call(c Call) (Object, error) {
 	// runs o as a same-VM sub-run (no fork); otherwise it forks as before. Callers
 	// with a VM should prefer vm.Call(o, ...) directly over o.Call(Call{VM: vm}).
 	if c.VM != nil && c.VM.running {
-		return c.VM.callCompiledInline(o, c.Args, &c.NamedArgs, !c.SafeArgs)
+		return c.VM.callCompiledInline(o, c.Args, &c.NamedArgs, !c.SkipValidation)
 	}
-	return NewInvoker(c.VM, o).ValidArgs(c.SafeArgs).Invoke(c.Args, &c.NamedArgs)
+	return NewInvoker(c.VM, o).ValidArgs(c.SkipValidation).Invoke(c.Args, &c.NamedArgs)
 }
 
 func (o *CompiledFunction) SetNamedParams(params ...*NamedParam) {

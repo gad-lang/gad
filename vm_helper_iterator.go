@@ -6,12 +6,12 @@ import (
 )
 
 // callDispatchedMethod invokes a method obtained from CallerMethodOfArgsTypes
-// with SafeArgs so its parameter types are not re-validated: the dispatch
+// with SkipValidation so its parameter types are not re-validated: the dispatch
 // already matched them by the argument types. This also avoids re-resolving a
 // method's type symbols (e.g. `met iterator(r Range)`) against the current frame,
 // which would be wrong when iteration is driven from a different frame.
 func callDispatchedMethod(vm *VM, method CallerObject, args Array, na *NamedArgs) (Object, error) {
-	c := Call{VM: vm, Args: Args{args}, SafeArgs: true}
+	c := Call{VM: vm, Args: Args{args}, SkipValidation: true}
 	if na != nil {
 		c.NamedArgs = *na
 	}

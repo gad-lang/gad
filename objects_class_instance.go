@@ -100,7 +100,7 @@ func (in *ClassInitiator) Call(c Call) (_ Object, err error) {
 		}
 	}
 
-	c.SafeArgs = !validate
+	c.SkipValidation = !validate
 
 	in.newCallStack = append(in.newCallStack, caller)
 	defer func() {
@@ -190,7 +190,7 @@ func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 	// single call and returns them as a key-value array; apply each into o.fields.
 	// Runs before the passed fields below, so an explicitly provided value wins.
 	if o.class.initFields != nil {
-		ret, err := o.class.initFields.Call(Call{SafeArgs: true, VM: vm})
+		ret, err := o.class.initFields.Call(Call{SkipValidation: true, VM: vm})
 		if err != nil {
 			return ErrNewClassInstance.NewErrorf("initialize field defaults: %v", err)
 		}

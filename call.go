@@ -615,8 +615,12 @@ type Call struct {
 	VM        *VM
 	Args      Args
 	NamedArgs NamedArgs
-	SafeArgs  bool
-	Context   context.Context
+	// SkipValidation tells the callee to skip parameter-type validation of the
+	// args: set it only when the args are already known to satisfy the target's
+	// signature (e.g. a pre-resolved overload, or a dispatch that already
+	// matched), trading the type check for speed. It was named SafeArgs.
+	SkipValidation bool
+	Context        context.Context
 }
 
 // NewCall creates a new Call struct.
@@ -636,7 +640,7 @@ func (c *Call) Params() *MixedParams {
 }
 
 func (c Call) InvokerOf(co CallerObject) *Invoker {
-	return NewInvoker(c.VM, co).ValidArgs(c.SafeArgs)
+	return NewInvoker(c.VM, co).ValidArgs(c.SkipValidation)
 }
 
 type CallOpt func(c *Call)

@@ -2063,7 +2063,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	for _, p := range params {
 		// The compiler-injected `this` receiver of a class method is the class
 		// instance itself — deducible from dispatch, so its type never needs
-		// runtime validation (methods also dispatch with SafeArgs). Its declared
+		// runtime validation (methods also dispatch with SkipValidation). Its declared
 		// type names the enclosing `cls` (define-callback) local; capturing that
 		// would needlessly turn the method into a closure and make it
 		// unregistrable (an anonymous method). Leave the receiver uncaptured.
