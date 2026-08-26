@@ -137,6 +137,68 @@ func TestTransformCastBool(t *testing.T) {
 	expectErrHas(t, `return 5 :: bool`, nil, `not assignable to`)
 }
 
+// TestTransformCastBuiltinTypes covers `expr ::: T` for builtin types other than
+// bool: the cast converts by calling T's constructor, so the typed overloads
+// registered with AddMethod apply (str/int/float/uint/char/decimal). `any` is
+// identity and an invalid conversion surfaces the constructor's error.
+func TestTransformCastBuiltinTypes(t *testing.T) {
+	// str: each source shape hits a different str() overload.
+	testExpectRun(t, `return [5 ::: str, 3.14 ::: str, true ::: str, 'A' ::: str]`,
+		nil, Array{Str("5"), Str("3.14"), Str("true"), Str("A")})
+
+	// int: string parse, float truncation and char code — three overloads.
+	testExpectRun(t, `return ["5" ::: int, 3.9 ::: int, 'A' ::: int]`,
+		nil, Array{Int(5), Int(3), Int(65)})
+
+	// float / uint / char / decimal.
+	testExpectRun(t, `return [5 ::: float, "3.14" ::: float]`, nil, Array{Float(5), Float(3.14)})
+	testExpectRun(t, `return 5 ::: uint`, nil, Uint(5))
+	testExpectRun(t, `return [65 ::: char, "A" ::: char]`, nil, Array{Char('A'), Char('A')})
+	testExpectRun(t, `return ("1.5" ::: decimal) == decimal("1.5")`, nil, True)
+
+	// The cast IS the constructor call: `x ::: T` equals `T(x)` for every T.
+	testExpectRun(t, `return (5 ::: str) == str(5) &&
+		("5" ::: int) == int("5") &&
+		(65 ::: char) == char(65) &&
+		(5 ::: float) == float(5)`, nil, True)
+
+	// Already the target type -> unchanged; `any` is identity.
+	testExpectRun(t, `return [5 ::: int, "x" ::: str, 5 ::: any]`,
+		nil, Array{Int(5), Str("x"), Int(5)})
+
+	// An invalid conversion surfaces the constructor's own error.
+	expectErrHas(t, `return "abc" ::: int`, nil, `int`)
+}
+
+// TestTransformCastFunction covers `expr ::: fn`: a transformer function is
+// applied to the value — fn(expr) becomes the result. The transformer always
+// receives the value as its single argument, so it is written `(v) => …`.
+func TestTransformCastFunction(t *testing.T) {
+	// An inline lambda transforms the value.
+	testExpectRun(t, `return 5 ::: ((v) => v * 10)`, nil, Int(50))
+	testExpectRun(t, `return "hi" ::: ((v) => v + "!")`, nil, Str("hi!"))
+
+	// A lambda may ignore the value but must still declare the parameter.
+	testExpectRun(t, `return (5 ::: ((v) => "is 5")) == "is 5"`, nil, True)
+
+	// A named function works the same; casts chain left-to-right.
+	testExpectRun(t, `
+		double := (v) => v * 2
+		inc := (v) => v + 1
+		return 5 ::: double ::: inc`, nil, Int(11))
+
+	// The transformer can change the type (int -> str -> its length).
+	testExpectRun(t, `return 12345 ::: ((v) => str(v)) ::: ((v) => len(v))`, nil, Int(5))
+}
+
+// TestTransformCastAny covers `value ::: any`: the `any` type is identity, so the
+// value is returned unchanged.
+func TestTransformCastAny(t *testing.T) {
+	testExpectRun(t, `return 5 ::: any`, nil, Int(5))
+	testExpectRun(t, `return "x" ::: any`, nil, Str("x"))
+	testExpectRun(t, `d := {a: 1}; return (d ::: any) == d`, nil, True)
+}
+
 // TestTransformCastClassToClass covers github.com/gad-lang/gad issue #7: `:::` to
 // a class builds an instance of that class from the source's members, keeping
 // only the fields the target declares — a conversion between class shapes.

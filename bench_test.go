@@ -83,6 +83,65 @@ func BenchmarkBoolBuiltin(b *testing.B) {
 	}
 }
 
+// runVMBench compiles src once and runs it b.N times, reporting allocations.
+func runVMBench(b *testing.B, src string) {
+	b.Helper()
+	bc := benchBytecode(b, src)
+	builtins := NewBuiltins().Build()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := NewVM(builtins, bc).Run(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// A `::: T` conversion (non-bool builtin type) or a `::: fn` transformer calls,
+// but the VM routes it through the same stack-based call path as a direct call —
+// reusing the stack operand as the argument, no argument array allocated — so each
+// pair below runs on par (equal ns/op and allocs/op). The arguments are the loop
+// variable, not a literal, so the constant-folder cannot pre-evaluate `T(literal)`
+// and skew the comparison.
+
+func BenchmarkTransformCastStr(b *testing.B) {
+	runVMBench(b, `acc := ""
+	for i := 0; i < 100000; i++ { acc = i ::: str }
+	return acc`)
+}
+
+func BenchmarkStrBuiltin(b *testing.B) {
+	runVMBench(b, `acc := ""
+	for i := 0; i < 100000; i++ { acc = str(i) }
+	return acc`)
+}
+
+func BenchmarkTransformCastInt(b *testing.B) {
+	runVMBench(b, `acc := 0
+	for i := 0; i < 100000; i++ { acc = i ::: int }
+	return acc`)
+}
+
+func BenchmarkIntBuiltin(b *testing.B) {
+	runVMBench(b, `acc := 0
+	for i := 0; i < 100000; i++ { acc = int(i) }
+	return acc`)
+}
+
+func BenchmarkTransformCastFunc(b *testing.B) {
+	runVMBench(b, `f := (v) => v * 2
+	acc := 0
+	for i := 0; i < 100000; i++ { acc = i ::: f }
+	return acc`)
+}
+
+func BenchmarkFuncCall(b *testing.B) {
+	runVMBench(b, `f := (v) => v * 2
+	acc := 0
+	for i := 0; i < 100000; i++ { acc = f(i) }
+	return acc`)
+}
+
 // BenchmarkVMDictAccess measures dict index/selector reads in a loop.
 func BenchmarkVMDictAccess(b *testing.B) {
 	bc := benchBytecode(b, `

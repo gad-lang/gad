@@ -133,8 +133,51 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 		if d, ok := asTransformDict(vm, obj); ok {
 			return t.coerceFrom(vm, d)
 		}
+	case *BuiltinObjType:
+		// `src ::: T` for a builtin type T (other than bool, handled above) converts
+		// by calling T's constructor, so the typed overloads registered with
+		// AddMethod apply — `5 ::: str` -> str(5), `"5" ::: int` -> int("5"),
+		// `65 ::: char` -> char(65).
+		return vm.CallBuiltin(t.BuiltinType(), nil, obj)
+	case CallerObject:
+		// `src ::: fn` applies a transformer function: it calls fn(src) and returns
+		// the result, so any expression can post-process the value inline, e.g.
+		// `5 ::: ((v) => v * 10)` -> 50. The transformer always receives src as its
+		// single argument, so it is written `(v) => …`. Only a plain callable is a
+		// transformer: a type target that also happens to be callable (`any`, a
+		// *Class/*BuiltinObjType/*Interface — the latter matched above) is not called
+		// with src, so it falls through to the checked-cast behaviour below.
+		if _, isType := t.(ObjectType); !isType {
+			return vm.Call(t, Args{Array{obj}}, nil)
+		}
 	}
 	return AssignToType(vm, obj, to)
+}
+
+// transformCallee reports whether `obj ::: to` is a plain "call to(obj)" transform
+// and returns the callable to invoke. Two targets are call-transforms: a builtin
+// type other than bool (its constructor converts, honouring AddMethod overloads —
+// `5 ::: str` -> str(5)) and a transformer function (`5 ::: ((v) => v*10)`). bool
+// (call-free truthiness), any (identity) and the structural coercions (*Interface,
+// *Class) are handled in AssignToTypeTransform and are not call-targets. The VM's
+// OpAssignTransform handler uses this to invoke the callee through the stack-based
+// call path (no argument array allocated), matching a direct call's cost.
+func transformCallee(to Object) (CallerObject, bool) {
+	switch t := to.(type) {
+	case *BuiltinObjType:
+		if t.TypeKey() == TBool {
+			return nil, false
+		}
+		return t, true
+	case *Interface, *Class:
+		return nil, false
+	case ObjectType:
+		// any (a *Type) and any other type object: identity/checked cast.
+		return nil, false
+	case CallerObject:
+		return t, true
+	}
+	return nil, false
 }
 
 // asTransformDict materialises obj as a Dict for the `:::` transform. Besides a
