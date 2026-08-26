@@ -49,6 +49,40 @@ func BenchmarkVMSmallInts(b *testing.B) {
 	}
 }
 
+// BenchmarkTransformCastBool and BenchmarkBoolBuiltin are a pair: both convert a
+// value to a boolean by truthiness in a tight loop, the first via the `::: bool`
+// transforming cast (a direct IsFalsy check in the VM) and the second via the
+// bool() builtin (a function call). The cast should be the faster of the two.
+func BenchmarkTransformCastBool(b *testing.B) {
+	bc := benchBytecode(b, `
+	acc := false
+	for i := 0; i < 100000; i++ { acc = i ::: bool }
+	return acc`)
+	builtins := NewBuiltins().Build()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := NewVM(builtins, bc).Run(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkBoolBuiltin(b *testing.B) {
+	bc := benchBytecode(b, `
+	acc := false
+	for i := 0; i < 100000; i++ { acc = bool(i) }
+	return acc`)
+	builtins := NewBuiltins().Build()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := NewVM(builtins, bc).Run(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // BenchmarkVMDictAccess measures dict index/selector reads in a loop.
 func BenchmarkVMDictAccess(b *testing.B) {
 	bc := benchBytecode(b, `

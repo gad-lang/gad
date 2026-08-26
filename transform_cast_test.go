@@ -107,6 +107,36 @@ func TestTransformCastMissingField(t *testing.T) {
 		return [r.rest.b, r.a == nil]`, nil, Array{Int(2), True})
 }
 
+// TestTransformCastBool covers `expr ::: bool`: a fast truthiness conversion that
+// yields the same value as the bool() builtin, but as a direct cast (no call).
+// Unlike the checked cast `::`, it converts a non-bool instead of erroring.
+func TestTransformCastBool(t *testing.T) {
+	// Per-shape results, converting (not checking) by truthiness.
+	testExpectRun(t, `return [
+		5 ::: bool, 0 ::: bool,
+		"x" ::: bool, "" ::: bool,
+		[1] ::: bool, [] ::: bool,
+		{a: 1} ::: bool, {} ::: bool,
+		nil ::: bool, true ::: bool, false ::: bool]`,
+		nil, Array{True, False, True, False, True, False, True, False, False, True, False})
+
+	// Exact parity with bool() for every value.
+	testExpectRun(t, `
+		ok := true
+		for v in [5, 0, "x", "", [1], [], {a: 1}, {}, nil, true, false, 0.0, 3.14] {
+			if bool(v) != (v ::: bool) { ok = false }
+		}
+		return ok`, nil, True)
+
+	// Floats follow IEEE-754: 0.0 is truthy, only NaN is falsy.
+	testExpectRun(t, `return [0.0 ::: bool, 3.14 ::: bool, float("nan") ::: bool]`,
+		nil, Array{True, True, False})
+
+	// `:::` converts a non-bool; the checked cast `::` would reject it.
+	testExpectRun(t, `return 5 ::: bool`, nil, True)
+	expectErrHas(t, `return 5 :: bool`, nil, `not assignable to`)
+}
+
 // TestTransformCastClassToClass covers github.com/gad-lang/gad issue #7: `:::` to
 // a class builds an instance of that class from the source's members, keeping
 // only the fields the target declares — a conversion between class shapes.

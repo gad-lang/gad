@@ -108,6 +108,13 @@ func AssignToType(vm *VM, obj, to Object) (Object, error) {
 // unnamed keys (see Interface.coerceDict). For every other combination it behaves
 // exactly like AssignToType (a checked cast that returns obj unchanged).
 func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
+	// `expr ::: bool` converts to a boolean by truthiness — the same result as
+	// bool(expr), but without the builtin function call (a direct IsFalsy check).
+	// Compared by TypeKey (not pointer identity): the `bool` referenced in code and
+	// BuiltinObjects[BuiltinBool] can be distinct *BuiltinObjType instances.
+	if bt, ok := to.(*BuiltinObjType); ok && bt.TypeKey() == TBool {
+		return Bool(!obj.IsFalsy()), nil
+	}
 	switch t := to.(type) {
 	case *Interface:
 		if t.ArrayDepth > 0 {
