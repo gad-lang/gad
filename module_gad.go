@@ -24,6 +24,15 @@ func GadModule() Dict {
 		"SourceType":       SourceTypeEnum,
 		"SourceFileObject": SourceFileType,
 		"Env":              EnvType,
+		// Non-literal meta/structural type objects (no source literal of their
+		// own), exposed for reflection and `::` type checks — e.g. `x :: gad.Class`.
+		"Class":           TClass,
+		"Enum":            TEnum,
+		"Interface":       TInterface,
+		"MethodInterface": TMethodInterface,
+		"Module":          TModule,
+		"ModuleSpec":      TStaticModule,
+		"Symbol":          TSymbol,
 	}
 }
 

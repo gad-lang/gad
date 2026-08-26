@@ -36,12 +36,34 @@ The `with` statement runs a resource's hooks through these two functions:
 
 See the `with` chapter (samples/18_with.gad).
 
-## Values
+## Type objects
 
+The `gad` namespace also exposes the language's non-literal meta and structural
+type objects — the types that have no source literal of their own. Use them for
+reflection and for `::` type checks, e.g. `x :: gad.Class` tests whether `x` is a
+class, and `typeName(x) == "Enum"` matches `x :: gad.Enum`.
+
+- `Class` — the type of a `class` definition (a class value).
+- `Enum` — the type of an `enum` definition (an enum value).
+- `Interface` — the type of an `interface { … }` structural type.
+- `MethodInterface` — the type of a `meti` method interface.
+- `Module` — the type of an imported module.
+- `ModuleSpec` — the type of a module spec (a module's static descriptor).
+- `Symbol` — the type of a compiled symbol.
 - `SourceType` — the dialect enum for `parse` / `eval`: `GAD`, `TEMPLATE`, `GADX`.
 - `SourceFileObject` — the type of a parsed source file (returned by `parse`).
 - `StmtsObject` / `StmtObject` — the statements / single-statement AST types.
 - `Env` — the runtime environment type.
+
+Example:
+```gad
+class Point { x int; y int }
+bool(Point(; x=1, y=2) :: gad.Class)
+>>> true
+```
+
+## Meta
+
 - `methodFromArgs` — a meta builtin that resolves a method from a call's args.
 
 ## Functions

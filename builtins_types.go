@@ -8,8 +8,8 @@ import (
 
 var (
 	TAny                         = NewType("any")
-	TModule                      = NewType("Module")
-	TStaticModule                = NewType("ModuleSpec")
+	TModule                      = NewType("Module", TAny)
+	TStaticModule                = NewType("ModuleSpec", TAny)
 	TSymbol                      = NewType("Symbol", TAny)
 	TIterationStateFlag          = NewType("IterationStateFlag", TAny)
 	IterationStop                = NewType("IterationStop", TIterationStateFlag)
