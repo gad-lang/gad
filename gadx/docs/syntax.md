@@ -193,6 +193,16 @@ Inline text — right after a tag on the same line:
 p Hello world
 ```
 
+A tag may carry inline text **and** an indented block of children: the inline
+text and the child tags are all children of the tag, in order.
+
+```gadx
+h2 Example —
+    code file.gad
+```
+
+renders `<h2>Example —<code>file.gad</code></h2>`.
+
 Per-line `| ` text. Consecutive `| ` lines are joined with **no** separator:
 
 ```gadx

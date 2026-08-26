@@ -17,6 +17,9 @@ Text output forms — the ways to emit text inside a tag.
 Gadx has several text forms; they differ in how line breaks are handled:
 
 - `tag TEXT`      inline text right after a tag on the same line.
+- `tag TEXT` +    inline text AND an indented block: the inline text and the
+  indented block   child tags are all children of the tag, in order
+                  (`h2 Example —` / `code x` -> `<h2>Example —<code>x</code></h2>`).
 - `| TEXT`        one text line; consecutive `| ` lines are joined with **no**
                   separator (`| a` / `| b` -> `ab`).
 - `|`  (block)    a YAML-style literal block (like YAML `|`): the indented lines
@@ -36,6 +39,10 @@ Gadx has several text forms; they differ in how line breaks are handled:
 @main
 	//- inline text after the tag
 	h1 Hello {= name }
+	//- inline text AND an indented block: both are children of the h2
+	//- -> "<h2>Example —<code>demo.gad</code></h2>"
+	h2 Example —
+		code demo.gad
 	//- per-line `| `: the two lines concatenate -> "firstsecond"
 	p
 		| first

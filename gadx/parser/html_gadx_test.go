@@ -63,3 +63,17 @@ func TestHtmlWriteGadxNested(t *testing.T) {
 		}
 	}
 }
+
+// TestTagInlineTextThenChildren covers a tag whose body is inline text FOLLOWED by
+// an indented block: `h2 Example —\n    code file` — the leading text and the child
+// tags are both children of the tag (previously an "unexpected INDENT" parse error).
+func TestTagInlineTextThenChildren(t *testing.T) {
+	out := transpileGadx(t, "@main\n    h2 Example —\n        code file.gad\n")
+	// The inline text and the code child both become children of the h2 (the
+	// transpiler normalises the inline text to a `| ` line under the tag).
+	for _, want := range []string{"h2", "| Example —", "code file.gad"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("transpiled gadx missing %q:\n%s", want, out)
+		}
+	}
+}

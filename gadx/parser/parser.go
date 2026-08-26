@@ -605,10 +605,14 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 
 	tag.SelfClosing = gadxnode.IsSelfClosing(name)
 
-	if p.Token.Token == gadxtoken.Indent {
-		tag.Body = p.parseBlock(tag)
-	} else if p.Token.Token == gadxtoken.Text {
+	// A tag's body may be an indented block, inline text, or inline text followed
+	// by an indented block (`h2 Text\n    code …` — the leading text and the child
+	// tags are all children of the tag).
+	if p.Token.Token == gadxtoken.Text {
 		tag.Body = gnode.Stmts{p.parseText()}
+	}
+	if p.Token.Token == gadxtoken.Indent {
+		tag.Body = append(tag.Body, p.parseBlock(tag)...)
 	}
 
 	if len(tag.Body) > 0 {

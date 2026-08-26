@@ -38,26 +38,25 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
                 @for s in sec.symbols
                     div.symbol[id="symbol-" + s.name, data-line=s.line, data-column=s.column, data-name=s.name]
                         h3
-                            code {s.name}
+                            code {=s.name}
 
                         @if s.signature
                             p.signature
-                                code {s.name + s.signature}
+                                code {=s.name + s.signature}
 
                         @if s.doc
-                            div.doc {s.docHTML}
+                            div.doc {=s.docHTML}
 
                         @for o in s.overloads
                             p.signature
-                                code {s.name + o.signature}
+                                code {=s.name + o.signature}
                             @if o.doc
-                                div.doc {o.docHTML}
+                                div.doc {=o.docHTML}
 
         @if doc.source
             section.doc-example[id="section-example"]
-                h2
-                    | Example —
-                    code {doc.file}
+                h2 Example —
+                    code {=doc.file}
                 pre
                     code[class="language-" + doc.lang] {doc.source}
 
@@ -70,14 +69,13 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
             head
                 meta[charset="utf-8"]
                 meta[name="viewport", content="width=device-width, initial-scale=1"]
-                title {doc.name + " — Gad doc"}
-                style {rawstr(str(embed("doc.css").data))}
+                title {=doc.name + " — Gad doc"}
+                style {=raw embed("doc.css").data}
             body
                 header.topbar
                     button#toc-toggle[type="button", title="Toggle index", aria-label="Toggle index", aria-expanded="true"] ☰
-                    div.brand
-                        | {doc.name}
-                        span.file {doc.file}
+                    div.brand {=doc.name}
+                        span.file {=doc.file}
                     div.search
                         input#search[type="search", placeholder="Search symbols…", autocomplete="off", spellcheck="false"]
                     button#theme-toggle[type="button", title="Toggle theme", aria-label="Toggle theme"] ◐
@@ -85,5 +83,5 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
                     nav#toc.sidebar
                     main.content
                         +docContent()
-                script {rawstr(str(embed("prism.js").data))}
-                script {rawstr(str(embed("doc.js").data))}
+                script {=raw embed("prism.js").data}
+                script {=raw embed("doc.js").data}
