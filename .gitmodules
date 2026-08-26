@@ -10,3 +10,11 @@
 [submodule "web/plugins/js/prism-gad"]
 	path = web/plugins/js/prism-gad
 	url = git@github.com:gad-lang/prism-gad.git
+[submodule "web/ide-react"]
+	path = web/ide-react
+	url = git@github.com:gad-lang/ide-react.git
+	branch = main
+[submodule "web/ide-vuetify"]
+	path = web/ide-vuetify
+	url = git@github.com:gad-lang/ide-vuetify.git
+	branch = main
