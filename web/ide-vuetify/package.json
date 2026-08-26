@@ -27,11 +27,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gad-lang/gad.git",
-    "directory": "web/ide-vuetify"
+    "url": "https://github.com/gad-lang/ide-vuetify.git"
   },
-  "homepage": "https://github.com/gad-lang/gad/tree/main/web/ide-vuetify#readme",
-  "bugs": "https://github.com/gad-lang/gad/issues",
+  "homepage": "https://gad-lang.github.io/ide-vuetify/",
+  "bugs": {
+    "url": "https://github.com/gad-lang/ide-vuetify/issues"
+  },
   "keywords": [
     "gad",
     "ide",

@@ -25,11 +25,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gad-lang/gad.git",
-    "directory": "web/ide-react"
+    "url": "https://github.com/gad-lang/ide-react.git"
   },
-  "homepage": "https://github.com/gad-lang/gad/tree/main/web/ide-react#readme",
-  "bugs": "https://github.com/gad-lang/gad/issues",
+  "homepage": "https://gad-lang.github.io/ide-react/",
+  "bugs": {
+    "url": "https://github.com/gad-lang/ide-react/issues"
+  },
   "keywords": [
     "gad",
     "ide",

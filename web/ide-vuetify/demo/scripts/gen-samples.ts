@@ -1,9 +1,14 @@
-// gen-samples.ts — bundle the repository samples/ tree into src/samples.gen.ts.
+// gen-samples.ts — bundle the sample tree into src/samples.gen.ts.
 //
 // The embeddable web IDE has no server, so the read-only sample files are baked
 // into the bundle as a { path: content } map. User edits live in LocalStorage
 // (see webfs.ts). Run before dev/build (see the app's package scripts).
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+//
+// Two modes, chosen automatically:
+//   * Inside the gad-lang/gad monorepo: bundle the whole repo samples/ tree.
+//   * Standalone (the extracted gad-lang/ide-vuetify repo): the monorepo tree is
+//     absent, so fall back to the small curated set below — enough for the demo.
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 const SAMPLES = join(import.meta.dir, "../../../../samples");
@@ -19,12 +24,58 @@ function walk(dir: string, acc: string[]): string[] {
   return acc;
 }
 
-const files = walk(SAMPLES, []);
-const entries = files
-  .map(
-    (p) =>
-      `  ${JSON.stringify(relative(SAMPLES, p).split(sep).join("/"))}: ${JSON.stringify(readFileSync(p, "utf8"))},`,
-  )
+// A minimal curated set used when the monorepo samples/ tree is not present.
+const FALLBACK: Record<string, string> = {
+  "01_hello.gad": `// Welcome to the Gad IDE.
+name := "world"
+println(#"Hello, {name}!")
+`,
+  "02_values.gad": `// Primitive values and typeof.
+for v in [42, 3.14, true, "gad", 'x', nil] {
+    println(typeof(v), "=>", repr(v))
+}
+`,
+  "03_functions.gad": `// Functions, closures and variadics.
+add := func(a, b) => a + b
+sum := func(*ns) {
+    t := 0
+    for n in ns { t += n }
+    return t
+}
+println("add(2, 3):", add(2, 3))
+println("sum(1..5):", sum(1, 2, 3, 4, 5))
+`,
+  "class/point.gad": `// A small class with a method and a property.
+class Point {
+    x int
+    y int
+    dist() => (this.x ** 2 + this.y ** 2) ** 0.5
+}
+p := Point(; x = 3, y = 4)
+println("dist:", p.dist())
+`,
+  "template.gadt": `{% name := "Gad" %}Hello, {%= name %}!
+`,
+};
+
+let map: Record<string, string>;
+let count: number;
+
+if (existsSync(SAMPLES)) {
+  const files = walk(SAMPLES, []);
+  map = {};
+  for (const p of files) {
+    map[relative(SAMPLES, p).split(sep).join("/")] = readFileSync(p, "utf8");
+  }
+  count = files.length;
+} else {
+  map = FALLBACK;
+  count = Object.keys(FALLBACK).length;
+  console.log("gen-samples: monorepo samples/ not found — using the built-in fallback set");
+}
+
+const entries = Object.entries(map)
+  .map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`)
   .join("\n");
 
 writeFileSync(
@@ -34,4 +85,4 @@ writeFileSync(
     `export const samples: Record<string, string> = {\n${entries}\n};\n`,
 );
 
-console.log(`samples.gen.ts: ${files.length} files`);
+console.log(`samples.gen.ts: ${count} files`);
