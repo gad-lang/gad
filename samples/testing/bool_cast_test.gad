@@ -21,6 +21,16 @@ Run:
     gad test -v samples/testing            # log every test
     gad test -bench=. samples/testing      # compare `::: bool` vs `bool()`
 
+Benchmark (100_000 conversions per op; representative, hardware-dependent):
+
+| conversion   | time       | vs bool()     | allocations    |
+|--------------|------------|---------------|----------------|
+| `x ::: bool` |  9.8 ms/op | ~3.9x faster  |  99k allocs/op |
+| `bool(x)`    | 38.6 ms/op | baseline      | 699k allocs/op |
+
+`::: bool` wins on both axes because it skips the call: no frame, and no boxing
+of the argument / NamedArgs the builtin path allocates. Same result, less work.
+
 See samples/38_transform_cast_test.gad for the general `:::` transforming cast.
 ***/
 
