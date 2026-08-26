@@ -88,6 +88,25 @@
     });
   }
 
+  // Retractable index (sidebar): shown by default, toggled by the ☰ button and
+  // remembered per viewer. `body.toc-hidden` hides it (see doc.css).
+  var tocToggle = document.getElementById("toc-toggle");
+  if (tocToggle) {
+    var hidden = false;
+    try { hidden = localStorage.getItem("gaddoc.toc") === "hidden"; } catch (e) {}
+    function applyToc() {
+      document.body.classList.toggle("toc-hidden", hidden);
+      tocToggle.classList.toggle("active", !hidden);
+      tocToggle.setAttribute("aria-expanded", hidden ? "false" : "true");
+    }
+    applyToc();
+    tocToggle.addEventListener("click", function () {
+      hidden = !hidden;
+      try { localStorage.setItem("gaddoc.toc", hidden ? "hidden" : "shown"); } catch (e) {}
+      applyToc();
+    });
+  }
+
   // Theme toggle. The IDE sets <html data-theme> to match its theme; the button
   // lets a standalone viewer flip it.
   var btn = document.getElementById("theme-toggle");

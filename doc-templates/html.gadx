@@ -74,6 +74,7 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
                 style {rawstr(str(embed("doc.css").data))}
             body
                 header.topbar
+                    button#toc-toggle[type="button", title="Toggle index", aria-label="Toggle index", aria-expanded="true"] ☰
                     div.brand
                         | {doc.name}
                         span.file {doc.file}

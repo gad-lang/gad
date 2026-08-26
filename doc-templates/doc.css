@@ -54,6 +54,10 @@ a:hover { text-decoration: underline; }
   width: var(--sidebar-w); max-height: calc(100vh - 53px); overflow: auto;
   padding: 14px 10px; border-right: 1px solid var(--border);
 }
+/* Retractable index: default shown; `.toc-hidden` on <body> collapses it. */
+body.toc-hidden .sidebar { display: none; }
+#toc-toggle { font-size: 15px; }
+#toc-toggle.active { color: var(--accent); border-color: var(--accent); }
 .sidebar .group { margin-bottom: 12px; }
 .sidebar .group > .title {
   font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
