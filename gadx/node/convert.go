@@ -1107,7 +1107,10 @@ func convertMdTextSection(m *MdBlockStmt, section []*TextStmt) (gnode.Stmts, boo
 	out = strings.ReplaceAll(out, "{", "\\{")
 	out = strings.ReplaceAll(out, "}", "\\}")
 	for n := len(exprs) - 1; n >= 0; n-- {
-		out = strings.ReplaceAll(out, mdInterpSentinel(n), "{"+strconv.Itoa(n)+"}")
+		// `{= N }` (an emitting interpolation): an `@md` interpolation always
+		// outputs its value, and after the semantics change a bare `{ N }` would be
+		// a no-output control statement.
+		out = strings.ReplaceAll(out, mdInterpSentinel(n), "{="+strconv.Itoa(n)+"}")
 	}
 
 	// Anchor synthetic node positions at the `@md` block so diagnostics land in

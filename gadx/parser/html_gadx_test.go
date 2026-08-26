@@ -43,9 +43,10 @@ func TestHtmlWriteGadx(t *testing.T) {
 // TestHtmlWriteGadxInterleave checks that a gadx statement interleaved inside an
 // HTML region transpiles back as a gadx directive (not raw HTML).
 func TestHtmlWriteGadxInterleave(t *testing.T) {
-	out := transpileGadx(t, "@main\n    <ul>\n        @for x in [1, 2]\n            <li>{x}</li>\n    </ul>\n")
-	// An HTML-region `{x}` interpolation outputs its value, so it transpiles to
-	// the pug output form `{= x }` (with `=`), not a no-output `{x}`.
+	out := transpileGadx(t, "@main\n    <ul>\n        @for x in [1, 2]\n            <li>{=x}</li>\n    </ul>\n")
+	// An HTML-region `{= x }` interpolation outputs its value; it transpiles to the
+	// pug output form `{= x }` (with `=`). A bare `{x}` would be a no-output control
+	// statement.
 	for _, want := range []string{"ul", "@for x in [1, 2]", "li", "{= x }"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("transpiled gadx missing %q:\n%s", want, out)

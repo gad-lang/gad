@@ -147,13 +147,14 @@ transpiles back to pug-style gadx (`gofmt`-style, via `WriteGadx`):
 Attributes may be interpolated with `{expr}` — both the value and the name. An
 interpolated value is auto-quoted and HTML-escaped (a falsy value drops the
 attribute); an interpolated name builds the attribute name from the expression
-(lowered to a computed `**{[name]: value}` spread). `{expr}` also interpolates
-text content. Interpolation source positions are preserved.
+(lowered to a computed `**{[name]: value}` spread). In **text content** the rule
+is `{= expr }` to emit and `{ expr }` for control (see below), so a value inside a
+tag is `{= expr }`. Interpolation source positions are preserved.
 
 ```gadx
 @main
     <a href={post.URL} data-{key}={value}>
-        {post.Title}
+        {= post.Title }
     </a>
 ```
 
@@ -184,6 +185,26 @@ is available; source lines resolve back to the original `.gadx` file (line
 accurate). Runnable examples are in `samples/gadx/html.gadx` and
 `samples/gadx/html_control_flow.gadx`. Use the pug-style `tag[attr=…]` syntax
 (below) when you prefer gadx's indentation-based nesting throughout.
+
+## Output vs control — `{= expr }` vs `{ expr }`
+
+In text content (a tag body, `| ` text, or an inline HTML region) an interpolation
+comes in two forms:
+
+- `{= expr }` **emits** the value (interpolation / output).
+- `{ expr }` is a **control** statement: it is evaluated but emits nothing — use it
+  for side effects (`{ log(x) }`) or, more usually, just prefer the `@if` / `@for`
+  directives.
+
+```gadx
+p
+    | Hello {= name }        # emits: "Hello Ada"
+    { track("seen") }        # runs, emits nothing
+```
+
+`{= }` accepts any Gad expression, including interpolated strings, so
+`{= #"Hi {name}!" }` works. (Attribute values are always the expression form
+`attr={expr}`; the `{=}`/`{}` distinction is about text content.)
 
 ## Text
 

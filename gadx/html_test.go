@@ -40,7 +40,7 @@ func TestHtmlRegions(t *testing.T) {
 		},
 		{
 			name: "text interpolation",
-			src:  "@global uri\n@main\n    <a href={uri}>see {uri}</a>\n",
+			src:  "@global uri\n@main\n    <a href={uri}>see {=uri}</a>\n",
 			want: `<a href="/u">see /u</a>`,
 		},
 		{
@@ -111,7 +111,7 @@ func TestHtmlInterleave(t *testing.T) {
 		},
 		{
 			name: "for inside element",
-			src:  "@global items\n@main\n    <ul>\n        @for x in items\n            <li>{x}</li>\n    </ul>\n",
+			src:  "@global items\n@main\n    <ul>\n        @for x in items\n            <li>{=x}</li>\n    </ul>\n",
 			want: `<ul><li>a</li><li>b</li></ul>`,
 		},
 		{
@@ -122,7 +122,7 @@ func TestHtmlInterleave(t *testing.T) {
 		{
 			// The @for block renders between sibling HTML in source order.
 			name: "interleaved with sibling HTML",
-			src:  "@global items\n@main\n    <ul><li>head</li>\n        @for x in items\n            <li>{x}</li>\n    </ul>\n",
+			src:  "@global items\n@main\n    <ul><li>head</li>\n        @for x in items\n            <li>{=x}</li>\n    </ul>\n",
 			want: `<ul><li>head</li><li>a</li><li>b</li></ul>`,
 		},
 	}

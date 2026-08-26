@@ -16,12 +16,12 @@ func TestParamRender(t *testing.T) {
 	}{
 		{
 			name: "named default in text",
-			src:  "@param (; a = 5)\n@main\n    p {a}\n",
+			src:  "@param (; a = 5)\n@main\n    p {=a}\n",
 			want: `<p>5</p>`,
 		},
 		{
 			name: "named default string",
-			src:  "@param (; greet = \"hi\")\n@main\n    p {greet}\n",
+			src:  "@param (; greet = \"hi\")\n@main\n    p {=greet}\n",
 			want: `<p>hi</p>`,
 		},
 		{

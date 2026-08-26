@@ -18,6 +18,14 @@ func parseGad(s string, file *source.File, textMode bool) (node.Stmts, error) {
 	return parseGadAt(s, noBase, textMode)
 }
 
+// parseGadTextAt parses mixed text/expression content where a bare `{ expr }` is
+// a CONTROL statement (runs, emits nothing) and only `{= expr }` emits — the
+// pug-style tag body / `| text` rule. It is parseGadAt without
+// ParseMixedExprAsValue.
+func parseGadTextAt(s string, base source.Pos) (node.Stmts, error) {
+	return parseGadModeAt(s, base, true, false)
+}
+
 // parseGadAt parses a GAD fragment that is a verbatim slice of the original gadx
 // source beginning at absolute position base (a source.Pos in the enclosing
 // FileSet). Setting the fragment file's base to that offset makes gad assign
@@ -30,13 +38,24 @@ func parseGad(s string, file *source.File, textMode bool) (node.Stmts, error) {
 // When base is noBase (position unknown) the fragment is parsed with an
 // automatic base, preserving the previous fragment-local behavior.
 func parseGadAt(s string, base source.Pos, textMode bool) (_ node.Stmts, err error) {
+	// Default text mode keeps a bare `{ expr }` emitting its value (used by the
+	// literal-text blocks @text/@p/@md, which render through goldmark and re-parse
+	// interpolations). The pug tag body path uses parseGadTextAt (exprAsValue=false)
+	// so a bare `{ expr }` is a no-output control statement there.
+	return parseGadModeAt(s, base, textMode, true)
+}
+
+func parseGadModeAt(s string, base source.Pos, textMode, exprAsValue bool) (_ node.Stmts, err error) {
 	po := &gadparser.ParserOptions{
 		Mode: gadparser.ParseConfigDisabled,
 	}
 	so := &gadparser.ScannerOptions{}
 
 	if textMode {
-		po.Mode |= gadparser.ParseMixed | gadparser.ParseMixedExprAsValue
+		po.Mode |= gadparser.ParseMixed
+		if exprAsValue {
+			po.Mode |= gadparser.ParseMixedExprAsValue
+		}
 		so.MixedDelimiter.Start = []rune("{")
 		so.MixedDelimiter.End = []rune("}")
 	}
@@ -85,7 +104,8 @@ func parseTextGadAt(s string, base source.Pos) (node.Stmts, error) {
 		lead := source.Pos(len(s) - len(strings.TrimLeft(s, " \t\r\n")))
 		base += lead
 	}
-	return parseGadAt(trimmed, base, true)
+	// Pug-style tag body / `| text`: a bare `{ expr }` is control (no output).
+	return parseGadTextAt(trimmed, base)
 }
 
 func parseCallArgsString(s string) (args *node.CallArgs, err error) {

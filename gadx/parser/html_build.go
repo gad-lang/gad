@@ -187,9 +187,16 @@ func (b *htmlBuilder) textNode(start, end int) gnode.Stmt {
 		if s[i] == '{' {
 			e := skipBraces(s, i)
 			flushLit()
-			expr := parseExprStr(s[i+1:e-1], b.pos(i+1))
-			stmts = append(stmts, gnode.SMixedValue(
-				gnode.Lit("{", b.pos(i)), gnode.Lit("}", b.pos(e-1)), expr))
+			// `{= expr }` emits its value; a bare `{ expr }` is a control statement
+			// that runs but emits nothing (same rule as pug-style tag bodies).
+			if i+1 < e-1 && s[i+1] == '=' {
+				expr := parseExprStr(s[i+2:e-1], b.pos(i+2))
+				stmts = append(stmts, gnode.SMixedValue(
+					gnode.Lit("{=", b.pos(i)), gnode.Lit("}", b.pos(e-1)), expr))
+			} else {
+				expr := parseExprStr(s[i+1:e-1], b.pos(i+1))
+				stmts = append(stmts, gnode.SExpr(expr))
+			}
 			i = e
 			litStart = i
 			continue

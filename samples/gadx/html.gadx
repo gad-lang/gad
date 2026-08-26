@@ -9,8 +9,9 @@ syntax (so `<br>` renders as `<br />`, `<input disabled>` as
 
 Attributes may be interpolated with `{expr}` — both the value (`href={uri}`)
 and the name (`data-{key}={value}`). An interpolated value is auto-quoted and
-escaped. `{expr}` also interpolates text content. `<> … </>` is a fragment
-(renders its children with no wrapping element).
+escaped. In text content, `{= expr }` emits the value and a bare `{ expr }` is a
+control statement (runs, emits nothing) — so text interpolation uses `{= … }`.
+`<> … </>` is a fragment (renders its children with no wrapping element).
 
 Block-level gadx statements (`@if`, `@for`, `@match`, `+comp`, `~code`) may
 be interleaved inside an HTML region by indentation: the directive and its
@@ -23,7 +24,7 @@ html_control_flow.gadx.
 @main
     <nav class="menu">
         <a href={url} class="link" data-{active}="1">
-            {title}
+            {=title}
         </a>
 
         <img src="/logo.png" alt="logo"/>

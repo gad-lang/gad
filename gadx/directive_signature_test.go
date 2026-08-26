@@ -32,12 +32,12 @@ func TestDirectiveSignatureRender(t *testing.T) {
 		},
 		{
 			name: "comp param type",
-			src:  "@comp box(title str)\n    div {title}\n@main\n    +box(\"hi\")\n",
+			src:  "@comp box(title str)\n    div {=title}\n@main\n    +box(\"hi\")\n",
 			want: "<div>hi</div>",
 		},
 		{
 			name:    "main param type",
-			src:     "@main(n int)\n    p {n}\n",
+			src:     "@main(n int)\n    p {=n}\n",
 			globals: gad.Dict{"n": gad.Int(7)},
 			want:    "<p>7</p>",
 		},
@@ -48,12 +48,12 @@ func TestDirectiveSignatureRender(t *testing.T) {
 		},
 		{
 			name: "comp type parameter",
-			src:  "@comp cell[T any](v T)\n    td {v}\n@main\n    +cell(42)\n",
+			src:  "@comp cell[T any](v T)\n    td {=v}\n@main\n    +cell(42)\n",
 			want: "<td>42</td>",
 		},
 		{
 			name: "positional and named default params",
-			src:  "@comp greeting(name; greet = \"Hello\")\n    p {greet}, {name}\n@main\n    +greeting(\"Bob\")\n",
+			src:  "@comp greeting(name; greet = \"Hello\")\n    p {=greet}, {=name}\n@main\n    +greeting(\"Bob\")\n",
 			want: "<p>Hello, Bob</p>",
 		},
 	}

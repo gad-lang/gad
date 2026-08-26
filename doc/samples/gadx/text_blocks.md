@@ -29,7 +29,9 @@ Gadx has several text forms; they differ in how line breaks are handled:
 - `@text`         a literal-text block: verbatim lines, no tag/directive parsing,
                   line breaks and blank lines preserved.
 
-`{= expr }` interpolation works in every form.
+In text content, `{= expr }` **emits** the value; a bare `{ expr }` is a
+**control** statement (it runs but emits nothing). So text interpolation uses
+`{= … }`. `{= expr }` works in every form.
 
 ## Example — `text_blocks.gadx`
 
@@ -37,6 +39,10 @@ Gadx has several text forms; they differ in how line breaks are handled:
 @param (; name="Gad")
 
 @main
+	//- {= expr } emits; a bare { expr } is control (runs, emits nothing)
+	p
+		| Hi {= name }
+		{ name }
 	//- inline text after the tag
 	h1 Hello {= name }
 	//- inline text AND an indented block: both are children of the h2

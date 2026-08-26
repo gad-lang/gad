@@ -26,14 +26,14 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
 @comp docContent()
     article.gad-doc
         @if !doc.proseHasTitle
-            h1 {doc.name}
+            h1 {=doc.name}
 
         @if doc.prose
-            div.prose {doc.proseHTML}
+            div.prose {=doc.proseHTML}
 
         @for sec in doc.sections
             section.doc-section[id="section-" + sec.title]
-                h2 {sec.title}
+                h2 {=sec.title}
 
                 @for s in sec.symbols
                     div.symbol[id="symbol-" + s.name, data-line=s.line, data-column=s.column, data-name=s.name]
@@ -58,7 +58,7 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
                 h2 Example —
                     code {=doc.file}
                 pre
-                    code[class="language-" + doc.lang] {doc.source}
+                    code[class="language-" + doc.lang] {=doc.source}
 
 @main
     @if !fullPage

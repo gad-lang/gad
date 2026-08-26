@@ -15,7 +15,7 @@ subdirectory's index.html).
 
 @main
     article.gad-index
-        h1 {index.name}
+        h1 {=index.name}
 
         @if index.items
             section.files
@@ -23,7 +23,7 @@ subdirectory's index.html).
                 ul
                     @for it in index.items
                         li
-                            a[href=it.file] {it.name}
+                            a[href=it.file] {=it.name}
 
         @if index.dirs
             section.dirs
@@ -31,4 +31,4 @@ subdirectory's index.html).
                 ul
                     @for d in index.dirs
                         li
-                            a[href=d.file] {d.name}
+                            a[href=d.file] {=d.name}

@@ -34,17 +34,17 @@ func TestTypedParamDirective(t *testing.T) {
 	}{
 		{
 			name: "named typed default",
-			src:  "@param (; n int = 4)\n@main\n    p {n}\n",
+			src:  "@param (; n int = 4)\n@main\n    p {=n}\n",
 			want: "<p>4</p>",
 		},
 		{
 			name: "positional typed and named typed default",
-			src:  "@param (a int; b int = 2)\n@main\n    p {b}\n",
+			src:  "@param (a int; b int = 2)\n@main\n    p {=b}\n",
 			want: "<p>2</p>",
 		},
 		{
 			name: "named typed union default",
-			src:  "@param (; n int|uint = 4)\n@main\n    p {n}\n",
+			src:  "@param (; n int|uint = 4)\n@main\n    p {=n}\n",
 			want: "<p>4</p>",
 		},
 	}
@@ -71,25 +71,25 @@ func TestTypedGlobalDirective(t *testing.T) {
 	}{
 		{
 			name:    "parenthesized typed",
-			src:     "@global (x int)\n@main\n    p {x}\n",
+			src:     "@global (x int)\n@main\n    p {=x}\n",
 			globals: gad.Dict{"x": gad.Int(9)},
 			want:    "<p>9</p>",
 		},
 		{
 			name:    "parenthesized typed union",
-			src:     "@global (x int|str)\n@main\n    p {x}\n",
+			src:     "@global (x int|str)\n@main\n    p {=x}\n",
 			globals: gad.Dict{"x": gad.Str("hi")},
 			want:    "<p>hi</p>",
 		},
 		{
 			name:    "typed nil-default applies",
-			src:     "@global (x int = 3)\n@main\n    p {x}\n",
+			src:     "@global (x int = 3)\n@main\n    p {=x}\n",
 			globals: gad.Dict{},
 			want:    "<p>3</p>",
 		},
 		{
 			name:    "typed absent-default applies",
-			src:     "@global (x int !?= 4)\n@main\n    p {x}\n",
+			src:     "@global (x int !?= 4)\n@main\n    p {=x}\n",
 			globals: gad.Dict{},
 			want:    "<p>4</p>",
 		},
@@ -119,9 +119,9 @@ func TestTypedGlobalDirective(t *testing.T) {
 // declaration fails to compile.
 func TestVarConstRejectTypes(t *testing.T) {
 	for _, src := range []string{
-		"@var x int = 1\n@main\n    p {x}\n",
-		"@var (x int = 1)\n@main\n    p {x}\n",
-		"@const x int = 1\n@main\n    p {x}\n",
+		"@var x int = 1\n@main\n    p {=x}\n",
+		"@var (x int = 1)\n@main\n    p {=x}\n",
+		"@const x int = 1\n@main\n    p {=x}\n",
 	} {
 		if _, err := renderErr(t, src, nil); err == nil {
 			t.Fatalf("expected a compile error for typed var/const, got none\nsrc:\n%s", src)
@@ -147,7 +147,7 @@ func TestTypeUnionsInSignatures(t *testing.T) {
 		},
 		{
 			name: "comp param union",
-			src:  "@comp c(v int|uint)\n    span {v}\n@main\n    +c(2)\n",
+			src:  "@comp c(v int|uint)\n    span {=v}\n@main\n    +c(2)\n",
 			want: "<span>2</span>",
 		},
 		{
@@ -157,7 +157,7 @@ func TestTypeUnionsInSignatures(t *testing.T) {
 		},
 		{
 			name:    "main param union",
-			src:     "@main(v int|str)\n    p {v}\n",
+			src:     "@main(v int|str)\n    p {=v}\n",
 			globals: gad.Dict{"v": gad.Str("ok")},
 			want:    "<p>ok</p>",
 		},

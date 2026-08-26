@@ -74,13 +74,13 @@ func TestPorted_CompNoArguments(t *testing.T) {
 
 func TestPorted_CompMultiArguments(t *testing.T) {
 	portExpect(t,
-		"@comp a($a, $b, $c, $d)\n    p {$a} {$b} {$c} {$d}\n@main\n    +a(\"a\", \"b\", \"c\", 2)\n",
+		"@comp a($a, $b, $c, $d)\n    p {=$a} {=$b} {=$c} {=$d}\n@main\n    +a(\"a\", \"b\", \"c\", 2)\n",
 		"<p>a b c 2</p>", nil)
 }
 
 func TestPorted_CompNameWithDashes(t *testing.T) {
 	portExpect(t,
-		"@comp i-am-mixin($a, $b)\n    p {$a} {$b}\n@main\n    +i-am-mixin(\"a\", \"b\")\n",
+		"@comp i-am-mixin($a, $b)\n    p {=$a} {=$b}\n@main\n    +i-am-mixin(\"a\", \"b\")\n",
 		"<p>a b</p>", nil)
 }
 
@@ -97,12 +97,12 @@ func TestPorted_Id(t *testing.T) {
 }
 
 func TestPorted_ArithmeticExpression(t *testing.T) {
-	portExpect(t, "@main\n    {A + B * C}\n",
+	portExpect(t, "@main\n    {= A + B * C }\n",
 		"14", gad.Dict{"A": gad.Int(2), "B": gad.Int(3), "C": gad.Int(4)})
 }
 
 func TestPorted_BooleanExpression(t *testing.T) {
-	portExpect(t, "@main\n    {C - A < B}\n",
+	portExpect(t, "@main\n    {= C - A < B }\n",
 		"true", gad.Dict{"A": gad.Int(2), "B": gad.Int(3), "C": gad.Int(4)})
 }
 
@@ -110,7 +110,7 @@ func TestPorted_StructMethodCall(t *testing.T) {
 	d := rfDummy{X: "Hello"}
 	rv, err := gad.NewReflectValue(d)
 	require.NoError(t, err)
-	portExpect(t, `@main`+"\n    "+`{ $.MethodWithArg("world") }`+"\n",
+	portExpect(t, `@main`+"\n    "+`{= $.MethodWithArg("world") }`+"\n",
 		"Hello world", gad.Dict{"$": rv})
 }
 
