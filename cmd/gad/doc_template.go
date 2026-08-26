@@ -15,6 +15,7 @@ import (
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/gadconfig"
 	"github.com/gad-lang/gad/gadx"
+	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/web/gadbridge"
 )
@@ -31,6 +32,22 @@ var defaultDocTemplateMD []byte
 
 //go:embed doctemplates/html.gadx
 var defaultDocTemplateHTML []byte
+
+// The HTML doc template's stylesheet and script, embedded so the template's
+// `embed("doc.css")` / `embed("doc.js")` resolve against the binary even when no
+// workspace copy is on disk (see renderDocTemplate's injected EmbeddedMap).
+//
+//go:embed doctemplates/doc.css
+var defaultDocCSS []byte
+
+//go:embed doctemplates/doc.js
+var defaultDocJS []byte
+
+// The PrismJS bundle (built from web/plugins/js/prism-gad by `make generate`),
+// registering the gad / gadt / gadx grammars and highlighting the code fences.
+//
+//go:embed doctemplates/prism.js
+var defaultDocPrism []byte
 
 //go:embed doctemplates/md-index.gadx
 var defaultDocIndexMD []byte
@@ -96,7 +113,11 @@ func (o *docOptions) resolveDocTemplates() *docTemplateSet {
 	// --html enables the extra .html file next to each .md. The template is the
 	// flag/workspace file when present, otherwise (under --html) the embedded
 	// default. A plain `gad doc` still emits only Markdown.
-	if b, err := os.ReadFile(s.htmlPath); err == nil {
+	if o.stdTemplate {
+		// Force the built-in template, ignoring any workspace/flag html.gadx.
+		s.htmlSrc = defaultDocTemplateHTML
+		s.htmlPath = "doctemplates/html.gadx" // synthetic; drives the .gadx dialect
+	} else if b, err := os.ReadFile(s.htmlPath); err == nil {
 		s.htmlSrc = b
 	} else if o.html && o.docTemplateHTML == "" {
 		s.htmlSrc = defaultDocTemplateHTML
@@ -302,10 +323,23 @@ func (o *docOptions) renderTemplateOutputs(path string, src []byte, res *FileDoc
 // `.gad` template is a script. All three write their body to STDOUT, which is
 // captured here. No files are read or written — callers supply the template
 // bytes and persist the result.
-func renderDocTemplate(tmplSrc []byte, tmplPath string, docDict gad.Dict) (string, error) {
+func renderDocTemplate(tmplSrc []byte, tmplPath string, docDict gad.Dict, named ...*gad.NamedArgs) (string, error) {
 	builtins := gad.NewBuiltins()
 	opts := gad.CompileOptions{}
 	opts.ModuleFile = tmplPath
+	// Resolve the template's `embed("…")` calls: first any asset next to a
+	// workspace template on disk, then the built-in doc.css / doc.js so the
+	// embedded default (rendered from bytes, with no sibling files) still works.
+	embedMap := gad.NewEmbedMap()
+	if dir := filepath.Dir(tmplPath); dir != "" && dir != "." {
+		if abs, err := filepath.Abs(dir); err == nil {
+			embedMap.SetExtImporter(&importers.EmbeddedFileImporter{WorkDirs: []string{abs}})
+		}
+	}
+	embedMap.AddFile("doc.css", defaultDocCSS)
+	embedMap.AddFile("doc.js", defaultDocJS)
+	embedMap.AddFile("prism.js", defaultDocPrism)
+	opts.CompilerOptions.EmbededdMap = embedMap
 	switch sourceTypeFor(tmplPath) {
 	case "gadx":
 		// opts.ModuleFile (tmplPath) ends in .gadx, selecting the Gadx front-end.
@@ -323,10 +357,14 @@ func renderDocTemplate(tmplSrc []byte, tmplPath string, docDict gad.Dict) (strin
 	}
 
 	// `param (doc dict)` is a positional parameter, so the doc dict is passed as
-	// the first positional argument.
+	// the first positional argument; any named args (e.g. fullPage) follow.
+	var na *gad.NamedArgs
+	if len(named) > 0 && named[0] != nil {
+		na = named[0]
+	}
 	var out bytes.Buffer
 	vm := gad.NewVM(builtins.Build(), cr.Bytecode)
-	ret, err := vm.RunOpts(&gad.RunOpts{Args: gad.Args{gad.Array{docDict}}, StdOut: &out})
+	ret, err := vm.RunOpts(&gad.RunOpts{Args: gad.Args{gad.Array{docDict}}, NamedArgs: na, StdOut: &out})
 	if err != nil {
 		return "", fmt.Errorf("render %s: %w", filepath.Base(tmplPath), err)
 	}

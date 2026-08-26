@@ -1,21 +1,29 @@
 /**
-html.gadx — default HTML documentation template for `gad doc`.
+html.gadx — HTML documentation template for `gad doc`.
 
-It receives the extracted documentation as `param (doc dict)` and renders a
-self-contained HTML fragment. `doc` is:
+It receives the extracted documentation as `param (doc dict; fullPage=false)` and
+renders it. `doc` is:
 
     { name: str, file: str, lang: str, source: str, prose: str,
       sections: [ { title: str,
         symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
 
-Each symbol carries data-line / data-column attributes so an editor can jump
-to the source position. The full example source is rendered as a preformatted
-code block so the generated page is self-contained.
+Each symbol carries data-line / data-column attributes so an editor can jump to
+the source position. The full example source is rendered as a preformatted code
+block so the generated page is self-contained.
+
+When `fullPage` is false (the default, used by the generated docs / website) it
+emits just the `article.gad-doc` fragment — the surrounding page supplies its own
+chrome. When `fullPage` is true (the IDE "Gad doc" panel passes this) it emits a
+complete, self-contained modern page: a searchable symbol sidebar, a light/dark
+theme (following `prefers-color-scheme`, or forced by `<html data-theme=…>` — the
+IDE sets that to match its own theme) and client-side syntax highlighting for the
+`gad` / `gadx` / `gadt` code fences.
 **/
 
-@param (doc dict)
+@param (doc dict; fullPage = false)
 
-@main
+@comp docContent()
     article.gad-doc
         @if !doc.proseHasTitle
             h1 {doc.name}
@@ -24,11 +32,11 @@ code block so the generated page is self-contained.
             div.prose {doc.proseHTML}
 
         @for sec in doc.sections
-            section.doc-section
+            section.doc-section[id="section-" + sec.title]
                 h2 {sec.title}
 
                 @for s in sec.symbols
-                    div.symbol[data-line=s.line, data-column=s.column]
+                    div.symbol[id="symbol-" + s.name, data-line=s.line, data-column=s.column, data-name=s.name]
                         h3
                             code {s.name}
 
@@ -46,9 +54,35 @@ code block so the generated page is self-contained.
                                 div.doc {o.docHTML}
 
         @if doc.source
-            section.doc-example
+            section.doc-example[id="section-example"]
                 h2
                     | Example —
                     code {doc.file}
                 pre
                     code[class="language-" + doc.lang] {doc.source}
+
+@main
+    @if !fullPage
+        +docContent()
+    @else
+        !!! 5
+        html[lang="en"]
+            head
+                meta[charset="utf-8"]
+                meta[name="viewport", content="width=device-width, initial-scale=1"]
+                title {doc.name + " — Gad doc"}
+                style {rawstr(str(embed("doc.css").data))}
+            body
+                header.topbar
+                    div.brand
+                        | {doc.name}
+                        span.file {doc.file}
+                    div.search
+                        input#search[type="search", placeholder="Search symbols…", autocomplete="off", spellcheck="false"]
+                    button#theme-toggle[type="button", title="Toggle theme", aria-label="Toggle theme"] ◐
+                div.layout
+                    nav#toc.sidebar
+                    main.content
+                        +docContent()
+                script {rawstr(str(embed("prism.js").data))}
+                script {rawstr(str(embed("doc.js").data))}

@@ -59,6 +59,17 @@ type docOptions struct {
 	json       bool
 	yaml       bool
 
+	// fullPage, with --html in stdin mode, renders through the HTML doc template
+	// with its `fullPage` param set — a complete, self-contained page (sidebar,
+	// search, theme, syntax highlighting) instead of the bare goldmark fragment.
+	// The IDE "Gad doc" panel passes it.
+	fullPage bool
+
+	// stdTemplate forces the built-in (embedded) HTML doc template, ignoring any
+	// workspace `.gad/doc-templates/html.gadx`. The IDE panel passes it when the
+	// user chose the standard template over the config one.
+	stdTemplate bool
+
 	examplesFailed int // count of failed embedded examples
 
 	templates *docTemplateSet // lazily-resolved doc templates
@@ -132,6 +143,8 @@ func (o *docOptions) registerFlags(fs *flag.FlagSet) {
 	fs.StringVar(&o.docTemplateMD, "doc-template-md", "", "Markdown doc template (.gad/.gadt/.gadx); overrides .gad/doc-templates/md.gadx")
 	fs.StringVar(&o.docTemplateHTML, "doc-template-html", "", "HTML doc template (.gad/.gadt/.gadx); overrides .gad/doc-templates/html.gadx")
 	fs.BoolVar(&o.html, "html", false, "also emit an .html file per source using the HTML doc template")
+	fs.BoolVar(&o.fullPage, "full-page", false, "with -html on stdin, render a complete page (sidebar/search/theme) via the HTML doc template instead of a bare fragment")
+	fs.BoolVar(&o.stdTemplate, "std-template", false, "force the built-in HTML doc template, ignoring any workspace .gad/doc-templates/html.gadx")
 	fs.BoolVar(&o.noTemplate, "no-template", false, "disable doc templates; use the built-in Markdown renderer")
 	fs.BoolVar(&o.json, "json", false, "also emit a .json file per source encoding the doc structure")
 	fs.BoolVar(&o.yaml, "yaml", false, "also emit a .yaml file per source encoding the doc structure")

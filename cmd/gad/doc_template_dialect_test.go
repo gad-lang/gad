@@ -47,6 +47,9 @@ func TestDocTemplatesInSyncWithEmbedded(t *testing.T) {
 		"html.gadx":       defaultDocTemplateHTML,
 		"md-index.gadx":   defaultDocIndexMD,
 		"html-index.gadx": defaultDocIndexHTML,
+		"doc.css":         defaultDocCSS,
+		"doc.js":          defaultDocJS,
+		"prism.js":        defaultDocPrism,
 	} {
 		got, err := os.ReadFile(filepath.Join(root, name))
 		require.NoError(t, err, name)

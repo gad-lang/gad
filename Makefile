@@ -301,8 +301,24 @@ install-hooks:
 	@echo "==> installed .git/hooks/pre-commit -> scripts/pre-commit"
 
 .PHONY: generate
-generate: version
+generate: version doc-prism
 	go generate ./...
+
+# doc-prism (re)builds the PrismJS bundle the HTML doc template embeds
+# (doctemplates/prism.js), from web/plugins/js/prism-gad, and mirrors it into the
+# repo-root ./doc-templates copy the sync test guards. Best-effort: skipped with a
+# warning when bun or the prism-gad submodule is unavailable, so a checkout that
+# lacks them still builds against the committed prism.js.
+.PHONY: doc-prism
+doc-prism:
+	@if command -v bun >/dev/null 2>&1 && [ -f web/plugins/js/prism-gad/site-bundle.mjs ]; then \
+		echo "==> building doctemplates/prism.js"; \
+		out="$$(pwd)/cmd/gad/doctemplates/prism.js"; \
+		( cd web/plugins/js/prism-gad && bun build ./site-bundle.mjs --outfile "$$out" --minify --format=iife >/dev/null ) && \
+		cp cmd/gad/doctemplates/prism.js doc-templates/prism.js; \
+	else \
+		echo "==> doc-prism: bun or prism-gad submodule missing; keeping committed prism.js"; \
+	fi
 
 .PHONY: lint
 lint: version check-delve
