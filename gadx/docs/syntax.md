@@ -266,6 +266,16 @@ p
         three        # -> "one two three"
 ```
 
+The `|` / `|>` may sit **inline** right after the tag — `p |>` is the same as `p`
+with an indented `|>` block:
+
+```gadx
+p |>
+    one
+    two
+    three            # -> <p>one two three</p>
+```
+
 ### `@text` — verbatim literal block
 
 `@text` emits its indented body verbatim: no tag/directive parsing (bare words

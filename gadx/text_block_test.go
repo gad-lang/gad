@@ -130,3 +130,34 @@ func TestRenderMdBlock(t *testing.T) {
 		}
 	}
 }
+
+// TestInlinedPipeBlock: a `|` / `|>` right after a tag on the same line opens a
+// text block on that tag, exactly like the tag with an indented `|` / `|>` block.
+func TestInlinedPipeBlock(t *testing.T) {
+	cases := []struct{ name, inline, block, want string }{
+		{
+			name:   "folded",
+			inline: "@main\n    p |>\n        one\n        two\n        three\n",
+			block:  "@main\n    p\n        |>\n            one\n            two\n            three\n",
+			want:   "<p>one two three</p>",
+		},
+		{
+			name:   "literal",
+			inline: "@main\n    p |\n        abc\n        def\n",
+			block:  "@main\n    p\n        |\n            abc\n            def\n",
+			want:   "<p>abc\ndef</p>",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gotInline := renderGadx(t, c.inline, nil)
+			gotBlock := renderGadx(t, c.block, nil)
+			if gotInline != c.want {
+				t.Fatalf("inline: got %q, want %q", gotInline, c.want)
+			}
+			if gotInline != gotBlock {
+				t.Fatalf("inline %q != block %q", gotInline, gotBlock)
+			}
+		})
+	}
+}

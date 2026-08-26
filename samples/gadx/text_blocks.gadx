@@ -50,6 +50,12 @@ In text content, `{= expr }` **emits** the value; a bare `{ expr }` is a
 			two
 			three
 
+	// inline `|>` right after the tag — same as `p` with an indented `|>` block
+	p |>
+		one
+		two
+		three
+
 	// `@text`: verbatim, no tag parsing (bare words stay words)
 	@text
 		License (c) {= name }

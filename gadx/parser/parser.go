@@ -605,8 +605,11 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 
 	// A tag's body may be an indented block, inline text, or inline text followed
 	// by an indented block (`h2 Text\n    code …` — the leading text and the child
-	// tags are all children of the tag).
-	if p.Token.Token == gadxtoken.Text {
+	// tags are all children of the tag). An inline `|` / `|>` (`p |>`) opens a
+	// text block right on the tag, equivalent to `p` with an indented `|>` block.
+	if p.Token.Token == gadxtoken.TextBlock {
+		tag.Body = gnode.Stmts{p.parseTextBlock()}
+	} else if p.Token.Token == gadxtoken.Text {
 		tag.Body = gnode.Stmts{p.parseText()}
 	}
 	if p.Token.Token == gadxtoken.Indent {
