@@ -434,10 +434,6 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte(')')
 }
 
-// allValueless reports whether every spec in the group is a value-less value
-// spec (just identifiers, no initial values), e.g. `var (a, b, c)`.
-func (d *GenDecl) allValueless() bool { return allValueless(d.Specs) }
-
 // allValueless reports whether every spec is a value-less value spec.
 func allValueless(specs []Spec) bool {
 	for _, sp := range specs {

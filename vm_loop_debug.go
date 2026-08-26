@@ -86,6 +86,42 @@ VMLoop:
 		case OpAssignTransform:
 			// `obj ::: type` -> coerced obj when assignable, else throw.
 			obj, typ := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
+			if callee, ok := transformCallee(typ); ok {
+				// `obj ::: typ` == typ(obj), dispatched through the stack-based call
+				// path so no argument array is allocated — the cost equals a direct
+				// call. A compiled transformer goes through xOpCallCompiled: rearrange
+				// the stack [obj, typ] into the call layout [callee, arg] and push its
+				// frame; it resumes via OpReturn, whose parent-ip fix-up skips operands
+				// only for the 3-byte call opcodes, so a 1-byte OpAssignTransform lands
+				// on the next instruction. A builtin type (or any other synchronous
+				// callable) is invoked with DoCall directly — xOpCallObject cannot be
+				// reused here because it hard-advances the ip past a 3-byte call's
+				// operands — reusing the stack slot that already holds obj as the
+				// 1-element args, then placing the result inline.
+				if cf, isCf := callee.(*CompiledFunction); isCf {
+					vm.stack[vm.sp-2] = callee
+					vm.stack[vm.sp-1] = obj
+					if err := vm.xOpCallCompiled(cf, 1, 0); err == nil {
+						continue
+					} else if err = vm.throwGenErr(err); err != nil {
+						vm.err = err
+						return
+					}
+					continue
+				}
+				value, err := DoCall(callee, Call{VM: vm, Args: Args{vm.stack[vm.sp-2 : vm.sp-1]}})
+				if err == nil {
+					vm.stack[vm.sp-2] = value
+					vm.sp--
+					vm.stack[vm.sp] = nil
+					continue
+				}
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
 			value, err := AssignToTypeTransform(vm, obj, typ)
 			if err == nil {
 				vm.stack[vm.sp-2] = value

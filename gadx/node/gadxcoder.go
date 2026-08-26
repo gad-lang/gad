@@ -92,16 +92,16 @@ func (c *GadxCodeWriteContext) gadExpr(e gnode.Expr) string {
 // lowering (convertFor) recognizes those shapes. Rendering the stored expression
 // verbatim would parenthesize the `in` (`[k, (v in it)]`), which the lowering no
 // longer recognizes — breaking semantics. So reconstruct the header explicitly.
-func (ctx *GadxCodeWriteContext) forCond(cond gnode.Expr) string {
+func (c *GadxCodeWriteContext) forCond(cond gnode.Expr) string {
 	if k, v, iter, ok := forInPair(cond); ok {
-		return ctx.gadExpr(k) + ", " + ctx.gadExpr(v) + " in " + ctx.gadExpr(iter)
+		return c.gadExpr(k) + ", " + c.gadExpr(v) + " in " + c.gadExpr(iter)
 	}
 	if bin, ok := cond.(*gnode.BinaryExpr); ok && bin.Token == token.In {
 		if _, ok := bin.LHS.(*gnode.IdentExpr); ok {
-			return ctx.gadExpr(bin.LHS) + " in " + ctx.gadExpr(bin.RHS)
+			return c.gadExpr(bin.LHS) + " in " + c.gadExpr(bin.RHS)
 		}
 	}
-	return ctx.gadCond(cond) // C-style `i := 0; i < n; i++` or any other form
+	return c.gadCond(cond) // C-style `i := 0; i < n; i++` or any other form
 }
 
 // forInPair extracts (key, value, iterable) from the `[key, value in iterable]`
@@ -326,14 +326,14 @@ func (c *GadxCodeWriteContext) buildMixed(stmts gnode.Stmts) string {
 // writeRawBlock emits a literal-text block directive (`@text` / `@p` / `@md`)
 // and its body verbatim (text lines with no `| ` prefix, blank lines preserved).
 // Non-text nodes in the body (e.g. `@if` inside `@md`) render normally.
-func (ctx *GadxCodeWriteContext) writeRawBlock(directive string, body gnode.Stmts) {
-	ctx.WriteLine(directive)
-	ctx.Depth++
-	prev := ctx.raw
-	ctx.raw = true
-	ctx.WriteStmts(body)
-	ctx.raw = prev
-	ctx.Depth--
+func (c *GadxCodeWriteContext) writeRawBlock(directive string, body gnode.Stmts) {
+	c.WriteLine(directive)
+	c.Depth++
+	prev := c.raw
+	c.raw = true
+	c.WriteStmts(body)
+	c.raw = prev
+	c.Depth--
 }
 
 func (t *TextBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) {
@@ -410,7 +410,7 @@ func (a *TagAttribute) inner(ctx *GadxCodeWriteContext) string {
 // attrGroups builds the tag's attribute groups: consecutive mergeable
 // attributes fold into one group (order preserved), each spread/conditional
 // attribute is its own group.
-func (ctx *GadxCodeWriteContext) attrGroups(attrs []*TagAttribute) []attrGroup {
+func (c *GadxCodeWriteContext) attrGroups(attrs []*TagAttribute) []attrGroup {
 	var groups []attrGroup
 	var run []string
 	flush := func() {
@@ -421,11 +421,11 @@ func (ctx *GadxCodeWriteContext) attrGroups(attrs []*TagAttribute) []attrGroup {
 	}
 	for _, a := range attrs {
 		if a.mergeable() {
-			run = append(run, a.inner(ctx))
+			run = append(run, a.inner(c))
 			continue
 		}
 		flush()
-		groups = append(groups, attrGroup{raw: a.fragment(ctx)})
+		groups = append(groups, attrGroup{raw: a.fragment(c)})
 	}
 	flush()
 	return groups
@@ -441,39 +441,39 @@ func (ctx *GadxCodeWriteContext) attrGroups(attrs []*TagAttribute) []attrGroup {
 //
 // A tag that also has non-mergeable groups is emitted inline (accepting the
 // overflow) rather than reordered.
-func (ctx *GadxCodeWriteContext) writeWrappedTag(name string, groups []attrGroup) {
+func (c *GadxCodeWriteContext) writeWrappedTag(name string, groups []attrGroup) {
 	if len(groups) == 1 && groups[0].merged {
-		ctx.WriteLine(name + "[")
-		ctx.Depth++
+		c.WriteLine(name + "[")
+		c.Depth++
 		for _, it := range groups[0].items {
-			ctx.WriteLine(it)
+			c.WriteLine(it)
 		}
-		ctx.Depth--
-		ctx.WriteLine("]")
+		c.Depth--
+		c.WriteLine("]")
 		return
 	}
 	line := name
 	for _, g := range groups {
 		line += g.inline()
 	}
-	ctx.WriteLine(line)
+	c.WriteLine(line)
 }
 
 // overflows reports whether the line (at the current indent) exceeds the column
 // budget.
-func (ctx *GadxCodeWriteContext) overflows(line string) bool {
-	max := ctx.MaxColumns
+func (c *GadxCodeWriteContext) overflows(line string) bool {
+	max := c.MaxColumns
 	if max <= 0 {
 		max = gnode.DefaultMaxColumns
 	}
-	return len(ctx.indent())+len(line) > max
+	return len(c.indent())+len(line) > max
 }
 
 // inlineTagText returns the inline text for a tag body that is a single
 // single-line text run (no interpolation newlines), and whether it qualifies.
 // Such a body is emitted as `tag text` on the tag line rather than an indented
 // `| text`.
-func (ctx *GadxCodeWriteContext) inlineTagText(body gnode.Stmts) (string, bool) {
+func (c *GadxCodeWriteContext) inlineTagText(body gnode.Stmts) (string, bool) {
 	if len(body) != 1 {
 		return "", false
 	}
@@ -484,7 +484,7 @@ func (ctx *GadxCodeWriteContext) inlineTagText(body gnode.Stmts) (string, bool) 
 	// Trim edge whitespace exactly as the `| ` text path does, so a tag body that
 	// came from an HTML region (with surrounding whitespace text nodes) inlines to
 	// the same result on every pass (idempotent).
-	text := strings.TrimSpace(ctx.buildMixed(ts.Stmts))
+	text := strings.TrimSpace(c.buildMixed(ts.Stmts))
 	if text == "" || strings.ContainsAny(text, "\n") {
 		return "", false
 	}
@@ -565,16 +565,16 @@ func writeDoc(ctx *GadxCodeWriteContext, doc string) {
 // compactly as `open text close`; a multi-line body keeps open and close on
 // their own lines with the text between, so the opening/closing line breaks
 // survive a round-trip.
-func (ctx *GadxCodeWriteContext) writeBlockComment(open, text, close string) {
+func (c *GadxCodeWriteContext) writeBlockComment(open, text, close string) {
 	if !strings.Contains(text, "\n") {
-		ctx.WriteLine(open + " " + text + " " + close)
+		c.WriteLine(open + " " + text + " " + close)
 		return
 	}
-	ctx.WriteLine(open)
+	c.WriteLine(open)
 	for _, line := range strings.Split(text, "\n") {
-		ctx.WriteLine(line)
+		c.WriteLine(line)
 	}
-	ctx.WriteLine(close)
+	c.WriteLine(close)
 }
 
 func (s *IfStmt) WriteGadx(ctx *GadxCodeWriteContext) {
