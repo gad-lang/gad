@@ -333,28 +333,39 @@ func buildGadNamespaceFuncs() {
 			np("type").Type(SourceTypeEnum)
 			np("name").Type(TStr)
 		}),
+		FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) {
+			ret("_", SourceFileType)
+		}),
 	)
 	gadParseFileFn = NewFunction("parseFile", gadParseFile,
 		FunctionWithModule(gadModuleSpec),
 		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("pth").Type(TStr) }),
+		FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) {
+			ret("_", SourceFileType)
+		}),
 	)
 
+	evalRet := FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) { ret("_", TAny) })
 	evalStrFn := NewFunction("eval", gadEvalStr,
 		FunctionWithModule(gadModuleSpec),
 		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("source").Type(TStr) }),
 		FunctionWithNamedParams(func(np func(name string) *NamedParamBuilder) { np("type").Type(SourceTypeEnum) }),
+		evalRet,
 	)
 	evalSourceFileFn := NewFunction("eval", gadEvalSourceFile,
 		FunctionWithModule(gadModuleSpec),
 		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("sourceFile").Type(SourceFileType) }),
+		evalRet,
 	)
 	evalStmtsFn := NewFunction("eval", gadEvalStmts,
 		FunctionWithModule(gadModuleSpec),
 		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("stmts").Type(StmtsType) }),
+		evalRet,
 	)
 	evalStmtFn := NewFunction("eval", gadEvalStmt,
 		FunctionWithModule(gadModuleSpec),
 		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("stmt").Type(StmtType) }),
+		evalRet,
 	)
 	gadEvalFn = AddMethod(evalStrFn, evalSourceFileFn, evalStmtsFn, evalStmtFn)
 

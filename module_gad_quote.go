@@ -26,6 +26,7 @@ func buildGadQuoteFuncs() {
 			np("maxCols").Type(TInt).Usage("max chars per line before going multiline (default 120)")
 			np("fence").Type(TInt).Usage("heredoc start/end delimiter count, odd >= 3 (default 3)")
 		}),
+		FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) { ret("_", TStr) }),
 	)
 	// gad.quote(s rawstr; maxCols=120) -> str : encode s as a raw `…` literal
 	// (or a ```…``` heredoc when it contains backticks).
@@ -39,6 +40,7 @@ func buildGadQuoteFuncs() {
 			np("maxCols").Type(TInt).Usage("max chars per line before going multiline (default 120)")
 			np("fence").Type(TInt).Usage("heredoc start/end delimiter count, odd >= 3 (default 3)")
 		}),
+		FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) { ret("_", TStr) }),
 	)
 	gadQuoteFn = AddMethod(quoteStr, quoteRaw)
 
@@ -49,6 +51,7 @@ func buildGadQuoteFuncs() {
 		FunctionWithParams(func(p func(name string) *ParamBuilder) {
 			p("lit").Type(TStr).Usage("string literal to decode")
 		}),
+		FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) { ret("_", TStr) }),
 	)
 	// gad.unquote(lit rawstr) -> rawstr : decode any string/heredoc literal,
 	// returning the value as a rawstr.
@@ -58,6 +61,7 @@ func buildGadQuoteFuncs() {
 		FunctionWithParams(func(p func(name string) *ParamBuilder) {
 			p("lit").Type(TRawStr).Usage("string literal to decode")
 		}),
+		FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) { ret("_", TRawStr) }),
 	)
 	gadUnquoteFn = AddMethod(unquoteStr, unquoteRaw)
 }

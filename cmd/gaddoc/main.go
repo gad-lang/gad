@@ -426,6 +426,13 @@ func moduleData(module string) gad.Dict {
 		moduleDataCache[module] = d
 		return d
 	}
+	// gad is the language's own reflective/meta builtin namespace; expose its
+	// members so `# gad module` gad:doc resolves them.
+	if module == "gad" {
+		d := gad.GadModule()
+		moduleDataCache[module] = d
+		return d
+	}
 	// The root builtins are not an importable module; expose them as a flat dict
 	// (name -> object) so `# builtins module` gad:doc resolves every member.
 	if module == "builtins" {

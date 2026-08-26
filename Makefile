@@ -321,6 +321,7 @@ generate-docs: version samples-doc
 	# the 3rd arg selects which module's gad:doc to emit.
 	go run ./cmd/gaddoc . ./doc/stdlib/time.md time
 	go run ./cmd/gaddoc . ./doc/stdlib/base64.md base64
+	go run ./cmd/gaddoc . ./doc/stdlib/gad.md gad
 	go run ./cmd/gaddoc . ./doc/stdlib/fmt.md fmt
 	go run ./cmd/gaddoc . ./doc/stdlib/strings.md strings
 	go run ./cmd/gaddoc ./stdlib/json ./doc/stdlib/json.md
