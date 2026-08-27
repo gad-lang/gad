@@ -224,3 +224,13 @@ test("`:::` is one operator token (not `::` + `:`)", () => {
   // `::` still tokenizes on its own.
   expect(tokenize("x := a :: T").find((t) => t.text === "::")).toBeDefined();
 });
+
+test("`mixin` is a control keyword and `Mixin` a builtin", () => {
+  // `mixin` is a reserved keyword; `Mixin` is the global builtin it lowers to.
+  expect(scopesOf("mixin A {}", "mixin").some((s) => s.includes("keyword.control.gad"))).toBe(true);
+  expect(scopesOf("M := Mixin(\"A\")", "Mixin").some((s) => s.includes("support.function.gad"))).toBe(true);
+  // `use` is a contextual identifier (not reserved), so no `use` token is ever
+  // scoped as a control keyword (it is absent from the grammar's keyword list).
+  const useToks = tokenize("class C { use A }").filter((t) => t.text.trim() === "use");
+  expect(useToks.every((t) => !t.scopes.some((s) => s.includes("keyword.control.gad")))).toBe(true);
+});
