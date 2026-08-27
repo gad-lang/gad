@@ -237,4 +237,4 @@ To embed Gad in a Go program instead of running it from the CLI, see
 
 ## See also
 
-For a runnable tour of the basics, see `samples/01_hello.gad`.
+For a runnable tour of the basics, see `samples/hello.gad`.

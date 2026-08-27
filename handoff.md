@@ -290,7 +290,7 @@ Task 2 (godoc/`--template`/`--` markers/`.gadt`/docs) = IN PROGRESS:
     flags; `parser/node/expr.go` MixedTextExpr may need the All flags. `utils`
     import in stmt.go is now UNUSED — remove it. NOTE: redefining `-` to keep a
     newline changes runtime output of templates using `-`; update
-    `samples/09_template.gad` to use `--` where full collapse is wanted, verify
+    `samples/template.gad` to use `--` where full collapse is wanted, verify
     `gad run` output. Then parser+vm tests, docs+samples, README.
   - NEW (todo updated): run `.gadt` files in template mode automatically.
 Task 3 (build tags for ide/debug; `run` as default) = pending.
@@ -320,7 +320,7 @@ LATER backlog (todo.md, growing): IDE file-tree rename/context-menu + run/debug
      BlockStmt injects `begin` for implicit template openers.
    - Test: `parser_test.go TestFormatMixedMode` (delimiters set to `{%`/`%}` —
      note `test.New` defaults MixedDelimiter to `‹ ›`). Fixture
-     `samples/09_template.gad`: `gad fmt` output runs identical to the original.
+     `samples/template.gad`: `gad fmt` output runs identical to the original.
 2. **godoc + template CLI + `--` markers**: godoc for CodeBegin/End/MixedValue;
    `gad run`/STDIN non-interactive; `--template` flag (ParseMixed + ScanMixed |
    ScanConfigDisabled); `--template-start-delimiter`/`--template-end-delimiter`
@@ -356,7 +356,7 @@ LATER backlog (todo.md, growing): IDE file-tree rename/context-menu + run/debug
   when single-line (required for for/if/end), expand only when multi-line (e.g.
   the `var (…)` block). Then apply the end/done normalization regex.
 - The `do` keyword is already being emitted for the for body (good), but the
-  reflow corrupts it. `samples/09_template.gad` is the test fixture; verify by
+  reflow corrupts it. `samples/template.gad` is the test fixture; verify by
   `diff` of `gad run` original vs formatted (must be identical).
 
 ---

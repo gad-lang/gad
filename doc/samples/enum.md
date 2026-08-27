@@ -1,0 +1,336 @@
+
+# Enums
+
+An `enum` is an ordered set of named integer constants, computed at compile
+time. It is indexable by member name and iterable in declaration order, and each
+member carries its name, value and index.
+
+## Defining an enum
+
+`enum Name { … }` (statement form) defines a constant `Name`; `enum { … }`
+(expression form) is an anonymous enum value; `export enum …` exports it. Fields
+are separated by newlines or commas, and both the enum and its fields accept doc
+comments (`///`, `/** … **/`).
+
+```gad
+/**
+Permissions, as auto-incrementing values. The first field is 1; each later
+field without a value is the previous + 1.
+**/
+enum Perm {
+    /**
+    may read
+    **/
+    Read
+    /**
+    may write
+    **/
+    Write
+    /**
+    may execute (explicit; later fields resume from here)
+    **/
+    Exec = 10
+    /**
+    next after Exec
+    **/
+    Delete
+}
+```
+
+A field without an explicit `= value` takes the previous magnitude **+ 1** (or
+**1** for the first). An explicit value may be an `int`/`uint` literal and may
+reference earlier fields with integer operators. Whether a member is `int` or
+`uint` propagates left to right (default `uint`; an explicit value's type carries
+to later defaulted fields):
+
+```gad
+Values := enum { Read, Write, Exec = 10, Delete }
+[Values.Read.value, Values.Exec.value, Values.Delete.value]
+// => [1, 10, 11]
+```
+
+## Signs
+
+A `+` or `-` prefix makes a field a signed `int` and sets a **running sign** that
+propagates to later defaulted fields; `+` flips it back to positive:
+
+```gad
+/**
+Signed uses `+`/`-`: a sign makes a field a signed int and propagates to
+later defaulted fields; `+` flips the running sign back to positive.
+**/
+enum Signed {
+    -Low      // -1
+    Lower     // -2 (sign propagates)
+    +High     // 3  (sign flipped positive)
+    Higher    // 4
+}
+[Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value]
+// => [-1, -2, 3, 4]
+```
+
+## Bit flags
+
+`bit` activates bitwise mode for that field and the ones after it: each defaulted
+field is `1 << n`. A field may still combine earlier ones with `|`:
+
+```gad
+/**
+Flags uses `bit` for power-of-two values; a field may combine earlier ones.
+**/
+enum Flags {
+    /**
+    1 << 0
+    **/
+    bit List
+    /**
+    1 << 1
+    **/
+    Detail
+    /**
+    1 << 2
+    **/
+    Create
+    /**
+    List | Detail
+    **/
+    Read = List | Detail
+}
+[Flags.Create.value, Flags.Read.value]
+// => [4, 3]
+```
+
+## The `_` placeholder
+
+A field named `_` advances the running value but is **not** added to the enum, so
+it can be used to skip values:
+
+```gad
+Skip1 := enum { _, Read, Write }        // Read = 2, Write = 3
+Skip2 := enum { Read, _ = 6, Write }    // Read = 1, Write = 7
+[Skip1.Read.value, Skip1.Write.value, Skip2.Read.value, Skip2.Write.value]
+// => [2, 3, 1, 7]
+```
+
+## Using an enum
+
+A member exposes `.value` (the underlying int/uint), `.name`, `.index`
+(declaration order) and `.enum` (its owning enum). Index by name with
+`E["Name"]` (errors if unknown), and iterate in declaration order:
+
+```gad
+Access := enum { Read, Write, Exec = 10 }
+println(Access.Exec.value)   // 10 — the underlying int/uint
+println(Access.Exec.name)    // Exec
+println(Access.Exec.index)   // 2 — declaration order
+println(Access["Write"].value) // 2 — index by name
+for name, member in Access { // iterate in declaration order
+    println(name, member.value)
+}
+```
+
+Output:
+
+```text
+10
+Exec
+2
+2
+Read 1
+Write 2
+Exec 10
+```
+
+A member **stringifies as its underlying value** — `str()`, `println` and string
+interpolation all use `member.value`, while `repr()` keeps the detailed form for
+debugging. Use `.name` when you want the member's name.
+
+```gad
+Kind := enum { Read, Write, Exec = 10 }
+println(str(Kind.Exec))          // 10   (the value, not the name)
+println("perm=" + str(Kind.Exec)) // perm=10
+println(Kind.Exec.name)          // Exec
+```
+
+Output:
+
+```text
+10
+perm=10
+Exec
+```
+
+## Bulk accessors
+
+Four virtual keys expose the whole enum at once, all in **declaration order** and
+yielding the underlying `int`/`uint` values (not the member wrappers).
+Converting an enum to a dict yields the same name → value mapping:
+
+```gad
+Bulk := enum { Read, Write, Exec = 10 }
+println(Bulk["@names"])   // ["Read", "Write", "Exec"]
+println(Bulk["@values"])  // [1, 2, 10]
+println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
+println(dict(Bulk))       // same name -> value mapping
+```
+
+Output:
+
+```text
+["Read", "Write", "Exec"]
+[1, 2, 10]
+{Exec: 10, Read: 1, Write: 2}
+{Exec: 10, Read: 1, Write: 2}
+```
+
+## Enums as types
+
+An enum name is a **type**. Use it for a function parameter, an interface field
+or an `obj :: Type` cast — dispatch and interface satisfaction enforce
+membership, so a value that is not one of the enum's members is rejected:
+
+```gad
+/**
+A parameter typed with the enum only accepts its members; dispatch rejects
+anything else. (`Perm` is reused from the "Defining an enum" example above.)
+**/
+func isWrite(p Perm) => p == Perm.Write
+println("isWrite(Write):", isWrite(Perm.Write))
+println("isWrite(Read): ", isWrite(Perm.Read))
+try {
+    isWrite(42)                 // 42 is not a Perm member
+} catch {
+    println("isWrite(42):   rejected")
+}
+
+/**
+An interface can require a field typed with the enum; a value satisfies it
+only when its `perm` is a Perm member.
+**/
+interface User { name str; perm Perm }
+func canWrite(u User) => u.perm == Perm.Write
+ada := {name: "Ada", perm: Perm.Write}
+println("canWrite(ada): ", canWrite(ada))
+```
+
+Output:
+
+```text
+isWrite(Write): true
+isWrite(Read):  false
+isWrite(42):   rejected
+canWrite(ada):  true
+```
+
+## Example — `enum.gad`
+
+```gad
+/**
+Permissions, as auto-incrementing values. The first field is 1; each later
+field without a value is the previous + 1.
+**/
+enum Perm {
+    /**
+    may read
+    **/
+    Read
+    /**
+    may write
+    **/
+    Write
+    /**
+    may execute (explicit; later fields resume from here)
+    **/
+    Exec = 10
+    /**
+    next after Exec
+    **/
+    Delete
+}
+
+Values := enum { Read, Write, Exec = 10, Delete }
+[Values.Read.value, Values.Exec.value, Values.Delete.value]
+
+/**
+Signed uses `+`/`-`: a sign makes a field a signed int and propagates to
+later defaulted fields; `+` flips the running sign back to positive.
+**/
+enum Signed {
+    -Low      // -1
+    Lower     // -2 (sign propagates)
+    +High     // 3  (sign flipped positive)
+    Higher    // 4
+}
+[Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value]
+
+/**
+Flags uses `bit` for power-of-two values; a field may combine earlier ones.
+**/
+enum Flags {
+    /**
+    1 << 0
+    **/
+    bit List
+    /**
+    1 << 1
+    **/
+    Detail
+    /**
+    1 << 2
+    **/
+    Create
+    /**
+    List | Detail
+    **/
+    Read = List | Detail
+}
+[Flags.Create.value, Flags.Read.value]
+
+Skip1 := enum { _, Read, Write }        // Read = 2, Write = 3
+Skip2 := enum { Read, _ = 6, Write }    // Read = 1, Write = 7
+[Skip1.Read.value, Skip1.Write.value, Skip2.Read.value, Skip2.Write.value]
+
+Access := enum { Read, Write, Exec = 10 }
+println(Access.Exec.value)   // 10 — the underlying int/uint
+println(Access.Exec.name)    // Exec
+println(Access.Exec.index)   // 2 — declaration order
+println(Access["Write"].value) // 2 — index by name
+for name, member in Access { // iterate in declaration order
+    println(name, member.value)
+}
+
+Kind := enum { Read, Write, Exec = 10 }
+println(str(Kind.Exec))          // 10   (the value, not the name)
+println("perm=" + str(Kind.Exec)) // perm=10
+println(Kind.Exec.name)          // Exec
+
+Bulk := enum { Read, Write, Exec = 10 }
+println(Bulk["@names"])   // ["Read", "Write", "Exec"]
+println(Bulk["@values"])  // [1, 2, 10]
+println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
+println(dict(Bulk))       // same name -> value mapping
+
+/**
+A parameter typed with the enum only accepts its members; dispatch rejects
+anything else. (`Perm` is reused from the "Defining an enum" example above.)
+**/
+func isWrite(p Perm) => p == Perm.Write
+println("isWrite(Write):", isWrite(Perm.Write))
+println("isWrite(Read): ", isWrite(Perm.Read))
+try {
+    isWrite(42)                 // 42 is not a Perm member
+} catch {
+    println("isWrite(42):   rejected")
+}
+
+/**
+An interface can require a field typed with the enum; a value satisfies it
+only when its `perm` is a Perm member.
+**/
+interface User { name str; perm Perm }
+func canWrite(u User) => u.perm == Perm.Write
+ada := {name: "Ada", perm: Perm.Write}
+println("canWrite(ada): ", canWrite(ada))
+
+return Perm.Delete.value
+```

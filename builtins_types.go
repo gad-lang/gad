@@ -16,6 +16,7 @@ var (
 	IterationSkip                = NewType("IterationSkip", TIterationStateFlag)
 	TBase                        = NewType("Base", TAny)
 	TClass                       = NewType("Class", TBase)
+	TMixin                       = NewType("Mixin", TBase)
 	TClassConstructor            = NewType("ClassConstructor", TBase)
 	TClassInitiator              = NewType("ClassInitiator", TBase)
 	TClassProperty               = NewType("ClassProperty", TBase)

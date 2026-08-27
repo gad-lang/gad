@@ -49,7 +49,7 @@ func TestRenderBlocks(t *testing.T) {
 // opened with a wider fence (```` ) must not be closed by a shorter inner ```
 // run — that inner run (e.g. a doctest fence embedded in a doc comment) is
 // literal content. Regression for the corrupted "forms" section of
-// lang-16_doc_comments.html.
+// lang-doc_comments.html.
 func TestRenderNestedFence(t *testing.T) {
 	src := "````gad\n" +
 		"/**\n" +
@@ -81,14 +81,14 @@ func TestRenderNestedFence(t *testing.T) {
 }
 
 // TestRenderLinkUnderscores guards the "Language chapters" table: links whose
-// text and destination contain intra-word underscores (01_hello,
-// lang-02_values_and_types.html) must render as clean anchors, never mangled
+// text and destination contain intra-word underscores (hello,
+// lang-values_and_types.html) must render as clean anchors, never mangled
 // into <em> spans. Regression for the corrupted sample links on the site.
 func TestRenderLinkUnderscores(t *testing.T) {
 	cases := map[string]string{
-		"- [01_hello](lang-01_hello.html)\n":                       `<a href="lang-01_hello.html">01_hello</a>`,
-		"- [02_values_and_types](lang-02_values_and_types.html)\n": `<a href="lang-02_values_and_types.html">02_values_and_types</a>`,
-		"[24_interfaces](24_interfaces.md)\n":                      `<a href="24_interfaces.html">24_interfaces</a>`,
+		"- [hello](lang-hello.html)\n":                       `<a href="lang-hello.html">hello</a>`,
+		"- [values_and_types](lang-values_and_types.html)\n": `<a href="lang-values_and_types.html">values_and_types</a>`,
+		"[interfaces](interfaces.md)\n":                      `<a href="interfaces.html">interfaces</a>`,
 	}
 	for src, want := range cases {
 		out, _ := renderMarkdown(src)
@@ -111,8 +111,8 @@ func TestRenderLinkUnderscores(t *testing.T) {
 // label, not a broken `[` + code + `](url)` literal. The raw-source destination
 // resolves to the published chapter page.
 func TestRenderCodeSpanLink(t *testing.T) {
-	out, _ := renderMarkdown("[`samples/02_values_and_types.gad`](../samples/02_values_and_types.gad)\n")
-	want := `<a href="lang-02_values_and_types.html"><code>samples/02_values_and_types.gad</code></a>`
+	out, _ := renderMarkdown("[`samples/values_and_types.gad`](../samples/values_and_types.gad)\n")
+	want := `<a href="lang-values_and_types.html"><code>samples/values_and_types.gad</code></a>`
 	if !strings.Contains(out, want) {
 		t.Fatalf("code-span link mangled:\n want %s\n got  %s", want, out)
 	}
@@ -120,7 +120,7 @@ func TestRenderCodeSpanLink(t *testing.T) {
 		t.Fatalf("raw link syntax / unpublished source leaked:\n%s", out)
 	}
 	// Rendered-doc column: samples/NN.md -> lang-NN.html.
-	if o, _ := renderMarkdown("[02](samples/02_values_and_types.md)\n"); !strings.Contains(o, `href="lang-02_values_and_types.html"`) {
+	if o, _ := renderMarkdown("[02](samples/values_and_types.md)\n"); !strings.Contains(o, `href="lang-values_and_types.html"`) {
 		t.Fatalf("rendered-doc link not mapped:\n%s", o)
 	}
 	// A code span outside any link still renders.
@@ -160,12 +160,12 @@ func TestRenderStarEmphasis(t *testing.T) {
 func TestRenderEmphasisLinkNesting(t *testing.T) {
 	cases := map[string]string{
 		// Bold wrapping a link — the reported bug.
-		"See **[Templates](samples/09_template.md)** now\n": `<strong><a href="lang-09_template.html">Templates</a></strong>`,
+		"See **[Templates](samples/template.md)** now\n": `<strong><a href="lang-template.html">Templates</a></strong>`,
 		// Emphasis inside link text.
 		"[**bold**](x.md)\n": `<a href="x.html"><strong>bold</strong></a>`,
 		"[_em_](x.md)\n":     `<a href="x.html"><em>em</em></a>`,
 		// Code span as link text (Sample source column) still works.
-		"[`samples/02_x.gad`](../samples/02_x.gad)\n": `<a href="lang-02_x.html"><code>samples/02_x.gad</code></a>`,
+		"[`samples/x.gad`](../samples/x.gad)\n": `<a href="lang-x.html"><code>samples/x.gad</code></a>`,
 	}
 	for src, want := range cases {
 		out, _ := renderMarkdown(src)

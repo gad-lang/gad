@@ -2,9 +2,9 @@
 # Typed class fields
 
 A class field may declare the type(s) it accepts — `x int`, `v int|str`, a class
-(`a Point`) or an [interface](../24_interfaces.gad) it must satisfy. The type is
+(`a Point`) or an [interface](../interfaces.gad) it must satisfy. The type is
 enforced when an instance is constructed, using the **same value-based
-assignability as function parameters** (the [`::` operator](../14_user_operators.gad)):
+assignability as function parameters** (the [`::` operator](../user_operators.gad)):
 
 - A value of a **matching type** is stored as-is.
 - A **`dict` passed for a class-typed field** is constructed into an instance of
@@ -17,7 +17,7 @@ assignability as function parameters** (the [`::` operator](../14_user_operators
 
 Fields declared with `class Name { … }` and with the
 [`Class(...)` builtin](classes.gad) behave identically. The same `name? T`
-marker works on an [interface](../24_interfaces.gad) field, where `nil` (or an
+marker works on an [interface](../interfaces.gad) field, where `nil` (or an
 absent member) satisfies it.
 **/
 
@@ -61,7 +61,9 @@ try {
     println("rejected:  x is not int")
 }
 
-/// A union type (`int|str`) accepts any listed type and rejects the rest.
+/**
+A union type (`int|str`) accepts any listed type and rejects the rest.
+**/
 class Box { v int|str }
 println("union int:", Box(; v = 7).v)              // 7
 println("union str:", Box(; v = "hi").v)           // hi
@@ -71,7 +73,9 @@ try {
     println("union no:  bool is not int|str")
 }
 
-/// An untyped field accepts any value.
+/**
+An untyped field accepts any value.
+**/
 class Bag { any }
 println("untyped:  ", typeName(Bag(; any = 1).any), typeName(Bag(; any = "x").any)) // int str
 
@@ -85,13 +89,17 @@ interface Greeter { name str; greet() <str> }
 
 class Person { name = ""; methods { greet() => "hi " + this.name } }
 
-/// `main` accepts anything that is a `Greeter`.
+/**
+`main` accepts anything that is a `Greeter`.
+**/
 class Registry { main Greeter }
 
 println("iface inst:", Registry(; main = Person(; name = "Ada")).main.greet())  // hi Ada
 println("iface dict:", Registry(; main = {name: "Bo", greet: func() => "hi Bo"}).main.greet()) // hi Bo
 
-/// A value that does not satisfy the interface is rejected.
+/**
+A value that does not satisfy the interface is rejected.
+**/
 try {
     Registry(; main = 42)
 } catch e {
@@ -109,18 +117,26 @@ so the marker documents intent and is enforced: a plain `int` field can never
 hold `nil`, while an `int?` field can.
 **/
 class Config {
-    /// required — must be a non-nil int
+    /**
+    required — must be a non-nil int
+    **/
     port int
-    /// optional — an int or nil
+    /**
+    optional — an int or nil
+    **/
     host? str
-    /// optional union — int, str or nil
+    /**
+    optional union — int, str or nil
+    **/
     tag? int|str
 }
 
 c := Config(; port = 8080, host = nil, tag = "beta")
 println("nullable:  ", c.port, c.host, c.tag)      // 8080 nil beta
 
-/// A non-nullable field rejects an explicit nil.
+/**
+A non-nullable field rejects an explicit nil.
+**/
 try {
     Config(; port = nil)                           // field "port" expects int, got nil
 } catch {

@@ -524,4 +524,4 @@ context aborts the VM tree at the next instruction.
 
 ## See also
 
-For a runnable `embed()` example in Gad, see `samples/26_embed.gad`.
+For a runnable `embed()` example in Gad, see `samples/embed.gad`.

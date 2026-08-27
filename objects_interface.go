@@ -709,25 +709,21 @@ func (i *Interface) String() string {
 	}
 	b.WriteString("{")
 	sep := ""
+	// Each member renders through its own ToString (so a field shows its type,
+	// `f int`, and a property its accessor kind, `get p` / `set p` / `prop p`).
 	for _, f := range i.Fields {
 		b.WriteString(sep)
-		b.WriteString(f.Name)
+		b.WriteString(f.ToString())
 		sep = "; "
 	}
 	for _, p := range i.Props {
 		b.WriteString(sep)
-		if p.Getter != nil {
-			b.WriteString("get ")
-		} else {
-			b.WriteString("set ")
-		}
-		b.WriteString(p.Name)
+		b.WriteString(p.ToString())
 		sep = "; "
 	}
 	for _, m := range i.Methods {
 		b.WriteString(sep)
-		b.WriteString(m.Name)
-		b.WriteString("()")
+		b.WriteString(m.ToString())
 		sep = "; "
 	}
 	b.WriteString("}")

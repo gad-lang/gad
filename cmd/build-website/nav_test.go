@@ -10,11 +10,11 @@ import (
 func TestBuildNavTree(t *testing.T) {
 	body := template.HTML("<p>x</p>")
 	pages := []*page{
-		{Title: "Functions", OutFile: "lang-03_functions.html", NavPath: "03_functions", BodyHTML: body},
+		{Title: "Functions", OutFile: "lang-functions.html", NavPath: "functions", BodyHTML: body},
 		{Title: "Classes", OutFile: "lang-class-classes.html", NavPath: "class/classes", BodyHTML: body},
 		{Title: "The class keyword", OutFile: "lang-class-syntax.html", NavPath: "class/syntax", BodyHTML: body},
 		{Title: "Deep", OutFile: "lang-class-a-b.html", NavPath: "class/a/b", BodyHTML: body},
-		{Title: "Interfaces", OutFile: "lang-24_interfaces.html", NavPath: "24_interfaces", BodyHTML: body},
+		{Title: "Interfaces", OutFile: "lang-interfaces.html", NavPath: "interfaces", BodyHTML: body},
 	}
 
 	tree := buildNavTree(pages)
@@ -24,7 +24,7 @@ func TestBuildNavTree(t *testing.T) {
 	if len(tree) != 3 {
 		t.Fatalf("want 3 top-level items, got %d: %+v", len(tree), tree)
 	}
-	if tree[0].Title != "Functions" || tree[0].Slug != "lang-03_functions" || len(tree[0].Children) != 0 {
+	if tree[0].Title != "Functions" || tree[0].Slug != "lang-functions" || len(tree[0].Children) != 0 {
 		t.Errorf("item 0 should be the flat Functions leaf, got %+v", tree[0])
 	}
 	if tree[2].Title != "Interfaces" || len(tree[2].Children) != 0 {

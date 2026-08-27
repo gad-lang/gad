@@ -1,0 +1,28 @@
+/**
+# Raw Arguments (argv)
+
+Raw argument passthrough with `param (*argv)`.
+
+A script whose params are exactly one variadic positional param and no named
+params opts into RAW argument handling: every CLI argument is passed straight
+through as a string (no `--name` parsing), and argv[0] is the module path used
+to invoke it — like a C program's argv.
+
+Run with:
+    gad samples/raw_argv.gad build --target=wasm -- --verbose
+    # argv == ["samples/raw_argv.gad", "build", "--target=wasm", "--verbose"]
+
+As the main module, a single bare `--` options terminator is dropped (it only
+separates gad's own flags from your argv). Contrast `param (*args, sep=",")`,
+where `--sep` would be parsed as a named argument.
+
+See doc/getting-started.md (Raw argument passthrough) for details.
+**/
+
+param (*argv)
+
+println("program:", argv[0])
+println("args:   ", argv[1:])
+println("count:  ", len(argv))
+
+return argv

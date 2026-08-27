@@ -52,6 +52,10 @@ func (c *Compiler) compileClassExpr(nd *node.ClassExpr) error {
 // the define callback), where the local `Type` symbol would resolve to `this`
 // rather than the class. See classNewExpr.
 func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
+	if nd.Mixin {
+		return c.mixinCallExpr(nd)
+	}
+
 	pos := nd.Pos()
 
 	var name string
@@ -65,6 +69,9 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 	var inner node.CallExprNamedArgs
 	if len(nd.Parents) > 0 {
 		inner.AppendS("extends", classExtendsExpr(nd))
+	}
+	if len(nd.Use) > 0 {
+		inner.AppendS("mixins", &node.ArrayExpr{Elements: nd.Use})
 	}
 	if len(nd.Fields) > 0 {
 		fieldsExpr, initFieldsExpr := classFieldsExpr(nd)
@@ -117,6 +124,109 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 
 	return &node.CallExpr{
 		Func: node.EIdent(BuiltinNewClass.String(), pos),
+		CallArgs: node.CallArgs{
+			Args: node.CallExprPositionalArgs{Values: args},
+		},
+	}, nil
+}
+
+// mixinCallExpr lowers a `mixin [Name] { … }` literal to
+//
+//	Mixin("Name", (mx, define) => { [interface Name$this { … }] define(; …) })
+//
+// A mixin shares the class body grammar (parent mixins via `extends=`, fields,
+// properties, methods) but is not instantiable. When a `this { … }` block is
+// present it is lowered to a local `interface Name$this { … }` const inside the
+// callback and referenced as the injected `this Name$this` param type of every
+// property and method (so their `this` must satisfy it); without a `this` block
+// those params are untyped. Parent mixins are passed as `extends=[…]` of *Mixin
+// values, and field defaults follow the same rules as a class (see
+// classFieldsExpr).
+func (c *Compiler) mixinCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
+	pos := nd.Pos()
+
+	var name string
+	if id, _ := nd.NameExpr.(*node.IdentExpr); id != nil {
+		name = id.Name
+	}
+
+	defineIdent := node.EIdent("define", pos)
+	mxIdent := node.EIdent("mx", pos)
+
+	// The injected `this` type: `Name$this` when a `this { … }` block is present,
+	// otherwise nil (untyped `this`).
+	var thisType node.Expr
+	ifaceName := name + "$this"
+	if nd.This != nil {
+		thisType = node.EIdent(ifaceName, pos)
+	}
+
+	var inner node.CallExprNamedArgs
+	if len(nd.Parents) > 0 {
+		inner.AppendS("extends", classExtendsExpr(nd))
+	}
+	if len(nd.Fields) > 0 {
+		fieldsExpr, initFieldsExpr := classFieldsExpr(nd)
+		inner.AppendS("fields", fieldsExpr)
+		if initFieldsExpr != nil {
+			inner.AppendS("initFields", initFieldsExpr)
+		}
+	}
+	if len(nd.Props) > 0 {
+		props, err := c.classPropertiesExpr(nd, thisType)
+		if err != nil {
+			return nil, err
+		}
+		inner.AppendS("properties", props)
+	}
+	if len(nd.Methods) > 0 {
+		methods, err := c.classMethodsExpr(nd, thisType)
+		if err != nil {
+			return nil, err
+		}
+		inner.AppendS("methods", methods)
+	}
+
+	defineCall := &node.CallExpr{
+		Func:     defineIdent,
+		CallArgs: node.CallArgs{NamedArgs: inner},
+	}
+
+	// The callback body: `define(; …)` on its own, or — with a `this` block —
+	// `{ interface Name$this { … }; define(; …) }` so the interface const is in
+	// scope for the method/property `this` param types.
+	var body node.Expr = defineCall
+	if nd.This != nil {
+		iface := *nd.This
+		iface.NameExpr = node.EIdent(ifaceName, pos)
+		body = &node.BlockExpr{BlockStmt: &node.BlockStmt{
+			Stmts: node.Stmts{
+				&node.InterfaceStmt{InterfaceExpr: iface},
+				&node.ExprStmt{Expr: defineCall},
+			},
+		}}
+	}
+
+	callback := &node.ClosureExpr{
+		Params: node.FuncParams{
+			Args: node.ArgsList{
+				Values: []*node.TypedIdentExpr{
+					{Ident: mxIdent},
+					{Ident: defineIdent},
+				},
+			},
+		},
+		Lambda: node.Token{Token: token.Lambda},
+		Body:   body,
+	}
+
+	args := []node.Expr{node.Str(name, pos)}
+	if len(inner.Values) > 0 || nd.This != nil {
+		args = append(args, callback)
+	}
+
+	return &node.CallExpr{
+		Func: node.EIdent(BuiltinNewMixin.String(), pos),
 		CallArgs: node.CallArgs{
 			Args: node.CallExprPositionalArgs{Values: args},
 		},

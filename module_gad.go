@@ -27,6 +27,7 @@ func GadModule() Dict {
 		// Non-literal meta/structural type objects (no source literal of their
 		// own), exposed for reflection and `::` type checks — e.g. `x :: gad.Class`.
 		"Class":           TClass,
+		"Mixin":           TMixin,
 		"Enum":            TEnum,
 		"Interface":       TInterface,
 		"MethodInterface": TMethodInterface,

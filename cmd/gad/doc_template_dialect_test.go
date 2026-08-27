@@ -70,7 +70,7 @@ func TestDocTemplateDocComments(t *testing.T) {
 }
 
 // TestDocTemplateModuleProse: a `/** … **/` block inside the LEADING
-// `{%-- … --%}` code island of a `.gadt` (as in samples/23_template.gadt) is the
+// `{%-- … --%}` code island of a `.gadt` (as in samples/template_example.gadt) is the
 // module prose — even though its `CodeBeginStmt` precedes it and the closing
 // island markers sit on the same line. rootBlocks must skip mixed-mode
 // structural nodes when deciding the block is detached module prose.

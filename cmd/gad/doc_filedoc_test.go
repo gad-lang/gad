@@ -12,11 +12,11 @@ import (
 // synthesized `# name` module heading is suppressed (no double title).
 func TestDocFileLevelDoubleStarProse(t *testing.T) {
 	// Detached `/** … **/` with its own title.
-	md, err := generateDoc("01_hello.gad", []byte("/**\n# Hello, Gad\n\nThe basics.\n**/\n\nexport A = 1\n"), true)
+	md, err := generateDoc("hello.gad", []byte("/**\n# Hello, Gad\n\nThe basics.\n**/\n\nexport A = 1\n"), true)
 	require.NoError(t, err)
 	require.Contains(t, md, "# Hello, Gad")
 	require.Contains(t, md, "The basics.")
-	require.NotContains(t, md, "# 01_hello", "no double title when prose has a heading")
+	require.NotContains(t, md, "# hello", "no double title when prose has a heading")
 
 	// Detached `/** … **/` without a title → synthesize `# name`.
 	md2, err := generateDoc("mod.gad", []byte("/**\nplain prose.\n**/\n\nexport A = 1\n"), true)

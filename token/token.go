@@ -187,6 +187,13 @@ const (
 	// are not shifted. `extends`/`get`/`set`/`parse` inside the body are
 	// contextual idents, not reserved keywords (`prop`/`meti` reuse their tokens).
 	Interface
+	// Mixin introduces a mixin expression/statement (`mixin [Name] { … }`). A mixin
+	// parses like a class (parents, fields, props, methods) plus an optional `this`
+	// interface block; classes pull mixins in with the contextual `use A, B` clause
+	// (`use` is a contextual ident in the class body, not a reserved keyword, so it
+	// stays usable as an identifier elsewhere). Appended at the end of the keyword
+	// group so existing token values are not shifted.
+	Mixin
 	GroupKeywordEnd
 	// DoubleColon is the assign-to-type operator `obj :: Type` (a checked cast
 	// that returns obj when it is assignable to Type, else raises a type error;
@@ -381,6 +388,7 @@ var tokens = [...]string{
 	Class:               "class",
 	Enum:                "enum",
 	Interface:           "interface",
+	Mixin:               "mixin",
 	DoubleColon:         "::",
 	TripleColon:         ":::",
 }
@@ -548,6 +556,7 @@ var tokenNames = [...]string{
 	Class:                        "Class",
 	Enum:                         "Enum",
 	Interface:                    "Interface",
+	Mixin:                        "Mixin",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 	DoubleColon:                  "DoubleColon",
 	TripleColon:                  "TripleColon",

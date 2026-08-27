@@ -47,10 +47,49 @@ func (p *Parser) ParseClassStmt() node.Stmt {
 	return &node.ClassStmt{ClassExpr: *cls}
 }
 
+// ParseMixinExpr parses a `mixin [Name] { … }` expression. A mixin shares the
+// class body grammar (parents, fields, props, methods) plus an optional `this`
+// interface block; it has no `new` clause and lowers to `gad.Mixin(...)`.
+func (p *Parser) ParseMixinExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "MixinExpr"))
+	}
+	doc := p.leadComment
+	tok := p.ExpectToken(token.Mixin)
+	cls := p.parseClassBody(tok, nil)
+	if cls != nil {
+		cls.Doc = doc
+	}
+	return cls
+}
+
+// ParseMixinStmt parses the statement form `mixin Name { … }` (a const bind), or
+// an anonymous `mixin { … }` as an expression statement.
+func (p *Parser) ParseMixinStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "MixinStmt"))
+	}
+	doc := p.leadComment
+	tok := p.ExpectToken(token.Mixin)
+	var name node.Expr
+	if p.Token.Token == token.Ident {
+		name = p.ParseIdent()
+	}
+	cls := p.parseClassBody(tok, name)
+	if cls == nil {
+		return &node.BadStmt{From: tok.Pos, To: p.Token.Pos}
+	}
+	cls.Doc = doc
+	if name == nil {
+		return &node.ExprStmt{Expr: cls}
+	}
+	return &node.ClassStmt{ClassExpr: *cls}
+}
+
 // parseClassBody parses the `{ … }` body of a class (including the `extends { … }`
 // block), shared by the expression and statement forms.
 func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.ClassExpr {
-	cls := &node.ClassExpr{ClassToken: classTok.TokenLit, NameExpr: name}
+	cls := &node.ClassExpr{ClassToken: classTok.TokenLit, NameExpr: name, Mixin: classTok.Token == token.Mixin}
 
 	p.SkipSpace()
 	cls.LBrace = p.Expect(token.LBrace)
@@ -93,6 +132,37 @@ func (p *Parser) parseClassBodyItem(cls *node.ClassExpr) {
 
 	if p.Token.Token == token.Ident {
 		switch p.Token.Literal {
+		case "use":
+			// `use A, pkg.B` — the mixins a class pulls in (a contextual ident, not a
+			// keyword). Each name is an ident or selector expression; names are
+			// comma-separated (a comma may precede a newline); the list ends at a
+			// newline or `;` with no trailing comma. Only triggers when followed by a
+			// name, so a plain `use` ident/value is unaffected.
+			if pk := p.Peek().Token; pk == token.Ident {
+				p.Next()
+				p.SkipSpace()
+				if cls.UseDoc == nil {
+					cls.UseDoc = doc
+				}
+				for {
+					cls.Use = append(cls.Use, p.ParsePrimaryExpr())
+					p.SkipSpace()
+					if p.Token.Token != token.Comma {
+						break
+					}
+					p.Next()
+					p.skipClassSeps()
+				}
+				return
+			}
+		case "this":
+			// `this { … }` — the interface the mixin's `this` must satisfy (mixin-only).
+			if p.Peek().Token == token.LBrace {
+				p.Next()
+				cls.ThisDoc = doc
+				cls.This = p.parseInterfaceBody(PToken{}, nil)
+				return
+			}
 		case "props":
 			if p.Peek().Token == token.LBrace {
 				p.Next()

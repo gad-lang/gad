@@ -99,9 +99,11 @@ println("dog speak:   ", d.speak())       // override -> Rex barks
 println("dog describe:", d.describe())    // inherited -> I am Rex
 
 // --- rewriting members with `met ~` and `$old` ---
-/// `met ~` overrides an existing member; a `$old` first parameter captures the
-/// implementation being replaced so the new one can wrap it (super / around
-/// advice). It works for methods, constructors and property setters alike.
+/**
+`met ~` overrides an existing member; a `$old` first parameter captures the
+implementation being replaced so the new one can wrap it (super / around
+advice). It works for methods, constructors and property setters alike.
+**/
 
 // method: wrap the inherited/overridden speak()
 met ~Dog.speak($old, this) => $old(this) + " loudly!"

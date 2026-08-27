@@ -32,7 +32,7 @@ Benchmark (100_000 conversions per op; representative, hardware-dependent):
 `::: bool` wins on both axes because it skips the call: no frame, and no boxing
 of the argument / NamedArgs the builtin path allocates. Same result, less work.
 
-See samples/38_transform_cast_test.gad for the general `:::` transforming cast.
+See samples/transform_cast_test.gad for the general `:::` transforming cast.
 
 ## Example — `bool_cast_test.gad`
 
@@ -45,28 +45,36 @@ falsyCases := [0, "", [], {}, nil, false]
 nan := float("nan")
 floatCases := [[0.0, true], [3.14, true], [nan, false]]
 
-/// For every value, `x ::: bool` equals `bool(x)` — full parity with the builtin.
+/**
+For every value, `x ::: bool` equals `bool(x)` — full parity with the builtin.
+**/
 test "parity with bool()" {
 	for v in truthyCases + falsyCases {
 		t.equal(bool(v), (v ::: bool); msg=repr(v))
 	}
 }
 
-/// Truthy values cast to `true`.
+/**
+Truthy values cast to `true`.
+**/
 test "truthy -> true" {
 	for v in truthyCases {
 		t.true((v ::: bool); msg=repr(v))
 	}
 }
 
-/// Falsy values cast to `false`.
+/**
+Falsy values cast to `false`.
+**/
 test "falsy -> false" {
 	for v in falsyCases {
 		t.false((v ::: bool); msg=repr(v))
 	}
 }
 
-/// Floats follow IEEE-754: `0.0` is truthy; only `NaN` casts to `false`.
+/**
+Floats follow IEEE-754: `0.0` is truthy; only `NaN` casts to `false`.
+**/
 test "float truthiness (only NaN is falsy)" {
 	for c in floatCases {
 		t.equal(c[1], (c[0] ::: bool); msg=repr(c[0]))
@@ -74,8 +82,10 @@ test "float truthiness (only NaN is falsy)" {
 	}
 }
 
-/// `:::` converts (it never raises), unlike the checked cast `::` which would
-/// reject a non-bool. Here a plain `int` casts straight to a boolean.
+/**
+`:::` converts (it never raises), unlike the checked cast `::` which would
+reject a non-bool. Here a plain `int` casts straight to a boolean.
+**/
 test "converts, does not check" {
 	t.equal(true, 5 ::: bool)
 	t.equal(false, 0 ::: bool)
@@ -84,7 +94,9 @@ test "converts, does not check" {
 // Benchmarks — the cast skips the builtin call, so it should edge out `bool()`.
 // Run with `gad test -bench=. samples/testing` and compare the ns/op.
 
-/// `x ::: bool` — the direct truthiness cast (no function call).
+/**
+`x ::: bool` — the direct truthiness cast (no function call).
+**/
 bench "::: bool" {
 	acc := false
 	for i := 0; i < t.n; i++ {
@@ -92,7 +104,9 @@ bench "::: bool" {
 	}
 }
 
-/// `bool(x)` — the builtin, for comparison.
+/**
+`bool(x)` — the builtin, for comparison.
+**/
 bench "bool()" {
 	acc := false
 	for i := 0; i < t.n; i++ {

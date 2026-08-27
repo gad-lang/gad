@@ -1,0 +1,162 @@
+package gad_test
+
+import (
+	"testing"
+
+	. "github.com/gad-lang/gad"
+)
+
+// TestMixinUseMergesMembers verifies that `use` pulls a mixin's field, property
+// and method into the class as its own, and that a mixin field default can be
+// overridden by a value passed at construction.
+func TestMixinUseMergesMembers(t *testing.T) {
+	testExpectRun(t, `
+		mixin Counter {
+			count = 0
+			props { doubled => this.count * 2 }
+			methods { inc() { this.count += 1 } }
+		}
+		class Widget { use Counter; name = "w" }
+		w := Widget(; name="box", count=3)
+		w.inc()
+		return [w.count, w.name, w.doubled]`,
+		// count 3 -> inc -> 4; doubled = 4*2 = 8.
+		nil, Array{Int(4), Str("box"), Int(8)})
+}
+
+// TestMixinFieldsInitFirst verifies that mixin field defaults are initialised
+// before the class's own, in declaration order — observed here through the order
+// a shared log records each non-literal default's evaluation.
+func TestMixinFieldsInitFirst(t *testing.T) {
+	testExpectRun(t, `
+		log := []
+		mark := func(s) { log = log + [s]; return s }
+		mixin M { a = mark("a"); b = mark("b") }
+		class C { use M; z = mark("z") }
+		C()
+		return log`,
+		nil, Array{Str("a"), Str("b"), Str("z")})
+}
+
+// TestMixinFieldsInitParentsFirst verifies that when a used mixin extends parent
+// mixins, the parents' field defaults initialise before the child mixin's, and
+// all mixin defaults before the class's own.
+func TestMixinFieldsInitParentsFirst(t *testing.T) {
+	testExpectRun(t, `
+		log := []
+		mark := func(s) { log = log + [s]; return s }
+		mixin P { p = mark("p") }
+		mixin Q { *P; q = mark("q") }
+		class C { use Q; z = mark("z") }
+		C()
+		return log`,
+		nil, Array{Str("p"), Str("q"), Str("z")})
+}
+
+// TestMixinFieldsMembership verifies a using class declares the mixin's fields as
+// its own (order-independent membership, since @fields is a dict).
+func TestMixinFieldsMembership(t *testing.T) {
+	testExpectRun(t, `
+		mixin M { a = 1; b = 2 }
+		class C { use M; z = 3 }
+		return sort(collect(keys(C.@fields)))`,
+		nil, Array{Str("a"), Str("b"), Str("z")})
+}
+
+// TestMixinThisInterfaceTyping verifies that a mixin method's injected `this` is
+// typed by the `this { … }` interface, so it can call a member the interface
+// declares — resolved on the final class instance.
+func TestMixinThisInterfaceTyping(t *testing.T) {
+	testExpectRun(t, `
+		mixin A {
+			this { count() <int> }
+			methods { plus2() => this.count() + 2 }
+		}
+		class C { use A; methods { count() => 5 } }
+		return C().plus2()`,
+		nil, Int(7))
+}
+
+// TestMixinParents verifies that a mixin can extend parent mixins (`*A`), and a
+// class that uses it gains the parents' members too.
+func TestMixinParents(t *testing.T) {
+	testExpectRun(t, `
+		mixin A { a = 1 }
+		mixin B { b = 10 }
+		mixin SubA { *A; *B }
+		class C { use SubA }
+		c := C()
+		return [c.a, c.b, len(SubA.@parents)]`,
+		nil, Array{Int(1), Int(10), Int(2)})
+}
+
+// TestMixinDedupFirstWins verifies that a mixin appearing more than once across
+// the use list and hierarchy is merged only once (no duplicate-member error);
+// the first occurrence wins.
+func TestMixinDedupFirstWins(t *testing.T) {
+	testExpectRun(t, `
+		mixin A { a = 1 }
+		mixin SubA { *A }
+		class C { use SubA, A }
+		return [C().a, len(C.@mixins)]`,
+		nil, Array{Int(1), Int(2)})
+}
+
+// TestMixinAnonymous verifies the anonymous expression form `const M = mixin { … }`.
+func TestMixinAnonymous(t *testing.T) {
+	testExpectRun(t, `
+		const M = mixin { x = 7 }
+		class D { use M }
+		return D().x`,
+		nil, Int(7))
+}
+
+// TestMixinInitFieldsPerInstance verifies that a mixin field's non-literal default
+// is evaluated per instance (a fresh composite), like a class field default.
+func TestMixinInitFieldsPerInstance(t *testing.T) {
+	testExpectRun(t, `
+		mixin M { items = [1, 2] }
+		class C { use M }
+		a := C(); b := C()
+		a.items[0] = 99
+		return [a.items[0], b.items[0]]`,
+		nil, Array{Int(99), Int(1)})
+}
+
+// TestMixinTypeCheck verifies that a mixin value is a `gad.Mixin`.
+func TestMixinTypeCheck(t *testing.T) {
+	testExpectRun(t, `
+		mixin A {}
+		return bool(A :: gad.Mixin)`,
+		nil, True)
+}
+
+// TestMixinInterfaceAttr verifies that `@interface` returns a cached Interface
+// instance named `Name$interface` in the mixin's module, mirroring the mixin's
+// declared members (field with its type, getter/setter/prop, method).
+func TestMixinInterfaceAttr(t *testing.T) {
+	// It is an Interface value, cached (same instance across reads).
+	testExpectRun(t, `
+		mixin A { methods { run() => 1 } }
+		return [bool(A.@interface :: gad.Interface), A.@interface == A.@interface]`,
+		nil, Array{True, True})
+
+	// Its rendering mirrors the declared members: a typed field, a getter-only
+	// property (`get p`), and a method.
+	testExpectRun(t, `
+		mixin A { f int = 1; props { p => 2 }; methods { run() => 1 } }
+		return str(A.@interface)`,
+		nil, Str("interface (main).A$interface {f int; get p; run()}"))
+}
+
+// TestMixinReflectionAttrs verifies the mixin reflection attributes mirror class.
+func TestMixinReflectionAttrs(t *testing.T) {
+	testExpectRun(t, `
+		mixin A {
+			f = 1
+			props { p => 1 }
+			methods { m() => 1 }
+		}
+		return [A.@name, collect(keys(A.@fields)), collect(keys(A.@props)), collect(keys(A.@methods))]`,
+		nil, Array{Str("A"), Array{Str("f")}, Array{Str("p")}, Array{Str("m")}})
+}

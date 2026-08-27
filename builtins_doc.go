@@ -15,7 +15,7 @@ package gad
 //
 // Intentionally left out, by category:
 //   - Behavioural interfaces & the `number` union — value-types, not functions;
-//     documented in the Type Unions sample (samples/35_type_unions.gad):
+//     documented in the Type Unions sample (samples/type_unions.gad):
 //     iterable/callable/lengther/indexable/indexAssignable/indexDeletable/
 //     readable/writable/classInstance/classType, number.
 //   - Predefined error values (TypeError/ZeroDivisionError/WrongNumArgumentsError/
@@ -23,7 +23,7 @@ package gad
 //     NotIndexableError/NotIndexAssignableError/NotImplementedError) and
 //     DISCARD_WRITER — constants, not functions.
 //   - The user-operator dispatch builtins (binOp/unOp/selfAssignOp — see the User
-//     Operators chapter, samples/14_user_operators.gad).
+//     Operators chapter, samples/user_operators.gad).
 //   - Internal builtins (namedParamTypeCheck/methodFromArgs/rawCaller/
 //     vmPushWriter/vmPopWriter/iteratorInput). `enter`/`exit` live in the `gad`
 //     namespace, not the root.

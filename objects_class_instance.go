@@ -176,6 +176,30 @@ func acceptFieldValue(vm *VM, field *ClassField, v Object) (Object, error) {
 		field.Name, field.Types.String(), v.Type().Name())
 }
 
+// applyInitFields runs an initFields callable (nil is a no-op) and applies the
+// key-value array (or dict) of computed defaults it returns into dst. It is used
+// both for a class's own initFields and for each pulled-in mixin's.
+func applyInitFields(vm *VM, initFields CallerObject, dst Dict) error {
+	if initFields == nil {
+		return nil
+	}
+	ret, err := initFields.Call(Call{SkipValidation: true, VM: vm})
+	if err != nil {
+		return ErrNewClassInstance.NewErrorf("initialize field defaults: %v", err)
+	}
+	switch r := ret.(type) {
+	case KeyValueArray:
+		for _, kv := range r {
+			dst[kv.K.ToString()] = kv.V
+		}
+	case Dict:
+		for k, v := range r {
+			dst[k] = v
+		}
+	}
+	return nil
+}
+
 func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 	o.fields = make(Dict, len(o.class.fieldsMap))
 	o.parents = make(map[string]*ClassInstance, len(o.class.parents))
@@ -186,24 +210,20 @@ func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 		delete(fields, "@parents")
 	}
 
+	// Mixin field defaults are initialised first, in declaration order starting
+	// from the parent mixins (the deduplicated flattening), before the class's own
+	// initFields; an explicitly provided value below still wins.
+	for _, m := range o.class.mixinsFlat {
+		if err = applyInitFields(vm, m.initFields, o.fields); err != nil {
+			return
+		}
+	}
+
 	// initFields computes the non-literal, non-ComputedExpr field defaults with a
 	// single call and returns them as a key-value array; apply each into o.fields.
 	// Runs before the passed fields below, so an explicitly provided value wins.
-	if o.class.initFields != nil {
-		ret, err := o.class.initFields.Call(Call{SkipValidation: true, VM: vm})
-		if err != nil {
-			return ErrNewClassInstance.NewErrorf("initialize field defaults: %v", err)
-		}
-		switch r := ret.(type) {
-		case KeyValueArray:
-			for _, kv := range r {
-				o.fields[kv.K.ToString()] = kv.V
-			}
-		case Dict:
-			for k, v := range r {
-				o.fields[k] = v
-			}
-		}
+	if err = applyInitFields(vm, o.class.initFields, o.fields); err != nil {
+		return
 	}
 
 	for name, v := range fields {

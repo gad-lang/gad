@@ -1196,6 +1196,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParsePropExpr()
 		case token.Class: // class literal
 			return p.ParseClassExpr()
+		case token.Mixin: // mixin literal
+			return p.ParseMixinExpr()
 		case token.Enum: // enum literal
 			return p.ParseEnumExpr()
 		case token.Interface: // interface literal
@@ -2748,6 +2750,8 @@ do:
 		return p.ParsePropStmt()
 	case token.Class:
 		return p.ParseClassStmt()
+	case token.Mixin:
+		return p.ParseMixinStmt()
 	case token.Enum:
 		return p.ParseEnumStmt()
 	case token.Interface:
@@ -4438,8 +4442,8 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			stmt.ValueExpr = p.ParseExpr()
 		}
 		return
-	case token.Class:
-		classTok := p.ExpectToken(token.Class)
+	case token.Class, token.Mixin:
+		classTok := p.ExpectToken(p.Token.Token)
 		var name node.Expr
 		if p.Token.Token == token.Ident {
 			name = p.ParseIdent()

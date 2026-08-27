@@ -45,8 +45,10 @@ Run:
     gad test -bench=. samples/testing      # invoker vs the direct call
 ***/
 
-/// The invoker resolves str's int overload and reuses the args array; the result
-/// matches calling str() directly.
+/**
+The invoker resolves str's int overload and reuses the args array; the result
+matches calling str() directly.
+**/
 test "matches the direct call" {
 	args := [int]
 	inv := gad.invoker(str, args)
@@ -56,8 +58,10 @@ test "matches the direct call" {
 	}
 }
 
-/// The parameter types in args select the overload: [str,str] -> the str method,
-/// [int,int] -> the int one.
+/**
+The parameter types in args select the overload: [str,str] -> the str method,
+[int,int] -> the int one.
+**/
 test "resolves the overload by arg types" {
 	f(a int, b int) => a + b
 	met f(a str, b str) => a + "-" + b
@@ -73,7 +77,9 @@ test "resolves the overload by arg types" {
 	t.equal(7, iinv())
 }
 
-/// A plain function (no overloads) is bound directly and reuses its args array.
+/**
+A plain function (no overloads) is bound directly and reuses its args array.
+**/
 test "plain function" {
 	add := func(a, b) => a + b
 	args := [0, 0]
@@ -82,7 +88,9 @@ test "plain function" {
 	t.equal(42, inv())
 }
 
-/// **nargs captured at construction are forwarded to every invocation.
+/**
+**nargs captured at construction are forwarded to every invocation.
+**/
 test "captures named args" {
 	f(v; sep="-") => str(v) + sep
 	args := [int]
@@ -91,7 +99,9 @@ test "captures named args" {
 	t.equal("7|", inv())
 }
 
-/// The returned value is an `invoker`, and its signature advertises a callable.
+/**
+The returned value is an `invoker`, and its signature advertises a callable.
+**/
 test "type and signature" {
 	inv := gad.invoker(str, [int])
 	t.equal("invoker", typeName(inv))
@@ -101,7 +111,9 @@ test "type and signature" {
 // Benchmarks — a typed two-arg function through the invoker vs. called directly
 // (see the header for representative numbers).
 
-/// `inv()` — typed two-arg function through the invoker.
+/**
+`inv()` — typed two-arg function through the invoker.
+**/
 bench "typed ::: invoker" {
 	f(a int, b int) => a + b
 	args := [int, int]
@@ -109,7 +121,9 @@ bench "typed ::: invoker" {
 	for i := 0; i < t.n; i++ { args[0] = i; args[1] = i; _ := inv() }
 }
 
-/// `f(i, i)` — the same typed function called directly.
+/**
+`f(i, i)` — the same typed function called directly.
+**/
 bench "typed ::: direct" {
 	f(a int, b int) => a + b
 	for i := 0; i < t.n; i++ { _ := f(i, i) }

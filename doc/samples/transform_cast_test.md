@@ -1,0 +1,150 @@
+
+# The transforming cast `:::`
+
+`obj :: Type` is a **checked** cast: it returns `obj` unchanged when it is
+assignable to `Type`, else raises a type error. `obj ::: Type` is a
+**transforming** cast: for a dict (or any item-getter) cast to an
+[interface](interfaces.gad) it also **coerces** the value into the interface's
+declared shape.
+
+Two things happen on `dict ::: interface { … }`:
+
+- **Field coercion** — each field typed by a class is built into an instance of
+  that class from its nested dict (recursively, at any depth, like
+  [nested class fields](class/field_types.gad)); a field typed by a nested
+  `interface { … }` keeps its dict but coerces ITS fields the same way.
+- **Rest capture** — a `**name` member gathers every key NOT named by the
+  interface into a dict bound to `name` in the result.
+
+The source need not be a dict literal: any item-getter works — a key-value array
+(`(; a=1)`) or a class instance — its members feed the transform.
+
+`::: Class` (a class target) converts between class shapes: it builds an instance
+of the target class from the source's members, keeping only the fields that class
+declares — e.g. a `User{name, isAdmin}` becomes a `Tag{name}`.
+
+Run it: `gad test samples/transform_cast_test.gad`
+
+## Example — `transform_cast_test.gad`
+
+```gad
+class Point { x int; y int }
+class Rect { a Point; b Point }
+
+/**
+A dict cast to an interface whose field is a class type builds that class from
+the nested dict, recursively, and `**other` captures the remaining keys.
+**/
+test "nested class + rest capture" {
+    data := {
+        rect: {
+            a: {x: 1, y: 2}
+            b: {x: 5, y: 6}
+        }
+        z: "z value"
+    }
+
+    got := data ::: interface { rect Rect, **other }
+
+    // `rect` is now a real Rect whose a/b are Points; `z` moved into `other`.
+    t.equal("Rect", typeName(got.rect))
+    t.equal("Point", typeName(got.rect.a))
+    t.equal(6, got.rect.b.y)
+    t.equal("z value", got.other.z)
+
+    // The whole result, by value.
+    t.equal(
+        repr(got),
+        repr({
+            rect: Rect(; a = Point(; x = 1, y = 2), b = Point(; x = 5, y = 6))
+            other: {z: "z value"}
+        }),
+    )
+}
+
+/**
+When the field is typed by an inline `interface { … }`, the field's value stays a
+dict but its own fields are coerced — here `a`/`b` become `Point`s while `rect`
+remains a plain dict.
+**/
+test "nested interface field" {
+    data := {rect: {a: {x: 1, y: 2}, b: {x: 5, y: 6}}, z: "z value"}
+
+    got := data ::: interface { rect interface{ a Point, b Point }, **otherValue }
+
+    t.equal(
+        repr(got),
+        repr({
+            rect: {a: Point(; x = 1, y = 2), b: Point(; x = 5, y = 6)}
+            otherValue: {z: "z value"}
+        }),
+    )
+}
+
+/**
+The source can be any item-getter, not only a dict literal: a key-value array or
+a class instance is transformed the same way.
+**/
+test "non-dict sources" {
+    // A key-value array, nested all the way down.
+    kv := (; rect = (; a = (; x = 1, y = 2), b = (; x = 5, y = 6)), z = "z")
+    fromKv := kv ::: interface { rect Rect, **other }
+    t.equal("Rect", typeName(fromKv.rect))
+    t.equal(1, fromKv.rect.a.x)
+    t.equal("z", fromKv.other.z)
+
+    // A class instance: its fields feed the transform.
+    class Wrapper { p Point; extra str }
+    fromInst := Wrapper(; p = {x: 1, y: 2}, extra = "hi") ::: interface { p Point, **rest }
+    t.equal("Point", typeName(fromInst.p))
+    t.equal("hi", fromInst.rest.extra)
+}
+
+/**
+`::` and `:::` differ: `::` is a pure check — it returns the value unchanged and
+fails when a nested dict is not already the declared type — while `:::` coerces.
+**/
+test "checked vs transforming" {
+    data := {rect: {a: {x: 1, y: 2}, b: {x: 5, y: 6}}}
+
+    // `::` does not coerce: `rect` is a dict, not a Rect -> not assignable, so the
+    // cast throws and `bool(…) or false` is false.
+    t.true(!(bool(data :: interface { rect Rect }) or false))
+
+    // `:::` coerces and succeeds.
+    t.equal("Rect", typeName((data ::: interface { rect Rect }).rect))
+}
+
+/**
+A required field absent from the source fails the transform; a nullable field
+(`name? T`) may be absent — it is simply left out.
+**/
+test "required and nullable fields" {
+    // A missing required field is an error (the transform throws).
+    t.true(!(bool(({b: 2}) ::: interface { a int, **rest }) or false))
+
+    // A nullable field may be absent; the rest still captures the extras.
+    got := ({b: 2}) ::: interface { a? int, **rest }
+    t.equal(nil, got.a)
+    t.equal(2, got.rest.b)
+}
+
+/**
+`:::` to a **class** converts between class shapes: it builds an instance of the
+target class from the source's members, keeping only the fields the target
+declares (extra source fields are dropped). The source may be another class
+instance, a dict or any item-getter.
+**/
+test "transform from one class to another" {
+    class User { name str; isAdmin? bool }
+    class Tag { name str }
+
+    user := User(; name = "Jonh", isAdmin = true)
+
+    // User -> Tag keeps `name`, drops the undeclared `isAdmin`.
+    t.equal(repr(Tag(; name = user.name)), repr(user ::: Tag))
+
+    // Chained: User -> Tag -> User; the round-trip drops isAdmin (nullable -> nil).
+    t.equal(repr(User(; name = user.name)), repr(user ::: Tag ::: User))
+}
+```

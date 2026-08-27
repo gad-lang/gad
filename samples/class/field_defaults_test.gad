@@ -7,7 +7,7 @@ from the default expression:
 - **Literal** (`x = 2`, `s = "hi"`, `ok = true`) — a scalar constant, stored
   once and shared by every instance. Cheap and immutable, so sharing is safe.
 - **`(= expr)` lazy default** (`seq = (= n++)`) — a
-  [ComputedExpr](../03_functions.gad) re-evaluated **per field, per instance**: each
+  [ComputedExpr](../functions.gad) re-evaluated **per field, per instance**: each
   field with a `(=)` default is its own function call on construction.
 - **Any other expression** (`y = g + 5`, `id = next()`, `items = [1, 2]`) — a
   per-instance default too, but all such fields of a class are computed together

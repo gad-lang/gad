@@ -31,9 +31,13 @@ constant. `this` is auto-inserted as the first parameter of methods, property
 accessors and constructors.
 **/
 class Point {
-    /// horizontal coordinate
+    /**
+    horizontal coordinate
+    **/
     x = 0
-    /// vertical coordinate
+    /**
+    vertical coordinate
+    **/
     y = 0
 
     new {
@@ -42,12 +46,16 @@ class Point {
     }
 
     props {
-        /// distance from the origin
+        /**
+        distance from the origin
+        **/
         mag() => (this.x ** 2 + this.y ** 2) ** 0.5
     }
 
     methods {
-        /// dot product with another point
+        /**
+        dot product with another point
+        **/
         dot(o) => this.x * o.x + this.y * o.y
     }
 }
@@ -57,18 +65,28 @@ println("Point(3, 4).mag =", p.mag)          // 5
 println("Point().x       =", Point().x)      // 0
 println("p.dot(p)        =", p.dot(p))       // 25
 
-/// Tagger shows a typed field, a computed default and a method overloaded by
-/// argument type (a method takes a typed `this`, so overloads dispatch).
+/**
+Tagger shows a typed field, a computed default and a method overloaded by
+argument type (a method takes a typed `this`, so overloads dispatch).
+**/
 class Tagger {
-    /// the tag prefix
+    /**
+    the tag prefix
+    **/
     name str = "?"
-    /// a fresh value per instance (here always 0)
+    /**
+    a fresh value per instance (here always 0)
+    **/
     seq = (= 0)
 
     methods {
-        /// tag an int
+        /**
+        tag an int
+        **/
         tag(n int) => this.name + ":int:" + str(n)
-        /// tag a string
+        /**
+        tag a string
+        **/
         tag(s str) => this.name + ":str:" + s
     }
 }
@@ -76,21 +94,31 @@ t := Tagger(; name="t")
 println("tag(7)   =", t.tag(7))     // t:int:7
 println("tag(\"x\") =", t.tag("x"))   // t:str:x
 
-/// Box shows a property with a getter and typed setters, plus the `name = expr`
-/// getter shortcut.
+/**
+Box shows a property with a getter and typed setters, plus the `name = expr`
+getter shortcut.
+**/
 class Box {
-    /// the stored value
+    /**
+    the stored value
+    **/
     v
     props {
-        /// the value, coerced on set by argument type
+        /**
+        the value, coerced on set by argument type
+        **/
         val {
             ()        => this.v
             (x)       { this.v = "any:" + str(x) }
             (x int)   { this.v = "int:" + str(x) }
         }
-        /// whether no value has been set (getter shortcut `name = expr`)
+        /**
+        whether no value has been set (getter shortcut `name = expr`)
+        **/
         empty = this.v == nil
-        /// the value's type name (the `name => expr` getter shortcut)
+        /**
+        the value's type name (the `name => expr` getter shortcut)
+        **/
         kind => typeName(this.v)
     }
 }
@@ -102,23 +130,35 @@ println("box any =", b.val)          // any:hi
 b.val = 7
 println("box int =", b.val)          // int:7
 
-/// Animal is a base class with two methods.
+/**
+Animal is a base class with two methods.
+**/
 class Animal {
-    /// the animal's name
+    /**
+    the animal's name
+    **/
     name str = "?"
     methods {
-        /// the sound the animal makes
+        /**
+        the sound the animal makes
+        **/
         speak()    => this.name + " makes a sound"
-        /// a human-readable description
+        /**
+        a human-readable description
+        **/
         describe() => "I am " + this.name
     }
 }
 
-/// Dog inherits Animal and overrides speak().
+/**
+Dog inherits Animal and overrides speak().
+**/
 class Dog {
     *Animal
     methods {
-        /// dogs bark
+        /**
+        dogs bark
+        **/
         speak() => this.name + " barks"
     }
 }
@@ -126,13 +166,19 @@ d := Dog(; name="Rex")
 println("dog speak:   ", d.speak())     // Rex barks (override)
 println("dog describe:", d.describe())  // I am Rex (inherited)
 
-/// The expression form `X := class { … }` yields an anonymous, first-class
-/// class value.
+/**
+The expression form `X := class { … }` yields an anonymous, first-class
+class value.
+**/
 Counter := class {
-    /// current count
+    /**
+    current count
+    **/
     n = 0
     methods {
-        /// advance and return the new value
+        /**
+        advance and return the new value
+        **/
         next() { this.n++; return this.n }
     }
 }

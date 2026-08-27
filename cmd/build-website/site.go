@@ -128,16 +128,17 @@ var stdlibOrder = []string{
 // listed here is appended after, sorted by name, so nothing is dropped.
 var langOrder = []string{
 	"README",
-	"02_values_and_types", "33_variables_and_scopes",
-	"14_user_operators", "13_ranges", "15_in_operator", "17_unary_operators", "28_absent_coalescing",
-	"06_control_flow", "18_with",
-	"03_functions", "10_functions_with_methods", "31_properties",
-	"04_collections", "05_comprehensions", "22_key_value_array", "27_destructuring",
+	"values_and_types", "variables_and_scopes",
+	"user_operators", "ranges", "in_operator", "unary_operators", "absent_coalescing",
+	"control_flow", "with",
+	"functions", "functions_with_methods", "properties",
+	"collections", "comprehensions", "key_value_array", "destructuring",
 	"class/classes", "class/syntax", "class/class_type", "class/field_types", "class/field_defaults_test",
-	"12_method_interfaces", "24_interfaces", "35_type_unions", "36_type_parameters", "20_enum",
-	"08_strings_bytes_regex", "21_heredocs", "07_error_handling",
-	"26_embed", "09_template", "23_template",
-	"16_doc_comments", "29_special_keywords", "34_metaprogramming",
+	"mixins", "class/mixins_test",
+	"method_interfaces", "interfaces", "type_unions", "type_parameters", "enum",
+	"strings_bytes_regex", "heredocs", "error_handling",
+	"embed", "template", "template_example",
+	"doc_comments", "special_keywords", "metaprogramming",
 }
 
 // gadxOrder is the curated nav ordering for the Gadx template docs, sourced from
@@ -398,8 +399,8 @@ func collectGadxPages(dir string, order []string) ([]*page, error) {
 
 // langLinkRe matches a Markdown link to a sibling sample file (a `.gad`/`.gadt`/
 // `.gadx`/`.md` target, no scheme) so the cross-references the samples use
-// (`[03_functions.gad](03_functions.gad)`, `[classes](class/classes.gad)`,
-// `[..](../24_interfaces.gad)`) resolve to the flat `lang-<slug>.html` pages. The
+// (`[functions.gad](functions.gad)`, `[classes](class/classes.gad)`,
+// `[..](../interfaces.gad)`) resolve to the flat `lang-<slug>.html` pages. The
 // path may contain `/` and `.` for links into and out of sample subdirectories.
 var langLinkRe = regexp.MustCompile(`\]\(([0-9A-Za-z_./-]+)\.(?:gad|gadt|gadx|md)(#[A-Za-z0-9_-]+)?\)`)
 

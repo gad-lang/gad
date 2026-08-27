@@ -208,6 +208,22 @@ func (p *ClassProperty) HasCallerMethods() bool { return p.f.HasCallerMethods() 
 // CallerMethodDefault returns the accessor default caller, if any.
 func (p *ClassProperty) CallerMethodDefault() CallerObject { return p.f.CallerMethodDefault() }
 
+// accessors reports which accessor overloads the property has: a getter is a
+// one-parameter overload (just `this`), a setter a two-parameter one (`this,
+// value`). Used to mirror the property into an interface member (get/set/prop).
+func (p *ClassProperty) accessors() (hasGetter, hasSetter bool) {
+	p.f.Methods.Walk(func(m *TypedCallerMethod) any {
+		switch len(m.types) {
+		case 1:
+			hasGetter = true
+		case 2:
+			hasSetter = true
+		}
+		return nil
+	})
+	return
+}
+
 func (p *ClassProperty) IsFalsy() bool {
 	return p.f.IsFalsy()
 }
@@ -475,6 +491,12 @@ type Class struct {
 	// returns a key-value array of {fieldName: value}, so several such fields are
 	// initialised with ONE call. Set from the `initFields=` arg of Class.Define.
 	initFields CallerObject
+	// mixins are the mixins the class pulls in with `use A, B` (its `@mixins`), in
+	// declaration order. mixinsFlat is the deduplicated flattening of each mixin's
+	// lineage (parent mixins before the mixin, first occurrence wins); their
+	// members are merged into the class and their initFields run at construction.
+	mixins     []*Mixin
+	mixinsFlat []*Mixin
 }
 
 // NewClass returns an empty Class with the given name and defining module, its
@@ -665,9 +687,20 @@ func (t *Class) Define(c Call) (err error) {
 				return nil
 			},
 		}
+
+		mixins = &NamedArgVar{
+			Name:          "mixins",
+			TypeAssertion: TypeAssertionFromTypes(TArray),
+			// The mixins pulled in via `use A, B`. Processed before `fields` so the
+			// mixin fields take the lowest indices and are initialised first (see
+			// ClassInstance.Init).
+			Do: func(value Object) error {
+				return t.useMixins(c.VM, value.(Array))
+			},
+		}
 	)
 
-	return c.NamedArgs.GetDo(constructor, fields, methods, properties, extends, initFields)
+	return c.NamedArgs.GetDo(mixins, constructor, fields, methods, properties, extends, initFields)
 }
 
 func (t *Class) String() string {
@@ -1229,6 +1262,123 @@ func (t *Class) CallExtends(c Call) (err error) {
 	})
 }
 
+// useMixins records the mixins pulled in with `use A, B` (t.mixins, its
+// `@mixins`) and merges their members into the class. Each used mixin's lineage
+// (its parent mixins before itself) is flattened and deduplicated first-wins, so
+// a mixin appearing more than once across the hierarchy or the use list is merged
+// only once. The flattened list drives the per-construction field initialisation
+// (see ClassInstance.Init).
+func (t *Class) useMixins(vm *VM, arr Array) (err error) {
+	seen := map[*Mixin]bool{}
+	var flat []*Mixin
+	for i, v := range arr {
+		m, ok := v.(*Mixin)
+		if !ok {
+			return NewArgumentTypeError(strconv.Itoa(i)+"st (use)", "Mixin", v.Type().Name())
+		}
+		t.mixins = append(t.mixins, m)
+		m.lineage(seen, &flat)
+	}
+	t.mixinsFlat = flat
+	for _, m := range flat {
+		if err = t.mergeMixinMembers(vm, m); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// mergeMixinMembers registers the mixin's own fields, properties and methods on
+// the class, skipping any member whose name the class already declares (so a name
+// already provided by the class or an earlier mixin wins).
+func (t *Class) mergeMixinMembers(vm *VM, m *Mixin) (err error) {
+	if len(m.rawFields) > 0 {
+		var add KeyValueArray
+		for _, kv := range m.rawFields {
+			if _, exists := t.fieldsMap[mixinFieldName(kv.K)]; !exists {
+				add = append(add, kv)
+			}
+		}
+		if len(add) > 0 {
+			if err = t.CallAddFields(Call{VM: vm, Args: Args{Array{add}}}); err != nil {
+				return
+			}
+		}
+	}
+	if len(m.rawProps) > 0 {
+		add := Dict{}
+		for k, v := range m.rawProps {
+			if _, exists := t.propertiesMap[k]; !exists {
+				add[k] = v
+			}
+		}
+		if len(add) > 0 {
+			if err = t.CallAddProperties(Call{VM: vm, Args: Args{Array{add}}}); err != nil {
+				return
+			}
+		}
+	}
+	if m.rawMethods != nil {
+		if add := t.filterNewMethods(m.rawMethods); len(add) > 0 {
+			if err = t.CallAddMethods(Call{VM: vm, Args: Args{Array{add}}}); err != nil {
+				return
+			}
+		}
+	}
+	return
+}
+
+// filterNewMethods returns the entries of a mixin's raw `methods` value (an
+// Array of named callables, a Dict or a KeyValueArray) whose method name the
+// class does not already declare.
+func (t *Class) filterNewMethods(methods Object) (add Array) {
+	keep := func(name string, v Object) {
+		if _, exists := t.methodsMap[name]; !exists {
+			add = append(add, &KeyValue{K: Str(name), V: v})
+		}
+	}
+	switch mt := methods.(type) {
+	case Array:
+		for _, v := range mt {
+			switch fn := v.(type) {
+			case *KeyValue:
+				keep(fn.K.ToString(), fn.V)
+			case *Func:
+				keep(fn.Name(), fn)
+			case *CompiledFunction:
+				keep(fn.FuncName, fn)
+			}
+		}
+	case KeyValueArray:
+		for _, kv := range mt {
+			keep(kv.K.ToString(), kv.V)
+		}
+	case Dict:
+		for k, v := range mt {
+			keep(k, v)
+		}
+	}
+	return
+}
+
+// mixinFieldName returns the field name of a raw `fields` key (a *TypedIdent for
+// a typed field, otherwise the key's string form).
+func mixinFieldName(k Object) string {
+	if ti, ok := k.(*TypedIdent); ok {
+		return ti.Name
+	}
+	return k.ToString()
+}
+
+// Mixins returns the mixins the class pulls in with `use` (its `@mixins`).
+func (t *Class) Mixins() (r Array) {
+	r = make(Array, len(t.mixins))
+	for i, m := range t.mixins {
+		r[i] = m
+	}
+	return
+}
+
 func (t *Class) CallAddNewHandlers(c Call) (err error) {
 	if err = c.Args.CheckMinLen(1); err != nil {
 		return
@@ -1325,6 +1475,8 @@ func (t *Class) IndexGet(vm *VM, index Object) (value Object, err error) {
 		return t.Methods(), nil
 	case "@parents":
 		return t.Parents(), nil
+	case "@mixins":
+		return t.Mixins(), nil
 	case "@name":
 		return Str(t.name), nil
 	case "@module":

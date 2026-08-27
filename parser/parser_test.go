@@ -3169,13 +3169,15 @@ func TestParseClass(t *testing.T) {
 
 	// statement form with parent spreads (`*Base`), fields (typed + default), props
 	// (incl. the `name = expr` getter shortcut), a constructor and a method.
+	// Canonical formatting orders the body: parents, then fields by group (untyped
+	// with-default `legs` before typed with-default `name str`), props, new, methods.
 	cls := `class Animal { *Base; name str = "?"; legs = 4; props { kind = "animal" }; new { (n) => this(; name=n) }; methods { speak() => this.name } }`
 	test.New(t, cls).
-		Code(`class Animal {*Base; name str = "?"; legs = 4; props {kind() => "animal"}; new {(n) => this(; name=n)}; methods {speak() => this.name}}`).
+		Code(`class Animal {*Base; legs = 4; name str = "?"; props {kind() => "animal"}; new {(n) => this(; name=n)}; methods {speak() => this.name}}`).
 		IndentedCode("class Animal {\n" +
 			"\t*Base\n" +
-			"\tname str = \"?\"\n" +
 			"\tlegs = 4\n" +
+			"\tname str = \"?\"\n" +
 			"\tprops {\n\t\tkind() => \"animal\"\n\t}\n" +
 			"\tnew {\n\t\t(n) => this(; name=n)\n\t}\n" +
 			"\tmethods {\n\t\tspeak() => this.name\n\t}\n" +
@@ -3188,6 +3190,19 @@ func TestParseClass(t *testing.T) {
 	// property accessor block (getter + setters).
 	test.New(t, "x := class { props { val { () => v\n(n) { v = n } } } }").
 		Code("x := class {props {val {() => v; (n) {v = n}}}}")
+
+	// mixin: parses like a class (parents, fields, props, methods) plus a `this`
+	// interface block; classes pull mixins in with `use A, B`.
+	test.New(t, "mixin A { a; b int; c = 2; props { dvalue => d }; methods { m() => 1 } }").
+		Code("mixin A {a; b int; c = 2; props {dvalue() => d}; methods {m() => 1}}")
+	test.New(t, "mixin A { this { count() <int> }; methods { f() => this.count() } }").
+		Code("mixin A {this {count() <int>; }; methods {f() => this.count()}}")
+	test.New(t, "class C { use A, B; x int }").Code("class C {use A, B; x int}")
+	// `use` accepts selector expressions (`pkg.Mixin`), not just idents, and a
+	// trailing newline (no comma) ends the list.
+	test.New(t, "class C { use A, mods.B\n x int }").Code("class C {use A, mods.B; x int}")
+	test.New(t, `class C { use A, mods["abcs"].C }`).Code(`class C {use A, mods["abcs"].C}`)
+	test.New(t, "M := mixin { a }").Code("M := mixin {a}")
 
 	// getter shortcuts in a props block: `name = expr` and `name => expr` are the
 	// same zero-arg accessor, both normalized to the canonical `name() => expr`.
@@ -4273,13 +4288,14 @@ func TestParseInterface(t *testing.T) {
 	// named, with typed fields
 	test.ExpectParseString(t, `x := interface Foo { a; b str }`,
 		`x := interface Foo {a; b str; }`)
-	// getters, setters, props (get/set are contextual idents; prop is a keyword)
+	// getters, setters, props (get/set are contextual idents; prop is a keyword);
+	// property-like members are formatted sorted by name (g, n, p, s).
 	test.ExpectParseString(t, `x := interface P { get g; get n uint|int; set s; prop p }`,
-		`x := interface P {get g; get n uint | int; set s; prop p; }`)
+		`x := interface P {get g; get n uint | int; prop p; set s; }`)
 	// parent spreads (no alias) + methods (rendered without the <…> brackets;
 	// a bare positional entry is a type, so `(int|uint)` -> `(_ int|uint)`)
 	test.ExpectParseString(t, `x := interface { *A, *mod.B; run(); at(int|uint) <str> }`,
-		`x := interface {*A; *mod.B; run(); at(_ int|uint) <str>; }`)
+		`x := interface {*A; *mod.B; at(_ int|uint) <str>; run(); }`)
 	// `parse { … }` block of meti-style headers
 	test.ExpectParseString(t, `x := interface { parse { (str), (v int) <bool> } }`,
 		`x := interface {parse {(_ str); (v int) <bool>; }; }`)
@@ -4289,8 +4305,10 @@ func TestParseInterface(t *testing.T) {
 	// entry a shortcut `<header>` or a block `FnExpr { (…); … }`.
 	test.ExpectParseString(t, `x := interface { funcs { fmt <(a int, @self)> } }`,
 		`x := interface {funcs {fmt <(a int, _ @self)>; }; }`)
+	// `funcs { … }` members are formatted sorted by their function expression
+	// (`render` before `strings.upper`).
 	test.ExpectParseString(t, `x := interface { funcs { strings.upper <(@self)>; render { (@self), (@self, int) } } }`,
-		`x := interface {funcs {strings.upper <(_ @self)>; render {(_ @self); (_ @self, _ int); }; }; }`)
+		`x := interface {funcs {render {(_ @self); (_ @self, _ int); }; strings.upper <(_ @self)>; }; }`)
 }
 
 func TestParseFuncHeaderExpr(t *testing.T) {

@@ -34,7 +34,9 @@ export square(x) {
 
 export cube(x) => x * x * x
 
-/// area helpers grouped into a single exported dict (they capture pi).
+/**
+area helpers grouped into a single exported dict (they capture pi).
+**/
 export {
     circleArea: (r) => pi * r * r,
     rectArea: (w, h) => w * h,

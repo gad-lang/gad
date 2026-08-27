@@ -1,0 +1,95 @@
+
+# Destructuring
+
+Bind several variables at once from arrays and named data. Gad has three
+destructuring shapes:
+
+  1. arrays        `x, y := [1, 2]`
+  2. named `(; …)` `(; key: target, r = 2, **rest) := source`  (key on the left)
+  3. named `{ … }` `{ key: target, r = 2, **rest } := source`  (TypeScript order)
+
+Forms 2 and 3 are the same feature with different brackets — both key-on-the-
+left. They work on any named data — dicts, modules, key-value arrays, named
+args — because the source is run through the default `dict()` constructor first.
+Part of the [Collections](collections.gad) chapter. This whole sample is a
+runnable tour; the full listing is in the Example below.
+
+## Example — `destructuring.gad`
+
+```gad
+// ── 1. Arrays ────────────────────────────────────────────────────────────────
+x, y := [10, 20]
+println("array:", x, y)                 // 10 20
+a, b, c := [1, 2]                        // missing element -> nil
+println("array short:", a, b, c)        // 1 2 nil
+
+// `[a, b]` bracket form works too (even one element):
+[first, second] := [100, 200]
+println("bracket:", first, second)      // 100 200
+
+// a trailing `*rest` (last target) collects the remaining elements:
+head, next, *rest := [1, 2, 3, 4, 5]
+println("rest:", head, next, str(rest)) // 1 2 [3, 4, 5]
+
+// parallel multi-value assignment: several values on the right, no brackets:
+p, q, *tail := 1, 2, 3, 4
+println("parallel:", p, q, str(tail)) // 1 2 [3, 4]
+
+// `const` / `var` accept any pattern (immutable / mutable bindings):
+const {tls} = {host: "h", tls: true}
+const [lo, hi, *more] = [1, 9, 10, 11]
+println("const:", tls, lo, hi, str(more)) // true 1 9 [10, 11]
+
+// ── 2. Named, `(; … )` form — key on the LEFT ────────────────────────────────
+d := {host: "localhost", port: 8080, tls: true}
+(; host, port:p, timeout = 30, **extra) := d
+// host    <- key "host"    ("localhost")
+// p       <- key "port"    (8080)      — rename, `key: target`
+// timeout <- key "timeout" (30)        — default; key absent
+// extra   <- remaining keys ({tls: true})
+println("(;):", host, p, timeout, str(extra))
+
+// ── 3. Named, `{ … }` form — TypeScript order, key on the LEFT ────────────────
+{ host, port: pt, timeout = 30, **rest } := d
+// host <- key "host"; pt <- key "port"; timeout default; rest = the remainder
+println("{}:", host, pt, timeout, str(rest))
+
+// `{ … }` collects **rest as a dict:
+{ host, **others } := d
+println("rest is a", typeName(others), str(others))
+
+// `=` assigns to variables that already exist (instead of declaring):
+var (h, po)
+{ host: h, port: po } = d
+println("assign:", h, po)
+
+// ── Any named data works (via the default dict() constructor) ─────────────────
+
+// a module
+strings := import("strings")
+{ toUpper, hasPrefix } := strings
+println("module:", toUpper("hi"), hasPrefix("hello", "he"))
+
+// a key-value array (implements ToDictConverter)
+kva := (; a = 1, b = 2, c = 3)
+{ a, b: second, **krest } := kva
+println("kva:", a, second, str(krest))
+
+// named args inside a function
+connect := func(; **opts) {
+	{ host, port = 80 } := opts
+	return host + ":" + str(port)
+}
+println("named args:", connect(; host = "example.com"))
+
+// ── Mixed positional + named ──────────────────────────────────────────────────
+// A MixedParams value (`(values… ; name=value…)`) carries BOTH positional and
+// named parts, so it uses the full `( positional ; named )` pattern — the
+// positional side takes a trailing `*rest` (a single star, like a variadic
+// parameter `func(a, *rest)`) and the named side a trailing `**rest`, e.g.
+//
+//     mp := (1, 2, *[3]; user = "ann", role = "admin")
+//     (a, b, *rest_pos; user, role:r, **rest_named) := mp
+//
+// For just the named side of any value, use `(; … )` or `{ … }` on it.
+```

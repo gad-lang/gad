@@ -1,6 +1,8 @@
 package node
 
 import (
+	"sort"
+
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
 )
@@ -138,10 +140,22 @@ func (e *ClassMemberExpr) WriteCode(ctx *CodeWriteContext) {
 // expression-form class.
 type ClassExpr struct {
 	ClassToken TokenLit
+	// Mixin marks a `mixin … { … }` literal: it parses like a class (parents,
+	// fields, props, methods) plus an optional `this` interface block, has no `new`
+	// clause, and lowers to `gad.Mixin(...)` instead of `Class(...)`.
+	Mixin      bool
 	NameExpr   Expr
 	Parents    []*ClassParentExpr
 	ExtendsDoc *ast.CommentGroup
-	Fields     []*ClassFieldExpr
+	// Use are the mixins a class pulls in (`use A, B`); class-only.
+	Use    []Expr
+	UseDoc *ast.CommentGroup
+	Fields []*ClassFieldExpr
+	// This is a mixin's optional `this { … }` interface block: it declares the
+	// interface the `this` parameter of the mixin's props/methods must satisfy.
+	// Parsed as an anonymous interface body; mixin-only.
+	This       *InterfaceExpr
+	ThisDoc    *ast.CommentGroup
 	Props      []*ClassMemberExpr
 	PropsDoc   *ast.CommentGroup
 	New        []*FuncMethod
@@ -151,6 +165,14 @@ type ClassExpr struct {
 	LBrace     source.Pos
 	RBrace     source.Pos
 	Doc        *ast.CommentGroup // doc comment preceding the class; or nil
+}
+
+// keyword returns "mixin" or "class" for formatting/diagnostics.
+func (e *ClassExpr) keyword() string {
+	if e.Mixin {
+		return "mixin"
+	}
+	return "class"
 }
 
 func (e *ClassExpr) ExprNode() {}
@@ -168,15 +190,16 @@ func (e *ClassExpr) String() string { return Code(e) }
 
 func (e *ClassExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
-	ctx.WriteString("class")
+	ctx.WriteString(e.keyword())
 	if e.NameExpr != nil {
 		ctx.WriteString(" ")
 		e.NameExpr.WriteCode(ctx)
 	}
 	ctx.WriteString(" {")
 
-	// Body items in canonical order: the parent spreads (`*Parent`), fields,
-	// then the `props`, `new` and `methods` groups. Each group is a brace block.
+	// Body items in canonical order: the parent spreads (`*Parent`), the `use`
+	// clause (class), fields, the `this` interface block (mixin), then the `props`,
+	// `new` and `methods` groups.
 	var items []func()
 	for i, parent := range e.Parents {
 		i, parent := i, parent
@@ -188,15 +211,36 @@ func (e *ClassExpr) WriteCode(ctx *CodeWriteContext) {
 			parent.WriteCode(ctx)
 		})
 	}
-	for _, f := range e.Fields {
+	if len(e.Use) > 0 {
+		items = append(items, func() {
+			ctx.WriteLeadDoc(e.UseDoc)
+			ctx.WriteString("use ")
+			// The mixin list wraps greedily: when the next name would overflow the
+			// line it breaks after a comma onto a new line indented one level under
+			// `use`. Short lists stay inline (`use A, B`).
+			ctx.Depth++
+			ctx.WriteGreedy(len(e.Use), ", ", ",", func(i int) { e.Use[i].WriteCode(ctx) })
+			ctx.Depth--
+		})
+	}
+	for _, f := range sortedClassFields(e.Fields) {
 		f := f
 		items = append(items, func() { f.WriteCode(ctx) })
 	}
+	if e.This != nil {
+		items = append(items, func() {
+			ctx.WriteLeadDoc(e.ThisDoc)
+			ctx.WriteString("this {")
+			writeInterfaceBody(ctx, e.This)
+			ctx.WriteString("}")
+		})
+	}
 	if len(e.Props) > 0 {
+		props := sortedClassMembers(e.Props)
 		items = append(items, func() {
 			ctx.WriteLeadDoc(e.PropsDoc)
 			ctx.WriteString("props {")
-			writeClassMembers(ctx, e.Props)
+			writeClassMembers(ctx, props)
 			ctx.WriteString("}")
 		})
 	}
@@ -209,10 +253,11 @@ func (e *ClassExpr) WriteCode(ctx *CodeWriteContext) {
 		})
 	}
 	if len(e.Methods) > 0 {
+		methods := sortedClassMembers(e.Methods)
 		items = append(items, func() {
 			ctx.WriteLeadDoc(e.MethodsDoc)
 			ctx.WriteString("methods {")
-			writeClassMembers(ctx, e.Methods)
+			writeClassMembers(ctx, methods)
 			ctx.WriteString("}")
 		})
 	}
@@ -244,6 +289,65 @@ func writeClassMembers(ctx *CodeWriteContext, members []*ClassMemberExpr) {
 // }`) or the `new {}` block.
 func writeClassMethods(ctx *CodeWriteContext, methods []*FuncMethod) {
 	writeBraceItems(ctx, len(methods), func(i int) { methods[i].WriteCode(ctx) })
+}
+
+// classFieldName returns a field's name for ordering (empty when unnamed).
+func classFieldName(f *ClassFieldExpr) string {
+	if f.Name != nil && f.Name.Ident != nil {
+		return f.Name.Ident.Name
+	}
+	return ""
+}
+
+// classFieldGroup ranks a field for the canonical body order: untyped no-default
+// (0), typed no-default (1), untyped with-default (2), typed with-default (3).
+func classFieldGroup(f *ClassFieldExpr) int {
+	typed := f.Name != nil && len(f.Name.Type) > 0
+	hasDefault := f.Value != nil
+	switch {
+	case !typed && !hasDefault:
+		return 0
+	case typed && !hasDefault:
+		return 1
+	case !typed && hasDefault:
+		return 2
+	default:
+		return 3
+	}
+}
+
+// sortedClassFields returns the fields in the canonical formatting order: the
+// four field groups (untyped no-default, typed no-default, untyped with-default,
+// typed with-default), each sorted by name. The input slice is not mutated.
+func sortedClassFields(fields []*ClassFieldExpr) []*ClassFieldExpr {
+	out := make([]*ClassFieldExpr, len(fields))
+	copy(out, fields)
+	sort.SliceStable(out, func(i, j int) bool {
+		if gi, gj := classFieldGroup(out[i]), classFieldGroup(out[j]); gi != gj {
+			return gi < gj
+		}
+		return classFieldName(out[i]) < classFieldName(out[j])
+	})
+	return out
+}
+
+// sortedClassMembers returns props/methods sorted by name (declaration order is
+// preserved among same-named entries). The input slice is not mutated.
+func sortedClassMembers(members []*ClassMemberExpr) []*ClassMemberExpr {
+	out := make([]*ClassMemberExpr, len(members))
+	copy(out, members)
+	sort.SliceStable(out, func(i, j int) bool {
+		return classMemberName(out[i]) < classMemberName(out[j])
+	})
+	return out
+}
+
+// classMemberName returns a prop/method member's name for ordering.
+func classMemberName(m *ClassMemberExpr) string {
+	if id, _ := m.NameExpr.(*IdentExpr); id != nil {
+		return id.Name
+	}
+	return ""
 }
 
 // ClassStmt is the statement form `class Name { … }`. It compiles to

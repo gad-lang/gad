@@ -175,7 +175,7 @@ test("a `[link](x)` then another line inside a block doc keeps the doc scope", (
   // Regression for the IntelliJ breakage: with the Markdown grammar embedded, a
   // body line after a `[link](url)` (and the closing `**/`) lost the doc-comment
   // scope in IntelliJ's engine. With no embed the whole body is uniformly scoped.
-  const lines = ["/**", "See [Templates](09_template.gad).", "abc", "**/", "export X = 1"];
+  const lines = ["/**", "See [Templates](template.gad).", "abc", "**/", "export X = 1"];
   let stack: any = null;
   const scoped = lines.map((ln) => {
     const r = grammar.tokenizeLine(ln, stack);

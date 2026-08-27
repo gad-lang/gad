@@ -16,7 +16,7 @@ only *verifies* and errors on a mismatch. The target may be:
     is written `(v) => …`. Casts chain left-to-right.
 
 (`bool` is a special, call-free truthiness case — see bool_cast_test.gad. Casts to
-an interface or class coerce nested dicts — see samples/38_transform_cast_test.gad.)
+an interface or class coerce nested dicts — see samples/transform_cast_test.gad.)
 
 Unlike `::: bool` (which skips the call entirely), a `::: T` conversion or a
 `::: fn` transformer *does* call — but the VM dispatches it through the same
@@ -37,8 +37,10 @@ Run:
     gad test -bench=. samples/testing      # compare each cast with its call
 ***/
 
-/// A builtin type converts via its constructor; each source shape hits the
-/// matching overload.
+/**
+A builtin type converts via its constructor; each source shape hits the
+matching overload.
+**/
 test "convert to builtin types" {
 	t.equal("5", 5 ::: str)
 	t.equal("3.14", 3.14 ::: str)
@@ -51,21 +53,27 @@ test "convert to builtin types" {
 	t.equal(5u, 5 ::: uint)
 }
 
-/// The cast is exactly the constructor call — same value, no wrapper.
+/**
+The cast is exactly the constructor call — same value, no wrapper.
+**/
 test "cast equals the constructor" {
 	t.true((5 ::: str) == str(5))
 	t.true(("5" ::: int) == int("5"))
 	t.true((65 ::: char) == char(65))
 }
 
-/// `any` is identity: the value passes through unchanged.
+/**
+`any` is identity: the value passes through unchanged.
+**/
 test "any is identity" {
 	t.equal(5, 5 ::: any)
 	d := {a: 1}
 	t.true((d ::: any) == d)
 }
 
-/// A function target transforms the value; it always takes the value as `(v)`.
+/**
+A function target transforms the value; it always takes the value as `(v)`.
+**/
 test "function transformer" {
 	t.equal(50, 5 ::: ((v) => v * 10))
 	t.equal("hi!", "hi" ::: ((v) => v + "!"))
@@ -79,8 +87,10 @@ test "function transformer" {
 	t.equal(5, 12345 ::: ((v) => str(v)) ::: ((v) => len(v)))
 }
 
-/// An invalid conversion surfaces the constructor's own error (unlike a silent
-/// coercion): `int("abc")` raises, so `"abc" ::: int` does too.
+/**
+An invalid conversion surfaces the constructor's own error (unlike a silent
+coercion): `int("abc")` raises, so `"abc" ::: int` does too.
+**/
 test "invalid conversion errors" {
 	ok := false
 	try { "abc" ::: int } catch { ok = true }
@@ -92,38 +102,50 @@ test "invalid conversion errors" {
 // the two are on par. See the table in the header. Run:
 // `gad test -bench=. samples/testing`.
 
-/// `x ::: str` — converts via str()'s constructor.
+/**
+`x ::: str` — converts via str()'s constructor.
+**/
 bench "x ::: str" {
 	acc := ""
 	for i := 0; i < t.n; i++ { acc = i ::: str }
 }
 
-/// `str(x)` — the constructor directly, for comparison.
+/**
+`str(x)` — the constructor directly, for comparison.
+**/
 bench "str(x)" {
 	acc := ""
 	for i := 0; i < t.n; i++ { acc = str(i) }
 }
 
-/// `"5" ::: int` — converts via int()'s constructor.
+/**
+`"5" ::: int` — converts via int()'s constructor.
+**/
 bench "x ::: int" {
 	acc := 0
 	for i := 0; i < t.n; i++ { acc = "5" ::: int }
 }
 
-/// `int("5")` — the constructor directly, for comparison.
+/**
+`int("5")` — the constructor directly, for comparison.
+**/
 bench "int(x)" {
 	acc := 0
 	for i := 0; i < t.n; i++ { acc = int("5") }
 }
 
-/// `x ::: fn` — applies a transformer function.
+/**
+`x ::: fn` — applies a transformer function.
+**/
 bench "x ::: fn" {
 	f := (v) => v * 2
 	acc := 0
 	for i := 0; i < t.n; i++ { acc = i ::: f }
 }
 
-/// `fn(x)` — calling the function directly, for comparison.
+/**
+`fn(x)` — calling the function directly, for comparison.
+**/
 bench "fn(x)" {
 	f := (v) => v * 2
 	acc := 0

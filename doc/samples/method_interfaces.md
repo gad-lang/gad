@@ -1,0 +1,71 @@
+
+# Func Headers and Method Interfaces
+
+Gad can describe function signatures as values and group them into **method
+interfaces**, then check whether a callable satisfies one — a lightweight,
+structural (duck-typed) contract for functions. (The richer `interface { … }`
+construct — typed fields, accessors, methods — is in
+[interfaces.gad](interfaces.gad).)
+
+## Func-header values
+
+A signature between angle brackets is a **func-header** value (`<()>`, `<(v int)>`,
+`<(a int, b str) <r bool>>`). A bare positional entry is a **type**, not a name
+(`(int)` is `(_ int)`); write `name type` for a named parameter. It evaluates to a
+`FunctionHeader` whose `name`, `params`, `namedParams` and `return` are read by
+indexing (each parameter is a `typedIdent`).
+
+```gad
+h := <(a int, b str) <r bool>>
+info := [len(h.params), h.params[0].name, h.params[1].name, h.return[0].name]
+info
+// => [2, "a", "b", "r"]
+```
+
+## Method interfaces (`meti`)
+
+`meti { … }` lists one or more required headers (without the angle brackets),
+separated by commas or newlines, and evaluates to a `MethodInterface` exposing
+`name` and `headers`. The statement form `meti Name { … }` binds a const.
+Interfaces merge with `+` (two) or `++` (with a list).
+
+## Checking conformance with `implements`
+
+`implements(fn, mi, *otherMi)` reports whether `fn` provides **every** header of
+all the given interfaces. A header matches one of `fn`'s methods when the
+parameter counts are equal and each parameter type is assignable (an untyped
+header parameter matches anything), so a multi-method function can satisfy several
+interfaces at once.
+
+```gad
+Stringer := meti { () <str> }
+HasAdd := meti { (a int) }
+func shape() => "shape" // a function with several methods…
+met shape(a int) => a * a
+okStr := implements(func() => "x", Stringer) // true
+badArity := implements(func(a) => a, Stringer) // false (arity)
+both := implements(shape, Stringer, HasAdd)    // true — satisfies both
+merged := implements(shape, Stringer + HasAdd) // true (`+` merges interfaces)
+[okStr, badArity, both, merged]
+// => [true, false, true, true]
+```
+
+## Example — `method_interfaces.gad`
+
+```gad
+h := <(a int, b str) <r bool>>
+info := [len(h.params), h.params[0].name, h.params[1].name, h.return[0].name]
+info
+
+Stringer := meti { () <str> }
+HasAdd := meti { (a int) }
+func shape() => "shape" // a function with several methods…
+met shape(a int) => a * a
+okStr := implements(func() => "x", Stringer) // true
+badArity := implements(func(a) => a, Stringer) // false (arity)
+both := implements(shape, Stringer, HasAdd)    // true — satisfies both
+merged := implements(shape, Stringer + HasAdd) // true (`+` merges interfaces)
+[okStr, badArity, both, merged]
+
+return implements(shape, Stringer, HasAdd)
+```

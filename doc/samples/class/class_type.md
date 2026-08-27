@@ -35,24 +35,36 @@ The runnable Example below tours all of these.
 ## Example — `class_type.gad`
 
 ```gad
-/// Shape is a small base class, spread into Circle below.
+/**
+Shape is a small base class, spread into Circle below.
+**/
 class Shape {
-    /// what kind of shape
+    /**
+    what kind of shape
+    **/
     kind str = "?"
 }
 
-/// Circle has a typed field, a property and a method — enough to show every
-/// introspection attribute.
+/**
+Circle has a typed field, a property and a method — enough to show every
+introspection attribute.
+**/
 class Circle {
     *Shape
-    /// the radius
+    /**
+    the radius
+    **/
     r int
     props {
-        /// the area (a getter)
+        /**
+        the area (a getter)
+        **/
         area => 3 * this.r * this.r
     }
     methods {
-        /// the radius scaled by k
+        /**
+        the radius scaled by k
+        **/
         scaled(k) => this.r * k
     }
 }

@@ -13,17 +13,23 @@ Imported by main.gad. See doc/modules.md and doc/properties.md.
 
 var value = 0
 
-/// A managed counter: reads return the current value; writes clamp at 0.
+/**
+A managed counter: reads return the current value; writes clamp at 0.
+**/
 export prop count {
     () => value                              // getter
     (n) { value = n < 0 ? 0 : n }            // setter (never goes negative)
 }
 
-/// A live binding: `total` is a real module var; both the module and importers
-/// read/write the same value.
+/**
+A live binding: `total` is a real module var; both the module and importers
+read/write the same value.
+**/
 export prop total = 0
 
-/// A plain exported function that bumps both, showing the shared state.
+/**
+A plain exported function that bumps both, showing the shared state.
+**/
 export inc() {
     value = value + 1
     total = total + 1

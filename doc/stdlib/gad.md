@@ -25,7 +25,7 @@ user code can both call an operator and extend it for its own types:
 
 A type customises an operator by adding a typed method, e.g.
 `met gad.binOpAdd(a Vec, b Vec) { … }`. See the User Operators chapter
-(samples/14_user_operators.gad).
+(samples/user_operators.gad).
 
 ## Context managers
 
@@ -34,7 +34,7 @@ The `with` statement runs a resource's hooks through these two functions:
 - `gad.enter(resource)` — runs the resource's `enter()` hook, returning its value.
 - `gad.exit(resource, err)` — runs the resource's `exit(err)` cleanup hook.
 
-See the `with` chapter (samples/18_with.gad).
+See the `with` chapter (samples/with.gad).
 
 ## Type objects
 

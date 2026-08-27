@@ -1,9 +1,72 @@
 package node
 
 import (
+	"sort"
+
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
 )
+
+// sortedInterfaceMembers returns the interface's fields and property-like members
+// (get/set/prop) in canonical order: fields first, grouped untyped-before-typed
+// and sorted by name within each group, then the property-like members sorted by
+// name (declaration order preserved among same-named getter/setter pairs). The
+// input slice is not mutated.
+func sortedInterfaceMembers(members []*InterfaceMemberExpr) []*InterfaceMemberExpr {
+	out := make([]*InterfaceMemberExpr, len(members))
+	copy(out, members)
+	rank := func(m *InterfaceMemberExpr) int {
+		if m.Kind != IfaceField {
+			return 2 // property-like members sort after all fields
+		}
+		if m.Name != nil && len(m.Name.Type) > 0 {
+			return 1 // typed field
+		}
+		return 0 // untyped field
+	}
+	name := func(m *InterfaceMemberExpr) string {
+		if m.Name != nil && m.Name.Ident != nil {
+			return m.Name.Ident.Name
+		}
+		return ""
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if ri, rj := rank(out[i]), rank(out[j]); ri != rj {
+			return ri < rj
+		}
+		return name(out[i]) < name(out[j])
+	})
+	return out
+}
+
+// sortedInterfaceMethods returns the required methods sorted by name. The input
+// slice is not mutated.
+func sortedInterfaceMethods(methods []*InterfaceMethodExpr) []*InterfaceMethodExpr {
+	out := make([]*InterfaceMethodExpr, len(methods))
+	copy(out, methods)
+	sort.SliceStable(out, func(i, j int) bool {
+		var ni, nj string
+		if out[i].NameExpr != nil {
+			ni = out[i].NameExpr.Name
+		}
+		if out[j].NameExpr != nil {
+			nj = out[j].NameExpr.Name
+		}
+		return ni < nj
+	})
+	return out
+}
+
+// sortedInterfaceContextFuncs returns the `funcs { … }` members sorted by their
+// function expression's source form. The input slice is not mutated.
+func sortedInterfaceContextFuncs(funcs []*InterfaceContextFuncExpr) []*InterfaceContextFuncExpr {
+	out := make([]*InterfaceContextFuncExpr, len(funcs))
+	copy(out, funcs)
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].FnExpr.String() < out[j].FnExpr.String()
+	})
+	return out
+}
 
 // InterfaceMemberKind selects the kind of a simple (name + optional types)
 // interface body member: a field, or a getter/setter/property accessor.
@@ -80,13 +143,13 @@ type InterfaceExpr struct {
 	// (`interface[] P`, `interface[][][] P`): the interface then matches an array
 	// nested to this depth whose leaf elements each satisfy the body. 0 for a plain
 	// interface.
-	ArrayDepth int
-	NameExpr   Expr // *IdentExpr or nil (anonymous)
-	Parents        []Expr // *Parent spreads — no alias
-	ExtendsDoc     *ast.CommentGroup
-	Members        []*InterfaceMemberExpr      // fields, getters, setters, props (source order)
-	Methods        []*InterfaceMethodExpr      // required methods (one or more signatures each)
-	ContextFuncs   []*InterfaceContextFuncExpr // context-function checks (`funcs { … }`)
+	ArrayDepth   int
+	NameExpr     Expr   // *IdentExpr or nil (anonymous)
+	Parents      []Expr // *Parent spreads — no alias
+	ExtendsDoc   *ast.CommentGroup
+	Members      []*InterfaceMemberExpr      // fields, getters, setters, props (source order)
+	Methods      []*InterfaceMethodExpr      // required methods (one or more signatures each)
+	ContextFuncs []*InterfaceContextFuncExpr // context-function checks (`funcs { … }`)
 	// Rest is the `**name` rest-capture field: when the interface is used to cast
 	// a dict (`d :: I`), keys not named by the interface are collected into a dict
 	// bound to this name in the result. Nil when the interface has no `**` member.
@@ -229,6 +292,14 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 		e.NameExpr.WriteCode(ctx)
 	}
 	ctx.WriteString(" {")
+	writeInterfaceBody(ctx, e)
+	ctx.WriteString("}")
+}
+
+// writeInterfaceBody emits an interface's members (parents, fields/getters/…,
+// methods, `**rest`, `funcs {}`) between the enclosing braces — shared by the
+// `interface { … }` form and a mixin's `this { … }` block.
+func writeInterfaceBody(ctx *CodeWriteContext, e *InterfaceExpr) {
 	ctx.Depth++
 	for i, p := range e.Parents {
 		if i == 0 {
@@ -238,11 +309,11 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(p.String())
 		ctx.WriteSemi()
 	}
-	for _, m := range e.Members {
+	for _, m := range sortedInterfaceMembers(e.Members) {
 		m.WriteCode(ctx)
 		ctx.WriteSemi()
 	}
-	for _, m := range e.Methods {
+	for _, m := range sortedInterfaceMethods(e.Methods) {
 		m.WriteCode(ctx)
 		ctx.WriteSemi()
 	}
@@ -255,7 +326,7 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	if len(e.ContextFuncs) > 0 {
 		ctx.WriteString("funcs {")
 		ctx.Depth++
-		for _, m := range e.ContextFuncs {
+		for _, m := range sortedInterfaceContextFuncs(e.ContextFuncs) {
 			m.WriteCode(ctx)
 			ctx.WriteSemi()
 		}
@@ -264,7 +335,6 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteSemi()
 	}
 	ctx.Depth--
-	ctx.WriteString("}")
 }
 
 // InterfaceStmt is the statement form `interface Name { … }`, which binds a

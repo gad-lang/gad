@@ -68,7 +68,9 @@ func benchFib(t) {
 // the functions above: `t` is available directly and NAME may be a string, so a
 // test can have a spaces-and-all description. A `///` doc comment is allowed.
 
-/// add is commutative
+/**
+add is commutative
+**/
 test addCommutes {
 	t.equal(add(2, 3), add(3, 2))
 }
@@ -90,19 +92,27 @@ met sum(a float, b float) => a + b
 // each level may carry its own `///` doc comment. `t.helper()` is accepted for
 // parity with Go's t.Helper() (a no-op here).
 
-/// sum over several types
+/**
+sum over several types
+**/
 test sum {
-    /// integer overload
+    /**
+    integer overload
+    **/
     test ints {
         t.helper()
         t.equal(3, sum(1, 2))
     }
 
-    /// float overload
+    /**
+    float overload
+    **/
     test floats {
         t.equal(4.0, sum(1.5, 2.5))
 
-        /// still the float overload, one level deeper
+        /**
+        still the float overload, one level deeper
+        **/
         test other {
             t.equal(5.0, sum(2.5, 2.5))
         }
