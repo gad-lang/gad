@@ -39,6 +39,7 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `10_functions_with_methods.gad` | typed params, func-with-methods, `met`, `prop` |
 | `class/classes.gad`           | classes via the `Class(…)` builtin: fields, methods, properties, inheritance |
 | `class/syntax.gad`            | the `class` keyword (expression + statement forms) |
+| `class/class_type.gad`        | inspect a class value: `MyClass.@name/@fields/…`, members by name, `MyClass[name]` |
 | `class/field_types.gad`       | typed & nullable class fields (`x int`, `x? int|str`) |
 | `class/field_defaults_test.gad` | field defaults: literal, `(= expr)` and per-instance `initFields` |
 | `12_method_interfaces.gad`   | `<…>` func headers, `meti` interfaces, `implements` |

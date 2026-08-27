@@ -1,0 +1,84 @@
+
+# The class value — introspection & member access
+
+A `class` value (the thing `class Name { … }` binds, or the `Class(...)` builtin
+returns) is a first-class object you can inspect at runtime. Access is by
+**attribute** — `MyClass.<NAME>` — or, equivalently, by **item** —
+`MyClass[<NAME>]` (the index / "get item" form), which is what you use when the
+name is dynamic (a variable or computed string).
+
+## Introspection attributes (`@`-prefixed)
+
+Each returns a live view of the class:
+
+- `MyClass.@name`    — the class name (a `str`).
+- `MyClass.@fields`  — a dict of `name -> classField`.
+- `MyClass.@props`   — a dict of `name -> classProperty`.
+- `MyClass.@methods` — a dict of `name -> classMethod`.
+- `MyClass.@parents` — the parent classes (from `*Parent` spreads / `extends`).
+- `MyClass.@module`  — the module the class was defined in.
+
+## Members by name
+
+A bare name resolves the property or method itself: `MyClass.area` /
+`MyClass["scaled"]` returns the `classProperty` / `classMethod` object (not a
+value — it is unbound; call an instance's `inst.area` to evaluate it). An unknown
+name is an index error.
+
+## `.name` vs `[name]` (attribute vs item)
+
+`MyClass.foo` and `MyClass["foo"]` are the same lookup (the class's `IndexGet`);
+the bracket form just lets the key be an expression — `MyClass[dynamicName]`.
+
+The runnable Example below tours all of these.
+
+## Example — `class_type.gad`
+
+```gad
+/// Shape is a small base class, spread into Circle below.
+class Shape {
+    /// what kind of shape
+    kind str = "?"
+}
+
+/// Circle has a typed field, a property and a method — enough to show every
+/// introspection attribute.
+class Circle {
+    *Shape
+    /// the radius
+    r int
+    props {
+        /// the area (a getter)
+        area => 3 * this.r * this.r
+    }
+    methods {
+        /// the radius scaled by k
+        scaled(k) => this.r * k
+    }
+}
+
+// --- introspection attributes ---
+// Each `@`-attribute is a dict/array; iterate `k, v` to read the member names.
+println("@name     :", Circle.@name)                        // Circle
+println("@fields   :", [k for k, v in Circle.@fields])      // [r] (kind lives on the parent)
+println("@props    :", [k for k, v in Circle.@props])       // [area]
+println("@methods  :", [k for k, v in Circle.@methods])     // [scaled]
+println("@parents  :", len(Circle.@parents) >= 1)           // true
+println("@module   :", typeName(Circle.@module))            // Module
+
+// --- members by name (the unbound property / method objects) ---
+println("member .area   :", typeName(Circle.area))        // classProperty
+println("member [scaled]:", typeName(Circle["scaled"]))   // classMethod
+
+// --- attribute vs item: the same IndexGet, item lets the key be dynamic ---
+attr := "@name"
+println("dynamic Circle[attr]:", Circle[attr])            // Circle
+println("dot == item        :", Circle.@name == Circle["@name"]) // true
+
+// The bound values live on an instance, not on the class:
+c := Circle(; r = 2, kind = "circle")
+println("instance area  :", c.area)                       // 12
+println("instance scaled:", c.scaled(5))                  // 10
+
+return Circle.@name
+```
