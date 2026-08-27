@@ -3188,6 +3188,11 @@ func TestParseClass(t *testing.T) {
 	// property accessor block (getter + setters).
 	test.New(t, "x := class { props { val { () => v\n(n) { v = n } } } }").
 		Code("x := class {props {val {() => v; (n) {v = n}}}}")
+
+	// getter shortcuts in a props block: `name = expr` and `name => expr` are the
+	// same zero-arg accessor, both normalized to the canonical `name() => expr`.
+	test.New(t, "x := class { props { a = 1, b => 2 } }").
+		Code("x := class {props {a() => 1; b() => 2}}")
 }
 
 func TestParseProperty(t *testing.T) {

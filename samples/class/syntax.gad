@@ -9,8 +9,9 @@ optional parent spreads (`*Parent`), bare fields, then `props {}`, `new` and
 The first parameter is inserted automatically — you do not write it: `this` for
 methods and property accessors, and `new` (the class initiator) for
 constructors. A method takes a typed `this cls` (so overloads dispatch on
-argument types); a `name = expr` entry in `props`/`methods` is shorthand for a
-zero-argument accessor `() => expr`. The statement form `class Name { … }`
+argument types). A getter-only entry in `props`/`methods` has a shorthand: both
+`name = expr` and `name => expr` are the same zero-argument accessor `() => expr`.
+The statement form `class Name { … }`
 defines a const; there are also anonymous expression and `export class` forms.
 Everything else — field defaults, typed fields, inheritance, overloaded
 methods/constructors — works exactly as in the `Class(...)` builtin.
@@ -87,12 +88,15 @@ class Box {
             (x)       { this.v = "any:" + str(x) }
             (x int)   { this.v = "int:" + str(x) }
         }
-        /// whether no value has been set (getter shortcut for `() => expr`)
+        /// whether no value has been set (getter shortcut `name = expr`)
         empty = this.v == nil
+        /// the value's type name (the `name => expr` getter shortcut)
+        kind => typeName(this.v)
     }
 }
 b := Box()
 println("empty   =", b.empty)        // true
+println("kind    =", b.kind)         // nil
 b.val = "hi"
 println("box any =", b.val)          // any:hi
 b.val = 7

@@ -178,7 +178,8 @@ func (p *Parser) parseClassMemberBlock() (members []*node.ClassMemberExpr) {
 }
 
 // parseClassMember parses one `props`/`methods` entry: `name(params) body`,
-// `name { overloads }`, or the `name = expr` shortcut (a zero-arg accessor).
+// `name { overloads }`, or the zero-arg accessor shortcuts `name = expr` and
+// `name => expr` (both a getter `() => expr`).
 func (p *Parser) parseClassMember() *node.ClassMemberExpr {
 	doc := p.leadComment
 	m := &node.ClassMemberExpr{NameExpr: p.ParseIdent(), Doc: doc}
@@ -207,11 +208,13 @@ func (p *Parser) parseClassMember() *node.ClassMemberExpr {
 		}
 		p.ExprLevel--
 		m.RBrace = p.Expect(token.RBrace)
-	case token.Assign:
+	case token.Assign, token.Lambda:
+		// `name = expr` and `name => expr` are the same getter shortcut: a
+		// zero-argument accessor `() => expr`.
 		p.Next()
 		m.Methods = append(m.Methods, &node.FuncMethod{BodyExpr: p.ParseExpr()})
 	default:
-		p.ErrorExpectToken(p.Token, token.LParen, token.LBrace, token.Assign)
+		p.ErrorExpectToken(p.Token, token.LParen, token.LBrace, token.Assign, token.Lambda)
 		return nil
 	}
 	return m
