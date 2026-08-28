@@ -1,6 +1,11 @@
 {
   "private": true,
   "workspaces": ["plugins/js/codemirror-gad", "plugins/js/prism-gad", "ide-react", "ide-vuetify", "ide-vuetify/demo", "app", "website"],
+  "//overrides": "The ide-react/ide-vuetify submodules pin @gad-lang/codemirror-gad and prism-gad at a stable range (^0.1.0) that semver excludes pre-releases from. The workspace members are pre-releases (0.1.0-rc.N), so plain resolution stalls on a registry lookup for a non-existent stable version. Force every workspace member onto the local plugin packages.",
+  "overrides": {
+    "@gad-lang/codemirror-gad": "workspace:*",
+    "@gad-lang/prism-gad": "workspace:*"
+  },
   "trustedDependencies": ["esbuild"],
   "scripts": {
     "plugins:build": "bun run --cwd ide-react build",
