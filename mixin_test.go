@@ -149,6 +149,49 @@ func TestMixinInterfaceAttr(t *testing.T) {
 		nil, Str("interface (main).A$interface {f int; get p; run()}"))
 }
 
+// TestMixinThisAttr verifies `@this` returns the declared `this { … }` interface,
+// or nil when the mixin has no `this` block.
+func TestMixinThisAttr(t *testing.T) {
+	testExpectRun(t, `
+		mixin A { this { size() <int> } }
+		return [bool(A.@this :: gad.Interface), str(A.@this)]`,
+		nil, Array{True, Str("interface (main).A$this {size()}")})
+
+	testExpectRun(t, `
+		mixin B { x = 1 }
+		return B.@this == nil`,
+		nil, True)
+}
+
+// TestMixinInterfaceExtendsThisAndParents verifies `@interface` extends the `this`
+// interface and each parent mixin's `@interface`: a value satisfies it only when
+// it satisfies its own members, its `this` requirement, and its parents'.
+func TestMixinInterfaceExtendsThisAndParents(t *testing.T) {
+	base := `
+		mixin Named { name = "?" }
+		mixin Sized {
+			*Named
+			this { size() <int> }
+			methods { area() => this.size() * this.size() }
+		}`
+	// A class that uses Sized and provides size() satisfies Sized.@interface (own
+	// area + parent Named's name + this-interface size()).
+	testExpectRun(t, base+`
+		class Box { use Sized; methods { size() => 3 } }
+		return bool(Box(; name="b") :: Sized.@interface)`,
+		nil, True)
+
+	// Missing size() -> fails the extended `this` interface.
+	testExpectRun(t, base+`
+		class NoSize { use Named }
+		return bool(NoSize(; name="x") :: Sized.@interface or false)`,
+		nil, False)
+
+	// The rendering shows the extends spreads.
+	testExpectRun(t, base+`return str(Sized.@interface)`,
+		nil, Str("interface (main).Sized$interface {*(main).Sized$this; *(main).Named$interface; area()}"))
+}
+
 // TestMixinReflectionAttrs verifies the mixin reflection attributes mirror class.
 func TestMixinReflectionAttrs(t *testing.T) {
 	testExpectRun(t, `

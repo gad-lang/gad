@@ -157,4 +157,69 @@ test "@interface reflects the declared members" {
     t.equal("area", collect(keys(Shape.@props))[0])
     t.equal("draw", collect(keys(Shape.@methods))[0])
 }
+
+/**
+`@this` returns the mixin's declared `this { … }` interface — the contract the
+receiver of its methods and properties must satisfy — or nil when the mixin has
+no `this` block.
+**/
+test "@this is the declared this-interface" {
+    mixin Movable {
+        this { pos() <int> }
+        methods { step() => this.pos() + 1 }
+    }
+    mixin Plain { x = 1 }
+
+    t.true(Movable.@this :: gad.Interface)   // the `this { pos() }` interface
+    t.equal(nil, Plain.@this)                // no `this` block -> nil
+}
+
+/**
+`@interface` **extends** the mixin's `this` interface and each parent mixin's
+`@interface`, so a value satisfies it only when it satisfies the whole contract
+the mixin contributes: its own members, its `this` requirement, and its parents'.
+**/
+test "@interface extends this and parents" {
+    mixin Named { name = "?" }
+    mixin Sized {
+        *Named
+        this { size() <int> }
+        methods { area() => this.size() * this.size() }
+    }
+
+    // A class using Sized that provides size() satisfies the whole contract.
+    class Box { use Sized; methods { size() => 3 } }
+    t.true(Box(; name="b") :: Sized.@interface)
+
+    // Missing size() fails the extended `this` interface.
+    class NoSize { use Named }
+    t.true(!(bool(NoSize(; name="x") :: Sized.@interface) or false))
+}
+
+/**
+A `met` declaration adds a method, property or constructor to a class or mixin
+after its definition. The receiver — `this` (the instance), `new` (the class
+initiator) or `$old` (the overridden implementation) — sees every member the type
+offers, **including members pulled in from `use`d mixins, inherited from parents,
+and required by a mixin's `this { … }` interface**. Editor auto-completion of
+`this.` / `new.` / `$old.` in these contexts resolves exactly this member set
+(verified by the CLI's `gad complete` tests).
+**/
+test "met adds a method seeing merged and inherited members" {
+    mixin Counter { count = 0; methods { inc() { this.count += 1 } } }
+    class Base { hp = 10 }
+    class Hero {
+        *Base
+        use Counter
+        name = "?"
+    }
+
+    // `this` inside the met sees own (name), inherited (hp) and mixin (count/inc).
+    met Hero.status(this) => [this.name, this.hp, this.count]
+    h := Hero(; name="A", hp=5, count=2)
+    t.equal(["A", 5, 2], h.status())
+
+    h.inc()                                   // mixin method, added via `use`
+    t.equal(3, h.count)
+}
 ```

@@ -47,8 +47,15 @@ Mixin members become the class's own; mixin fields init first (parents-first).
 - **`///` → `/** **/`** — converted single-line doc-comment runs to block form in 27 hand-written samples (16 top-level + 11 subdir); left doc_comments.gad (illustrative) and generated stubs untouched.
 - `make verify` → OK (after `git add doc/`). `samples.gen.ts` regenerated via bun (gitignored).
 
+## Committed + plugins (final)
+- main (unpushed, 4 new commits): 117b6c8 feat(mixin) [+ sample denumber + `///`→block], f17ac9c bump vscode/intellij, 795f767 bump codemirror/prism, d014630 tmtest mixin scopes.
+- Grammar is single-source (generated from Go vocabulary via `update-vscode-plugin -print`); `mixin` keyword + `Mixin` builtin land automatically. Published + pushed: gad-textmate d507150; plugin submodules bumped+pushed: vscode-gad a432961, intellij-gad d13d5b6, codemirror-gad 9a08b44, prism-gad fec1db7.
+- IntelliJ completion needs no code change — it is driven by `gad complete`, which already surfaces mixin/Mixin from the compiled binary.
+- prism-gad grammar edited by hand (its generator reports "array not found" — pre-existing); codemirror via its generator.
+- `make grammar-test` (23 tests) + `make verify` green.
+
 ## Unverified / Pending
-- Nothing pending. All feature-complete and verified. Not yet committed (awaiting user's go-ahead per their push-when-asked pattern).
+- main repo commits are LOCAL (user said "comita", not push); origin/main is 6 behind (2 pre-existing + 4 this session). Offer to push.
 
 ## Current State
 Mixin system is implemented and verified: `mixin` parses, lowers to the `Mixin(…)`

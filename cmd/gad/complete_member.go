@@ -17,6 +17,12 @@ import (
 // the resulting value's members — dict keys, class fields/properties/methods,
 // module exports. ok is false when the caret is not a member-access context.
 func memberCompletions(name, src string, offset int) (items []langsym.Symbol, ok bool) {
+	// A `met` special receiver (`this`/`$old`/`new`) is resolved from the met
+	// target's type, not by evaluating the (unbound) parameter.
+	if items, ok := metReceiverCompletions(name, src, offset); ok {
+		return items, true
+	}
+
 	recv, recvStart, dot, ok := memberContext(src, offset)
 	if !ok {
 		return nil, false

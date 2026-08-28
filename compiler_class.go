@@ -165,6 +165,12 @@ func (c *Compiler) mixinCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 	if len(nd.Parents) > 0 {
 		inner.AppendS("extends", classExtendsExpr(nd))
 	}
+	// The `this { … }` interface is passed to define so the mixin can expose it as
+	// `@this` (and build `@interface` extending it); it is referenced by the const
+	// name the block is lowered to, in scope inside the callback body below.
+	if nd.This != nil {
+		inner.AppendS("this", node.EIdent(ifaceName, pos))
+	}
 	if len(nd.Fields) > 0 {
 		fieldsExpr, initFieldsExpr := classFieldsExpr(nd)
 		inner.AppendS("fields", fieldsExpr)

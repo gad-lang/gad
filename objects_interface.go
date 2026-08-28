@@ -116,11 +116,16 @@ var (
 // Interface is the value of an `interface { … }` (see TInterface).
 type Interface struct {
 	IName   string
-	Module  *ModuleSpec       // module the interface was compiled in (for FullName)
-	Extends ParamType         // parent interface symbol refs (from `extends { … }`)
-	Fields  []*InterfaceField // typed fields
-	Props   []*InterfaceProp  // getter/setter properties
-	Methods []*InterfaceMethod
+	Module  *ModuleSpec // module the interface was compiled in (for FullName)
+	Extends ParamType   // parent interface symbol refs (from `extends { … }`)
+	// ExtendsIface are parent interfaces held by direct reference (not a symbol),
+	// for interfaces assembled at run time — e.g. a mixin's `@interface` extends
+	// its `this` interface and each parent mixin's `@interface`. Satisfaction
+	// requires the object to satisfy every one of them, like Extends.
+	ExtendsIface []*Interface
+	Fields       []*InterfaceField // typed fields
+	Props        []*InterfaceProp  // getter/setter properties
+	Methods      []*InterfaceMethod
 	// ContextFuncs are the `funcs { … }` members: required context functions whose
 	// captured value (bound at run time, see OpInterfaceBind) must have a
 	// signature matching each header, with `@self` standing for this interface.
@@ -303,6 +308,12 @@ func (i *Interface) canAssignVMUncached(vm *VM, obj Object) (bool, error) {
 					return ok, err
 				}
 			}
+		}
+	}
+	// Directly-held parent interfaces (run-time extends) must all be satisfied.
+	for _, parent := range i.ExtendsIface {
+		if ok, err := parent.CanAssignVM(vm, obj); err != nil || !ok {
+			return ok, err
 		}
 	}
 
@@ -709,6 +720,14 @@ func (i *Interface) String() string {
 	}
 	b.WriteString("{")
 	sep := ""
+	// Run-time parent interfaces (a mixin's `@interface` extends its `this` and its
+	// parents' `@interface`) render as `*ParentName` spreads, mirroring source.
+	for _, p := range i.ExtendsIface {
+		b.WriteString(sep)
+		b.WriteString("*")
+		b.WriteString(p.FullName())
+		sep = "; "
+	}
 	// Each member renders through its own ToString (so a field shows its type,
 	// `f int`, and a property its accessor kind, `get p` / `set p` / `prop p`).
 	for _, f := range i.Fields {

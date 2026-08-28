@@ -44,6 +44,11 @@ type Mixin struct {
 	rawMethods Object
 	initFields CallerObject
 
+	// thisIface is the mixin's declared `this { … }` interface (its `@this`), the
+	// contract the receiver of the mixin's props/methods must satisfy; nil when the
+	// mixin has no `this` block. Set from the `this=` arg of define.
+	thisIface *Interface
+
 	iface *Interface // cached @interface (built lazily)
 }
 
@@ -145,9 +150,26 @@ func (m *Mixin) define(c Call) (err error) {
 				return nil
 			},
 		}
+
+		thisArg = &NamedArgVar{
+			Name: "this",
+			// Check the *Interface Go type directly rather than via the TInterface
+			// package var: referencing TInterface here would form a package
+			// initialisation cycle (BuiltinObjects → NewMixinFunc → define →
+			// TInterface → RegisterBuiltinType → BuiltinObjects).
+			TypeAssertion: NewTypeAssertion(TypeAssertions(func(a TypeAssertionHandlers) {
+				a["Interface"] = func(v Object) (ok bool) { _, ok = v.(*Interface); return }
+			})),
+			// The declared `this { … }` interface, exposed as `@this` and extended by
+			// `@interface`.
+			Do: func(value Object) error {
+				m.thisIface, _ = value.(*Interface)
+				return nil
+			},
+		}
 	)
 
-	return c.NamedArgs.GetDo(extends, fields, initFields, properties, methods)
+	return c.NamedArgs.GetDo(extends, thisArg, fields, initFields, properties, methods)
 }
 
 // lineage appends this mixin's parents (depth-first, parents before self) and
@@ -199,15 +221,39 @@ func (m *Mixin) Parents() (r Array) {
 	return
 }
 
+// This returns the mixin's declared `this { … }` interface (its `@this`), or nil
+// when the mixin has no `this` block.
+func (m *Mixin) This() *Interface { return m.thisIface }
+
+// Fields returns the mixin's declared fields, by name (its `@fields`).
+func (m *Mixin) Fields() Dict { return m.class.Fields() }
+
+// Properties returns the mixin's declared properties, by name (its `@props`).
+func (m *Mixin) Properties() Dict { return m.class.Properties() }
+
+// Methods returns the mixin's declared methods, by name (its `@methods`).
+func (m *Mixin) Methods() Dict { return m.class.Methods() }
+
+// RawParents returns the mixin's parent mixins (its declared `*A` spreads).
+func (m *Mixin) RawParents() []*Mixin { return m.parents }
+
 // Interface builds (and caches) the `@interface`: a new Interface named
 // `Name$interface` in the mixin's module that mirrors the mixin's declared
-// members — its fields, properties and methods — so a class instance that pulls
-// the mixin in structurally satisfies it.
+// members — its fields, properties and methods. It also EXTENDS the mixin's
+// `this` interface (when present) and each parent mixin's `@interface`, so a
+// value satisfies `@interface` only when it satisfies the whole contract the
+// mixin contributes: its own members, its `this` requirement, and its parents'.
 func (m *Mixin) Interface() *Interface {
 	if m.iface != nil {
 		return m.iface
 	}
 	i := &Interface{IName: m.name + "$interface", Module: m.module}
+	if m.thisIface != nil {
+		i.ExtendsIface = append(i.ExtendsIface, m.thisIface)
+	}
+	for _, p := range m.parents {
+		i.ExtendsIface = append(i.ExtendsIface, p.Interface())
+	}
 	// Fields keep their declaration order and types (`f int` -> a typed member).
 	for _, f := range m.class.RawFields() {
 		fld := &InterfaceField{Iface: i, Name: f.Name, Nullable: f.Nullable}
@@ -250,6 +296,12 @@ func (m *Mixin) IndexGet(vm *VM, index Object) (value Object, err error) {
 		return m.class.Methods(), nil
 	case "@parents":
 		return m.Parents(), nil
+	case "@this":
+		// The declared `this { … }` interface; Nil when the mixin has no `this` block.
+		if m.thisIface == nil {
+			return Nil, nil
+		}
+		return m.thisIface, nil
 	case "@name":
 		return Str(m.name), nil
 	case "@module":
