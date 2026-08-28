@@ -52,7 +52,7 @@ dist: web-build build-vscode-plugin build-wasm
 goreleaser-setup: web-build
 	git submodule update --init --recursive plugins/ide/vscode-gad
 	go run ./cmd/update-vscode-plugin -w
-	cd plugins/ide/vscode-gad && bun install && bun run package
+	cd plugins/ide/vscode-gad && bun install --frozen-lockfile && bun run package
 
 # Build the VS Code extension: refresh the gad-textmate bundle submodule,
 # regenerate the TextMate grammar into it from the current language vocabulary,
@@ -61,7 +61,7 @@ goreleaser-setup: web-build
 build-vscode-plugin:
 	git submodule update --init --recursive plugins/ide/vscode-gad
 	go run ./cmd/update-vscode-plugin -w
-	cd plugins/ide/vscode-gad && bun install && bun run package
+	cd plugins/ide/vscode-gad && bun install --frozen-lockfile && bun run package
 	mkdir -p dist
 	mv plugins/ide/vscode-gad/vscode-gad.vsix dist/
 
@@ -140,7 +140,7 @@ check-delve:
 
 .PHONY: web-install
 web-install:
-	cd web && bun install
+	cd web && bun install --frozen-lockfile
 
 # Build and run the Vite dev server (right: editor, left: formatted/output).
 # The WASM example works standalone; for the "Go server" example also run
@@ -161,7 +161,7 @@ web-server:
 # first if the submodules are not checked out.
 .PHONY: plugins-js
 plugins-js:
-	cd web && bun install
+	cd web && bun install --frozen-lockfile
 	cd web/plugins/js/codemirror-gad && bun run build
 	cd web/plugins/js/prism-gad && bun run build
 
@@ -256,7 +256,7 @@ samples-doc: generate-api
 # least one test file exists. Needs bun.
 .PHONY: web-test
 web-test:
-	cd web && bun install
+	cd web && bun install --frozen-lockfile
 	@if find web \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.spec.ts' \) \
 		-not -path '*/node_modules/*' | grep -q .; then \
 		echo "==> web: bun test"; cd web && bun test; \
