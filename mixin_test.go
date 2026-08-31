@@ -246,12 +246,15 @@ func TestMixinInterfaceDedupAndCollision(t *testing.T) {
 		return [Ok().foo(), Ok().bar()]`,
 		nil, Array{Int(1), Int(2)})
 
-	// Two distinct interfaces declaring `foo` -> rejected at the mixin's definition.
+	// Two `foo()` with the same params but different return TYPES (`<_ int>` vs
+	// `<_ str>`) conflict when flattened — a genuine signature clash, rejected at
+	// the mixin's definition. (A bare `<int>` is a NAMED return of type any, which
+	// would not conflict.)
 	expectErrHas(t, `
-		mixin A { this { foo() <int> } }
-		mixin B { this { foo() <str> } }
+		mixin A { this { foo() <_ int> } }
+		mixin B { this { foo() <_ str> } }
 		mixin C { *A; *B }`,
-		nil, `member "foo" is declared in two different interfaces`)
+		nil, `same parameters but different return types`)
 }
 
 // TestInterfaceFlatten verifies `iface.@flat`: the extends graph flattened into a

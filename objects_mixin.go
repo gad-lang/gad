@@ -110,7 +110,7 @@ func NewMixinFunc(c Call) (ret Object, err error) {
 // same check Class.useMixins runs, applied at the mixin's own definition so the
 // error surfaces early.
 func (m *Mixin) validateContract() error {
-	_, err := interfaceRequiredNames(m.ClassInterface())
+	_, err := interfaceRequiredNames(nil, m.ClassInterface())
 	return err
 }
 

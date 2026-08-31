@@ -807,7 +807,7 @@ func objectArray[T Object](s []T) Array {
 	return arr
 }
 
-func (i *Interface) IndexGet(_ *VM, index Object) (Object, error) {
+func (i *Interface) IndexGet(vm *VM, index Object) (Object, error) {
 	switch index.ToString() {
 	case "name":
 		return Str(i.IName), nil
@@ -818,7 +818,7 @@ func (i *Interface) IndexGet(_ *VM, index Object) (Object, error) {
 	case "methods":
 		return objectArray(i.Methods), nil
 	case "@flat":
-		return i.Flatten()
+		return i.Flatten(vm)
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
@@ -827,31 +827,28 @@ func (i *Interface) IndexGet(_ *VM, index Object) (Object, error) {
 // member name declared by two different interfaces in an extends graph.
 var ErrInterfaceMemberConflict = &Error{Name: "InterfaceMemberConflictError"}
 
-// Flatten returns (and caches) the interface flattened across its direct-
-// reference extends graph (ExtendsIface): a new Interface whose Fields, Props and
-// Methods gather every member of the interface and the interfaces it extends,
-// with NO extends of its own. Deduplication is by INTERFACE, not by member — an
-// interface reached more than once (a diamond) contributes its members once — but
-// a member NAME declared by two DIFFERENT interfaces is a conflict (their
-// signatures could differ) and returns ErrInterfaceMemberConflict. Useful for
-// reflection (`iface.@flat`), tests, and as a validated, cached contract.
-func (i *Interface) Flatten() (*Interface, error) {
+// Flatten returns (and caches) the interface flattened across its whole extends
+// graph — both the direct-reference parents (ExtendsIface, e.g. a mixin's
+// `@interface`) and the symbol parents (Extends, from a source `interface { *A }`,
+// resolved via vm) — into a new Interface with NO extends of its own.
+//
+// Members with the SAME NAME across interfaces are MERGED, not rejected, as long
+// as their signatures are compatible: a getter, its setters (by value type) and a
+// method's overloads all combine, and an identical signature seen twice is
+// deduplicated silently. A genuine signature CONFLICT returns
+// ErrInterfaceMemberConflict:
+//   - a name used as two different member kinds (field vs property vs method);
+//   - two getters of one name with different return types;
+//   - two method overloads with the same parameters but different return types.
+//
+// Deduplication of a whole interface reached more than once (a diamond) is by
+// interface identity, so a shared parent contributes its members once.
+func (i *Interface) Flatten(vm *VM) (*Interface, error) {
 	if i.flatBuilt {
 		return i.flat, i.flatErr
 	}
-	out := &Interface{IName: i.IName, Module: i.Module, Rest: i.Rest, ArrayDepth: i.ArrayDepth}
-	source := map[string]*Interface{} // member name -> declaring interface
+	m := newIfaceMerger(i.IName, i.Module, i.Rest, i.ArrayDepth)
 	seen := map[*Interface]bool{}
-	claim := func(name string, from *Interface) error {
-		if prev, ok := source[name]; ok && prev != from {
-			return ErrInterfaceMemberConflict.NewErrorf(
-				"member %q is declared in two different interfaces (%s and %s); "+
-					"a member name must be unique across an interface's extends graph",
-				name, prev.FullName(), from.FullName())
-		}
-		source[name] = from
-		return nil
-	}
 	var walk func(*Interface) error
 	walk = func(x *Interface) error {
 		if x == nil || seen[x] {
@@ -859,37 +856,231 @@ func (i *Interface) Flatten() (*Interface, error) {
 		}
 		seen[x] = true
 		for _, f := range x.Fields {
-			if err := claim(f.Name, x); err != nil {
+			if err := m.addField(f); err != nil {
 				return err
 			}
-			out.Fields = append(out.Fields, f)
 		}
 		for _, p := range x.Props {
-			if err := claim(p.Name, x); err != nil {
+			if err := m.addProp(p); err != nil {
 				return err
 			}
-			out.Props = append(out.Props, p)
 		}
-		for _, m := range x.Methods {
-			if err := claim(m.Name, x); err != nil {
+		for _, meth := range x.Methods {
+			if err := m.addMethod(meth); err != nil {
 				return err
 			}
-			out.Methods = append(out.Methods, m)
 		}
-		out.ContextFuncs = append(out.ContextFuncs, x.ContextFuncs...)
+		m.out.ContextFuncs = append(m.out.ContextFuncs, x.ContextFuncs...)
 		for _, p := range x.ExtendsIface {
 			if err := walk(p); err != nil {
 				return err
+			}
+		}
+		if vm != nil {
+			for _, sym := range x.Extends {
+				pv, err := vm.GetSymbolValue(sym)
+				if err != nil {
+					return err
+				}
+				if parent, _ := pv.(*Interface); parent != nil {
+					if err := walk(parent); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		return nil
 	}
 	i.flatErr = walk(i)
 	if i.flatErr == nil {
-		i.flat = out
+		i.flat = m.finish()
 	}
 	i.flatBuilt = true
 	return i.flat, i.flatErr
+}
+
+// ifaceMerger accumulates the flattened members of an interface graph, merging
+// same-name members by signature and rejecting genuine conflicts (see Flatten).
+type ifaceMerger struct {
+	out   *Interface
+	kind  map[string]string            // name -> "field" | "prop" | "method"
+	field map[string]*InterfaceField   // name -> the (single) field, for type check
+	geter map[string]*InterfaceProp    // name -> the merged property (getter + setters)
+	seter map[string]map[string]bool   // name -> set of setter value-type keys
+	meth  map[string]map[string]string // name -> paramsKey -> returnKey (overloads)
+	mmeth map[string]*InterfaceMethod  // name -> merged method (accumulating headers)
+}
+
+func newIfaceMerger(name string, mod *ModuleSpec, rest string, depth int) *ifaceMerger {
+	return &ifaceMerger{
+		out:   &Interface{IName: name, Module: mod, Rest: rest, ArrayDepth: depth},
+		kind:  map[string]string{},
+		field: map[string]*InterfaceField{},
+		geter: map[string]*InterfaceProp{},
+		seter: map[string]map[string]bool{},
+		meth:  map[string]map[string]string{},
+		mmeth: map[string]*InterfaceMethod{},
+	}
+}
+
+// claimKind records that name is used as the given member kind, returning a
+// conflict error when it is already used as a different kind.
+func (m *ifaceMerger) claimKind(name, kind string) error {
+	if prev, ok := m.kind[name]; ok && prev != kind {
+		return ErrInterfaceMemberConflict.NewErrorf(
+			"member %q is declared both as a %s and a %s; a member name must be one consistent kind",
+			name, prev, kind)
+	}
+	m.kind[name] = kind
+	return nil
+}
+
+func (m *ifaceMerger) addField(f *InterfaceField) error {
+	if err := m.claimKind(f.Name, "field"); err != nil {
+		return err
+	}
+	key := ifaceTypesKey(f.Types, f.TypesSymbols)
+	if prev, ok := m.field[f.Name]; ok {
+		if ifaceTypesKey(prev.Types, prev.TypesSymbols) != key {
+			return ErrInterfaceMemberConflict.NewErrorf(
+				"field %q is declared with conflicting types across interfaces", f.Name)
+		}
+		return nil // identical -> dedup
+	}
+	m.field[f.Name] = f
+	m.out.Fields = append(m.out.Fields, f)
+	return nil
+}
+
+// addProp merges a getter/setter into the single accumulating property of that
+// name: a getter (dedup, conflict on a differing return type) plus every distinct
+// setter value-type overload. get/set are just short forms of one `prop`.
+func (m *ifaceMerger) addProp(p *InterfaceProp) error {
+	if err := m.claimKind(p.Name, "prop"); err != nil {
+		return err
+	}
+	merged, ok := m.geter[p.Name]
+	if !ok {
+		merged = &InterfaceProp{Iface: m.out, Name: p.Name}
+		m.geter[p.Name] = merged
+		m.seter[p.Name] = map[string]bool{}
+		m.out.Props = append(m.out.Props, merged)
+	}
+	if p.Getter != nil {
+		if merged.Getter == nil {
+			merged.Getter = p.Getter
+		} else if headerReturnKey(merged.Getter) != headerReturnKey(p.Getter) {
+			return ErrInterfaceMemberConflict.NewErrorf(
+				"getter %q is declared with conflicting return types across interfaces", p.Name)
+		}
+	}
+	set := m.seter[p.Name]
+	for _, s := range p.Setters {
+		key := headerParamsKey(s)
+		if !set[key] { // a new setter value-type overload
+			set[key] = true
+			merged.Setters = append(merged.Setters, s)
+		}
+	}
+	return nil
+}
+
+func (m *ifaceMerger) addMethod(meth *InterfaceMethod) error {
+	if err := m.claimKind(meth.Name, "method"); err != nil {
+		return err
+	}
+	overloads := m.meth[meth.Name]
+	if overloads == nil {
+		overloads = map[string]string{}
+		m.meth[meth.Name] = overloads
+		merged := &InterfaceMethod{Iface: m.out, Name: meth.Name}
+		m.mmeth[meth.Name] = merged
+		m.out.Methods = append(m.out.Methods, merged)
+	}
+	merged := m.mmeth[meth.Name]
+	// A method with no explicit headers still asserts the name exists.
+	if len(meth.Headers) == 0 {
+		if _, ok := overloads[""]; !ok {
+			overloads[""] = ""
+		}
+		return nil
+	}
+	for _, h := range meth.Headers {
+		pk, rk := headerParamsKey(h), headerReturnKey(h)
+		if prevRet, ok := overloads[pk]; ok {
+			if prevRet != rk {
+				return ErrInterfaceMemberConflict.NewErrorf(
+					"method %q has two overloads with the same parameters but different return types", meth.Name)
+			}
+			continue // identical overload -> dedup
+		}
+		overloads[pk] = rk
+		merged.Headers = append(merged.Headers, h)
+	}
+	return nil
+}
+
+func (m *ifaceMerger) finish() *Interface { return m.out }
+
+// ifaceTypesKey renders a field's declared types (resolved ObjectTypes or their
+// compile-time symbols) as a stable, order-preserving key for comparison.
+func ifaceTypesKey(types ObjectTypes, syms ParamType) string {
+	if len(types) > 0 {
+		parts := make([]string, len(types))
+		for i, t := range types {
+			parts[i] = t.Name()
+		}
+		return strings.Join(parts, "|")
+	}
+	parts := make([]string, len(syms))
+	for i, s := range syms {
+		parts[i] = s.Name
+	}
+	return strings.Join(parts, "|")
+}
+
+// headerParamsKey / headerReturnKey render a header's parameter (incl. named) and
+// return type lists as stable keys, so two headers are the "same overload" when
+// their params match and "conflicting" when params match but returns differ.
+func headerParamsKey(h *FuncHeaderObject) string {
+	if h == nil {
+		return ""
+	}
+	return typedIdentsKey(h.Params) + ";" + typedIdentsKey(h.NamedParams)
+}
+
+func headerReturnKey(h *FuncHeaderObject) string {
+	if h == nil {
+		return ""
+	}
+	// A bare return `<int>` stores its type in the ident Name (not Types), so a
+	// return slot falls back to Name when it has no explicit types.
+	parts := make([]string, 0, len(h.Return))
+	for _, o := range h.Return {
+		if ti, _ := o.(*TypedIdent); ti != nil {
+			if names := ti.typeNames(); len(names) > 0 {
+				parts = append(parts, strings.Join(names, "|"))
+			} else {
+				parts = append(parts, ti.Name)
+			}
+		}
+	}
+	return strings.Join(parts, ",")
+}
+
+// typedIdentsKey joins the type names of each *TypedIdent in arr; the parameter
+// name is ignored — only the types define the signature (an untyped param keys as
+// empty, i.e. `any`).
+func typedIdentsKey(arr Array) string {
+	parts := make([]string, 0, len(arr))
+	for _, o := range arr {
+		if ti, _ := o.(*TypedIdent); ti != nil {
+			parts = append(parts, strings.Join(ti.typeNames(), "|"))
+		} else {
+			parts = append(parts, "?")
+		}
+	}
+	return strings.Join(parts, ",")
 }
 
 // Fluid construction. Each method appends a member and returns the interface so
@@ -983,15 +1174,59 @@ func (f *InterfaceField) IndexGet(vm *VM, index Object) (Object, error) {
 
 func (p *InterfaceProp) Type() ObjectType { return TInterfaceProp }
 func (p *InterfaceProp) IsFalsy() bool    { return p.Name == "" }
+
+// ToString renders a property. A single-accessor property keeps the short form
+// `get NAME` / `set NAME`. A property with both a getter and setter(s) — or more
+// than one setter — is a combined `prop NAME { <accessor>; … }`, where the getter
+// is `()` (plus its `<return>`) and each setter is `(valueType)`. get/set are just
+// short forms of one `prop`.
 func (p *InterfaceProp) ToString() string {
-	kind := "prop"
 	switch {
 	case p.Getter != nil && len(p.Setters) == 0:
-		kind = "get"
-	case p.Getter == nil && len(p.Setters) > 0:
-		kind = "set"
+		return "get " + p.Name
+	case p.Getter == nil && len(p.Setters) == 1:
+		return "set " + p.Name
 	}
-	return kind + " " + p.Name
+	var b strings.Builder
+	b.WriteString("prop ")
+	b.WriteString(p.Name)
+	b.WriteString(" { ")
+	sep := ""
+	if p.Getter != nil {
+		b.WriteString("()")
+		if r := accessorTypesList(p.Getter.Return); r != "" {
+			b.WriteString(" <")
+			b.WriteString(r)
+			b.WriteString(">")
+		}
+		sep = "; "
+	}
+	for _, s := range p.Setters {
+		b.WriteString(sep)
+		b.WriteString("(")
+		b.WriteString(accessorTypesList(s.Params))
+		b.WriteString(")")
+		sep = "; "
+	}
+	b.WriteString(" }")
+	return b.String()
+}
+
+// accessorTypesList renders the value/return types of an accessor's TypedIdent
+// slots as `t1, t2` (type-only; the anonymous `_` name is omitted). Empty when
+// there are no typed slots.
+func accessorTypesList(arr Array) string {
+	parts := make([]string, 0, len(arr))
+	for _, o := range arr {
+		if ti, _ := o.(*TypedIdent); ti != nil {
+			if names := ti.typeNames(); len(names) > 0 {
+				parts = append(parts, strings.Join(names, "|"))
+			} else if ti.Name != "" && ti.Name != "_" {
+				parts = append(parts, ti.Name)
+			}
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (p *InterfaceProp) Equal(right Object) bool {

@@ -717,9 +717,9 @@ func (t *Class) Define(c Call) (err error) {
 // the mixin and the first missing member, or the mixin's own contract error (a
 // member name shared by two different extended interfaces — see
 // interfaceRequiredNames).
-func (t *Class) validateMixinContracts(_ *VM) error {
+func (t *Class) validateMixinContracts(vm *VM) error {
 	for _, m := range t.mixinsFlat {
-		req, err := interfaceRequiredNames(m.ClassInterface())
+		req, err := interfaceRequiredNames(vm, m.ClassInterface())
 		if err != nil {
 			return err // already an ErrDefineClass; names the conflicting interfaces
 		}
@@ -758,8 +758,8 @@ func (t *Class) declaresMember(name string) bool {
 // flattened across its extends graph via Interface.Simplify (`@simplify`) — which
 // dedups by interface and rejects a member name shared by two different
 // interfaces (see Interface.Simplify).
-func interfaceRequiredNames(root *Interface) (map[string]bool, error) {
-	simple, err := root.Flatten()
+func interfaceRequiredNames(vm *VM, root *Interface) (map[string]bool, error) {
+	simple, err := root.Flatten(vm)
 	if err != nil {
 		return nil, err
 	}

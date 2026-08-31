@@ -49,10 +49,14 @@ A mixin exposes several cached `Interface` values, built from its declaration:
 - `MyMixin.@interface` (`Name$interface`) — the whole contract, extending
   `*@classInterface ; *@membersInterface`.
 
-Any `Interface` also has `iface.@flat`: the extends graph flattened into one
-interface with every member. Flattening dedups by interface (a diamond counts a
-shared parent once) and rejects a member name declared by two different
-interfaces (their signatures could clash).
+Any `Interface` also has `iface.@flat`: its whole extends graph (both the direct
+`*A` spreads and the runtime parents) flattened into one interface. Members with
+the same name are MERGED by signature — a getter, its setters (by value type) and
+a method's overloads combine into one `prop`/method, and an identical signature
+seen twice is deduplicated. Only a genuine signature CONFLICT is rejected: a name
+used as two different kinds (field vs property vs method), a getter with two
+different return types, or a method overload with the same parameters but a
+different return type.
 
 Other reflection attributes mirror a class's: `.@fields`, `.@props`, `.@methods`,
 `.@parents`, `.@module`, `.@name`. A using class exposes `.@mixins` (like
@@ -205,6 +209,31 @@ test "@interface decomposes into class and members interfaces" {
     // @flat collapses the whole graph into one interface with every member.
     t.equal("interface (main).Sized$interface {name; size(); area()}",
         str(Sized.@interface.@flat))
+}
+
+/**
+`@flat` MERGES same-name members by signature across the extends graph: a getter,
+its setters and a method's overloads combine, and identical signatures dedup. A
+genuine conflict — a name used as two kinds, or an overload with the same
+parameters but a different return type — is rejected instead.
+**/
+test "@flat merges compatible signatures and rejects conflicts" {
+    interface A { get y int; set y; x { (); (v int) } }
+    interface B { set y str; x(v bool) }
+
+    // y becomes one combined property; x gathers all three overloads.
+    f := interface { *A; *B }.@flat
+    t.equal("prop y { () <int>; (any); (str) }", str(f.props[0]))
+    t.equal(3, len(f.methods[0].headers))   // (), (v int), (v bool)
+
+    // A method name reused as a getter is a genuine conflict.
+    conflict := false
+    try {
+        gad.eval(`interface P { x() }; r := interface { *P; get x int }; r.@flat`)
+    } catch e {
+        conflict = contains(str(e), "one consistent kind")
+    }
+    t.true(conflict)
 }
 
 /**
