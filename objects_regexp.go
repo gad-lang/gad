@@ -253,7 +253,7 @@ func (o RegexpStrsResult) Equal(right Object) bool {
 func (o RegexpStrsResult) Print(state *PrinterState) error {
 	return state.WithoutRepr(func(s *PrinterState) error {
 		defer state.WrapRepr(o)()
-		defer state.options.Backup(PrintStateOptionQuoteStr)
+		defer state.options.Backup(PrintStateOptionQuoteStr)()
 		state.options.WithQuoteStr()
 		return o.ToArray().PrintObject(state, o)
 	})
@@ -338,7 +338,7 @@ func (o RegexpStrsSliceResult) Equal(right Object) bool {
 func (o RegexpStrsSliceResult) Print(state *PrinterState) error {
 	return state.WithoutRepr(func(s *PrinterState) error {
 		defer state.WrapRepr(o)()
-		defer state.options.Backup(PrintStateOptionQuoteStr)
+		defer state.options.Backup(PrintStateOptionQuoteStr)()
 		state.options.WithQuoteStr()
 		return o.ToArray().PrintObject(state, o)
 	})
@@ -398,7 +398,7 @@ func (o RegexpBytesResult) Equal(right Object) bool {
 func (o RegexpBytesResult) Print(state *PrinterState) error {
 	return state.WithoutRepr(func(s *PrinterState) error {
 		defer state.WrapRepr(o)()
-		defer state.options.Backup(PrintStateOptionBytesToHex)
+		defer state.options.Backup(PrintStateOptionBytesToHex)()
 		state.options.WithBytesToHex()
 		return o.ToArray().PrintObject(state, o)
 	})
@@ -458,7 +458,7 @@ func (o RegexpBytesSliceResult) Equal(right Object) bool {
 func (o RegexpBytesSliceResult) Print(state *PrinterState) error {
 	return state.WithoutRepr(func(s *PrinterState) error {
 		defer state.WrapRepr(o)()
-		defer state.options.Backup(PrintStateOptionBytesToHex)
+		defer state.options.Backup(PrintStateOptionBytesToHex)()
 		state.options.WithBytesToHex()
 		return o.ToArray().PrintObject(state, o)
 	})

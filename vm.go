@@ -1233,7 +1233,6 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		if cfunc.NamedParams.variadic {
 			nv := namedParams
 			vm.stack[basePointer+numParams+i] = &nv
-			i++
 		}
 	} else {
 		for i := numParams; i < numLocals; i++ {
