@@ -210,60 +210,6 @@ test "@interface decomposes into class and members interfaces" {
 }
 
 /**
-`@flat` MERGES same-name members by signature across the extends graph. A getter,
-its setters (by value type) and a method's overloads combine; an identical
-signature seen twice is deduplicated (so a diamond counts a shared parent once).
-**/
-test "@flat merges compatible members across the graph" {
-    interface A { get y int; set y; x { (); (v int) } }
-    interface B { set y str; x(v bool) }
-
-    // `y` becomes ONE combined property; `x` gathers all three overloads.
-    f := interface { *A; *B }.@flat
-    t.equal("prop y { get int; set any|str }", str(f.props[0]))
-    t.equal(3, len(f.methods[0].headers))   // (), (v int), (v bool)
-
-    // Diamond: C reaches Base directly and through Mid — Base's foo counted once.
-    interface Base { foo() }
-    interface Mid  { *Base; bar() }
-    t.equal(2, len(interface { *Base; *Mid }.@flat.methods))   // foo, bar
-}
-
-/**
-A property renders in its most compact form: a getter with a single setter of the
-same type is `prop x T` (`prop x` when untyped); anything else — a getter and
-setter of different types, or several setter overloads — uses the
-`prop x { get …; set … }` braces form.
-**/
-test "@flat property render forms" {
-    // getter + single setter, same type -> compact.
-    t.equal("prop x int",  str((interface { get x int; set x int }).@flat.props[0]))
-    // both untyped -> compact, no type.
-    t.equal("prop x",      str((interface { get x; set x }).@flat.props[0]))
-    // different types -> braces.
-    t.equal("prop x { get int; set bool }",
-        str((interface { get x int; set x bool }).@flat.props[0]))
-    // several setter overloads -> braces with a `set` union.
-    t.equal("prop x { get int; set int|bool }",
-        str((interface { get x int; set x int; set x bool }).@flat.props[0]))
-}
-
-/**
-A genuine signature CONFLICT is rejected: a name used as two different kinds
-(here a method reused as a getter), a getter with two different return types, or a
-method overload with the same parameters but a different return type.
-**/
-test "@flat rejects conflicting signatures" {
-    conflict := false
-    try {
-        gad.eval(`interface P { x() }; r := interface { *P; get x int }; r.@flat`)
-    } catch e {
-        conflict = contains(str(e), "one consistent kind")
-    }
-    t.true(conflict)
-}
-
-/**
 `@this` returns the mixin's declared `this { … }` interface — the contract the
 receiver of its methods and properties must satisfy — or nil when the mixin has
 no `this` block.

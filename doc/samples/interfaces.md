@@ -187,5 +187,37 @@ println("tag present: ", ({name: "a", tag: 3} :: Tagged).tag)  // 3
 println("tag nil:     ", ({name: "b", tag: nil} :: Tagged).name) // b — nil tag is fine
 println("tag absent:  ", ({name: "c"} :: Tagged).name)          // c — absent tag is fine
 
+/**
+## Flattening (`iface.@flat`)
+
+`iface.@flat` collapses an interface's whole extends graph — both the `*A` spreads
+and any runtime parents — into a single interface with no extends of its own,
+caching the result. Members of the **same name** are MERGED by signature rather
+than rejected: a getter, its setters (by value type) and a method's overloads
+combine, and an identical signature seen twice is deduplicated (so a diamond
+counts a shared parent once).
+**/
+interface Reader { get pos int; read() <_ str> }
+interface Seeker { *Reader; set pos; seek(n int) }
+flat := Seeker.@flat
+println("flat:        ", flat)                 // {prop pos { get int; set any }; seek(); read()}
+
+/// A combined property renders compactly: a getter with one setter of the same
+/// type is `prop x T` (`prop x` when untyped); differing types or several setter
+/// overloads use the `prop x { get …; set … }` braces form.
+println("same type:   ", (interface { get x int; set x int }).@flat.props[0])   // prop x int
+println("mixed types: ", (interface { get x int; set x str; set x }).@flat.props[0])
+                                                                    // prop x { get int; set str|any }
+
+/**
+Only a genuine signature CONFLICT is rejected — a name used as two different kinds
+(field/property/method), a getter with two different return types, or a method
+overload with the same parameters but a different return type. Here a method name
+is reused as a getter.
+**/
+interface HasRun { run() }
+conflict := interface { *HasRun; get run int }.@flat or "conflict rejected"
+println("conflict:    ", conflict)             // conflict rejected
+
 return ok
 ```
