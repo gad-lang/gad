@@ -83,7 +83,7 @@ func NewMixinFunc(c Call) (ret Object, err error) {
 		if !ok {
 			return nil, NewArgumentTypeError("2nd (define)", "callable", rest[0].Type().Name())
 		}
-		_, err = handler.Call(Call{
+		if _, err = handler.Call(Call{
 			Context: c.Context,
 			VM:      c.VM,
 			Args: Args{{
@@ -92,11 +92,26 @@ func NewMixinFunc(c Call) (ret Object, err error) {
 					return nil, m.define(c)
 				}),
 			}},
-		})
-		return m, err
+		}); err != nil {
+			return nil, err
+		}
+		return m, m.validateContract()
 	}
 
-	return m, m.define(c)
+	if err = m.define(c); err != nil {
+		return nil, err
+	}
+	return m, m.validateContract()
+}
+
+// validateContract rejects a mixin whose `@classInterface` (its `this` block and
+// parent contracts) declares one member name in two different interfaces — their
+// signatures could differ and cannot form a single coherent contract. It is the
+// same check Class.useMixins runs, applied at the mixin's own definition so the
+// error surfaces early.
+func (m *Mixin) validateContract() error {
+	_, err := interfaceRequiredNames(m.ClassInterface())
+	return err
 }
 
 // define registers the mixin's members from the call's named args (`fields`,

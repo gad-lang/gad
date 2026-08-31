@@ -144,6 +144,12 @@ type Interface struct {
 	// member check, so such interfaces can match Go-backed behaviour that is not
 	// expressed as Gad members. nil for interfaces compiled from source.
 	Native func(vm *VM, obj Object) (bool, error)
+
+	// Cached `@flat` result (see Flatten): the flattened interface, or the
+	// collision error, computed once.
+	flat      *Interface
+	flatErr   error
+	flatBuilt bool
 }
 
 // InterfaceContextFunc is a context-function member of an interface: the source
@@ -811,8 +817,79 @@ func (i *Interface) IndexGet(_ *VM, index Object) (Object, error) {
 		return objectArray(i.Props), nil
 	case "methods":
 		return objectArray(i.Methods), nil
+	case "@flat":
+		return i.Flatten()
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
+
+// ErrInterfaceMemberConflict is raised when Flatten (`@flat`) finds one
+// member name declared by two different interfaces in an extends graph.
+var ErrInterfaceMemberConflict = &Error{Name: "InterfaceMemberConflictError"}
+
+// Flatten returns (and caches) the interface flattened across its direct-
+// reference extends graph (ExtendsIface): a new Interface whose Fields, Props and
+// Methods gather every member of the interface and the interfaces it extends,
+// with NO extends of its own. Deduplication is by INTERFACE, not by member — an
+// interface reached more than once (a diamond) contributes its members once — but
+// a member NAME declared by two DIFFERENT interfaces is a conflict (their
+// signatures could differ) and returns ErrInterfaceMemberConflict. Useful for
+// reflection (`iface.@flat`), tests, and as a validated, cached contract.
+func (i *Interface) Flatten() (*Interface, error) {
+	if i.flatBuilt {
+		return i.flat, i.flatErr
+	}
+	out := &Interface{IName: i.IName, Module: i.Module, Rest: i.Rest, ArrayDepth: i.ArrayDepth}
+	source := map[string]*Interface{} // member name -> declaring interface
+	seen := map[*Interface]bool{}
+	claim := func(name string, from *Interface) error {
+		if prev, ok := source[name]; ok && prev != from {
+			return ErrInterfaceMemberConflict.NewErrorf(
+				"member %q is declared in two different interfaces (%s and %s); "+
+					"a member name must be unique across an interface's extends graph",
+				name, prev.FullName(), from.FullName())
+		}
+		source[name] = from
+		return nil
+	}
+	var walk func(*Interface) error
+	walk = func(x *Interface) error {
+		if x == nil || seen[x] {
+			return nil
+		}
+		seen[x] = true
+		for _, f := range x.Fields {
+			if err := claim(f.Name, x); err != nil {
+				return err
+			}
+			out.Fields = append(out.Fields, f)
+		}
+		for _, p := range x.Props {
+			if err := claim(p.Name, x); err != nil {
+				return err
+			}
+			out.Props = append(out.Props, p)
+		}
+		for _, m := range x.Methods {
+			if err := claim(m.Name, x); err != nil {
+				return err
+			}
+			out.Methods = append(out.Methods, m)
+		}
+		out.ContextFuncs = append(out.ContextFuncs, x.ContextFuncs...)
+		for _, p := range x.ExtendsIface {
+			if err := walk(p); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	i.flatErr = walk(i)
+	if i.flatErr == nil {
+		i.flat = out
+	}
+	i.flatBuilt = true
+	return i.flat, i.flatErr
 }
 
 // Fluid construction. Each method appends a member and returns the interface so

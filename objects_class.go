@@ -714,11 +714,15 @@ func (t *Class) Define(c Call) (err error) {
 // each used mixin's `@classInterface` (its `this`-block requirements and parent
 // contracts). It runs after all members are registered (own + merged mixin), so a
 // requirement satisfied by an own method is seen. Returns ErrDefineClass naming
-// the mixin and the first missing member.
+// the mixin and the first missing member, or the mixin's own contract error (a
+// member name shared by two different extended interfaces — see
+// interfaceRequiredNames).
 func (t *Class) validateMixinContracts(_ *VM) error {
 	for _, m := range t.mixinsFlat {
-		req := map[string]bool{}
-		collectInterfaceMemberNames(m.ClassInterface(), req, map[*Interface]bool{})
+		req, err := interfaceRequiredNames(m.ClassInterface())
+		if err != nil {
+			return err // already an ErrDefineClass; names the conflicting interfaces
+		}
 		for _, name := range sortedKeys(req) {
 			if !t.declaresMember(name) {
 				return ErrDefineClass.NewErrorf(
@@ -750,27 +754,26 @@ func (t *Class) declaresMember(name string) bool {
 	return false
 }
 
-// collectInterfaceMemberNames gathers the names of every member an interface
-// requires — its own fields, properties and methods, plus those of the
-// interfaces it extends by direct reference (ExtendsIface) — into names. seen
-// guards against a cyclic extends graph.
-func collectInterfaceMemberNames(i *Interface, names map[string]bool, seen map[*Interface]bool) {
-	if i == nil || seen[i] {
-		return
+// interfaceRequiredNames returns the set of member names an interface requires,
+// flattened across its extends graph via Interface.Simplify (`@simplify`) — which
+// dedups by interface and rejects a member name shared by two different
+// interfaces (see Interface.Simplify).
+func interfaceRequiredNames(root *Interface) (map[string]bool, error) {
+	simple, err := root.Flatten()
+	if err != nil {
+		return nil, err
 	}
-	seen[i] = true
-	for _, f := range i.Fields {
+	names := make(map[string]bool, len(simple.Fields)+len(simple.Props)+len(simple.Methods))
+	for _, f := range simple.Fields {
 		names[f.Name] = true
 	}
-	for _, p := range i.Props {
+	for _, p := range simple.Props {
 		names[p.Name] = true
 	}
-	for _, m := range i.Methods {
+	for _, m := range simple.Methods {
 		names[m.Name] = true
 	}
-	for _, p := range i.ExtendsIface {
-		collectInterfaceMemberNames(p, names, seen)
-	}
+	return names, nil
 }
 
 func (t *Class) String() string {

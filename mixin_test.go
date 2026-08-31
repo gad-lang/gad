@@ -223,14 +223,46 @@ func TestMixinContractValidation(t *testing.T) {
 		class Bad { use Sized }`,
 		nil, `does not satisfy mixin "Sized": missing "size"`)
 
-	// The requirement may be satisfied by a parent mixin's member, not only an own
-	// method: here Base provides `size` via its members merged into the class.
+	// The requirement may be satisfied by another used mixin's member, not only an
+	// own method: Provider supplies `size`, Sized requires it via `this`.
 	testExpectRun(t, `
-		mixin Base { methods { size() => 3 } }
-		mixin Sized { *Base; this { size() <int> }; methods { area() => this.size() } }
-		class Box { use Sized }
+		mixin Provider { methods { size() => 3 } }
+		mixin Sized { this { size() <int> }; methods { area() => this.size() } }
+		class Box { use Sized, Provider }
 		return Box().area()`,
 		nil, Int(3))
+}
+
+// TestMixinInterfaceDedupAndCollision verifies interface-graph flattening dedups
+// by interface (a diamond `*A` + `*B(extends A)` reaches A once) but rejects one
+// member name declared in two DIFFERENT interfaces (potentially clashing signatures).
+func TestMixinInterfaceDedupAndCollision(t *testing.T) {
+	// Diamond: C reaches A directly and through B — A's `foo` counted once, no error.
+	testExpectRun(t, `
+		mixin A { methods { foo() => 1 } }
+		mixin B { *A }
+		mixin C { *A; *B; methods { bar() => 2 } }
+		class Ok { use C }
+		return [Ok().foo(), Ok().bar()]`,
+		nil, Array{Int(1), Int(2)})
+
+	// Two distinct interfaces declaring `foo` -> rejected at the mixin's definition.
+	expectErrHas(t, `
+		mixin A { this { foo() <int> } }
+		mixin B { this { foo() <str> } }
+		mixin C { *A; *B }`,
+		nil, `member "foo" is declared in two different interfaces`)
+}
+
+// TestInterfaceFlatten verifies `iface.@flat`: the extends graph flattened into a
+// single interface with all members (dedup by interface), cached.
+func TestInterfaceFlatten(t *testing.T) {
+	testExpectRun(t, `
+		mixin Named { name = "?" }
+		mixin Sized { *Named; this { size() <int> }; methods { area() => 1 } }
+		f := Sized.@interface.@flat
+		return [str(f), f == Sized.@interface.@flat]`,
+		nil, Array{Str("interface (main).Sized$interface {name; size(); area()}"), True})
 }
 
 // TestMixinReflectionAttrs verifies the mixin reflection attributes mirror class.
