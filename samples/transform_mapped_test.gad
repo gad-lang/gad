@@ -105,11 +105,7 @@ The matcher's typed first param is enforced: an array node hitting a `(d dict)`
 matcher raises rather than silently skipping.
 **/
 test "typed param is enforced" {
-    ok := false
-    try {
-        gad.transform([1, 2]; ".[]" = (d dict) => d)
-    } catch {
-        ok = true
-    }
-    t.equal(true, ok)
+    // t.raises asserts the call raises; an array node reaching a `(d dict)`
+    // matcher is a type error.
+    t.raises(() => gad.transform([1, 2]; ".[]" = (d dict) => d))
 }

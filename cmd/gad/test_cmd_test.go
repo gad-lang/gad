@@ -155,3 +155,22 @@ func TestRunFileRuntimeError(t *testing.T) {
 	require.Equal(t, 1, fail)
 	require.Contains(t, out, "FAIL")
 }
+
+// TestRunFileRaises covers t.raises: it asserts a callee raises, with optional
+// eq/contains/prefix/suffix message matchers. A callee that raises at run time
+// must be caught cleanly (not panic) and its bare message matched (no `ErrCall:`
+// wrapper).
+func TestRunFileRaises(t *testing.T) {
+	src := `
+func testRaisesBare(t)     { a := []; t.raises(() => a[5]) }
+func testRaisesContains(t) { a := []; t.raises(() => a[5]; contains="IndexOutOfBounds") }
+func testRaisesEq(t)       { a := []; t.raises(() => a[5]; eq="IndexOutOfBoundsError: 5") }
+func testRaisesAffix(t)    { a := []; t.raises(() => a[5]; prefix="IndexOutOfBounds", suffix="5") }
+func testRaisesNoErrFails(t) { t.raises(() => 42) }
+func testRaisesBadMatchFails(t) { a := []; t.raises(() => a[5]; contains="nope") }
+`
+	o := &testOptions{}
+	pass, fail, _, out := runFileOn(t, o, src)
+	require.Equal(t, 4, pass, out) // bare, contains, eq, affix
+	require.Equal(t, 2, fail, out) // no-error, bad-match
+}

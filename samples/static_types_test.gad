@@ -90,11 +90,7 @@ use `type<Name>` to match the type value instead.
 test "no instances: :: is rejected" {
     type Tag {}
 
-    ok := false
-    try {
-        5 :: Tag
-    } catch {
-        ok = true
-    }
-    t.equal(true, ok)
+    // `5 :: Tag` raises — a marker type has no instances. The message names the
+    // marker and points at type<Tag>.
+    t.raises(() => 5 :: Tag; contains="marker type with no instances")
 }

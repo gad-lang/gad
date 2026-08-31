@@ -80,13 +80,8 @@ type Rect is not the *type* Rect.
 **/
 test "an instance is not a type value" {
     func d { (t type<Rect>) => t }
-    ok := false
-    try {
-        d(Rect())
-    } catch {
-        ok = true
-    }
-    t.equal(true, ok)
+    // an instance of Rect does not satisfy `type<Rect>`.
+    t.raises(() => d(Rect()))
 }
 
 /**
@@ -111,11 +106,5 @@ test "a union meta type matches any listed type value" {
     t.equal("Base", accept(int))    // int and bool are accepted
     t.equal("Base", accept(bool))
 
-    ok := false
-    try {
-        accept(str)                 // str is not in the union
-    } catch {
-        ok = true
-    }
-    t.equal(true, ok)
+    t.raises(() => accept(str))     // str is not in the union
 }

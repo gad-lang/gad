@@ -249,6 +249,28 @@ func (t *T) CallName(name string, c gad.Call) (gad.Object, error) {
 			return t.fail(withMsg(c, "expected an error, got none"))
 		}
 		return gad.Nil, nil
+	case "raises":
+		// t.raises(fn; eq=, contains=, prefix=, suffix=) — asserts fn() raises an
+		// error, optionally matching its message. Each given matcher must hold; the
+		// message is the error's string (e.g. "ZeroDivisionError: ").
+		err := callFn(c)
+		if err == nil {
+			return t.fail(withMsg(c, "expected an error, got none"))
+		}
+		msg := err.Error()
+		if v := namedStr(c, "eq"); v != nil && msg != *v {
+			return t.fail(withMsg(c, "error message not equal:\n  expected: "+repr(gad.Str(*v))+"\n  actual:   "+repr(gad.Str(msg))))
+		}
+		if v := namedStr(c, "contains"); v != nil && !strings.Contains(msg, *v) {
+			return t.fail(withMsg(c, "expected error "+repr(gad.Str(msg))+" to contain "+repr(gad.Str(*v))))
+		}
+		if v := namedStr(c, "prefix"); v != nil && !strings.HasPrefix(msg, *v) {
+			return t.fail(withMsg(c, "expected error "+repr(gad.Str(msg))+" to have prefix "+repr(gad.Str(*v))))
+		}
+		if v := namedStr(c, "suffix"); v != nil && !strings.HasSuffix(msg, *v) {
+			return t.fail(withMsg(c, "expected error "+repr(gad.Str(msg))+" to have suffix "+repr(gad.Str(*v))))
+		}
+		return gad.Nil, nil
 	case "noError":
 		if err := callFn(c); err != nil {
 			return t.fail(withMsg(c, "unexpected error: "+err.Error()))
@@ -259,12 +281,20 @@ func (t *T) CallName(name string, c gad.Call) (gad.Object, error) {
 }
 
 // callFn calls the first argument (a callable) with no args, returning its error.
+// It runs the function through a forked Invoker (like t.run), NOT an inline
+// DoCall: a callee that raises at run time must unwind in its own VM run so the
+// error is recovered cleanly (an inline call from this builtin corrupts the
+// caller's frame on the error path) and reported without the DoCall `ErrCall:`
+// wrapper — so t.raises can match the bare error message.
 func callFn(c gad.Call) error {
 	fn, _ := c.Args.Get(0).(gad.CallerObject)
 	if fn == nil {
 		return nil
 	}
-	_, err := gad.DoCall(fn, gad.Call{VM: c.VM})
+	inv := gad.NewInvoker(c.VM, fn)
+	inv.Acquire()
+	defer inv.Release()
+	_, err := inv.Invoke(gad.Args{}, nil)
 	return err
 }
 
@@ -285,6 +315,17 @@ func joinArgs(args gad.Args) string {
 		return nil
 	})
 	return b.String()
+}
+
+// namedStr returns the named argument key as a *string when it is present and
+// non-nil, else nil (so an omitted matcher is skipped).
+func namedStr(c gad.Call, key string) *string {
+	v := c.NamedArgs.GetValueOrNil(key)
+	if v == nil || v == gad.Nil {
+		return nil
+	}
+	s := v.ToString()
+	return &s
 }
 
 // argMsg returns the first arg as a message, or def when none was passed.
@@ -319,6 +360,7 @@ var Module = gad.Dict{
 	"notNil":   reqFn("notNil"),
 	"contains": reqFn("contains"),
 	"error":    reqFn("error"),
+	"raises":   reqFn("raises"),
 	"noError":  reqFn("noError"),
 	"fail":     reqFn("fail"),
 	"fatal":    reqFn("fatal"),

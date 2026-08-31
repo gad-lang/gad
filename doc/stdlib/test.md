@@ -147,6 +147,7 @@ failure text.
 | `t.notNil(x)` | `x` is not `nil` |
 | `t.contains(s, sub)` | string `s` contains `sub` |
 | `t.error(fn)` | calling `fn()` returns an error |
+| `t.raises(fn; eq=, contains=, prefix=, suffix=)` | calling `fn()` raises, and its message matches every given matcher |
 | `t.noError(fn)` | calling `fn()` returns no error |
 
 Controls:
@@ -188,8 +189,32 @@ func testHelpers(t) {
 ```
 
 Available: `test.equal`, `test.notEqual`, `test.true`, `test.false`, `test.nil`,
-`test.notNil`, `test.contains`, `test.error`, `test.noError`, `test.fail`,
-`test.fatal`. `test.T` is the context type.
+`test.notNil`, `test.contains`, `test.error`, `test.raises`, `test.noError`,
+`test.fail`, `test.fatal`. `test.T` is the context type.
+
+## Expecting an error with `t.raises`
+
+`t.raises(fn; …)` asserts that calling `fn()` raises an error — the idiomatic
+alternative to a `try`/`catch` that flips a flag. With no named arguments it just
+requires *some* error; the optional matchers each constrain the error message
+(the bare message, without any wrapper), and every one given must hold:
+
+| Matcher | Passes when the message |
+|---------|-------------------------|
+| `eq=` | equals it exactly |
+| `contains=` | contains it |
+| `prefix=` | starts with it |
+| `suffix=` | ends with it |
+
+```gad
+func testDivZero(t) {
+	z := 0
+	t.raises(() => 1 / z)                              // any error
+	t.raises(() => 1 / z; contains="ZeroDivision")     // message contains
+	a := []
+	t.raises(() => a[5]; eq="IndexOutOfBoundsError: 5") // exact message
+}
+```
 
 ## Benchmarks
 
