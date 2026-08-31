@@ -85,19 +85,47 @@ package gad
 // ```
 //
 // transform(value any; **paths) <any>
-// Rewrites a JSON-like `value` (nested dicts/arrays) bottom-up, mapping yq-style
-// path patterns to transformer functions. Each named arg is a path — `.` the root,
-// `.key` a dict child, `.*` every dict child, `.**` every child, `.[]`/`.key[]`
-// every array index, `.[N]`/`.key[N]` a specific index, `."k e y"` a quoted key —
-// and its function receives the matched node and returns its replacement. Children
-// are transformed before their container, so a container matcher sees the
-// transformed children; the most specific pattern wins at a node, and a matcher's
-// typed first param is enforced. The transformed value is returned. See
+// Rewrites a JSON-like `value` — nested dicts and arrays — by mapping yq-style
+// path patterns to transformer functions. Each named arg is a `".path" = fn` rule:
+// `fn` receives a matched node and returns its replacement. It is the imperative,
+// path-driven sibling of the `:::` transforming cast — where `:::` coerces by an
+// interface's declared shape, `transform` names exactly which nodes to rewrite.
+//
+// The rewrite is a single BOTTOM-UP pass: a node's children are transformed and
+// spliced back in before the node's own matcher runs, so a container matcher sees
+// its already-transformed children. The transformed value is RETURNED — reassign
+// it (`v = gad.transform(v; …)`), since a matcher may replace a node with a
+// different type (a dict → a class instance), which cannot happen in place.
+//
+// Path patterns (a path starts with `.`; `.` alone is the root):
+//
+// - `.key` — a dict child by key; `."k e y"` a quoted key (spaces / special chars).
+// - `.*` — every dict child (non-array); `.**` every child (dict key OR array index).
+// - `.[]` / `.key[]` — every array index; `.[N]` / `.key[N]` a specific index.
+//
+// When two patterns match the same node the MOST SPECIFIC wins (a literal key or
+// fixed index over a wildcard), independent of the order they were listed. A
+// matcher's typed first param (`(d dict)`, `(n int)`) is ENFORCED — a node of the
+// wrong type raises rather than being skipped: the path is the selector, the type a
+// guard. A callback may be overloaded (`func f(n int) …; met f(s str) …`), and each
+// node is dispatched to the overload for its own type. See
 // samples/transform_mapped_test.gad.
 // Example:
 // ```gad
-// gad.transform([1, 2, 3]; ".[]" = (n int) => n * 10)
-// >>> [10, 20, 30]
+// // bottom-up: the [x, y] pairs become Points first, then the root dict a Poly.
+// class Poly { pts array }
+// class Point { x; y }
+// d := gad.transform({points: [[1, 2], [3, 4]]};
+//     "." = (d dict) => Poly(; pts = d.points)
+//     ".points[]" = (p array) => Point(; x = p[0], y = p[1])
+// )
+// [typeName(d), typeName(d.pts[0]), d.pts[1].y]
+// >>> ["Poly", "Point", 4]
+// ```
+// ```gad
+// // `.*` matches every dict child.
+// gad.transform({a: 1, b: 2}; ".*" = (n int) => n + 100)
+// >>> {a: 101, b: 102}
 // ```
 //
 // ## Operators
