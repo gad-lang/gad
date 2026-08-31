@@ -89,6 +89,17 @@ func TestGadTransformTypedParamEnforced(t *testing.T) {
 		nil, True)
 }
 
+// TestGadTransformOverloadedCallback: a callback with several overloads is
+// dispatched per node by the node's type — the int nodes hit the (int) overload,
+// the str nodes the (str) one.
+func TestGadTransformOverloadedCallback(t *testing.T) {
+	testExpectRun(t, `
+		func f(n int) => n * 10
+		met f(s str) => s + "!"
+		return gad.transform([1, "a", 2, "b"]; ".[]" = f)`,
+		nil, Array{Int(10), Str("a!"), Int(20), Str("b!")})
+}
+
 // TestGadTransformBadPath: a path not starting with '.' is a type error.
 func TestGadTransformBadPath(t *testing.T) {
 	expectErrHas(t, `gad.transform(1; "points" = (v) => v)`,

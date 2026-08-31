@@ -266,3 +266,40 @@ func BenchmarkVMLoop(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkGadTransform measures the mapped bottom-up rewrite over a moderately
+// wide/deep tree, applying a matcher at every array element and every dict child.
+func BenchmarkGadTransform(b *testing.B) {
+	runVMBench(b, `
+	// build a tree: 200 rows of [x, y] pairs under a dict.
+	rows := []
+	for i := 0; i < 200; i++ { rows = rows + [[i, i+1]] }
+	base := {rows: rows, meta: {a: 1, b: 2, c: 3}}
+	acc := 0
+	for k := 0; k < 50; k++ {
+		d := gad.transform(base;
+			".rows[]" = (p array) => [p[1], p[0]]
+			".meta.*" = (n int) => n + 1
+		)
+		acc = acc + len(d.rows)
+	}
+	return acc`)
+}
+
+// BenchmarkGadTransformOverloaded measures a matched call whose callback is an
+// overloaded (multi-method) function: the per-type resolved-overload cache should
+// let repeat node types skip the dispatch (and validation).
+func BenchmarkGadTransformOverloaded(b *testing.B) {
+	runVMBench(b, `
+	items := []
+	for i := 0; i < 200; i++ { items = items + [i] }
+	base := {items: items}
+	func f(n int) => n + 1
+	met f(s str) => s
+	acc := 0
+	for k := 0; k < 50; k++ {
+		d := gad.transform(base; ".items[]" = f)
+		acc = acc + len(d.items)
+	}
+	return acc`)
+}

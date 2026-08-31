@@ -41,7 +41,7 @@ func gadTransform(c Call) (Object, error) {
 	// Compile a matcher per named arg, in declaration order, then sort by
 	// specificity (most specific first) so the most specific pattern wins at any
 	// node regardless of the order the caller listed them.
-	var matchers []*transformMatcher
+	t := &transformer{vm: c.VM}
 	for _, kv := range c.NamedArgs.UnreadPairs() {
 		raw := kv.K.ToString()
 		fn, ok := kv.V.(CallerObject)
@@ -52,31 +52,44 @@ func gadTransform(c Call) (Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		matchers = append(matchers, &transformMatcher{
+		m := &transformMatcher{
 			raw:     raw,
 			pattern: segs,
 			fn:      fn,
 			score:   specificity(segs),
-		})
+			args:    make(Array, 1),
+		}
+		m.argsWrap = Args{m.args}
+		// An overloaded callback (a MethodCaller with caller methods) is dispatched
+		// on the node's type per call; for those, caching the resolved overload per
+		// type lets repeat types skip that dispatch (and often the validation too).
+		// A plain callback has one callee for every type, so it uses a single shared
+		// invoker instead (no per-type fork).
+		if mc, ok := fn.(MethodCaller); ok && mc.HasCallerMethods() {
+			m.mc = mc
+			m.resolved = map[ObjectType]*resolvedCall{}
+		}
+		t.matchers = append(t.matchers, m)
 	}
 	// Stable so equal-specificity matchers keep declaration order.
-	sort.SliceStable(matchers, func(i, j int) bool { return matchers[i].score > matchers[j].score })
+	sort.SliceStable(t.matchers, func(i, j int) bool { return t.matchers[i].score > t.matchers[j].score })
+	defer t.release()
 
-	// One invoker per matcher, acquired once and reused across every matched node.
-	for _, m := range matchers {
-		m.inv = NewInvoker(c.VM, m.fn)
-		m.inv.Acquire()
-		defer m.inv.Release()
-	}
-
-	return applyTransform(value, nil, matchers)
+	return t.walk(value, nil)
 }
 
-// applyTransform is the bottom-up walk: it transforms node's children first
-// (splicing each result back into its container), then applies the most-specific
-// matcher whose pattern matches this node's path, returning the (possibly
-// replaced) node.
-func applyTransform(node Object, path []pathStep, matchers []*transformMatcher) (Object, error) {
+// transformer drives one gad.transform call: its matchers and the invokers they
+// acquire lazily (per matcher, per node type), released together at the end.
+type transformer struct {
+	vm       *VM
+	matchers []*transformMatcher
+	acquired []*Invoker
+}
+
+// walk is the bottom-up pass: it transforms node's children first (splicing each
+// result back into its container), then applies the most-specific matcher whose
+// pattern matches this node's path, returning the (possibly replaced) node.
+func (t *transformer) walk(node Object, path []pathStep) (Object, error) {
 	switch n := node.(type) {
 	case Dict:
 		// Sorted keys for a deterministic traversal order (siblings transform
@@ -87,7 +100,7 @@ func applyTransform(node Object, path []pathStep, matchers []*transformMatcher) 
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			child, err := applyTransform(n[k], childPath(path, pathStep{key: k}), matchers)
+			child, err := t.walk(n[k], childPath(path, pathStep{key: k}))
 			if err != nil {
 				return nil, err
 			}
@@ -95,7 +108,7 @@ func applyTransform(node Object, path []pathStep, matchers []*transformMatcher) 
 		}
 	case Array:
 		for i := range n {
-			child, err := applyTransform(n[i], childPath(path, pathStep{index: true, idx: i}), matchers)
+			child, err := t.walk(n[i], childPath(path, pathStep{index: true, idx: i}))
 			if err != nil {
 				return nil, err
 			}
@@ -103,23 +116,80 @@ func applyTransform(node Object, path []pathStep, matchers []*transformMatcher) 
 		}
 	}
 
-	for _, m := range matchers {
+	for _, m := range t.matchers {
 		if matchPath(m.pattern, path) {
-			// The matcher's typed first param (e.g. `(d dict)`) is enforced by the
-			// normal call validation — a type mismatch is an error, not a skip.
-			return m.inv.Invoke(Args{Array{node}}, nil)
+			return t.call(m, node)
 		}
 	}
 	return node, nil
 }
 
+// call applies matcher m to node. It reuses m's single-slot args array (no
+// per-call allocation) and, when the callback is overloaded, the invoker resolved
+// for node's type — resolving it once per type and, when that overload matches
+// exactly, skipping validation. The typed-param enforce is preserved: a plain
+// callback still validates every call, and a type with no matching overload falls
+// back to the base callback, which raises the proper type error.
+func (t *transformer) call(m *transformMatcher, node Object) (Object, error) {
+	m.args[0] = node
+
+	// Plain (non-overloaded) callback: one shared invoker for every node type,
+	// validation on (the typed-param enforce).
+	if m.mc == nil {
+		if m.inv == nil {
+			m.inv = NewInvoker(t.vm, m.fn)
+			m.inv.Acquire()
+			t.acquired = append(t.acquired, m.inv)
+		}
+		return m.inv.Invoke(m.argsWrap, nil)
+	}
+
+	// Overloaded callback: resolve and cache the overload for node's type once,
+	// skipping validation when that overload matches exactly.
+	typ := node.Type()
+	rc := m.resolved[typ]
+	if rc == nil {
+		callee, validate := m.fn, true
+		if method, check := m.mc.CallerMethodWithValidationCheckOfArgsTypes(ObjectTypeArray{typ}); method != nil {
+			callee, validate = method, check
+		}
+		// method == nil: no overload for this type — keep the base callback and
+		// validate, so the call raises the proper "no matching method" error.
+		inv := NewInvoker(t.vm, callee)
+		inv.Acquire()
+		inv.ValidArgs(!validate) // ValidArgs(true) skips param-type validation
+		rc = &resolvedCall{inv: inv}
+		m.resolved[typ] = rc
+		t.acquired = append(t.acquired, inv)
+	}
+	return rc.inv.Invoke(m.argsWrap, nil)
+}
+
+// release frees every invoker acquired during the walk.
+func (t *transformer) release() {
+	for _, inv := range t.acquired {
+		inv.Release()
+	}
+}
+
 // transformMatcher is one compiled path→fn rule.
 type transformMatcher struct {
-	raw     string    // the original path string, for error messages
-	pattern []pathSeg // compiled segments
-	fn      CallerObject
-	score   int      // specificity, higher = more specific
-	inv     *Invoker // acquired for the duration of one transform call
+	raw      string       // the original path string, for error messages
+	pattern  []pathSeg    // compiled segments
+	fn       CallerObject // the callback
+	mc       MethodCaller // fn as a MethodCaller when it has overloads, else nil
+	score    int          // specificity, higher = more specific
+	args     Array        // single-slot positional args, reused every matched call
+	argsWrap Args         // cached Args{args}, so a matched call allocates no args
+	inv      *Invoker     // shared invoker for a plain (non-overloaded) callback
+	// resolved caches, per node type, the overload invoker for an overloaded
+	// callback (nil for a plain one).
+	resolved map[ObjectType]*resolvedCall
+}
+
+// resolvedCall is a matcher's cached, acquired invoker for one node type.
+type resolvedCall struct {
+	inv *Invoker
 }
 
 // childPath returns a fresh copy of path with step appended, so recursive calls
