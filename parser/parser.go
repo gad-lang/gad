@@ -2640,8 +2640,29 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 		return &node.TypeExpr{Expr: p.ParseInterfaceExpr()}
 	case token.Method:
 		return &node.TypeExpr{Expr: p.parseMetShortcut()}
+	case token.Ident:
+		// `type<X>` in a parameter-type position is a meta type matching the type
+		// VALUE X (not an instance). At an expression position `type <…>` is a
+		// TypeUnion instead; here only the meta form is valid.
+		if p.Token.Literal == "type" && p.Peek().Token == token.Less {
+			return &node.TypeExpr{Expr: p.parseMetaTypeExpr()}
+		}
 	}
 	return &node.TypeExpr{Expr: p.ParseSimpleSelectorExpr(p.ParseIdent())}
+}
+
+// parseMetaTypeExpr parses `type<X>`; the current token is the contextual `type`
+// identifier.
+func (p *Parser) parseMetaTypeExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "MetaTypeExpr"))
+	}
+	typePos := p.Token.Pos
+	p.Next()             // consume `type`
+	p.Expect(token.Less) // consume `<`
+	target := p.parseType()
+	gt := p.Expect(token.Greater) // consume `>`
+	return &node.MetaTypeExpr{TypePos: typePos, Target: target, Gt: gt}
 }
 
 func (p *Parser) ParseTypes() (types []*node.TypeExpr) {

@@ -191,3 +191,29 @@ func TestEnumBytecodeRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantRet, gotRet)
 }
+
+func TestMetaTypeBytecodeRoundtrip(t *testing.T) {
+	// A `type<X>` parameter compiles to a MetaType constant carrying X's symbol;
+	// it must survive an encode/decode round-trip and still dispatch on the type
+	// value after decode.
+	src := "class Rect {}\nclass Point {}\n" +
+		"func d { (t type<Rect>) => 1; (t type<Point>) => 2 }\n" +
+		"return [d(Rect), d(Point)]"
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{})
+	require.NoError(t, err)
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, gad.Array{gad.Int(1), gad.Int(2)}, wantRet)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}

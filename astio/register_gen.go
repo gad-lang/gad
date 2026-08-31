@@ -96,6 +96,7 @@ func init() {
 		(*node.KeyValuePairLit)(nil),
 		(*node.MatchArm)(nil),
 		(*node.MatchExpr)(nil),
+		(*node.MetaTypeExpr)(nil),
 		(*node.MethodInterfaceExpr)(nil),
 		(*node.MixedTextExpr)(nil),
 		(*node.MixedTextStmt)(nil),

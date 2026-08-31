@@ -54,7 +54,14 @@ func (t ParamType) AcceptResolve(vm *VM, obj Object, resolve func(*SymbolInfo) (
 		if st == TAny {
 			return true, nil
 		}
-		if stot, isOT := st.(ObjectType); isOT {
+		if mt, isMeta := st.(MetaType); isMeta {
+			// A `type<X>` parameter matches on the argument VALUE (the argument must
+			// itself be the type X), not on the argument's type — MetaType is an
+			// ObjectType, so it must be checked before the type-level branch below.
+			if ok, err = mt.CanAssign(obj); err != nil || ok {
+				return
+			}
+		} else if stot, isOT := st.(ObjectType); isOT {
 			if !otDone {
 				ot, otDone = vm.ResolveType(obj.Type()), true
 			}

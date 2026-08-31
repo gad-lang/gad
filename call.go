@@ -81,7 +81,10 @@ func (o Args) Copy() Object {
 func (o Args) Types() (types ObjectTypeArray) {
 	o.Walk(func(i int, arg Object) any {
 		if t, ok := arg.(ObjectType); ok {
-			types = append(types, t)
+			// A type value dispatches as a meta type (Option A): it matches a
+			// `type<X>` parameter, NOT a plain `(t X)` one — a type value is not an
+			// instance of X. See MetaType.
+			types = append(types, MetaType{Target: t})
 		} else {
 			types = append(types, arg.Type())
 		}

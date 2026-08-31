@@ -422,6 +422,33 @@ func (e *TypeUnionExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
+// MetaTypeExpr is a `type<X>` meta-type written in a parameter-type position: it
+// matches the TYPE VALUE X (a class or other object type) rather than an instance
+// of X. It lowers to a MetaType. (At an expression position `type <…>` is a
+// TypeUnion instead; the meta form lives only where a parameter type is parsed.)
+type MetaTypeExpr struct {
+	TypePos source.Pos // position of the `type` keyword
+	Target  *TypeExpr  // the target type X
+	Gt      source.Pos // position of the closing `>`
+}
+
+func (e *MetaTypeExpr) ExprNode() {}
+
+func (e *MetaTypeExpr) Pos() source.Pos { return e.TypePos }
+
+func (e *MetaTypeExpr) End() source.Pos { return e.Gt + 1 }
+
+func (e *MetaTypeExpr) String() string {
+	if e.Target != nil {
+		return "type<" + e.Target.String() + ">"
+	}
+	return "type"
+}
+
+func (e *MetaTypeExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
 type TypedIdentExpr struct {
 	Ident *IdentExpr
 	Type  []*TypeExpr

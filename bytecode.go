@@ -535,12 +535,22 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 // (e.g. the constructor recursion check in ClassInstance.Call), and the current
 // frame's free variables are unrelated to this function's closure.
 func (o *CompiledFunction) paramTypeSymbolValue(vm *VM, symbol *SymbolInfo) (Object, error) {
-	if symbol.Scope == ScopeFree {
-		if symbol.Index < len(o.Free) {
-			return *o.Free[symbol.Index].Value, nil
-		}
+	var (
+		v   Object
+		err error
+	)
+	if symbol.Scope == ScopeFree && symbol.Index < len(o.Free) {
+		v = *o.Free[symbol.Index].Value
+	} else if v, err = vm.GetSymbolValue(symbol); err != nil {
+		return nil, err
 	}
-	return vm.GetSymbolValue(symbol)
+	// A `type<X>` constant carries only X's symbol; resolve it to its dispatch /
+	// validation form (MetaType{Target}) so both the ParamsTypes key and
+	// CanAssign see the real target.
+	if mt, ok := v.(MetaType); ok {
+		return mt.resolve(vm)
+	}
+	return v, nil
 }
 
 func (o *CompiledFunction) GetReturnVars() ReturnVars {

@@ -4215,6 +4215,20 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 			return nil, err
 		}
 		obj, name = iface, iface.IName
+	case *node.MetaTypeExpr:
+		// `type<X>`: a meta type matching the type value X. Store the constant
+		// carrying X's symbol; it resolves to MetaType{Target} per VM (see
+		// CompiledFunction.paramTypeSymbolValue).
+		id := t.Target.Ident()
+		if id == nil {
+			return nil, c.Errorf(e, "type<…>: expected a type reference")
+		}
+		sym, err := c.requireSymbol(id, id.Name)
+		if err != nil {
+			return nil, err
+		}
+		si := sym.SymbolInfo
+		obj, name = MetaType{TargetSym: &si}, "type<"+id.Name+">"
 	default:
 		return nil, c.Errorf(e, "unsupported structural type %T", e)
 	}
