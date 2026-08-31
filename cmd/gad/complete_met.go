@@ -5,6 +5,10 @@ import (
 
 	gad "github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/langsym"
+	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 )
 
 // metReceiverCompletions handles member completion for the special receivers of a
@@ -278,4 +282,172 @@ func metMembers(val gad.Object) []gad.Member {
 		walkMixin(t)
 	}
 	return out
+}
+
+// literalReceiverCompletions handles `this.` inside a class or mixin LITERAL that
+// is being EDITED — e.g. `mixin M { methods { m() => this.‸ } }`. The type is not
+// a runtime value yet (its members and `this { … }` block are being written), so
+// `this` is resolved from the current AST: the enclosing class/mixin's own fields,
+// properties and methods, its `this { … }` interface (a mixin), and its parents
+// (evaluated, since a parent is defined before the literal). ok is false when the
+// caret is not `this.` inside such a literal.
+func literalReceiverCompletions(name, src string, offset int) (items []langsym.Symbol, ok bool) {
+	root, recvStart, isRecv := metReceiverContext(src, offset)
+	if !isRecv || root != "this" {
+		return nil, false
+	}
+	// The `this.` at the caret is a dangling selector that fails to parse, so the
+	// enclosing class/mixin literal is absent from the tree. Splice a sentinel
+	// identifier at the caret (`this.gadCompletionCaret`) so the literal parses,
+	// then locate it. Fall back to the raw parse if the splice does not help.
+	data := []byte(src)
+	var (
+		file *parser.File
+		cls  *node.ClassExpr
+	)
+	if patched, ok2 := spliceIdent(data, offset); ok2 {
+		if f, s, _ := langsymParse(name, patched); f != nil {
+			file, cls = f, enclosingClassLiteral(f, s, recvStart)
+		}
+	}
+	if cls == nil {
+		if f, s, _ := langsymParse(name, data); f != nil {
+			file, cls = f, enclosingClassLiteral(f, s, recvStart)
+		}
+	}
+	if cls == nil {
+		return nil, false
+	}
+
+	// byName indexes the file's top-level class/mixin literals so a `*Parent`
+	// spread can be resolved to its literal for recursive member collection —
+	// robust while the file is mid-edit (no evaluation of a broken literal).
+	byName := classLiteralsByName(file)
+
+	seen := map[string]bool{}
+	add := func(n, kind string) {
+		if n != "" && !seen[n] {
+			seen[n] = true
+			items = append(items, langsym.Symbol{Label: n, Kind: kind})
+		}
+	}
+	collectLiteralMembers(cls, byName, map[*node.ClassExpr]bool{}, add)
+	return items, true
+}
+
+// collectLiteralMembers adds the members visible on `this` inside a class/mixin
+// literal: its own fields, properties and methods, its `this { … }` interface
+// requirements (a mixin), and — recursively — those of each `*Parent` spread it
+// can resolve to a same-file literal. seen guards against a cyclic parent graph.
+func collectLiteralMembers(cls *node.ClassExpr, byName map[string]*node.ClassExpr, seen map[*node.ClassExpr]bool, add func(string, string)) {
+	if cls == nil || seen[cls] {
+		return
+	}
+	seen[cls] = true
+	for _, f := range cls.Fields {
+		if f.Name != nil && f.Name.Ident != nil {
+			add(f.Name.Ident.Name, "field")
+		}
+	}
+	for _, p := range cls.Props {
+		if id, _ := p.NameExpr.(*node.IdentExpr); id != nil {
+			add(id.Name, "property")
+		}
+	}
+	for _, m := range cls.Methods {
+		if id, _ := m.NameExpr.(*node.IdentExpr); id != nil {
+			add(id.Name, "method")
+		}
+	}
+	if cls.This != nil {
+		for _, mm := range cls.This.Members {
+			if mm.Name != nil && mm.Name.Ident != nil {
+				add(mm.Name.Ident.Name, "field")
+			}
+		}
+		for _, mm := range cls.This.Methods {
+			if mm.NameExpr != nil {
+				add(mm.NameExpr.Name, "method")
+			}
+		}
+	}
+	for _, p := range cls.Parents {
+		if id, _ := p.Type.(*node.IdentExpr); id != nil {
+			collectLiteralMembers(byName[id.Name], byName, seen, add)
+		}
+	}
+}
+
+// classLiteralsByName indexes a file's named class/mixin literals by name, so a
+// `*Parent` spread can be resolved to its declaration for in-editor completion.
+func classLiteralsByName(file *parser.File) map[string]*node.ClassExpr {
+	out := map[string]*node.ClassExpr{}
+	record := func(cls *node.ClassExpr) {
+		if id, _ := cls.NameExpr.(*node.IdentExpr); id != nil {
+			out[id.Name] = cls
+		}
+	}
+	for _, stmt := range file.Stmts {
+		node.Walk(stmt, func(n ast.Node) bool {
+			switch c := n.(type) {
+			case *node.ClassExpr:
+				record(c)
+			case *node.ClassStmt:
+				record(&c.ClassExpr)
+			}
+			return true
+		})
+	}
+	return out
+}
+
+// enclosingClassLiteral returns the innermost `class`/`mixin` literal (ClassExpr)
+// whose method, property or constructor body contains the caret byte offset, or
+// nil. Used to resolve `this.` while the literal is being edited.
+func enclosingClassLiteral(file *parser.File, sf *source.File, caret int) *node.ClassExpr {
+	pos := source.Pos(sf.Base + caret)
+	var best *node.ClassExpr
+	bestSpan := 1 << 62
+	consider := func(cls *node.ClassExpr) {
+		inBody := func(n node.Node) bool {
+			return n != nil && n.Pos() <= pos && pos <= n.End()
+		}
+		hit := false
+		for _, m := range cls.Methods {
+			for _, fm := range m.Methods {
+				if inBody(fm) {
+					hit = true
+				}
+			}
+		}
+		for _, p := range cls.Props {
+			for _, fm := range p.Methods {
+				if inBody(fm) {
+					hit = true
+				}
+			}
+		}
+		for _, fm := range cls.New {
+			if inBody(fm) {
+				hit = true
+			}
+		}
+		if hit {
+			if span := int(cls.End() - cls.Pos()); span < bestSpan {
+				best, bestSpan = cls, span
+			}
+		}
+	}
+	for _, stmt := range file.Stmts {
+		node.Walk(stmt, func(n ast.Node) bool {
+			switch c := n.(type) {
+			case *node.ClassExpr:
+				consider(c)
+			case *node.ClassStmt:
+				consider(&c.ClassExpr)
+			}
+			return true
+		})
+	}
+	return best
 }

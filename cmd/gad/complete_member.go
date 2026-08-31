@@ -22,6 +22,11 @@ func memberCompletions(name, src string, offset int) (items []langsym.Symbol, ok
 	if items, ok := metReceiverCompletions(name, src, offset); ok {
 		return items, true
 	}
+	// `this.` inside a class/mixin literal being edited is resolved from that
+	// literal's AST (its members, `this { … }` block and parents).
+	if items, ok := literalReceiverCompletions(name, src, offset); ok {
+		return items, true
+	}
 
 	recv, recvStart, dot, ok := memberContext(src, offset)
 	if !ok {

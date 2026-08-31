@@ -94,3 +94,61 @@ func TestMetThisMixinDeep(t *testing.T) {
 	require.Contains(t, labels, "tag")  // parent mixin method
 	require.Contains(t, labels, "id")   // parent this-interface
 }
+
+// litLabels returns completion labels at the ‸ caret marked in src (stripped
+// before completion), exercising the in-literal `this.` path.
+func litLabels(t *testing.T, src string) []string {
+	t.Helper()
+	caret := strings.Index(src, "‸")
+	require.GreaterOrEqual(t, caret, 0, "source must contain the caret marker ‸")
+	clean := strings.Replace(src, "‸", "", 1)
+	items, ok := memberCompletions("buffer.gad", clean, caret)
+	require.True(t, ok, "should be a member context")
+	var labels []string
+	for _, it := range items {
+		labels = append(labels, it.Label)
+	}
+	return labels
+}
+
+// TestLiteralThisMixinOwnAndInterface: `this.` inside a mixin literal being edited
+// lists the mixin's own members and its `this { … }` interface requirements.
+func TestLiteralThisMixinOwnAndInterface(t *testing.T) {
+	src := "mixin M {\n" +
+		"  count = 0\n" +
+		"  this { size() <int> }\n" +
+		"  props { doubled => this.count }\n" +
+		"  methods { area() => this.‸ }\n" +
+		"}\n"
+	labels := litLabels(t, src)
+	require.Contains(t, labels, "count")   // own field
+	require.Contains(t, labels, "doubled") // own property
+	require.Contains(t, labels, "area")    // own method
+	require.Contains(t, labels, "size")    // required by the this-interface
+}
+
+// TestLiteralThisMixinParent: `this.` in a mixin literal includes members of a
+// `*Parent` mixin resolved from the same file's AST (no evaluation).
+func TestLiteralThisMixinParent(t *testing.T) {
+	src := "mixin Base { hp = 10; methods { heal() => 1 } }\n" +
+		"mixin M {\n" +
+		"  *Base\n" +
+		"  name = \"?\"\n" +
+		"  methods { go() => this.‸ }\n" +
+		"}\n"
+	labels := litLabels(t, src)
+	require.Contains(t, labels, "name") // own
+	require.Contains(t, labels, "go")   // own
+	require.Contains(t, labels, "hp")   // parent field
+	require.Contains(t, labels, "heal") // parent method
+}
+
+// TestLiteralThisClass: `this.` inside a plain class literal being edited lists
+// the class's own members.
+func TestLiteralThisClass(t *testing.T) {
+	src := "class C {\n  x = 1\n  props { p => 1 }\n  methods { m() => this.‸ }\n}\n"
+	labels := litLabels(t, src)
+	require.Contains(t, labels, "x")
+	require.Contains(t, labels, "p")
+	require.Contains(t, labels, "m")
+}
