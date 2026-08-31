@@ -371,6 +371,8 @@ func buildGadNamespaceFuncs() {
 	)
 	gadEvalFn = AddMethod(evalStrFn, evalSourceFileFn, evalStmtsFn, evalStmtFn)
 
+	buildGadTransformFn()
+
 	gadInvokerFn = NewFunction("invoker", gadInvoker,
 		FunctionWithModule(gadModuleSpec),
 		FunctionWithParams(func(p func(name string) *ParamBuilder) {

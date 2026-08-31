@@ -17,6 +17,7 @@ func GadModule() Dict {
 		"parseFile":        gadParseFileFn,
 		"eval":             gadEvalFn,
 		"invoker":          gadInvokerFn,
+		"transform":        gadTransformFn,
 		"quote":            gadQuoteFn,
 		"unquote":          gadUnquoteFn,
 		"StmtsObject":      StmtsType,

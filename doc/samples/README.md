@@ -33,6 +33,7 @@
 - [template](template.md)
 - [template_example](template_example.md)
 - [transform_cast_test](transform_cast_test.md)
+- [transform_mapped_test](transform_mapped_test.md)
 - [type_parameters](type_parameters.md)
 - [type_unions](type_unions.md)
 - [types](types.md)

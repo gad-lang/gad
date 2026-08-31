@@ -1,0 +1,118 @@
+
+# Mapped transform (`gad.transform`)
+
+`gad.transform(value; ".path" = fn, …)` rewrites a JSON-like value — nested
+dicts and arrays — by mapping **yq-style path patterns** to transformer
+functions. It is the imperative, path-driven sibling of the
+[transforming cast `:::`](transform_cast_test.gad): where `:::` coerces by an
+interface's declared shape, `gad.transform` lets you name exactly which nodes to
+rewrite and how.
+
+The rewrite is a single **bottom-up** pass: every node's children are
+transformed and spliced back in *before* the node's own matcher runs, so a
+container matcher sees its already-transformed children. The transformed value is
+**returned** — reassign it (`v = gad.transform(v; …)`), since a matcher may
+replace a node with a different type (a dict → a class instance), which cannot
+happen in place.
+
+## Path patterns
+
+A path starts with `.`; `.` alone is the root. Per segment:
+
+| Pattern         | Matches                                   |
+|-----------------|-------------------------------------------|
+| `.key`          | a dict child by key                       |
+| `."k e y"`      | a quoted key (spaces / special chars)     |
+| `.*`            | every dict child (non-array)              |
+| `.**`           | every child (dict key **or** array index) |
+| `.[]` / `.k[]`  | every array index                         |
+| `.[N]` / `.k[N]`| a specific array index                    |
+
+When two patterns match the same node, the **most specific** wins (a literal key
+or fixed index over a wildcard), independent of the order they were listed. A
+matcher's typed first param (`(d dict)`, `(n int)`) is **enforced**: a node of
+the wrong type raises, it is not silently skipped — the path is the selector, the
+type is a guard.
+
+Run it: `gad test samples/transform_mapped_test.gad`
+
+## Example — `transform_mapped_test.gad`
+
+```gad
+class Points { pts array }
+class Point { x; y }
+
+/**
+The headline case: a nested value is rewritten bottom-up. The inner `[x, y]`
+arrays become `Point` instances first; then the root dict becomes a `Points`
+whose `pts` already hold the transformed `Point`s. `d` inside each matcher is the
+matched node — the array `[1,2]` for `.points[]`, the whole dict for `.`.
+**/
+test "bottom-up nested rewrite" {
+    d := {points: [[1, 2], [3, 4]]}
+    d = gad.transform(d;
+        "." = (d dict) => Points(; pts = d.points)
+        ".points[]" = (d array) => Point(; x = d[0], y = d[1])
+    )
+
+    t.equal("Points", typeName(d))
+    t.equal("Point", typeName(d.pts[0]))
+    t.equal(1, d.pts[0].x)
+    t.equal(4, d.pts[1].y)
+}
+
+/**
+`.[]` matches every element of an array; `.*` matches every dict child.
+**/
+test "array and dict wildcards" {
+    t.equal([10, 20, 30], gad.transform([1, 2, 3]; ".[]" = (n int) => n * 10))
+
+    m := gad.transform({a: 1, b: 2}; ".*" = (n int) => n + 100)
+    t.equal(101, m.a)
+    t.equal(102, m.b)
+}
+
+/**
+`.key[N]` targets a single array index; the others pass through untouched.
+**/
+test "specific index" {
+    p := gad.transform({v: [10, 20, 30]}; ".v[1]" = (n int) => n * 2)
+    t.equal([10, 40, 30], p.v)
+}
+
+/**
+A `."quoted key"` segment matches a key containing spaces.
+**/
+test "quoted key" {
+    e := gad.transform({"po in": 7}; ".\"po in\"" = (n int) => n + 1)
+    t.equal(8, e["po in"])
+}
+
+/**
+At a node matched by both a literal and a wildcard path, the literal (more
+specific) matcher wins — here `.a.b` beats `.a.*` on `b`, while `c` only matches
+the wildcard. The listing order does not matter.
+**/
+test "most specific wins" {
+    s := gad.transform({a: {b: 1, c: 1}};
+        ".a.*" = (n int) => 9
+        ".a.b" = (n int) => 100
+    )
+    t.equal(100, s.a.b)
+    t.equal(9, s.a.c)
+}
+
+/**
+The matcher's typed first param is enforced: an array node hitting a `(d dict)`
+matcher raises rather than silently skipping.
+**/
+test "typed param is enforced" {
+    ok := false
+    try {
+        gad.transform([1, 2]; ".[]" = (d dict) => d)
+    } catch {
+        ok = true
+    }
+    t.equal(true, ok)
+}
+```

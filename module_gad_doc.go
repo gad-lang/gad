@@ -84,6 +84,22 @@ package gad
 // >>> "42"
 // ```
 //
+// transform(value any; **paths) <any>
+// Rewrites a JSON-like `value` (nested dicts/arrays) bottom-up, mapping yq-style
+// path patterns to transformer functions. Each named arg is a path — `.` the root,
+// `.key` a dict child, `.*` every dict child, `.**` every child, `.[]`/`.key[]`
+// every array index, `.[N]`/`.key[N]` a specific index, `."k e y"` a quoted key —
+// and its function receives the matched node and returns its replacement. Children
+// are transformed before their container, so a container matcher sees the
+// transformed children; the most specific pattern wins at a node, and a matcher's
+// typed first param is enforced. The transformed value is returned. See
+// samples/transform_mapped_test.gad.
+// Example:
+// ```gad
+// gad.transform([1, 2, 3]; ".[]" = (n int) => n * 10)
+// >>> [10, 20, 30]
+// ```
+//
 // ## Operators
 //
 // Binary, self-assign and unary operators dispatch through the `gad` namespace, so
