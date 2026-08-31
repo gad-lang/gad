@@ -205,13 +205,13 @@ func internalStmtEntry(stmt node.Stmt, doc string) (docEntry, bool) {
 			return docEntry{}, false
 		}
 		return methodsEntry(name, &s.FuncWithMethodsExpr, doc), true
-	case *node.ClassStmt:
+	case *node.TypeDeclStmt:
 		name := identName(s.NameExpr)
 		if name == "" {
 			return docEntry{}, false
 		}
 		return docEntry{name: name, kind: docType, keyword: "class",
-			code: []string{"class " + name}, doc: doc, members: classMembers(&s.ClassExpr)}, true
+			code: []string{"class " + name}, doc: doc, members: classMembers(&s.TypeLitExpr)}, true
 	case *node.EnumStmt:
 		name := identName(s.NameExpr)
 		if name == "" {
@@ -280,7 +280,7 @@ func assignEntry(name string, rhs node.Expr, doc string) docEntry {
 	case *node.ClosureExpr:
 		return docEntry{name: name, kind: docType, keyword: "func",
 			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
-	case *node.ClassExpr:
+	case *node.TypeLitExpr:
 		return docEntry{name: name, kind: docType, keyword: "class",
 			code: []string{name + " = " + firstLine(v.String())}, doc: doc, members: classMembers(v)}
 	case *node.EnumExpr:
@@ -413,7 +413,7 @@ func methodSig(name string, m *node.FuncMethod) string {
 
 // classMembers collects a class's documented members — fields (with their types
 // and defaults), constructors, properties and methods — in source-friendly order.
-func classMembers(e *node.ClassExpr) []docMember {
+func classMembers(e *node.TypeLitExpr) []docMember {
 	var ms []docMember
 	for _, f := range e.Fields {
 		sig := f.Name.String()

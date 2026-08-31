@@ -2290,7 +2290,7 @@ return str([
 		fields: {},
 		methods: {},
 		new: ‹class constructor of ‹(main).Point› with 3 methods›,
-		properties: {}
+		props: {}
 	}›,
 	‹class instance of ‹(main).Point›: {
 		x: 10,
@@ -2322,7 +2322,7 @@ return repr([
 			1 🠆 ⨍(any, any) 🠆 ‹compiledFunction: (main).#3(new any, x any)›,
 			2 🠆 ⨍(any, any, any) 🠆 ‹compiledFunction: (main).#2(new any, x any, y any)›
 		]››,
-		properties: ‹dict: {}›
+		props: ‹dict: {}›
 	}›,
 	‹class instance of ‹(main).Point›: {
 		x: ‹int: 10›,
@@ -2390,7 +2390,7 @@ Point := Class(
 		x int|bool|uint
 		y
 	),
-	properties={
+	props={
 		px: func {
 			(this) => this.x
 			(this, v) {
@@ -2513,7 +2513,7 @@ return repr([
 		setY: ‹class method ‹(main).Point#setY› with 2 methods›
 	},
 	new: ‹class constructor of ‹(main).Point› with 1 methods›,
-	properties: {
+	props: {
 		px: class property ‹(main).Point#px› of (main).Point,
 		py: class property ‹(main).Point#py› of (main).Point
 	}
@@ -2542,7 +2542,7 @@ return repr([
 	new: ‹ClassConstructor: ‹class constructor of ‹(main).Point› with 1 methods: [
 		0 🠆 ⨍(any, uint, uint) 🠆 ‹compiledFunction: (main).#9(this any, x uint, y uint)›
 	]››,
-	properties: ‹dict: {
+	props: ‹dict: {
 		px: ‹class property ‹px› of ‹(main).Point›: ‹class property ‹(main).Point#px› with 2 methods: [
 			0 🠆 ⨍(any) 🠆 ‹compiledFunction: (main).#1(this any)›,
 			1 🠆 ⨍(any, any) 🠆 ‹compiledFunction: (main).#2(this any, v any)›
@@ -2635,7 +2635,7 @@ return repr(Point;indent,indexes,sorted)
 		]››
 	}›,
 	new: ‹ClassConstructor: ‹class constructor of ‹(main).Point› without methods››,
-	properties: ‹dict: {}›
+	props: ‹dict: {}›
 }›`))
 }
 

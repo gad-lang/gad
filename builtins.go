@@ -128,6 +128,7 @@ const (
 	BuiltinWrap
 	BuiltinNewClass
 	BuiltinNewMixin
+	BuiltinNewStaticType
 	BuiltinTypeOf
 	BuiltinAddMethod
 	BuiltinRawCaller
@@ -347,6 +348,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"stdio":               BuiltinStdIO,
 	"wrap":                BuiltinWrap,
 	"Class":               BuiltinNewClass,
+	"StaticType":          BuiltinNewStaticType,
 	"Mixin":               BuiltinNewMixin,
 	"typeof":              BuiltinTypeOf,
 	"addMethod":           BuiltinAddMethod,
@@ -907,6 +909,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinNewMixin: &BuiltinFunction{
 		FuncName:              "Mixin",
 		Value:                 NewMixinFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinNewStaticType: &BuiltinFunction{
+		FuncName:              "StaticType",
+		Value:                 NewStaticTypeFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinTypeOf: &BuiltinFunction{

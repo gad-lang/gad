@@ -30,6 +30,7 @@
 - [ranges](ranges.md)
 - [raw_argv](raw_argv.md)
 - [special_keywords](special_keywords.md)
+- [static_types_test](static_types_test.md)
 - [strings_bytes_regex](strings_bytes_regex.md)
 - [template](template.md)
 - [template_example](template_example.md)

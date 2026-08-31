@@ -4139,6 +4139,28 @@ func (c *Compiler) typeExprSymbols(t *node.TypeExpr) ([]*SymbolInfo, error) {
 }
 
 func (c *Compiler) typeExprSymbolsV(t *node.TypeExpr, visiting map[string]bool) (symbols []*SymbolInfo, err error) {
+	// `type<X>` / `type<X|Y>`: one MetaType constant per target, so a union expands
+	// to several meta symbols (each a distinct dispatch key), matched like any
+	// union of parameter types.
+	if mt, _ := t.Expr.(*node.MetaTypeExpr); mt != nil {
+		for _, target := range mt.Targets {
+			id := target.Ident()
+			if id == nil {
+				return nil, c.Errorf(mt, "type<…>: expected a type reference")
+			}
+			var sym *Symbol
+			if sym, err = c.requireSymbol(id, id.Name); err != nil {
+				return
+			}
+			si := sym.SymbolInfo
+			symbols = append(symbols, &SymbolInfo{
+				Name:  "type<" + id.Name + ">",
+				Index: c.addConstant(MetaType{TargetSym: &si}),
+				Scope: ScopeConstant,
+			})
+		}
+		return
+	}
 	if id := t.Ident(); id != nil {
 		// Expand a type-parameter reference to its constraint types. `visiting`
 		// guards against a constraint that (transitively) names itself.
@@ -4215,20 +4237,6 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 			return nil, err
 		}
 		obj, name = iface, iface.IName
-	case *node.MetaTypeExpr:
-		// `type<X>`: a meta type matching the type value X. Store the constant
-		// carrying X's symbol; it resolves to MetaType{Target} per VM (see
-		// CompiledFunction.paramTypeSymbolValue).
-		id := t.Target.Ident()
-		if id == nil {
-			return nil, c.Errorf(e, "type<…>: expected a type reference")
-		}
-		sym, err := c.requireSymbol(id, id.Name)
-		if err != nil {
-			return nil, err
-		}
-		si := sym.SymbolInfo
-		obj, name = MetaType{TargetSym: &si}, "type<"+id.Name+">"
 	default:
 		return nil, c.Errorf(e, "unsupported structural type %T", e)
 	}

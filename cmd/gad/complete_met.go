@@ -304,7 +304,7 @@ func literalReceiverCompletions(name, src string, offset int) (items []langsym.S
 	data := []byte(src)
 	var (
 		file *parser.File
-		cls  *node.ClassExpr
+		cls  *node.TypeLitExpr
 	)
 	if patched, ok2 := spliceIdent(data, offset); ok2 {
 		if f, s, _ := langsymParse(name, patched); f != nil {
@@ -332,7 +332,7 @@ func literalReceiverCompletions(name, src string, offset int) (items []langsym.S
 			items = append(items, langsym.Symbol{Label: n, Kind: kind})
 		}
 	}
-	collectLiteralMembers(cls, byName, map[*node.ClassExpr]bool{}, add)
+	collectLiteralMembers(cls, byName, map[*node.TypeLitExpr]bool{}, add)
 	return items, true
 }
 
@@ -340,7 +340,7 @@ func literalReceiverCompletions(name, src string, offset int) (items []langsym.S
 // literal: its own fields, properties and methods, its `this { … }` interface
 // requirements (a mixin), and — recursively — those of each `*Parent` spread it
 // can resolve to a same-file literal. seen guards against a cyclic parent graph.
-func collectLiteralMembers(cls *node.ClassExpr, byName map[string]*node.ClassExpr, seen map[*node.ClassExpr]bool, add func(string, string)) {
+func collectLiteralMembers(cls *node.TypeLitExpr, byName map[string]*node.TypeLitExpr, seen map[*node.TypeLitExpr]bool, add func(string, string)) {
 	if cls == nil || seen[cls] {
 		return
 	}
@@ -381,9 +381,9 @@ func collectLiteralMembers(cls *node.ClassExpr, byName map[string]*node.ClassExp
 
 // classLiteralsByName indexes a file's named class/mixin literals by name, so a
 // `*Parent` spread can be resolved to its declaration for in-editor completion.
-func classLiteralsByName(file *parser.File) map[string]*node.ClassExpr {
-	out := map[string]*node.ClassExpr{}
-	record := func(cls *node.ClassExpr) {
+func classLiteralsByName(file *parser.File) map[string]*node.TypeLitExpr {
+	out := map[string]*node.TypeLitExpr{}
+	record := func(cls *node.TypeLitExpr) {
 		if id, _ := cls.NameExpr.(*node.IdentExpr); id != nil {
 			out[id.Name] = cls
 		}
@@ -391,10 +391,10 @@ func classLiteralsByName(file *parser.File) map[string]*node.ClassExpr {
 	for _, stmt := range file.Stmts {
 		node.Walk(stmt, func(n ast.Node) bool {
 			switch c := n.(type) {
-			case *node.ClassExpr:
+			case *node.TypeLitExpr:
 				record(c)
-			case *node.ClassStmt:
-				record(&c.ClassExpr)
+			case *node.TypeDeclStmt:
+				record(&c.TypeLitExpr)
 			}
 			return true
 		})
@@ -402,14 +402,14 @@ func classLiteralsByName(file *parser.File) map[string]*node.ClassExpr {
 	return out
 }
 
-// enclosingClassLiteral returns the innermost `class`/`mixin` literal (ClassExpr)
+// enclosingClassLiteral returns the innermost `class`/`mixin` literal (TypeLitExpr)
 // whose method, property or constructor body contains the caret byte offset, or
 // nil. Used to resolve `this.` while the literal is being edited.
-func enclosingClassLiteral(file *parser.File, sf *source.File, caret int) *node.ClassExpr {
+func enclosingClassLiteral(file *parser.File, sf *source.File, caret int) *node.TypeLitExpr {
 	pos := source.Pos(sf.Base + caret)
-	var best *node.ClassExpr
+	var best *node.TypeLitExpr
 	bestSpan := math.MaxInt // no literal found yet
-	consider := func(cls *node.ClassExpr) {
+	consider := func(cls *node.TypeLitExpr) {
 		inBody := func(n node.Node) bool {
 			return n != nil && n.Pos() <= pos && pos <= n.End()
 		}
@@ -442,10 +442,10 @@ func enclosingClassLiteral(file *parser.File, sf *source.File, caret int) *node.
 	for _, stmt := range file.Stmts {
 		node.Walk(stmt, func(n ast.Node) bool {
 			switch c := n.(type) {
-			case *node.ClassExpr:
+			case *node.TypeLitExpr:
 				consider(c)
-			case *node.ClassStmt:
-				consider(&c.ClassExpr)
+			case *node.TypeDeclStmt:
+				consider(&c.TypeLitExpr)
 			}
 			return true
 		})

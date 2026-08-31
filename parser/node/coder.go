@@ -348,11 +348,11 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 			for _, h := range t.Headers {
 				ctx.claimLeadDoc(h.Doc, h)
 			}
-		case *ClassStmt:
+		case *TypeDeclStmt:
 			// The class lead doc precedes `class Name`; the body docs are emitted
 			// by their own nodes (the position machinery does not reach inside).
-			ctx.claimLeadDoc(t.Doc, &t.ClassExpr)
-			ctx.claimClassBodyDocs(&t.ClassExpr)
+			ctx.claimLeadDoc(t.Doc, &t.TypeLitExpr)
+			ctx.claimClassBodyDocs(&t.TypeLitExpr)
 		case *EnumStmt:
 			ctx.claimLeadDoc(t.Doc, &t.EnumExpr)
 			ctx.claimEnumBodyDocs(&t.EnumExpr)
@@ -361,7 +361,7 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 			// stays with the statement (position machinery), but its body docs
 			// are claimed so they travel with the field/member nodes.
 			for _, rhs := range t.RHS {
-				if ce, _ := rhs.(*ClassExpr); ce != nil {
+				if ce, _ := rhs.(*TypeLitExpr); ce != nil {
 					ctx.claimClassBodyDocs(ce)
 				}
 				if ee, _ := rhs.(*EnumExpr); ee != nil {
@@ -369,7 +369,7 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 				}
 			}
 		case *ExprStmt:
-			if ce, _ := t.Expr.(*ClassExpr); ce != nil {
+			if ce, _ := t.Expr.(*TypeLitExpr); ce != nil {
 				ctx.claimClassBodyDocs(ce)
 			}
 			if ee, _ := t.Expr.(*EnumExpr); ee != nil {
@@ -393,7 +393,7 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 // `props`/`new`/`methods` group keywords, the property/method entries and their
 // accessor/overload methods — so each is emitted in place by its own node
 // instead of being flushed by position at the end of the file.
-func (ctx *CodeWriteContext) claimClassBodyDocs(e *ClassExpr) {
+func (ctx *CodeWriteContext) claimClassBodyDocs(e *TypeLitExpr) {
 	for _, f := range e.Fields {
 		ctx.claimDoc(f.Doc)
 	}

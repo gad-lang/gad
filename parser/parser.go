@@ -1123,6 +1123,10 @@ func (p *Parser) ParseOperand() node.Expr {
 	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.Less {
 		return p.parseTypeUnionExpr()
 	}
+	// `type { … }` — an anonymous marker-type value (as in `const X = type { … }`).
+	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.LBrace {
+		return p.ParseStaticTypeExpr()
+	}
 
 	if isPrimiteValue(p.Token.Token) {
 		return p.ParseLiteral()
@@ -2605,6 +2609,19 @@ func (p *Parser) isTypeUnionDeclStart() bool {
 	return p.PeekC(2)[1].Token == token.Less
 }
 
+// isStaticTypeDeclStart reports whether the current `type` identifier begins a
+// `type NAME { … }` or `type { … }` marker-type declaration (contextual: `type`
+// followed by `{`, or by a name and `{`).
+func (p *Parser) isStaticTypeDeclStart() bool {
+	switch next := p.Peek(); next.Token {
+	case token.LBrace:
+		return true
+	case token.Ident:
+		return p.PeekC(2)[1].Token == token.LBrace
+	}
+	return false
+}
+
 // parseTypeUnionDeclStmt parses `type NAME <T1|T2|…>`, sugar for
 // `const NAME = type <T1|T2|…>`.
 func (p *Parser) parseTypeUnionDeclStmt() node.Stmt {
@@ -2660,9 +2677,12 @@ func (p *Parser) parseMetaTypeExpr() node.Expr {
 	typePos := p.Token.Pos
 	p.Next()             // consume `type`
 	p.Expect(token.Less) // consume `<`
-	target := p.parseType()
+	targets := p.ParseTypes()
+	if len(targets) == 0 {
+		p.Error(p.Token.Pos, "expected a type after `type<`")
+	}
 	gt := p.Expect(token.Greater) // consume `>`
-	return &node.MetaTypeExpr{TypePos: typePos, Target: target, Gt: gt}
+	return &node.MetaTypeExpr{TypePos: typePos, Targets: targets, Gt: gt}
 }
 
 func (p *Parser) ParseTypes() (types []*node.TypeExpr) {
@@ -2726,6 +2746,11 @@ do:
 	// `const NAME = type <…>`. `type` is contextual (see isTypeUnionDeclStart).
 	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.isTypeUnionDeclStart() {
 		return p.parseTypeUnionDeclStmt()
+	}
+	// `type NAME { … }` / `type { … }` — a marker-type declaration. `type` is
+	// contextual (see isStaticTypeDeclStart).
+	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.isStaticTypeDeclStart() {
+		return p.ParseStaticTypeStmt()
 	}
 	switch p.Token.Token {
 	case token.ConfigStart:

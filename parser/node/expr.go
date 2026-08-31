@@ -422,14 +422,16 @@ func (e *TypeUnionExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
-// MetaTypeExpr is a `type<X>` meta-type written in a parameter-type position: it
-// matches the TYPE VALUE X (a class or other object type) rather than an instance
-// of X. It lowers to a MetaType. (At an expression position `type <…>` is a
-// TypeUnion instead; the meta form lives only where a parameter type is parsed.)
+// MetaTypeExpr is a `type<X>` (or `type<X|Y|…>`) meta-type written in a
+// parameter-type position: it matches the TYPE VALUE X (a class or other object
+// type) rather than an instance of X; a union `type<X|Y>` matches the type value X
+// or Y. It lowers to one MetaType per target. (At an expression position `type <…>`
+// is a TypeUnion instead; the meta form lives only where a parameter type is
+// parsed.)
 type MetaTypeExpr struct {
-	TypePos source.Pos // position of the `type` keyword
-	Target  *TypeExpr  // the target type X
-	Gt      source.Pos // position of the closing `>`
+	TypePos source.Pos  // position of the `type` keyword
+	Targets []*TypeExpr // the target types (one, or several for a union)
+	Gt      source.Pos  // position of the closing `>`
 }
 
 func (e *MetaTypeExpr) ExprNode() {}
@@ -439,10 +441,11 @@ func (e *MetaTypeExpr) Pos() source.Pos { return e.TypePos }
 func (e *MetaTypeExpr) End() source.Pos { return e.Gt + 1 }
 
 func (e *MetaTypeExpr) String() string {
-	if e.Target != nil {
-		return "type<" + e.Target.String() + ">"
+	parts := make([]string, len(e.Targets))
+	for i, t := range e.Targets {
+		parts[i] = t.String()
 	}
-	return "type"
+	return "type<" + strings.Join(parts, "|") + ">"
 }
 
 func (e *MetaTypeExpr) WriteCode(ctx *CodeWriteContext) {

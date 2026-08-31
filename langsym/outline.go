@@ -45,8 +45,8 @@ func outlineStmt(sf *source.File, stmt node.Stmt) (OutlineSym, bool) {
 		if s.Func != nil {
 			return outlineFunc(sf, s.Func, "func"), true
 		}
-	case *node.ClassStmt:
-		return outlineClass(sf, &s.ClassExpr), true
+	case *node.TypeDeclStmt:
+		return outlineClass(sf, &s.TypeLitExpr), true
 	case *node.InterfaceStmt:
 		return outlineInterface(sf, &s.InterfaceExpr), true
 	case *node.EnumStmt:
@@ -69,7 +69,7 @@ func outlineExpr(sf *source.File, e node.Expr) (OutlineSym, bool) {
 		if named := funcName(x); named != "" {
 			return outlineFunc(sf, x, "func"), true
 		}
-	case *node.ClassExpr:
+	case *node.TypeLitExpr:
 		if x.NameExpr != nil {
 			return outlineClass(sf, x), true
 		}
@@ -132,7 +132,7 @@ func outlineNamedTypeValue(sf *source.File, id *node.IdentExpr, val node.Expr) (
 		return OutlineSym{}, false
 	}
 	switch v := val.(type) {
-	case *node.ClassExpr:
+	case *node.TypeLitExpr:
 		s := outlineClass(sf, v)
 		s.Name = id.Name
 		s.Offset, s.Line, s.Column = at(sf, id.Pos())
@@ -156,7 +156,7 @@ func outlineNamedTypeValue(sf *source.File, id *node.IdentExpr, val node.Expr) (
 	return OutlineSym{}, false
 }
 
-func outlineClass(sf *source.File, c *node.ClassExpr) OutlineSym {
+func outlineClass(sf *source.File, c *node.TypeLitExpr) OutlineSym {
 	kind := "class"
 	if c.Mixin {
 		kind = "mixin"
@@ -229,7 +229,7 @@ func at(sf *source.File, p source.Pos) (offset, line, column int) {
 	return fp.Offset, fp.Line, fp.Column
 }
 
-func className(c *node.ClassExpr) string {
+func className(c *node.TypeLitExpr) string {
 	if id, _ := c.NameExpr.(*node.IdentExpr); id != nil {
 		return id.Name
 	}

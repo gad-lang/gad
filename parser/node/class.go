@@ -123,27 +123,35 @@ func (e *ClassMemberExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
-// ClassExpr is a class literal:
+// TypeLitExpr is a type literal — a `class`, `mixin` or marker `type` body,
+// distinguished by the Mixin / Static flags:
 //
 //	class [Name] { *P, …, fields, props {…}, new …, methods {…} }
+//	mixin [Name] { … this {…} … }        // Mixin
+//	type  [Name] { … call(…) … }         // Static (marker: no instances)
 //
 // Parent classes are `*Parent` spread body items (optionally aliased as
 // `*Parent: Alias`), alongside fields and the `props`/`new`/`methods` groups.
-// It lowers (in the compiler) to a
+// A class lowers (in the compiler) to a
 //
 //	Class(name; define=(Type, define) => define(; extends=…, fields=…,
-//	    properties=…, methods=…, new=…))
+//	    props=…, methods=…, new=…))
 //
 // call. The `define` callback binds `Type` to the in-construction class so each
 // method, property accessor and constructor can take a typed `this Type` first
 // parameter (injected by the compiler). NameExpr is nil for an anonymous,
 // expression-form class.
-type ClassExpr struct {
+type TypeLitExpr struct {
 	ClassToken TokenLit
 	// Mixin marks a `mixin … { … }` literal: it parses like a class (parents,
 	// fields, props, methods) plus an optional `this` interface block, has no `new`
 	// clause, and lowers to `gad.Mixin(...)` instead of `Class(...)`.
-	Mixin      bool
+	Mixin bool
+	// Static marks a `type … { … }` marker-type literal: it parses like a class
+	// (static fields, props, methods) but has no instances — its members are on the
+	// type itself (`this` is the type), it may declare a `call(…)` factory instead
+	// of `new`, and it lowers to a StaticType.
+	Static     bool
 	NameExpr   Expr
 	Parents    []*ClassParentExpr
 	ExtendsDoc *ast.CommentGroup
@@ -160,6 +168,11 @@ type ClassExpr struct {
 	PropsDoc   *ast.CommentGroup
 	New        []*FuncMethod
 	NewDoc     *ast.CommentGroup
+	// Call are a marker type's `call(…)` factory overloads (Static only); it is
+	// the analogue of `New` for a `type … { … }`, but the result is arbitrary (a
+	// factory), not an instance. Empty for classes and mixins.
+	Call       []*FuncMethod
+	CallDoc    *ast.CommentGroup
 	Methods    []*ClassMemberExpr
 	MethodsDoc *ast.CommentGroup
 	LBrace     source.Pos
@@ -167,28 +180,32 @@ type ClassExpr struct {
 	Doc        *ast.CommentGroup // doc comment preceding the class; or nil
 }
 
-// keyword returns "mixin" or "class" for formatting/diagnostics.
-func (e *ClassExpr) keyword() string {
-	if e.Mixin {
+// keyword returns "mixin", "type" (marker) or "class" for formatting/diagnostics.
+func (e *TypeLitExpr) keyword() string {
+	switch {
+	case e.Mixin:
 		return "mixin"
+	case e.Static:
+		return "type"
+	default:
+		return "class"
 	}
-	return "class"
 }
 
-func (e *ClassExpr) ExprNode() {}
+func (e *TypeLitExpr) ExprNode() {}
 
-func (e *ClassExpr) Pos() source.Pos {
+func (e *TypeLitExpr) Pos() source.Pos {
 	if e.ClassToken.Pos != source.NoPos {
 		return e.ClassToken.Pos
 	}
 	return e.LBrace
 }
 
-func (e *ClassExpr) End() source.Pos { return e.RBrace + 1 }
+func (e *TypeLitExpr) End() source.Pos { return e.RBrace + 1 }
 
-func (e *ClassExpr) String() string { return Code(e) }
+func (e *TypeLitExpr) String() string { return Code(e) }
 
-func (e *ClassExpr) WriteCode(ctx *CodeWriteContext) {
+func (e *TypeLitExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
 	ctx.WriteString(e.keyword())
 	if e.NameExpr != nil {
@@ -350,10 +367,12 @@ func classMemberName(m *ClassMemberExpr) string {
 	return ""
 }
 
-// ClassStmt is the statement form `class Name { … }`. It compiles to
-// `const Name = <class expression>`.
-type ClassStmt struct {
-	ClassExpr
+// TypeDeclStmt is the named statement form of a type literal — `class Name { … }`,
+// `mixin Name { … }` or `type Name { … }` (the marker form). It wraps the
+// TypeLitExpr (whose Mixin/Static flags say which) and compiles to
+// `const Name = <the type literal>`.
+type TypeDeclStmt struct {
+	TypeLitExpr
 }
 
-func (*ClassStmt) StmtNode() {}
+func (*TypeDeclStmt) StmtNode() {}

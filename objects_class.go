@@ -650,7 +650,7 @@ func (t *Class) Define(c Call) (err error) {
 		}
 
 		properties = &NamedArgVar{
-			Name:          "properties",
+			Name:          "props",
 			TypeAssertion: dictTA,
 			Do: func(value Object) (err error) {
 				return t.CallAddProperties(Call{VM: c.VM, Args: Args{Array{value}}})
@@ -1525,10 +1525,10 @@ func (t *Class) Print(state *PrinterState) error {
 	}
 
 	d := Dict{
-		"fields":     t.Fields(),
-		"properties": t.Properties(),
-		"methods":    t.Methods(),
-		"new":        t.new,
+		"fields":  t.Fields(),
+		"props":   t.Properties(),
+		"methods": t.Methods(),
+		"new":     t.new,
 	}
 
 	defer state.options.Backup(PrintStateOptionSortKeys)()

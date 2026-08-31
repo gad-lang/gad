@@ -100,3 +100,22 @@ test "met adds a type-value overload" {
     t.equal("the Rect type", describe(Rect))
     t.equal("value", describe(123))
 }
+
+/**
+A union `type<X|Y>` matches the type value X or Y — the same `|` syntax as any
+parameter-type union.
+**/
+test "a union meta type matches any listed type value" {
+    func accept(t type<int|bool>) => typeName(t)
+
+    t.equal("Base", accept(int))    // int and bool are accepted
+    t.equal("Base", accept(bool))
+
+    ok := false
+    try {
+        accept(str)                 // str is not in the union
+    } catch {
+        ok = true
+    }
+    t.equal(true, ok)
+}

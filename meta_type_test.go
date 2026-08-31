@@ -67,3 +67,68 @@ func TestMetaTypeMethodForm(t *testing.T) {
 		return [g(Rect), g(123)]`,
 		nil, Array{Str("type<Rect>"), Str("any")})
 }
+
+// TestMetaTypeUnion verifies a `type<X|Y>` parameter accepts the type value X or Y
+// and rejects others.
+func TestMetaTypeUnion(t *testing.T) {
+	testExpectRun(t, `
+		func a(t type<int|bool>) => 1
+		ok := false
+		try { a(str) } catch { ok = true }
+		return [a(int), a(bool), ok]`,
+		nil, Array{Int(1), Int(1), True})
+}
+
+// TestStaticTypeMembers verifies a marker type's static field, method (this = the
+// type) and property.
+func TestStaticTypeMembers(t *testing.T) {
+	testExpectRun(t, `
+		type Color {
+			red = "#f00"
+			methods { describe() => "red=" + this.red }
+			props { count => 1 }
+		}
+		return [Color.red, Color.describe(), Color.count]`,
+		nil, Array{Str("#f00"), Str("red=#f00"), Int(1)})
+}
+
+// TestStaticTypeCallFactory verifies the `call(…)` factory: it is invoked as
+// Name(…) and returns an arbitrary value (not an instance).
+func TestStaticTypeCallFactory(t *testing.T) {
+	testExpectRun(t, `
+		type Maker { call(n) => "made:" + n }
+		return Maker("x")`,
+		nil, Str("made:x"))
+}
+
+// TestStaticTypeExprForm verifies the anonymous `const X = type { … }` form.
+func TestStaticTypeExprForm(t *testing.T) {
+	testExpectRun(t, `
+		const Dir = type { up = 1; down = 2 }
+		return [Dir.up, Dir.down]`,
+		nil, Array{Int(1), Int(2)})
+}
+
+// TestStaticTypeMetaDispatch verifies a marker type dispatches through type<Name>.
+func TestStaticTypeMetaDispatch(t *testing.T) {
+	testExpectRun(t, `
+		type A {}
+		type B {}
+		func d {
+			(t type<A>) => "a"
+			(t type<B>) => "b"
+		}
+		return [d(A), d(B)]`,
+		nil, Array{Str("a"), Str("b")})
+}
+
+// TestStaticTypeNoInstances verifies `x :: Name` is rejected — a marker has no
+// instances.
+func TestStaticTypeNoInstances(t *testing.T) {
+	testExpectRun(t, `
+		type Marker {}
+		ok := false
+		try { 5 :: Marker } catch { ok = true }
+		return ok`,
+		nil, True)
+}

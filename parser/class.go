@@ -9,7 +9,7 @@ import (
 // expression form). The statement form with a name is parsed by ParseClassStmt.
 func (p *Parser) ParseClassExpr() node.Expr {
 	if p.Trace {
-		defer untracep(tracep(p, "ClassExpr"))
+		defer untracep(tracep(p, "TypeLitExpr"))
 	}
 	doc := p.leadComment
 	classTok := p.ExpectToken(token.Class)
@@ -25,7 +25,7 @@ func (p *Parser) ParseClassExpr() node.Expr {
 // statement is parsed as an expression statement.
 func (p *Parser) ParseClassStmt() node.Stmt {
 	if p.Trace {
-		defer untracep(tracep(p, "ClassStmt"))
+		defer untracep(tracep(p, "TypeDeclStmt"))
 	}
 	doc := p.leadComment
 	classTok := p.ExpectToken(token.Class)
@@ -44,7 +44,7 @@ func (p *Parser) ParseClassStmt() node.Stmt {
 	if name == nil {
 		return &node.ExprStmt{Expr: cls}
 	}
-	return &node.ClassStmt{ClassExpr: *cls}
+	return &node.TypeDeclStmt{TypeLitExpr: *cls}
 }
 
 // ParseMixinExpr parses a `mixin [Name] { … }` expression. A mixin shares the
@@ -83,13 +83,57 @@ func (p *Parser) ParseMixinStmt() node.Stmt {
 	if name == nil {
 		return &node.ExprStmt{Expr: cls}
 	}
-	return &node.ClassStmt{ClassExpr: *cls}
+	return &node.TypeDeclStmt{TypeLitExpr: *cls}
+}
+
+// ParseStaticTypeExpr parses an anonymous marker-type expression `type { … }`
+// (the expression form used in `const X = type { … }`). The current token is the
+// contextual `type` identifier.
+func (p *Parser) ParseStaticTypeExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "StaticTypeExpr"))
+	}
+	doc := p.leadComment
+	tok := p.Token // the contextual `type` ident
+	p.Next()
+	cls := p.parseClassBody(PToken{TokenLit: tok.TokenLit}, nil)
+	if cls != nil {
+		cls.Static = true
+		cls.Doc = doc
+	}
+	return cls
+}
+
+// ParseStaticTypeStmt parses the statement form `type Name { … }` (a const bind),
+// or an anonymous `type { … }` as an expression statement. The current token is
+// the contextual `type` identifier.
+func (p *Parser) ParseStaticTypeStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "StaticTypeStmt"))
+	}
+	doc := p.leadComment
+	tok := p.Token
+	p.Next()
+	var name node.Expr
+	if p.Token.Token == token.Ident {
+		name = p.ParseIdent()
+	}
+	cls := p.parseClassBody(PToken{TokenLit: tok.TokenLit}, name)
+	if cls == nil {
+		return &node.BadStmt{From: tok.Pos, To: p.Token.Pos}
+	}
+	cls.Static = true
+	cls.Doc = doc
+	if name == nil {
+		return &node.ExprStmt{Expr: cls}
+	}
+	return &node.TypeDeclStmt{TypeLitExpr: *cls}
 }
 
 // parseClassBody parses the `{ … }` body of a class (including the `extends { … }`
 // block), shared by the expression and statement forms.
-func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.ClassExpr {
-	cls := &node.ClassExpr{ClassToken: classTok.TokenLit, NameExpr: name, Mixin: classTok.Token == token.Mixin}
+func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.TypeLitExpr {
+	cls := &node.TypeLitExpr{ClassToken: classTok.TokenLit, NameExpr: name, Mixin: classTok.Token == token.Mixin}
 
 	p.SkipSpace()
 	cls.LBrace = p.Expect(token.LBrace)
@@ -114,7 +158,7 @@ func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.ClassExpr
 // parseClassBodyItem parses one top-level class body item: a `*Parent` spread
 // (a parent class, optionally aliased `*Parent: Alias`), a `props {}` /
 // `methods {}` / `new` block, or a field.
-func (p *Parser) parseClassBodyItem(cls *node.ClassExpr) {
+func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 	doc := p.leadComment
 
 	// `*Parent [: Alias]` — a parent class, written as a spread body item.
@@ -182,6 +226,16 @@ func (p *Parser) parseClassBodyItem(cls *node.ClassExpr) {
 				p.Next()
 				cls.NewDoc = doc
 				cls.New = append(cls.New, p.parseClassConstructors()...)
+				return
+			}
+		case "call":
+			// `call(…)` — a marker type's factory (Static only), parsed exactly like
+			// `new` overloads. Contextual: only when followed by `(`/`{`, so a plain
+			// `call` field/name is unaffected.
+			if pk := p.Peek().Token; pk == token.LParen || pk == token.LBrace {
+				p.Next()
+				cls.CallDoc = doc
+				cls.Call = append(cls.Call, p.parseClassConstructors()...)
 				return
 			}
 		}

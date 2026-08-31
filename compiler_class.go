@@ -8,12 +8,12 @@ import (
 
 // compileClassStmt compiles the statement form `class Name [extends …] { … }`
 // to `const Name = <class expression>`.
-func (c *Compiler) compileClassStmt(nd *node.ClassStmt) error {
+func (c *Compiler) compileClassStmt(nd *node.TypeDeclStmt) error {
 	name, _ := nd.NameExpr.(*node.IdentExpr)
 	if name == nil {
 		return c.Errorf(nd, "class statement requires a name identifier")
 	}
-	call, err := c.classCallExpr(&nd.ClassExpr)
+	call, err := c.classCallExpr(&nd.TypeLitExpr)
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (c *Compiler) compileClassStmt(nd *node.ClassStmt) error {
 
 // compileClassExpr compiles a class expression by lowering it to the equivalent
 // Class(...) constructor call.
-func (c *Compiler) compileClassExpr(nd *node.ClassExpr) error {
+func (c *Compiler) compileClassExpr(nd *node.TypeLitExpr) error {
 	call, err := c.classCallExpr(nd)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (c *Compiler) compileClassExpr(nd *node.ClassExpr) error {
 // classCallExpr lowers a class literal to
 //
 //	Class("Name"; define=(Type, define) => define(; extends=…, fields=…,
-//	    properties=…, methods=…, new=…))
+//	    props=…, methods=…, new=…))
 //
 // The `define` callback binds `Type` to the in-construction class, so methods
 // take a typed `this Type` first parameter (enabling type/arity overload
@@ -51,9 +51,12 @@ func (c *Compiler) compileClassExpr(nd *node.ClassExpr) error {
 // param types are resolved when the accessor/constructor frame is current (not
 // the define callback), where the local `Type` symbol would resolve to `this`
 // rather than the class. See classNewExpr.
-func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
+func (c *Compiler) classCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	if nd.Mixin {
 		return c.mixinCallExpr(nd)
+	}
+	if nd.Static {
+		return c.staticTypeCallExpr(nd)
 	}
 
 	pos := nd.Pos()
@@ -85,7 +88,7 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		inner.AppendS("properties", props)
+		inner.AppendS("props", props)
 	}
 	if len(nd.Methods) > 0 {
 		methods, err := c.classMethodsExpr(nd, clsIdent)
@@ -130,6 +133,109 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 	}, nil
 }
 
+// staticTypeCallExpr lowers a marker `type [Name] { … }` literal to
+//
+//	StaticType("Name", (typ, define) => define(; fields=…, props=…,
+//	    methods=…, call=…))
+//
+// Members take an UNTYPED `this` first parameter, bound to the type value at call
+// time — a marker type has no instances, so there is nothing to type `this` as
+// (typing it as the type would trip StaticType.CanAssign). `fields` is a dict of
+// static values; `methods`/`properties` are dicts of name → func-with-methods;
+// `call` is the factory.
+func (c *Compiler) staticTypeCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
+	pos := nd.Pos()
+
+	var name string
+	if id, _ := nd.NameExpr.(*node.IdentExpr); id != nil {
+		name = id.Name
+	}
+
+	typIdent := node.EIdent("typ", pos)
+	defineIdent := node.EIdent("define", pos)
+
+	var inner node.CallExprNamedArgs
+	if len(nd.Fields) > 0 {
+		inner.AppendS("fields", staticFieldsExpr(nd))
+	}
+	if len(nd.Props) > 0 {
+		props, err := c.classPropertiesExpr(nd, nil)
+		if err != nil {
+			return nil, err
+		}
+		inner.AppendS("props", props)
+	}
+	if len(nd.Methods) > 0 {
+		methods, err := c.staticMethodsExpr(nd)
+		if err != nil {
+			return nil, err
+		}
+		inner.AppendS("methods", methods)
+	}
+	if len(nd.Call) > 0 {
+		inner.AppendS("call", &node.FuncWithMethodsExpr{Methods: classInjectThis(nd.Call, nil)})
+	}
+
+	callback := &node.ClosureExpr{
+		Params: node.FuncParams{
+			Args: node.ArgsList{Values: []*node.TypedIdentExpr{
+				{Ident: typIdent},
+				{Ident: defineIdent},
+			}},
+		},
+		Lambda: node.Token{Token: token.Lambda},
+		Body: &node.CallExpr{
+			Func:     defineIdent,
+			CallArgs: node.CallArgs{NamedArgs: inner},
+		},
+	}
+
+	args := []node.Expr{node.Str(name, pos)}
+	if len(inner.Values) > 0 {
+		args = append(args, callback)
+	}
+
+	return &node.CallExpr{
+		Func: node.EIdent(BuiltinNewStaticType.String(), pos),
+		CallArgs: node.CallArgs{
+			Args: node.CallExprPositionalArgs{Values: args},
+		},
+	}, nil
+}
+
+// staticFieldsExpr builds the `fields={…}` dict of a marker type's static field
+// values (a field with no default value maps to nil).
+func staticFieldsExpr(nd *node.TypeLitExpr) node.Expr {
+	elems := make([]*node.DictElementLit, 0, len(nd.Fields))
+	for _, f := range nd.Fields {
+		if f.Name == nil || f.Name.Ident == nil {
+			continue
+		}
+		val := f.Value
+		if val == nil {
+			val = node.EIdent("nil", f.Pos())
+		}
+		elems = append(elems, node.EDictElementStr(f.Name.Ident.Name, f.Pos(), f.Pos(), val))
+	}
+	return &node.DictExpr{Elements: elems}
+}
+
+// staticMethodsExpr builds the `methods={…}` dict of a marker type, mapping each
+// method name to a func-with-methods value holding its overloads (each with an
+// untyped `this` first parameter prepended).
+func (c *Compiler) staticMethodsExpr(nd *node.TypeLitExpr) (node.Expr, error) {
+	elems := make([]*node.DictElementLit, 0, len(nd.Methods))
+	for _, m := range nd.Methods {
+		name, _ := m.NameExpr.(*node.IdentExpr)
+		if name == nil {
+			return nil, c.Errorf(m, "static method requires a name identifier")
+		}
+		fwm := &node.FuncWithMethodsExpr{Methods: classInjectThis(m.Methods, nil)}
+		elems = append(elems, node.EDictElementStr(name.Name, name.Pos(), name.Pos(), fwm))
+	}
+	return &node.DictExpr{Elements: elems}, nil
+}
+
 // mixinCallExpr lowers a `mixin [Name] { … }` literal to
 //
 //	Mixin("Name", (mx, define) => { [interface Name$this { … }] define(; …) })
@@ -142,7 +248,7 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 // those params are untyped. Parent mixins are passed as `extends=[…]` of *Mixin
 // values, and field defaults follow the same rules as a class (see
 // classFieldsExpr).
-func (c *Compiler) mixinCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
+func (c *Compiler) mixinCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	pos := nd.Pos()
 
 	var name string
@@ -189,7 +295,7 @@ func (c *Compiler) mixinCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		inner.AppendS("properties", props)
+		inner.AppendS("props", props)
 	}
 	if len(nd.Methods) > 0 {
 		methods, err := c.classMethodsExpr(nd, thisType)
@@ -245,7 +351,7 @@ func (c *Compiler) mixinCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 
 // classExtendsExpr builds the `extends=[…]` array: each parent is its type
 // expression, or a `[type, "alias"]` pair when an alias was given.
-func classExtendsExpr(nd *node.ClassExpr) node.Expr {
+func classExtendsExpr(nd *node.TypeLitExpr) node.Expr {
 	elems := make([]node.Expr, len(nd.Parents))
 	for i, p := range nd.Parents {
 		if p.Alias != nil {
@@ -268,7 +374,7 @@ func classExtendsExpr(nd *node.ClassExpr) node.Expr {
 // evaluated a single time at class-definition and shared across instances, so it
 // is moved into initFields and re-evaluated per construction. Such a field is
 // emitted with no inline value (a flag), so it has no shared static default.
-func classFieldsExpr(nd *node.ClassExpr) (fields node.Expr, initFields node.Expr) {
+func classFieldsExpr(nd *node.TypeLitExpr) (fields node.Expr, initFields node.Expr) {
 	elems := make(node.Exprs, len(nd.Fields))
 	var inits node.Exprs
 	for i, f := range nd.Fields {
@@ -312,7 +418,7 @@ func isStaticFieldDefault(e node.Expr) bool {
 
 // classMethodsExpr builds the `methods=[…]` array of named functions; each
 // overload is a separate named function entry sharing the method name.
-func (c *Compiler) classMethodsExpr(nd *node.ClassExpr, typeIdent node.Expr) (node.Expr, error) {
+func (c *Compiler) classMethodsExpr(nd *node.TypeLitExpr, typeIdent node.Expr) (node.Expr, error) {
 	var elems []node.Expr
 	for _, m := range nd.Methods {
 		name, _ := m.NameExpr.(*node.IdentExpr)
@@ -326,10 +432,10 @@ func (c *Compiler) classMethodsExpr(nd *node.ClassExpr, typeIdent node.Expr) (no
 	return &node.ArrayExpr{Elements: elems}, nil
 }
 
-// classPropertiesExpr builds the `properties={…}` dict mapping each property
+// classPropertiesExpr builds the `props={…}` dict mapping each property
 // name to a func-with-methods value holding its accessor overloads (a zero-arg
 // getter and one-arg setters).
-func (c *Compiler) classPropertiesExpr(nd *node.ClassExpr, typeIdent node.Expr) (node.Expr, error) {
+func (c *Compiler) classPropertiesExpr(nd *node.TypeLitExpr, typeIdent node.Expr) (node.Expr, error) {
 	elems := make([]*node.DictElementLit, 0, len(nd.Props))
 	for _, p := range nd.Props {
 		name, _ := p.NameExpr.(*node.IdentExpr)
@@ -346,7 +452,7 @@ func (c *Compiler) classPropertiesExpr(nd *node.ClassExpr, typeIdent node.Expr) 
 // the constructor overloads, each with a `new` first parameter prepended. `new`
 // is the ClassInitiator (see ClassInitiator.Call); a constructor body builds the
 // instance with a `new(; fields)` super-call.
-func classNewExpr(nd *node.ClassExpr) node.Expr {
+func classNewExpr(nd *node.TypeLitExpr) node.Expr {
 	return &node.FuncWithMethodsExpr{Methods: classInjectParam(nd.New, "new")}
 }
 

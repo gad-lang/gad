@@ -35,15 +35,15 @@ func ClassMemberDocs(src []byte, className string) map[string]string {
 
 // findClass locates the class expression declared under className: a `class Name`
 // statement, or a `Name := class { … }` / `const Name = class { … }` binding.
-func findClass(f *parser.File, className string) *node.ClassExpr {
-	var target *node.ClassExpr
+func findClass(f *parser.File, className string) *node.TypeLitExpr {
+	var target *node.TypeLitExpr
 	node.Walk(f, func(n ast.Node) bool {
 		switch x := n.(type) {
-		case *node.ClassStmt:
+		case *node.TypeDeclStmt:
 			if identName(x.NameExpr) == className {
-				target = &x.ClassExpr
+				target = &x.TypeLitExpr
 			}
-		case *node.ClassExpr:
+		case *node.TypeLitExpr:
 			if identName(x.NameExpr) == className {
 				target = x
 			}
@@ -68,10 +68,10 @@ func findClass(f *parser.File, className string) *node.ClassExpr {
 }
 
 // bindClass sets *target when lhs[i] names className and rhs[i] is a class.
-func bindClass(lhs, rhs []node.Expr, className string, target **node.ClassExpr) {
+func bindClass(lhs, rhs []node.Expr, className string, target **node.TypeLitExpr) {
 	for i, l := range lhs {
 		if identName(l) == className && i < len(rhs) {
-			if ce, ok := rhs[i].(*node.ClassExpr); ok {
+			if ce, ok := rhs[i].(*node.TypeLitExpr); ok {
 				*target = ce
 			}
 		}
@@ -79,7 +79,7 @@ func bindClass(lhs, rhs []node.Expr, className string, target **node.ClassExpr) 
 }
 
 // memberDocs maps each documented member name of c to its doc text.
-func memberDocs(c *node.ClassExpr) map[string]string {
+func memberDocs(c *node.TypeLitExpr) map[string]string {
 	docs := map[string]string{}
 	put := func(name string, g *ast.CommentGroup) {
 		if name == "" || g == nil {

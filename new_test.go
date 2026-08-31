@@ -540,7 +540,7 @@ func TestVMClassOldOverride(t *testing.T) {
 	// $old rewrites a property setter (met Class.prop routes to the property's
 	// getter/setter, not to a shadowing method).
 	testExpectRun(t, `
-	Box := Class("Box", (cls, define) => define(; fields = (; v), properties = {
+	Box := Class("Box", (cls, define) => define(; fields = (; v), props = {
 		val: func { (this) => this.v; (this, x int) { this.v = "int:" + str(x) } }
 	}))
 	b := Box()
@@ -975,7 +975,7 @@ func TestVMClassFeatures(t *testing.T) {
 
 	// --- properties: getter + (typed) setters ---
 	testExpectRun(t, `
-	Box := Class("Box", (cls, define) => define(; fields=(; v), properties={
+	Box := Class("Box", (cls, define) => define(; fields=(; v), props={
 		val: func {
 			(this) => this.v
 			(this, x) { this.v = "any:" + str(x) }

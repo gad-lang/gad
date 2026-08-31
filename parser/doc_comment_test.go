@@ -88,8 +88,8 @@ func TestDocCommentAttachClass(t *testing.T) {
 		"\tmethods {\n\t\t/// distance\n\t\tdist() => x\n\t}\n" +
 		"}\n"
 	file := parseDoc(t, src)
-	cs, ok := file.Stmts[0].(*ClassStmt)
-	require.True(t, ok, "want *ClassStmt, got %T", file.Stmts[0])
+	cs, ok := file.Stmts[0].(*TypeDeclStmt)
+	require.True(t, ok, "want *TypeDeclStmt, got %T", file.Stmts[0])
 	require.NotNil(t, cs.Doc, "class doc should be attached")
 	require.Equal(t, "/// a 2D point", cs.Doc.List[0].Text)
 	require.Len(t, cs.Fields, 1)

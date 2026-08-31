@@ -851,9 +851,9 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compilePropStmt(nt)
 	case *node.PropExpr:
 		return c.compilePropExpr(nt)
-	case *node.ClassStmt:
+	case *node.TypeDeclStmt:
 		return c.compileClassStmt(nt)
-	case *node.ClassExpr:
+	case *node.TypeLitExpr:
 		return c.compileClassExpr(nt)
 	case *node.EnumStmt:
 		return c.compileEnumStmt(nt)

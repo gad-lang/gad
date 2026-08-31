@@ -140,7 +140,7 @@ func (m *Mixin) define(c Call) (err error) {
 		}
 
 		properties = &NamedArgVar{
-			Name:          "properties",
+			Name:          "props",
 			TypeAssertion: TypeAssertionFromTypes(TDict),
 			Do: func(value Object) error {
 				m.rawProps = value.(Dict)
