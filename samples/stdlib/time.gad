@@ -341,8 +341,10 @@ Zero values of optional arguments are used if not provided.
 ## Example
 
 ```gad
-time.format(time.unix(1000000000, 0), "2006-01-02")
->>> "2001-09-08"
+// Normalize to UTC so the formatted date is timezone-independent (unix returns
+// local time; 1e9 is 2001-09-09 01:46:40 UTC).
+time.format(time.unix(1000000000, 0).In(time.utc()), "2006-01-02")
+>>> "2001-09-09"
 ```
 **/
 export unix(sec int, nsec int) <time> => nil
