@@ -127,11 +127,11 @@ var stdlibOrder = []string{
 // the samples into doc/samples (filenames without .md). Any doc/samples page not
 // listed here is appended after, sorted by name, so nothing is dropped.
 var langOrder = []string{
-	"README",
-	"values_and_types", "variables_and_scopes",
+	"README", "hello",
+	"values_and_types", "types", "variables_and_scopes", "assign_and_append",
 	"user_operators", "ranges", "in_operator", "unary_operators", "absent_coalescing",
 	"control_flow", "with",
-	"functions", "functions_with_methods", "properties",
+	"functions", "functions_with_methods", "method_resolution", "properties",
 	"collections", "comprehensions", "key_value_array", "destructuring",
 	"class/classes", "class/syntax", "class/class_type", "class/field_types", "class/field_defaults_test",
 	"mixins", "class/mixins_test",
@@ -140,7 +140,7 @@ var langOrder = []string{
 	"transform_cast_test", "transform_mapped_test", "enum",
 	"strings_bytes_regex", "heredocs", "error_handling",
 	"embed", "template", "template_example",
-	"doc_comments", "special_keywords", "metaprogramming",
+	"doc_comments", "special_keywords", "raw_argv", "metaprogramming",
 }
 
 // gadxOrder is the curated nav ordering for the Gadx template docs, sourced from
