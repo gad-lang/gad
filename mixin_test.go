@@ -146,7 +146,7 @@ func TestMixinInterfaceAttr(t *testing.T) {
 	testExpectRun(t, `
 		mixin A { f int = 1; props { p => 2 }; methods { run() => 1 } }
 		return str(A.@interface)`,
-		nil, Str("interface (main).A$interface {f int; get p; run()}"))
+		nil, Str("interface (main).A$interface {*(main).A$class; *(main).A$members}"))
 }
 
 // TestMixinThisAttr verifies `@this` returns the declared `this { … }` interface,
@@ -189,7 +189,48 @@ func TestMixinInterfaceExtendsThisAndParents(t *testing.T) {
 
 	// The rendering shows the extends spreads.
 	testExpectRun(t, base+`return str(Sized.@interface)`,
-		nil, Str("interface (main).Sized$interface {*(main).Sized$this; *(main).Named$interface; area()}"))
+		nil, Str("interface (main).Sized$interface {*(main).Sized$class; *(main).Sized$members}"))
+}
+
+// TestMixinClassInterfaceAndMembers verifies the interface decomposition:
+// `@classInterface` (the using-class contract: this-block + parents) and
+// `@membersInterface` (the mixin's own members).
+func TestMixinClassInterfaceAndMembers(t *testing.T) {
+	testExpectRun(t, `
+		mixin Named { name = "?" }
+		mixin Sized { *Named; this { size() <int> }; methods { area() => 1 } }
+		return [str(Sized.@classInterface), str(Sized.@membersInterface)]`,
+		nil, Array{
+			Str("interface (main).Sized$class {*(main).Sized$this; *(main).Named$interface}"),
+			Str("interface (main).Sized$members {area()}"),
+		})
+}
+
+// TestMixinContractValidation verifies that a class using a mixin is rejected at
+// definition when it does not satisfy the mixin's `@classInterface` (its `this`
+// block), and accepted when it provides the required members.
+func TestMixinContractValidation(t *testing.T) {
+	// A class providing the required `size()` is accepted.
+	testExpectRun(t, `
+		mixin Sized { this { size() <int> }; methods { area() => this.size() } }
+		class Box { use Sized; methods { size() => 4 } }
+		return Box().area()`,
+		nil, Int(4))
+
+	// A class missing `size()` is rejected at definition.
+	expectErrHas(t, `
+		mixin Sized { this { size() <int> }; methods { area() => this.size() } }
+		class Bad { use Sized }`,
+		nil, `does not satisfy mixin "Sized": missing "size"`)
+
+	// The requirement may be satisfied by a parent mixin's member, not only an own
+	// method: here Base provides `size` via its members merged into the class.
+	testExpectRun(t, `
+		mixin Base { methods { size() => 3 } }
+		mixin Sized { *Base; this { size() <int> }; methods { area() => this.size() } }
+		class Box { use Sized }
+		return Box().area()`,
+		nil, Int(3))
 }
 
 // TestMixinReflectionAttrs verifies the mixin reflection attributes mirror class.

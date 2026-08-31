@@ -153,13 +153,14 @@ func (c *Compiler) mixinCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 	defineIdent := node.EIdent("define", pos)
 	mxIdent := node.EIdent("mx", pos)
 
-	// The injected `this` type: `Name$this` when a `this { … }` block is present,
-	// otherwise nil (untyped `this`).
-	var thisType node.Expr
+	// The `this` of every property and method is SEMANTICALLY the mixin's
+	// `@interface` (its `this` block + parents + own members). It is left untyped in
+	// the lowering (no per-call receiver validation); a using class is validated
+	// once against `mixin.@classInterface` in Class.useMixins instead, and editor
+	// autocomplete resolves `this` to the mixin's members from the AST/@interface.
 	ifaceName := name + "$this"
-	if nd.This != nil {
-		thisType = node.EIdent(ifaceName, pos)
-	}
+	var thisType node.Expr // untyped `this`
+	_ = mxIdent
 
 	var inner node.CallExprNamedArgs
 	if len(nd.Parents) > 0 {

@@ -700,7 +700,77 @@ func (t *Class) Define(c Call) (err error) {
 		}
 	)
 
-	return c.NamedArgs.GetDo(mixins, constructor, fields, methods, properties, extends, initFields)
+	if err = c.NamedArgs.GetDo(mixins, constructor, fields, methods, properties, extends, initFields); err != nil {
+		return
+	}
+	// With every member registered, validate the class against the contract each
+	// used mixin requires (`class :: mixin.@classInterface`: the mixin's `this`
+	// block and its parents). This runs once here so a mixin's methods can rely on
+	// their `this` without a per-call check.
+	return t.validateMixinContracts(c.VM)
+}
+
+// validateMixinContracts checks that the class declares every member required by
+// each used mixin's `@classInterface` (its `this`-block requirements and parent
+// contracts). It runs after all members are registered (own + merged mixin), so a
+// requirement satisfied by an own method is seen. Returns ErrDefineClass naming
+// the mixin and the first missing member.
+func (t *Class) validateMixinContracts(_ *VM) error {
+	for _, m := range t.mixinsFlat {
+		req := map[string]bool{}
+		collectInterfaceMemberNames(m.ClassInterface(), req, map[*Interface]bool{})
+		for _, name := range sortedKeys(req) {
+			if !t.declaresMember(name) {
+				return ErrDefineClass.NewErrorf(
+					"class %q does not satisfy mixin %q: missing %q (required by its `this` interface)",
+					t.name, m.name, name)
+			}
+		}
+	}
+	return nil
+}
+
+// declaresMember reports whether the class (or a transitive parent) declares a
+// member of the given name — a field, property or method.
+func (t *Class) declaresMember(name string) bool {
+	if _, ok := t.fieldsMap[name]; ok {
+		return true
+	}
+	if _, ok := t.propertiesMap[name]; ok {
+		return true
+	}
+	if _, ok := t.methodsMap[name]; ok {
+		return true
+	}
+	for _, p := range t.parents {
+		if p.Type.declaresMember(name) {
+			return true
+		}
+	}
+	return false
+}
+
+// collectInterfaceMemberNames gathers the names of every member an interface
+// requires — its own fields, properties and methods, plus those of the
+// interfaces it extends by direct reference (ExtendsIface) — into names. seen
+// guards against a cyclic extends graph.
+func collectInterfaceMemberNames(i *Interface, names map[string]bool, seen map[*Interface]bool) {
+	if i == nil || seen[i] {
+		return
+	}
+	seen[i] = true
+	for _, f := range i.Fields {
+		names[f.Name] = true
+	}
+	for _, p := range i.Props {
+		names[p.Name] = true
+	}
+	for _, m := range i.Methods {
+		names[m.Name] = true
+	}
+	for _, p := range i.ExtendsIface {
+		collectInterfaceMemberNames(p, names, seen)
+	}
 }
 
 func (t *Class) String() string {

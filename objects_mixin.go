@@ -49,7 +49,15 @@ type Mixin struct {
 	// mixin has no `this` block. Set from the `this=` arg of define.
 	thisIface *Interface
 
-	iface *Interface // cached @interface (built lazily)
+	// Cached derived interfaces (built lazily):
+	//   membersIface (@membersInterface) — the mixin's own declared members only.
+	//   classIface   (@classInterface)   — the contract a USING CLASS must satisfy:
+	//                                       *@this ; *parent.@interface.
+	//   iface        (@interface)         — the whole mixin contract:
+	//                                       *@classInterface ; *@membersInterface.
+	membersIface *Interface
+	classIface   *Interface
+	iface        *Interface
 }
 
 // NewMixinFunc is the `Mixin(name[, define])` builtin: it builds a Mixin, then —
@@ -237,23 +245,15 @@ func (m *Mixin) Methods() Dict { return m.class.Methods() }
 // RawParents returns the mixin's parent mixins (its declared `*A` spreads).
 func (m *Mixin) RawParents() []*Mixin { return m.parents }
 
-// Interface builds (and caches) the `@interface`: a new Interface named
-// `Name$interface` in the mixin's module that mirrors the mixin's declared
-// members — its fields, properties and methods. It also EXTENDS the mixin's
-// `this` interface (when present) and each parent mixin's `@interface`, so a
-// value satisfies `@interface` only when it satisfies the whole contract the
-// mixin contributes: its own members, its `this` requirement, and its parents'.
-func (m *Mixin) Interface() *Interface {
-	if m.iface != nil {
-		return m.iface
+// MembersInterface builds (and caches) the `@membersInterface`: an Interface
+// named `Name$members` mirroring only the mixin's OWN declared members — its
+// fields (with types), getter/setter/prop properties and methods. It has no
+// parent (no extends); it is the piece a using class gains from this mixin.
+func (m *Mixin) MembersInterface() *Interface {
+	if m.membersIface != nil {
+		return m.membersIface
 	}
-	i := &Interface{IName: m.name + "$interface", Module: m.module}
-	if m.thisIface != nil {
-		i.ExtendsIface = append(i.ExtendsIface, m.thisIface)
-	}
-	for _, p := range m.parents {
-		i.ExtendsIface = append(i.ExtendsIface, p.Interface())
-	}
+	i := &Interface{IName: m.name + "$members", Module: m.module}
 	// Fields keep their declaration order and types (`f int` -> a typed member).
 	for _, f := range m.class.RawFields() {
 		fld := &InterfaceField{Iface: i, Name: f.Name, Nullable: f.Nullable}
@@ -280,12 +280,51 @@ func (m *Mixin) Interface() *Interface {
 	for _, name := range sortedKeys(m.class.methodsMap) {
 		i.Methods = append(i.Methods, &InterfaceMethod{Iface: i, Name: name})
 	}
+	m.membersIface = i
+	return i
+}
+
+// ClassInterface builds (and caches) the `@classInterface`: an Interface named
+// `Name$class` that is the CONTRACT a using class must satisfy — it extends the
+// mixin's `this` interface (when present) and each parent mixin's `@interface`.
+// `Class.useMixins` validates `class :: mixin.@classInterface` so a mixin's
+// methods can rely on their `this` without a per-call check.
+func (m *Mixin) ClassInterface() *Interface {
+	if m.classIface != nil {
+		return m.classIface
+	}
+	i := &Interface{IName: m.name + "$class", Module: m.module}
+	if m.thisIface != nil {
+		i.ExtendsIface = append(i.ExtendsIface, m.thisIface)
+	}
+	for _, p := range m.parents {
+		i.ExtendsIface = append(i.ExtendsIface, p.Interface())
+	}
+	m.classIface = i
+	return i
+}
+
+// Interface builds (and caches) the `@interface`: an Interface named
+// `Name$interface` that is the whole mixin contract — it extends the mixin's
+// `@classInterface` (its `this` requirement and parents) and its
+// `@membersInterface` (its own declared members). A value satisfies it only when
+// it satisfies both.
+func (m *Mixin) Interface() *Interface {
+	if m.iface != nil {
+		return m.iface
+	}
+	i := &Interface{
+		IName:        m.name + "$interface",
+		Module:       m.module,
+		ExtendsIface: []*Interface{m.ClassInterface(), m.MembersInterface()},
+	}
 	m.iface = i
 	return i
 }
 
 // IndexGet exposes the mixin's reflection attributes, mirroring Class: `@fields`,
-// `@props`, `@methods`, `@parents`, `@name`, `@module` and `@interface`.
+// `@props`, `@methods`, `@parents`, `@name`, `@module`, `@this`, and the three
+// derived interfaces `@membersInterface`, `@classInterface` and `@interface`.
 func (m *Mixin) IndexGet(vm *VM, index Object) (value Object, err error) {
 	switch index.ToString() {
 	case "@fields":
@@ -308,6 +347,10 @@ func (m *Mixin) IndexGet(vm *VM, index Object) (value Object, err error) {
 		return vm.ModuleFromIndex(m.module.Index), nil
 	case "@interface":
 		return m.Interface(), nil
+	case "@classInterface":
+		return m.ClassInterface(), nil
+	case "@membersInterface":
+		return m.MembersInterface(), nil
 	default:
 		return nil, ErrInvalidIndex.NewError(index.ToString())
 	}

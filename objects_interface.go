@@ -693,7 +693,13 @@ func (i *Interface) coerceDict(vm *VM, d Dict) (Object, error) {
 
 func (i *Interface) Name() string { return i.IName }
 func (i *Interface) IsFalsy() bool {
-	return len(i.Fields) == 0 && len(i.Props) == 0 && len(i.Methods) == 0
+	// Falsy only when the interface carries no contract at all. An interface that
+	// merely extends others (Extends / ExtendsIface — e.g. a mixin's `@interface`
+	// and `@classInterface`), or has context-func requirements, a `**rest` capture
+	// or a native predicate, is a real, non-empty interface.
+	return len(i.Fields) == 0 && len(i.Props) == 0 && len(i.Methods) == 0 &&
+		len(i.Extends) == 0 && len(i.ExtendsIface) == 0 && len(i.ContextFuncs) == 0 &&
+		i.Rest == "" && i.Native == nil
 }
 func (i *Interface) ToString() string { return i.String() }
 
