@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"strings"
 
 	gad "github.com/gad-lang/gad"
@@ -407,7 +408,7 @@ func classLiteralsByName(file *parser.File) map[string]*node.ClassExpr {
 func enclosingClassLiteral(file *parser.File, sf *source.File, caret int) *node.ClassExpr {
 	pos := source.Pos(sf.Base + caret)
 	var best *node.ClassExpr
-	bestSpan := 1 << 62
+	bestSpan := math.MaxInt // no literal found yet
 	consider := func(cls *node.ClassExpr) {
 		inBody := func(n node.Node) bool {
 			return n != nil && n.Pos() <= pos && pos <= n.End()
