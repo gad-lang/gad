@@ -223,7 +223,7 @@ test "@flat merges compatible signatures and rejects conflicts" {
 
     // y becomes one combined property; x gathers all three overloads.
     f := interface { *A; *B }.@flat
-    t.equal("prop y { () <int>; (any); (str) }", str(f.props[0]))
+    t.equal("prop y { get int; set any|str }", str(f.props[0]))
     t.equal(3, len(f.methods[0].headers))   // (), (v int), (v bool)
 
     // A method name reused as a getter is a genuine conflict.

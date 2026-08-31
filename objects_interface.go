@@ -1177,9 +1177,9 @@ func (p *InterfaceProp) IsFalsy() bool    { return p.Name == "" }
 
 // ToString renders a property. A single-accessor property keeps the short form
 // `get NAME` / `set NAME`. A property with both a getter and setter(s) — or more
-// than one setter — is a combined `prop NAME { <accessor>; … }`, where the getter
-// is `()` (plus its `<return>`) and each setter is `(valueType)`. get/set are just
-// short forms of one `prop`.
+// than one setter — is a combined `prop NAME { get RET; set VAL1|VAL2 }`: the
+// getter as `get <returnType>` and the setters as one `set <value types joined by
+// |>`. get/set are just short forms of one `prop`.
 func (p *InterfaceProp) ToString() string {
 	switch {
 	case p.Getter != nil && len(p.Setters) == 0:
@@ -1193,29 +1193,45 @@ func (p *InterfaceProp) ToString() string {
 	b.WriteString(" { ")
 	sep := ""
 	if p.Getter != nil {
-		b.WriteString("()")
+		b.WriteString("get")
 		if r := accessorTypesList(p.Getter.Return); r != "" {
-			b.WriteString(" <")
+			b.WriteString(" ")
 			b.WriteString(r)
-			b.WriteString(">")
 		}
 		sep = "; "
 	}
-	for _, s := range p.Setters {
+	if len(p.Setters) > 0 {
 		b.WriteString(sep)
-		b.WriteString("(")
-		b.WriteString(accessorTypesList(s.Params))
-		b.WriteString(")")
-		sep = "; "
+		b.WriteString("set")
+		// Combine every setter's value type into one `|`-joined union, deduped.
+		var types []string
+		seen := map[string]bool{}
+		for _, s := range p.Setters {
+			for _, tn := range accessorTypesParts(s.Params) {
+				if !seen[tn] {
+					seen[tn] = true
+					types = append(types, tn)
+				}
+			}
+		}
+		if len(types) > 0 {
+			b.WriteString(" ")
+			b.WriteString(strings.Join(types, "|"))
+		}
 	}
 	b.WriteString(" }")
 	return b.String()
 }
 
-// accessorTypesList renders the value/return types of an accessor's TypedIdent
-// slots as `t1, t2` (type-only; the anonymous `_` name is omitted). Empty when
-// there are no typed slots.
+// accessorTypesList renders the types of an accessor's TypedIdent slots as
+// `t1, t2` (type-only; the anonymous `_` name is omitted). Empty when none.
 func accessorTypesList(arr Array) string {
+	return strings.Join(accessorTypesParts(arr), ", ")
+}
+
+// accessorTypesParts returns the type name of each typed slot in arr (a bare
+// type-only slot keeps its Name; an anonymous `_` slot uses its declared types).
+func accessorTypesParts(arr Array) []string {
 	parts := make([]string, 0, len(arr))
 	for _, o := range arr {
 		if ti, _ := o.(*TypedIdent); ti != nil {
@@ -1226,7 +1242,7 @@ func accessorTypesList(arr Array) string {
 			}
 		}
 	}
-	return strings.Join(parts, ", ")
+	return parts
 }
 
 func (p *InterfaceProp) Equal(right Object) bool {

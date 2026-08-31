@@ -23,7 +23,7 @@ func TestInterfaceFlatMergeSourceExtends(t *testing.T) {
 	testExpectRun(t, `
 		interface A { get y int; set y str; set y }
 		return str(A.@flat.props[0])`,
-		nil, Str("prop y { () <int>; (str); (any) }"))
+		nil, Str("prop y { get int; set str|any }"))
 }
 
 // TestInterfaceFlatDedup verifies identical signatures across interfaces are
