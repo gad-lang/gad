@@ -20,13 +20,14 @@ builds:
       - prod
     ldflags:
       - -s -w -X main.version={{ .Version }}
-    # CLI binaries: Linux and Windows on amd64 and arm64.
+    # CLI binaries: Linux and Windows on amd64, arm64 and 386 (32-bit x86).
     goos:
       - linux
       - windows
     goarch:
       - amd64
       - arm64
+      - "386"
 
 archives:
   - id: gad
