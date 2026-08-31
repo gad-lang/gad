@@ -153,24 +153,29 @@ func (c *Compiler) mixinCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 	defineIdent := node.EIdent("define", pos)
 	mxIdent := node.EIdent("mx", pos)
 
-	// The `this` of every property and method is SEMANTICALLY the mixin's
-	// `@interface` (its `this` block + parents + own members). It is left untyped in
-	// the lowering (no per-call receiver validation); a using class is validated
-	// once against `mixin.@classInterface` in Class.useMixins instead, and editor
-	// autocomplete resolves `this` to the mixin's members from the AST/@interface.
-	ifaceName := name + "$this"
-	var thisType node.Expr // untyped `this`
-	_ = mxIdent
+	// The `this` of every property and method is typed by the mixin's `this { … }`
+	// interface, when declared — a structural interface LITERAL used inline as the
+	// param type, so it compiles to a bytecode constant (ScopeConstant) resolving the
+	// same at every call site (a named const would be a callback-local the receiver
+	// capture-skip cannot carry). Without a `this` block, `this` is untyped. The
+	// receiver check is on by default (memoised) and disabled via
+	// RunFlagSkipReceiverTypeCheck; the whole contract (parents included) is validated
+	// once against `@classInterface` in Class.useMixins.
+	thisName := name + "$this"
+	var thisType node.Expr // untyped unless there is a `this { … }` block
+	if nd.This != nil {
+		lit := *nd.This
+		lit.NameExpr = node.EIdent(thisName, pos)
+		thisType = &lit
+	}
 
 	var inner node.CallExprNamedArgs
 	if len(nd.Parents) > 0 {
 		inner.AppendS("extends", classExtendsExpr(nd))
 	}
-	// The `this { … }` interface is passed to define so the mixin can expose it as
-	// `@this` (and build `@interface` extending it); it is referenced by the const
-	// name the block is lowered to, in scope inside the callback body below.
 	if nd.This != nil {
-		inner.AppendS("this", node.EIdent(ifaceName, pos))
+		// The `this { … }` interface, exposed as `@this` and extended by @classInterface.
+		inner.AppendS("this", node.EIdent(thisName, pos))
 	}
 	if len(nd.Fields) > 0 {
 		fieldsExpr, initFieldsExpr := classFieldsExpr(nd)
@@ -199,20 +204,18 @@ func (c *Compiler) mixinCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 		CallArgs: node.CallArgs{NamedArgs: inner},
 	}
 
-	// The callback body: `define(; …)` on its own, or — with a `this` block —
-	// `{ interface Name$this { … }; define(; …) }` so the interface const is in
-	// scope for the method/property `this` param types.
+	// The callback body declares the `this { … }` interface const (for `@this`) when
+	// present, then calls define.
 	var body node.Expr = defineCall
 	if nd.This != nil {
 		iface := *nd.This
-		iface.NameExpr = node.EIdent(ifaceName, pos)
-		body = &node.BlockExpr{BlockStmt: &node.BlockStmt{
-			Stmts: node.Stmts{
-				&node.InterfaceStmt{InterfaceExpr: iface},
-				&node.ExprStmt{Expr: defineCall},
-			},
-		}}
+		iface.NameExpr = node.EIdent(thisName, pos)
+		body = &node.BlockExpr{BlockStmt: &node.BlockStmt{Stmts: node.Stmts{
+			&node.InterfaceStmt{InterfaceExpr: iface},
+			&node.ExprStmt{Expr: defineCall},
+		}}}
 	}
+	_ = mxIdent
 
 	callback := &node.ClosureExpr{
 		Params: node.FuncParams{

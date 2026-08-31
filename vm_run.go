@@ -12,6 +12,23 @@ type SetupOpts struct {
 	Context          context.Context
 }
 
+// RunFlags is a bitmask of per-run VM options (RunOpts.Flags). Zero is the
+// default behaviour.
+type RunFlags uint64
+
+const (
+	// RunFlagSkipReceiverTypeCheck disables the type check of the `this` receiver
+	// on class-instance method and property calls. The receiver is typed (a class
+	// method's `this` is its class; a mixin method's `this` is the mixin's
+	// `@interface`) and normally verified — memoised on the root VM's interface-sat
+	// cache, so the cost is a lookup after the first check. Set this flag to skip
+	// even that on a hot path, when the receiver's shape is already trusted.
+	RunFlagSkipReceiverTypeCheck RunFlags = 1 << iota
+)
+
+// Has reports whether every bit in f is set.
+func (f RunFlags) Has(bit RunFlags) bool { return f&bit == bit }
+
 type RunOpts struct {
 	Globals        IndexGetSetter
 	Args           Args
@@ -23,6 +40,8 @@ type RunOpts struct {
 	// Env is the VM-scoped environment variable table reachable via the `env`
 	// keyword. When nil an empty env is used.
 	Env *Env
+	// Flags are per-run VM options (see RunFlags).
+	Flags RunFlags
 }
 
 // Run runs VM and executes the instructions until the OpReturn Opcode or Abort call.

@@ -265,6 +265,39 @@ func TestInterfaceFlatten(t *testing.T) {
 		nil, Array{Str("interface (main).Sized$interface {name; size(); area()}"), True})
 }
 
+// TestMixinReceiverTypeCheck verifies the mixin method `this` receiver is typed by
+// the mixin's `this { … }` interface and checked by default, and that
+// RunFlagSkipReceiverTypeCheck disables that check.
+func TestMixinReceiverTypeCheck(t *testing.T) {
+	src := []byte(`
+		mixin Sized { this { size() <int> }; methods { area() => 99 } }
+		class Box { use Sized; methods { size() => 3 } }
+		class Other { name = "x" }
+		f := Box.@methods.area
+		return f(Other(; name="y")) or "REJECTED"`)
+
+	run := func(flags RunFlags) (Object, error) {
+		builtins := NewBuiltins()
+		st := NewSymbolTable(builtins.NameSet)
+		cr, err := Compile(st, src, CompileOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return NewVM(builtins.Build(), cr.Bytecode).RunOpts(&RunOpts{Flags: flags})
+	}
+
+	// Default: the wrong receiver (Other lacks size()) is rejected by the check.
+	got, err := run(0)
+	if err != nil || !got.Equal(Str("REJECTED")) {
+		t.Fatalf("default: got %v err %v; want REJECTED", got, err)
+	}
+	// With the flag: the receiver check is skipped, so the call runs.
+	got, err = run(RunFlagSkipReceiverTypeCheck)
+	if err != nil || !got.Equal(Int(99)) {
+		t.Fatalf("skip: got %v err %v; want 99", got, err)
+	}
+}
+
 // TestMixinReflectionAttrs verifies the mixin reflection attributes mirror class.
 func TestMixinReflectionAttrs(t *testing.T) {
 	testExpectRun(t, `

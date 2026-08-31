@@ -50,6 +50,7 @@ type VM struct {
 	noPanic          bool
 	running          bool         // true while the instruction loop is on the Go call stack
 	noValidateParams bool         // set by callCompiledInline to skip param-type validation for a pre-validated (safe-args) call
+	runFlags         RunFlags     // per-run options (RunOpts.Flags), e.g. RunFlagSkipReceiverTypeCheck
 	dbg              DebugStepper // non-nil only in debug mode; see vm_debug.go
 
 	StdOut, StdErr *StackWriter
@@ -169,6 +170,7 @@ func NewVM(builtins *StaticBuiltins, bc *Bytecode) *VM {
 func (vm *VM) Fork(cf *CompiledFunction, usePool bool) (child *VM) {
 	child = vm.pool.acquire(cf, usePool)
 	child.Builtins = vm.Builtins
+	child.runFlags = vm.runFlags
 	return child
 }
 
@@ -308,6 +310,8 @@ func (vm *VM) init(opts *RunOpts) error {
 	}
 
 	vm.Setup(SetupOpts{})
+
+	vm.runFlags = opts.Flags
 
 	if opts.StdIn != nil {
 		if s, _ := opts.StdIn.(*StackReader); s != nil {

@@ -412,6 +412,14 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 			if t == nil {
 				continue
 			}
+			// The injected `this` receiver of a class/mixin method or property is
+			// typed (its class, or a mixin's `@interface`) and verified by default —
+			// the check is memoised on the root VM's interface-sat cache. Skip it when
+			// RunFlagSkipReceiverTypeCheck is set (the receiver's shape is trusted).
+			if i == 0 && o.Params.Items[0].Name == "this" &&
+				vm.runFlags.Has(RunFlagSkipReceiverTypeCheck) {
+				continue
+			}
 			arg := args.GetOnly(i)
 			if accept, err = t.AcceptResolve(vm, arg, resolveSym); err != nil {
 				return
