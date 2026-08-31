@@ -1187,6 +1187,30 @@ func (p *InterfaceProp) ToString() string {
 	case p.Getter == nil && len(p.Setters) == 1:
 		return "set " + p.Name
 	}
+	getterType := ""
+	if p.Getter != nil {
+		getterType = accessorTypesList(p.Getter.Return)
+	}
+	// Combine every setter's value type into one `|`-joined union, deduped.
+	var setTypes []string
+	setSeen := map[string]bool{}
+	for _, s := range p.Setters {
+		for _, tn := range accessorTypesParts(s.Params) {
+			if !setSeen[tn] {
+				setSeen[tn] = true
+				setTypes = append(setTypes, tn)
+			}
+		}
+	}
+	setterType := strings.Join(setTypes, "|")
+	// A getter and a SINGLE setter of the same type collapse to `prop x T`
+	// (`prop x` when that type is untyped/any).
+	if p.Getter != nil && len(p.Setters) == 1 && getterType == setterType {
+		if getterType == "" || getterType == "any" {
+			return "prop " + p.Name
+		}
+		return "prop " + p.Name + " " + getterType
+	}
 	var b strings.Builder
 	b.WriteString("prop ")
 	b.WriteString(p.Name)
@@ -1194,29 +1218,18 @@ func (p *InterfaceProp) ToString() string {
 	sep := ""
 	if p.Getter != nil {
 		b.WriteString("get")
-		if r := accessorTypesList(p.Getter.Return); r != "" {
+		if getterType != "" {
 			b.WriteString(" ")
-			b.WriteString(r)
+			b.WriteString(getterType)
 		}
 		sep = "; "
 	}
 	if len(p.Setters) > 0 {
 		b.WriteString(sep)
 		b.WriteString("set")
-		// Combine every setter's value type into one `|`-joined union, deduped.
-		var types []string
-		seen := map[string]bool{}
-		for _, s := range p.Setters {
-			for _, tn := range accessorTypesParts(s.Params) {
-				if !seen[tn] {
-					seen[tn] = true
-					types = append(types, tn)
-				}
-			}
-		}
-		if len(types) > 0 {
+		if setterType != "" {
 			b.WriteString(" ")
-			b.WriteString(strings.Join(types, "|"))
+			b.WriteString(setterType)
 		}
 	}
 	b.WriteString(" }")

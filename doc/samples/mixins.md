@@ -163,19 +163,33 @@ println("anonymous:   ", Doc().version)  // 1
 
 // --- Reflection ------------------------------------------------------------
 /**
-Reflection attributes mirror a class's. `@interface` returns a cached `Interface`
-value named `Name$interface` reflecting the declared members with their types and
-accessor kinds.
+Reflection attributes mirror a class's. A mixin also exposes cached `Interface`
+values: `@membersInterface` (its own members), `@classInterface` (the using-class
+contract) and `@interface` (the whole contract, extending both). `iface.@flat`
+collapses any interface's extends graph into a single interface, merging
+same-name members by signature.
 **/
+mixin Named { name = "?" }
 mixin Shape {
+    *Named
     sides int = 0
     props   { area => 0 }
     methods { draw() => nil }
 }
-println("mixin name:  ", Shape.@name)                    // Shape
-println("mixin fields:", collect(keys(Shape.@fields)))   // [sides]
-println("@interface:  ", bool(Shape.@interface :: gad.Interface)) // true
+println("mixin name:  ", Shape.@name)                     // Shape
+println("mixin fields:", collect(keys(Shape.@fields)))    // [sides]
+println("@interface:  ", Shape.@interface)                // {*Shape$class; *Shape$members}
+println("@flat:       ", Shape.@interface.@flat)          // {name; sides; area(); draw()}
 println("cached:      ", Shape.@interface == Shape.@interface) // true
+
+// --- `met` sees the whole surface -----------------------------------------
+/**
+A `met` added to a class after the fact sees every member — its own, those merged
+from mixins, and inherited ones — on the `this` receiver.
+**/
+class Card { use Shape; title = "" }
+met Card.summary(this) => this.title + " (" + str(this.sides) + " sides, " + this.name + ")"
+println("met summary: ", Card(; title="Ace", sides=4, name="c").summary())
 
 return w.count
 ```

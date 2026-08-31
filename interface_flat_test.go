@@ -26,6 +26,24 @@ func TestInterfaceFlatMergeSourceExtends(t *testing.T) {
 		nil, Str("prop y { get int; set str|any }"))
 }
 
+// TestInterfacePropRender covers the property render forms: a getter + single
+// setter of one type collapses to `prop x T` (`prop x` when untyped); other
+// combinations use the `prop x { get …; set … }` braces form.
+func TestInterfacePropRender(t *testing.T) {
+	// getter + single setter, same type -> compact.
+	testExpectRun(t, `interface A { get x int; set x int }; return str(A.@flat.props[0])`,
+		nil, Str("prop x int"))
+	// getter + single setter, both untyped -> compact, no type.
+	testExpectRun(t, `interface A { get x; set x }; return str(A.@flat.props[0])`,
+		nil, Str("prop x"))
+	// getter + single setter, different types -> braces.
+	testExpectRun(t, `interface A { get x int; set x bool }; return str(A.@flat.props[0])`,
+		nil, Str("prop x { get int; set bool }"))
+	// getter + two setter overloads -> braces with a set union.
+	testExpectRun(t, `interface A { get x int; set x int; set x bool }; return str(A.@flat.props[0])`,
+		nil, Str("prop x { get int; set int|bool }"))
+}
+
 // TestInterfaceFlatDedup verifies identical signatures across interfaces are
 // deduplicated (no error): a diamond, a repeated setter and a repeated overload.
 func TestInterfaceFlatDedup(t *testing.T) {
