@@ -11,7 +11,7 @@ import (
 // members (a class's fields/props/methods, an enum's values, …).
 type OutlineSym struct {
 	Name     string       `json:"name"`
-	Kind     string       `json:"kind"` // const|var|func|class|mixin|interface|enum|method|property|field|new|met|value
+	Kind     string       `json:"kind"` // const|var|func|class|mixin|type|interface|enum|method|property|field|new|met|value
 	Detail   string       `json:"detail,omitempty"`
 	Offset   int          `json:"offset"`
 	Line     int          `json:"line"`
@@ -158,8 +158,11 @@ func outlineNamedTypeValue(sf *source.File, id *node.IdentExpr, val node.Expr) (
 
 func outlineClass(sf *source.File, c *node.TypeLitExpr) OutlineSym {
 	kind := "class"
-	if c.Mixin {
+	switch {
+	case c.Mixin:
 		kind = "mixin"
+	case c.Static:
+		kind = "type" // a marker `type Name { … }`
 	}
 	sym := leaf(sf, className(c), kind, c.Pos())
 	for _, f := range c.Fields {
@@ -174,6 +177,10 @@ func outlineClass(sf *source.File, c *node.TypeLitExpr) OutlineSym {
 	}
 	for _, m := range c.New {
 		sym.Children = append(sym.Children, leaf(sf, "new", "new", m.Pos()))
+	}
+	// A marker type's `call(…)` factory overloads.
+	for _, m := range c.Call {
+		sym.Children = append(sym.Children, leaf(sf, "call", "new", m.Pos()))
 	}
 	for _, m := range c.Methods {
 		if id, _ := m.NameExpr.(*node.IdentExpr); id != nil {
@@ -233,8 +240,11 @@ func className(c *node.TypeLitExpr) string {
 	if id, _ := c.NameExpr.(*node.IdentExpr); id != nil {
 		return id.Name
 	}
-	if c.Mixin {
+	switch {
+	case c.Mixin:
 		return "mixin"
+	case c.Static:
+		return "type"
 	}
 	return "class"
 }

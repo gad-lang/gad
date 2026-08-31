@@ -27,6 +27,7 @@ var count
 func greet(name) => "hi"
 class Animal { name = "?"; props { kind => "a" }; new { (n) => this(; name=n) }; methods { speak() => 1 } }
 mixin Counter { count = 0; methods { inc() => 1 } }
+type Marker { tag = 1; call(n) => n; methods { describe() => 1 } }
 interface Greeter { name str; greet() <str> }
 enum Color { Red; Green }
 met Animal.run(this) => 1
@@ -47,6 +48,10 @@ const Shape = class { sides = 3 }
 		"mixin Counter",
 		"  field count",
 		"  method inc",
+		"type Marker", // a marker `type Name { … }`
+		"  field tag",
+		"  new call", // the call(…) factory
+		"  method describe",
 		"interface Greeter",
 		"  field name",
 		"  method greet",
