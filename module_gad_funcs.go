@@ -328,7 +328,8 @@ func gadInvoker(c Call) (Object, error) {
 func buildGadNamespaceFuncs() {
 	gadParseFn = NewFunction("parse", gadParse,
 		FunctionWithModule(gadModuleSpec),
-		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("script").Type(TStr) }),
+		// Accept both `str` and `rawstr` (`` `…` ``); the handler reads via ToString.
+		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("script").Type(TStr, TRawStr) }),
 		FunctionWithNamedParams(func(np func(name string) *NamedParamBuilder) {
 			np("type").Type(SourceTypeEnum)
 			np("name").Type(TStr)
@@ -348,7 +349,8 @@ func buildGadNamespaceFuncs() {
 	evalRet := FunctionWithReturnVars(func(ret func(name string, typ ...TypeAssigner)) { ret("_", TAny) })
 	evalStrFn := NewFunction("eval", gadEvalStr,
 		FunctionWithModule(gadModuleSpec),
-		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("source").Type(TStr) }),
+		// Accept both `str` and `rawstr` (`` `…` ``) — gadEvalStr reads via ToString.
+		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("source").Type(TStr, TRawStr) }),
 		FunctionWithNamedParams(func(np func(name string) *NamedParamBuilder) { np("type").Type(SourceTypeEnum) }),
 		evalRet,
 	)

@@ -70,7 +70,7 @@ bool(Point(; x=1, y=2) :: gad.Class)
 
 
 ```gad
-parse(script str; type, name) <_ SourceFileObject>
+parse(script str|rawstr; type, name) <_ SourceFileObject>
 ```
 
 Parses Gad `script` and returns its parsed source object (an AST), without

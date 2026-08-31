@@ -70,7 +70,7 @@ typeName(gad.parse("a := 1"))
 >>> "SourceFileObject"
 ```
 **/
-export parse(script str; type, name) <_ SourceFileObject> => nil
+export parse(script str|rawstr; type, name) <_ SourceFileObject> => nil
 
 /**
 Like `parse`, but reads the Gad source from the file at `pth`.

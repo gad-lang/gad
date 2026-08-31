@@ -57,9 +57,14 @@ using class.
 ## Reflection
 
 A mixin mirrors a class's reflection attributes: `M.@fields`, `M.@props`,
-`M.@methods`, `M.@parents`, `M.@module`, `M.@name`. `M.@interface` returns a
-cached `Interface` value named `Name$interface` reflecting the declared members.
-A using class exposes `C.@mixins` (like `C.@parents`).
+`M.@methods`, `M.@parents`, `M.@module`, `M.@name`. It also exposes cached
+`Interface` values: `M.@this` (the `this { … }` block, nil without one),
+`M.@membersInterface` (own members), `M.@classInterface` (the using-class
+contract: `*@this ; *parent.@interface`) and `M.@interface` (the whole contract,
+extending both). Any interface has `iface.@flat` — the extends graph flattened
+into one interface. A using class exposes `C.@mixins` (like `C.@parents`). See
+[the class-samples mixin tests](class/mixins_test.gad) for the full reflection
+surface and the `this`-receiver contract validation.
 
 This whole sample is a runnable tour (see the Example below).
 

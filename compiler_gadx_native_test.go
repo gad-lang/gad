@@ -68,6 +68,22 @@ func TestGadParseEval(t *testing.T) {
 	}
 }
 
+// TestGadParseEvalRawStr checks that gad.parse and gad.eval also accept a rawstr
+// (“ `…` “), not only a plain str.
+func TestGadParseEvalRawStr(t *testing.T) {
+	ret, _ := runScript(t, "return [gad.eval(`6 * 7`), typeName(gad.parse(`x := 1`))]", false)
+	arr, ok := ret.(gad.Array)
+	if !ok || len(arr) != 2 {
+		t.Fatalf("result = %v (%T), want array of 2", ret, ret)
+	}
+	if arr[0].ToString() != "42" {
+		t.Fatalf("eval(rawstr) = %q, want 42", arr[0].ToString())
+	}
+	if arr[1].ToString() != "SourceFileObject" {
+		t.Fatalf("parse(rawstr) type = %q, want SourceFileObject", arr[1].ToString())
+	}
+}
+
 func TestGadParseSourceFile(t *testing.T) {
 	// The returned SourceFileObject exposes path/type, indexing (char), slicing
 	// (bytes) and bytes() conversion.

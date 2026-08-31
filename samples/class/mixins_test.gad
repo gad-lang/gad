@@ -32,12 +32,35 @@ Key rules:
   where the class uses the mixin, silently, with no error.
 - **`this` interface** — an optional `this { … }` block (an interface body without
   the `interface` keyword) declares what the `this` of the mixin's props/methods
-  must satisfy, so a method can call a member the final class provides.
+  must satisfy, so a method can call a member the final class provides. A method's
+  injected `this` is typed by the mixin's `@interface`; the check is on by default
+  and can be disabled per-run for performance (see `RunFlagSkipReceiverTypeCheck`
+  in the Go embedding API).
 
-Reflection attributes mirror a class's: `MyMixin.@fields`, `.@props`, `.@methods`,
-`.@parents`, `.@module`, `.@name`, and `.@interface` (a cached `Interface` value
-named `Name$interface` reflecting the declared members). A using class exposes
-`.@mixins` (like `.@parents`).
+## Interface reflection
+
+A mixin exposes several cached `Interface` values, built from its declaration:
+
+- `MyMixin.@this` — the declared `this { … }` interface (nil without a block).
+- `MyMixin.@membersInterface` (`Name$members`) — the mixin's OWN members only.
+- `MyMixin.@classInterface` (`Name$class`) — the contract a USING CLASS must
+  satisfy: `*@this ; *parent.@interface`. `Class.use` validates the class against
+  it at definition, so a class missing a `this` requirement is rejected early.
+- `MyMixin.@interface` (`Name$interface`) — the whole contract, extending
+  `*@classInterface ; *@membersInterface`.
+
+Any `Interface` also has `iface.@flat`: the extends graph flattened into one
+interface with every member. Flattening dedups by interface (a diamond counts a
+shared parent once) and rejects a member name declared by two different
+interfaces (their signatures could clash).
+
+Other reflection attributes mirror a class's: `.@fields`, `.@props`, `.@methods`,
+`.@parents`, `.@module`, `.@name`. A using class exposes `.@mixins` (like
+`.@parents`).
+
+Editor autocomplete resolves `this.` both inside a mixin/class literal being
+edited (from its members, `this { … }` block and parents) and in a later
+`met MyMixin.method(this)` — see the `met` test below.
 
 Run it: `gad test samples/class`
 **/
@@ -138,22 +161,48 @@ test "anonymous mixin" {
 }
 
 /**
-`@interface` returns a cached `Interface` instance (same value on each read) named
-`Name$interface`, mirroring the mixin's declared members with their types and
-accessor kinds (`f int`, `get p`, a method).
+`@membersInterface` is a cached `Interface` (named `Name$members`) mirroring the
+mixin's OWN declared members — a field with its type, a getter as `get p`, a
+method — with no extends of its own.
 **/
-test "@interface reflects the declared members" {
+test "@membersInterface reflects the declared members" {
     mixin Shape {
         sides int = 0
         props   { area => 0 }
         methods { draw() => nil }
     }
 
-    i := Shape.@interface
-    t.true(i :: gad.Interface)              // it is an Interface value
-    t.true(i == Shape.@interface)           // cached: same instance
-    t.equal("area", collect(keys(Shape.@props))[0])
-    t.equal("draw", collect(keys(Shape.@methods))[0])
+    m := Shape.@membersInterface
+    t.true(m :: gad.Interface)              // it is an Interface value
+    t.true(m == Shape.@membersInterface)    // cached: same instance
+    t.equal("interface (main).Shape$members {sides int; get area; draw()}", str(m))
+}
+
+/**
+`@interface` decomposes into two reusable pieces and extends both:
+
+- `@classInterface` (`Name$class`) — the contract a USING class must satisfy:
+  `*@this ; *parent.@interface`.
+- `@membersInterface` (`Name$members`) — the mixin's own members.
+
+`iface.@flat` flattens any interface's extends graph into a single interface with
+every member — handy for inspection and as a validated, cached contract.
+**/
+test "@interface decomposes into class and members interfaces" {
+    mixin Named { name = "?" }
+    mixin Sized {
+        *Named
+        this { size() <int> }
+        methods { area() => this.size() }
+    }
+
+    t.equal("interface (main).Sized$interface {*(main).Sized$class; *(main).Sized$members}",
+        str(Sized.@interface))
+    t.equal("interface (main).Sized$class {*(main).Sized$this; *(main).Named$interface}",
+        str(Sized.@classInterface))
+    // @flat collapses the whole graph into one interface with every member.
+    t.equal("interface (main).Sized$interface {name; size(); area()}",
+        str(Sized.@interface.@flat))
 }
 
 /**
@@ -192,6 +241,31 @@ test "@interface extends this and parents" {
     // Missing size() fails the extended `this` interface.
     class NoSize { use Named }
     t.true(!(bool(NoSize(; name="x") :: Sized.@interface) or false))
+}
+
+/**
+`use` validates the class against each mixin's `@classInterface` at definition: a
+class that does not provide a member the mixin's `this { … }` block requires is
+rejected with a clear error — no need to wait for a call to fail.
+**/
+test "use validates the mixin contract at definition" {
+    mixin Sized {
+        this { size() <int> }
+        methods { area() => this.size() * this.size() }
+    }
+
+    // Providing size() is accepted.
+    class Box { use Sized; methods { size() => 3 } }
+    t.equal(9, Box().area())
+
+    // Missing size() is rejected at the class definition.
+    rejected := false
+    try {
+        gad.eval(`mixin S { this { size() <int> } }; class Bad { use S }`)
+    } catch e {
+        rejected = contains(str(e), `does not satisfy mixin "S": missing "size"`)
+    }
+    t.true(rejected)
 }
 
 /**

@@ -64,7 +64,7 @@ bool(Point(; x=1, y=2) :: gad.Class)
 ### parse
 
 ```gad
-parse(script str; type, name) <_ SourceFileObject>
+parse(script str|rawstr; type, name) <_ SourceFileObject>
 ```
 
 Parses Gad `script` and returns its parsed source object (an AST), without
@@ -162,7 +162,7 @@ typeName(gad.parse("a := 1"))
 >>> "SourceFileObject"
 ```
 **/
-export parse(script str; type, name) <_ SourceFileObject> => nil
+export parse(script str|rawstr; type, name) <_ SourceFileObject> => nil
 
 /**
 Like `parse`, but reads the Gad source from the file at `pth`.
