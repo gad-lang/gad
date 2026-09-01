@@ -27,7 +27,7 @@ func Convert(stmts gnode.Stmts) gnode.Stmts {
 // and exports remain top-level statements between the root binding and the
 // return.
 func ConvertFile(stmts gnode.Stmts) gnode.Stmts {
-	return fragmentStmts(gnode.LNil(0), Convert(stmts), 0, 0)
+	return fragmentStmts(Convert(stmts), 0, 0)
 }
 
 // mergeDecls merges consecutive const/var GenDecl statements into grouped declarations.
@@ -101,9 +101,10 @@ func funcExpr(params *gnode.FuncParams, body gnode.Stmts, pos, end source.Pos) *
 	}
 }
 
-// tagVar is the identifier that always names the current parent tag in scope.
-// Each tag/fragment opens a block that rebinds `tag` (via `:=`) to itself, so
-// nested content appends to it while sibling content sees the outer tag.
+// tagVar is the identifier that always names the current parent node in scope
+// (a tag or the root Elements fragment). Each tag/fragment opens a block that
+// rebinds `tag` (via `:=`) to itself, so nested content appends to it while
+// sibling content sees the outer node.
 const tagVar = "tag"
 
 func tagIdent(pos source.Pos) *gnode.IdentExpr { return gnode.EIdent(tagVar, pos) }
@@ -127,18 +128,15 @@ func appendToTag(expr gnode.Expr, pos source.Pos) gnode.Stmt {
 	return &gnode.AssignStmt{LHS: []gnode.Expr{tagIdent(pos)}, RHS: []gnode.Expr{expr}, Token: token.AddAssign, TokenPos: pos}
 }
 
-// fragmentStmts wraps body so it builds into a fresh anonymous root tag and
-// returns it: `tag := gadx.Tag(); <body>; return tag`. A name-less gadx.Tag call
-// yields an anonymous fragment (renders only its children). A nil parent is
-// omitted (`gadx.Tag()` rather than `gadx.Tag(nil)`, equivalent forms). Used for
-// @comp / @func / @slot / slot-pass bodies and the top-level @main.
-func fragmentStmts(parent gnode.Expr, body gnode.Stmts, pos, end source.Pos) gnode.Stmts {
-	var args []gnode.Expr
-	if _, isNil := parent.(*gnode.NilLit); parent != nil && !isNil {
-		args = []gnode.Expr{parent}
-	}
+// fragmentStmts wraps body so it builds into a fresh Elements fragment and
+// returns it: `tag := gadx.Elements(); <body>; return tag`. Elements is a
+// wrapper-less list (renders only its children); it has no parent — nested tags
+// take it as THEIR parent and append into it, and appending one fragment to
+// another splices its items. Used for @comp / @func / @slot / slot-pass bodies,
+// @main and the file root.
+func fragmentStmts(body gnode.Stmts, pos, end source.Pos) gnode.Stmts {
 	var out gnode.Stmts
-	out.Append(defineTag(gadxNew("Tag", pos, end, args...), pos))
+	out.Append(defineTag(gadxNew("Elements", pos, end), pos))
 	out.Append(body...)
 	out.Append(gnode.SReturn(end, tagIdent(end)))
 	return out
@@ -242,7 +240,7 @@ func convertBody(stmts gnode.Stmts) gnode.Stmts {
 
 func convertFuncDecl(f *FuncDecl) gnode.Stmts {
 	params := addSlotsParam(f.Params)
-	body := fragmentStmts(gnode.LNil(f.Pos()), convertBody(f.Body), f.Pos(), f.End())
+	body := fragmentStmts(convertBody(f.Body), f.Pos(), f.End())
 	fn := funcExpr(params, body, f.Pos(), f.End())
 	fn.Type.TypeParams = f.TypeParams
 	fn.Type.Return = f.Return
@@ -278,15 +276,22 @@ func convertCompDecl(c *CompDecl) gnode.Stmts {
 	}
 	body = append(body, convertBody(c.Body)...)
 
-	if c.Main {
-		// @main content builds into the file's root tag (created by ConvertFile),
-		// so it is emitted inline; the surrounding wrapper returns the root.
-		return body
-	}
-	fnBody := fragmentStmts(gnode.LNil(c.Pos()), body, c.Pos(), c.End())
+	fnBody := fragmentStmts(body, c.Pos(), c.End())
 	fn := funcExpr(addSlotsParam(c.Params), fnBody, c.Pos(), c.End())
 	fn.Type.TypeParams = c.TypeParams
 	fn.Type.Return = c.Return
+
+	if c.Main {
+		// `@main` is sugar for `@comp main`: it lowers to a `main` component
+		// function whose parameters are its own (with defaults) — NOT module
+		// globals or params (use `@global` / `@param` for those) — and is then
+		// invoked so its Elements build into the enclosing root fragment.
+		stmts := recursiveFuncStmts("main", fn, c.Pos())
+		mainCall := gnode.ECall(gnode.EIdent("main", c.Pos()), c.Pos(), c.End(),
+			gnode.NewCallExprArgs(nil))
+		stmts = append(stmts, appendToTag(mainCall, c.Pos()))
+		return stmts
+	}
 
 	stmts := recursiveFuncStmts(c.ID, fn, c.Pos())
 	if c.Exported {
@@ -303,7 +308,7 @@ func convertCompDecl(c *CompDecl) gnode.Stmts {
 // body is lowered like a component fragment, so template content builds an
 // implicit `tag` while `~` code can assert with `t`.
 func convertTestDecl(t *TestDecl) gnode.Stmts {
-	body := fragmentStmts(gnode.LNil(t.Pos()), convertBody(t.Body), t.Pos(), t.End())
+	body := fragmentStmts(convertBody(t.Body), t.Pos(), t.End())
 	return gnode.Stmts{&gnode.TestStmt{
 		Kind:   gnode.TestKindTest,
 		KwPos:  t.Pos(),
@@ -410,7 +415,7 @@ func convertCompCall(c *CompCallStmt) gnode.Stmts {
 						&gnode.FuncExpr{
 							Type: ft,
 							Body: gnode.SBlock(sp.Pos(), sp.End(),
-								fragmentStmts(gnode.LNil(sp.Pos()), convertBody(sp.Body), sp.Pos(), sp.End())...),
+								fragmentStmts(convertBody(sp.Body), sp.Pos(), sp.End())...),
 						},
 					},
 				},
@@ -683,7 +688,7 @@ func convertSlot(s *SlotDecl) gnode.Stmts {
 	defFunc := &gnode.FuncExpr{
 		Type: funcType(slotDefaultParams(s.Scope)),
 		Body: gnode.SBlock(s.Pos(), s.End(),
-			fragmentStmts(gnode.LNil(s.Pos()), convertBody(s.Body), s.Pos(), s.End())...),
+			fragmentStmts(convertBody(s.Body), s.Pos(), s.End())...),
 	}
 
 	var stmts gnode.Stmts
@@ -723,7 +728,7 @@ func convertSlotPass(s *SlotPassStmt) gnode.Stmts {
 						&gnode.FuncExpr{
 							Type: s.FuncType,
 							Body: gnode.SBlock(s.Pos(), s.End(),
-								fragmentStmts(gnode.LNil(s.Pos()), convertBody(s.Body), s.Pos(), s.End())...),
+								fragmentStmts(convertBody(s.Body), s.Pos(), s.End())...),
 						},
 					},
 				},
@@ -823,7 +828,13 @@ func convertIf(s *IfStmt) gnode.Stmts {
 // to the enclosing tag, then builds its body into it:
 //
 //	{ tag := gadx.Tag(tag, "name"; **attrs); <body> }
+//
+// A `<>…</>` fragment (Fragment) lowers to a gadx.Elements() node instead (see
+// convertFragmentTag).
 func convertTag(t *TagStmt) gnode.Stmts {
+	if t.Fragment {
+		return convertFragmentTag(t)
+	}
 	ctor := gadxNew("Tag", t.NodePos, t.NodeEnd,
 		tagIdent(t.NodePos), gnode.Str(t.Name, t.NodePos))
 	applyTagAttrs(ctor, t.Attributes)
@@ -832,6 +843,32 @@ func convertTag(t *TagStmt) gnode.Stmts {
 	if !t.SelfClosing {
 		inner = append(inner, convertBody(t.Body)...)
 	}
+	return gnode.Stmts{gnode.SBlock(t.Pos(), t.End(), inner...)}
+}
+
+// convertFragmentTag lowers a `<>…</>` fragment to a gadx.Elements() node built
+// from its children, then spliced into the enclosing parent:
+//
+//	{ $frag := tag; tag := gadx.Elements(); <body>; $frag += tag }
+//
+// The enclosing `tag` is captured first (Elements has no parent argument), then
+// `tag` is rebound to the fresh fragment so the body builds into it, and finally
+// the fragment is appended to the captured parent — which splices its children.
+func convertFragmentTag(t *TagStmt) gnode.Stmts {
+	parentName := fmt.Sprintf("$frag%d", t.NodePos)
+	parentIdent := func() *gnode.IdentExpr { return gnode.EIdent(parentName, t.NodePos) }
+
+	var inner gnode.Stmts
+	inner.Append(&gnode.AssignStmt{
+		LHS: []gnode.Expr{parentIdent()}, RHS: []gnode.Expr{tagIdent(t.NodePos)},
+		Token: token.Define, TokenPos: t.NodePos,
+	})
+	inner.Append(defineTag(gadxNew("Elements", t.NodePos, t.NodeEnd), t.NodePos))
+	inner.Append(convertBody(t.Body)...)
+	inner.Append(&gnode.AssignStmt{
+		LHS: []gnode.Expr{parentIdent()}, RHS: []gnode.Expr{tagIdent(t.NodePos)},
+		Token: token.AddAssign, TokenPos: t.NodePos,
+	})
 	return gnode.Stmts{gnode.SBlock(t.Pos(), t.End(), inner...)}
 }
 

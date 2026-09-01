@@ -13,14 +13,16 @@ func newModule() gad.Dict {
 		// gad:doc
 		// # gadx module
 		// ## Types
-		// Tag is a tag element type; Text wraps a value as a text node.
-		"Tag":    TagType,
-		"Text":   TextType,
-		"Md":     MdType,
-		"escape": BuiltinEscape,
-		"attr":   BuiltinAttr,
-		"attrs":  BuiltinAttrs,
-		"write":  BuiltinTextWrite,
-		"render": BuiltinRender,
+		// Tag is a tag element type; Text wraps a value as a text node;
+		// Elements is a wrapper-less fragment (the value comps/@main return).
+		"Tag":      TagType,
+		"Text":     TextType,
+		"Md":       MdType,
+		"Elements": ElementsType,
+		"escape":   BuiltinEscape,
+		"attr":     BuiltinAttr,
+		"attrs":    BuiltinAttrs,
+		"write":    BuiltinTextWrite,
+		"render":   BuiltinRender,
 	}
 }

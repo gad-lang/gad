@@ -25,7 +25,8 @@ without any `@import`:
 
 | Name | Description |
 |------|-------------|
-| `gadx.Tag` | Construct a tag element: `gadx.Tag([parent,] name, *children; **attrs)`. Omit the name (`gadx.Tag()` / `gadx.Tag(parent)`) for a nameless fragment. |
+| `gadx.Elements` | Construct a **fragment** — a wrapper-less list of nodes: `gadx.Elements(*children)`. It is the value a component, slot or `@main` builds and returns; on render it writes only its children. |
+| `gadx.Tag` | Construct a named tag element: `gadx.Tag([parent,] name, *children; **attrs)`. |
 | `gadx.Text` | Construct a text node: `gadx.Text([parent,] v1, v2, …)` |
 | `gadx.escape` | Return its argument as a raw (unescaped) string |
 | `gadx.attr` | Render a single `name="value"` attribute fragment |
@@ -42,27 +43,43 @@ builtins := gadx.AppendBuiltins(gad.NewBuiltins())
 
 A compiled template does not stream HTML directly. Instead it builds a **render
 tree** of `Element` values and returns its root; the caller (or `Render`) walks
-the tree, writing HTML via `Element.WriteTo`. The tree types are:
+the tree, writing HTML via `Element.WriteTo`. Every `Element` is also a
+`gad.Object`. The tree types are:
 
-- `gadx.Tag` — a tag element with a name, ordered attributes (regular
-  attributes, a class list and styles) and child elements. Constructed without a
-  name (`gadx.Tag()` / `gadx.Tag(parent)`) it is an *anonymous fragment* that
-  renders only its children.
+- `gadx.Elements` — a **fragment**: a wrapper-less, ordered list of child
+  nodes. It is what every component, slot and `@main` builds and returns, and it
+  is the root the module returns. On render it writes only its children, with
+  nothing around them. It has **no parent** (it is always a root/return value);
+  nested tags take it as *their* parent instead.
+- `gadx.Tag` — a named tag element with ordered attributes (regular attributes,
+  a class list and styles) and child elements. *(The only nameless tag is the
+  internal `@md` Markdown container; a wrapper-less list is an `Elements`, not a
+  nameless tag.)*
 - `gadx.Text` — a leaf node holding a sequence of values written in order.
 
-Each constructor optionally takes the **parent tag as its first argument** and
-links the new element into it. Both forms are accepted:
+The `Tag`/`Text` constructors optionally take the **parent as their first
+argument** and link the new element into it. Both forms are accepted:
 
 ```
-gadx.Tag(parent, "div"; class="a")   // linked to parent
+gadx.Tag(parent, "div"; class="a")   // linked to parent (parent is a Tag, an Elements or nil)
 gadx.Tag("div"; class="a")           // standalone (append it yourself)
 ```
 
-The first argument is treated as the parent only when it is a tag or `nil`;
-otherwise it is the first content argument. The tag-building operators are
-`tag += child` (append one), `tag ++= children` (append many),
-`tag[name] = value` (set one attribute) and `tag.attrs += kva` (merge
-attributes).
+The first argument is treated as the parent only when it is a `Tag`, an
+`Elements` or `nil`; otherwise it is the first content argument.
+
+**Building operators** (implemented by both `Tag` and `Elements`):
+
+- `parent += child` — append one child.
+- `parent ++= children` — append each element of an iterable.
+- `tag[name] = value` — set one attribute; `tag.attrs += kva` — merge attributes.
+
+**Fragment splicing.** Appending an `Elements` to a parent (a tag or another
+fragment) **splices its items in individually** — it is never nested as one
+node. So `parent += comp()` merges a component's children into `parent`, and
+`elems += gadx.Elements(a, b)` is equivalent to `elems ++= [a, b]`. This is what
+lets a component return an `Elements` and have its output flow into the caller's
+tree without an extra wrapper.
 
 ## Compilation (`gad.Compile` with a `.gadx` `ModuleFile`)
 

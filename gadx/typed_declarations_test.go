@@ -156,10 +156,11 @@ func TestTypeUnionsInSignatures(t *testing.T) {
 			want: "5",
 		},
 		{
-			name:    "main param union",
-			src:     "@main(v int|str)\n    p {=v}\n",
-			globals: gad.Dict{"v": gad.Str("ok")},
-			want:    "<p>ok</p>",
+			// @main is `@comp main`, invoked as main(); a union-typed param needs a
+			// default (and `;`, being named) to be usable with no argument.
+			name: "main param union",
+			src:  "@main(; v int|str = \"ok\")\n    p {=v}\n",
+			want: "<p>ok</p>",
 		},
 	}
 	for _, tc := range tests {

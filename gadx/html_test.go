@@ -90,6 +90,29 @@ func TestHtmlRegions(t *testing.T) {
 	}
 }
 
+// TestFragmentLowersToElements verifies a `<>…</>` fragment lowers to a real
+// gadx.Elements() node (not a nameless tag): its children build into the
+// fragment, which is then spliced into the enclosing parent.
+func TestFragmentLowersToElements(t *testing.T) {
+	src := "@main\n    <><span>a</span><span>b</span></>\n"
+	out, err := gad.TranspileGadxSource("frag.gadx", []byte(src))
+	if err != nil {
+		t.Fatalf("transpile: %v", err)
+	}
+	code := string(out)
+	if !strings.Contains(code, "gadx.Elements()") {
+		t.Fatalf("fragment did not lower to gadx.Elements():\n%s", code)
+	}
+	// It must not resurrect a nameless tag for the fragment.
+	if strings.Contains(code, `gadx.Tag(`+"\n\t\t\t\ttag\n\t\t\t\t\"\"") {
+		t.Fatalf("fragment lowered to a nameless gadx.Tag:\n%s", code)
+	}
+	// And it still renders as its children with no wrapper.
+	if got := strings.TrimSpace(renderGadx(t, src, gad.Dict{})); got != "<span>a</span><span>b</span>" {
+		t.Fatalf("render = %q", got)
+	}
+}
+
 // TestHtmlInterleave covers block-level gadx statements (@if/@for/@else)
 // interleaved inside an HTML region by indentation: the directive line and its
 // more-indented body (which may itself contain HTML) render as children of the

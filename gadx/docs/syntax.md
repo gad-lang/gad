@@ -131,7 +131,8 @@ A trailing `? condition` applies to every attribute in the group.
 A line starting with `<` is parsed as an inline HTML region. It runs from the
 opening tag to its matching close tag (spanning multiple lines if needed), and
 runs of whitespace collapse to a single space. `<> … </>` is a fragment: it
-renders its children with no wrapping element.
+lowers to a [`gadx.Elements()`](./api.md#render-tree) node that renders its
+children with no wrapping element (spliced into the enclosing parent).
 
 ```gadx
 @main
@@ -360,11 +361,54 @@ escapes only `'`, so framework expressions keep their double quotes and operator
 
 ## Main Block
 
+`@main` is the template's entry point. Its body is the content rendered when the
+template runs.
+
 ```gadx
 @main
     h1 Home
     p This template body is executed.
 ```
+
+### `@main` is sugar for `@comp main`
+
+`@main` is exactly a component named `main` that the module invokes for you.
+Everything true of `@comp` is true of `@main`: it may declare a **signature**,
+type parameters and a return type, and its body builds and returns an
+[`Elements` fragment](./api.md#render-tree).
+
+So `@main`'s parameters are the `main` component's **own parameters** — they are
+**not** module globals or module parameters. Because the module calls `main()`
+with no arguments, a parameter is only usable if it has a **default** (and a
+defaulted parameter is *named*, so it needs the leading `;`):
+
+```gadx
+@main(; title = "Home", theme = "light")
+    h1 {= title }
+    body[class={theme}]
+```
+
+| You want… | Use | Not |
+|-----------|-----|-----|
+| a value with a default, local to `main` | `@main(; x = 1)` | — |
+| a **module global** (injected by the host) | `@global x` | `@main(x)` |
+| a **module parameter** (CLI/args) | `@param (x)` | `@main(x)` |
+
+A `@global` (or `@param`) is visible inside `@main`'s body as a free variable:
+
+```gadx
+@global user
+@main
+    p Welcome, {= user.name }
+```
+
+### Return model
+
+Every `@main` / `@comp` / `@slot` body builds a fresh `gadx.Elements()` fragment
+and returns it; nested tags append into it, and the module returns `main()`.
+Appending one fragment to another **splices** its children in (no extra
+wrapper), so components compose cleanly — see
+[the render tree](./api.md#render-tree).
 
 ## Code Block
 

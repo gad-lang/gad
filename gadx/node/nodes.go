@@ -153,6 +153,10 @@ type TagStmt struct {
 	Attributes  []*TagAttribute
 	Body        gnode.Stmts
 	SelfClosing bool
+	// Fragment marks a `<>…</>` inline-HTML fragment: it has no name/attributes
+	// and lowers to a gadx.Elements() node whose children are its Body (spliced
+	// into the enclosing parent on append).
+	Fragment bool
 }
 
 func (t *TagStmt) Pos() source.Pos { return t.NodePos }

@@ -352,6 +352,12 @@ func (t *ParaBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) { ctx.writeRawBlock
 func (t *MdBlockStmt) WriteGadx(ctx *GadxCodeWriteContext)   { ctx.writeRawBlock("@md", t.Body) }
 
 func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	if t.Fragment {
+		// A `<>…</>` fragment has no wrapper element and pug-style gadx has no
+		// fragment token, so it transpiles back as its children at this level.
+		ctx.WriteStmts(t.Body)
+		return
+	}
 	// Attributes merge into a single `[a=v, b=x]` group (canonical gadx); spread
 	// and conditional attributes keep their own group (their `? cond` is
 	// group-scoped). The result is written inline on the tag line.

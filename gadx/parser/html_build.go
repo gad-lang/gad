@@ -44,10 +44,18 @@ func (b *htmlBuilder) parseNodes(i int) (gnode.Stmts, int) {
 				return out, i // close tag — stop here
 			}
 			if i+1 < len(s) && s[i+1] == '>' {
-				// `<>…</>` fragment: inline its children with no wrapper element.
+				// `<>…</>` fragment: a wrapper-less node lowering to gadx.Elements()
+				// (its children are spliced into the enclosing parent on append).
+				open := i
 				children, ci := b.parseNodes(i + 2)
-				out = append(out, children...)
-				i = b.skipCloseTag(ci)
+				end := b.skipCloseTag(ci)
+				out = append(out, &gadxnode.TagStmt{
+					NodePos:  b.pos(open),
+					NodeEnd:  b.pos(end),
+					Fragment: true,
+					Body:     children,
+				})
+				i = end
 				continue
 			}
 			elem, ni := b.parseElement(i)

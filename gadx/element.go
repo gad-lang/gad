@@ -21,24 +21,28 @@ const (
 	ElementText ElementType = 0
 	// ElementTag is an HTML/XML tag element with attributes and children.
 	ElementTag ElementType = 1
+	// ElementFragment is a wrapper-less list of elements (see Elements): it renders
+	// its children inline, with no surrounding element.
+	ElementFragment ElementType = 2
 )
 
 // Element is a node in the render tree produced by a gadx template. Every
-// Element is a Gad object that can write itself (and its subtree) to an
-// io.Writer during the final render walk.
+// Element is a Gad object (so it flows through the template like any value) that
+// can write itself (and its subtree) to an io.Writer during the final render
+// walk.
 type Element interface {
+	gad.Object
 	gad.ToWriter
-	// ElType reports whether the element is a tag or text node.
+	// ElType reports whether the element is a tag, text or fragment node.
 	ElType() ElementType
 }
 
-// TagType is the Gad object type of *Tag. Calling it constructs a tag:
+// TagType is the Gad object type of *Tag. Calling it constructs a named tag:
 //
 //	gadx.Tag([parent,] name, *children; **attrs)
 //
-// Omitting the name (gadx.Tag() / gadx.Tag(parent)) yields an anonymous
-// (fragment) tag: it has no name and on render writes only its children, without
-// a surrounding element. Components/slots build into one and return it.
+// A wrapper-less list of nodes is an Elements fragment (gadx.Elements), not a
+// nameless tag — components/slots/@main build into one and return it.
 var TagType = gad.NewBuiltinObjType("Tag").WithNew(tagCtor)
 
 // TextType is the Gad object type of *TextElement. Calling it wraps a value as
@@ -62,7 +66,7 @@ func mdCtor(c gad.Call) (gad.Object, error) {
 	parent, _ := parentArg(c)
 	t := &Tag{markdown: true}
 	if parent != nil {
-		parent.Children = append(parent.Children, t)
+		parent.append(t)
 	}
 	return t, nil
 }
@@ -71,11 +75,12 @@ func mdCtor(c gad.Call) (gad.Object, error) {
 // Tag
 // =============================================================================
 
-// Tag is a tag element: an optional name, ordered attributes and child
-// elements. A Tag with an empty Name is an anonymous fragment that renders only
-// its children. Tag implements Element and the operator interfaces used by the
-// compiled template to build the tree (`tag += child`, `tag ++= children`,
-// `tag[attr] = value`, `tag.attrs += attrs`).
+// Tag is a tag element: a name, ordered attributes and child elements. Tag
+// implements Element and the operator interfaces used by the compiled template
+// to build the tree (`tag += child`, `tag ++= children`, `tag[attr] = value`,
+// `tag.attrs += attrs`). A wrapper-less list of nodes is an Elements fragment,
+// not a nameless Tag (the sole empty-name Tag is the internal `@md` markdown
+// container, flagged markdown).
 type Tag struct {
 	Name      string
 	Attrs     gad.Dict
@@ -93,10 +98,10 @@ type Tag struct {
 
 // NewTag returns a tag with the given name and children, classifying attrs into
 // the tag's structured attribute state (regular attributes, class list, styles).
-func NewTag(parent *Tag, name string, children []Element, attrs gad.KeyValueArray) *Tag {
+func NewTag(parent elementParent, name string, children []Element, attrs gad.KeyValueArray) *Tag {
 	t := &Tag{Name: name, Children: children}
 	if parent != nil {
-		parent.Children = append(parent.Children, t)
+		parent.append(t)
 	}
 	t.mergeAttrs(attrs)
 	return t
@@ -109,8 +114,7 @@ func NewTag(parent *Tag, name string, children []Element, attrs gad.KeyValueArra
 //
 // The parent is detected by the first positional argument's type (see
 // parentArg); the tag name is the next positional and any remaining positionals
-// are static children. When no name is given (gadx.Tag() / gadx.Tag(parent)),
-// the tag is anonymous (empty name) and renders only its children.
+// are static children.
 func tagCtor(c gad.Call) (gad.Object, error) {
 	parent, i := parentArg(c)
 	name := ""
@@ -130,12 +134,21 @@ func tagCtor(c gad.Call) (gad.Object, error) {
 // `gadx.X(…)`. When the first argument is a *Tag or a nil value it is the parent
 // (returned, with offset 1 so callers skip it); otherwise there is no parent
 // argument (nil, offset 0) and the first positional is content.
-func parentArg(c gad.Call) (parent *Tag, offset int) {
+// elementParent is a node children can be appended to — a named tag or a
+// wrapper-less Elements fragment. parentArg returns one so a constructor can nest
+// its result under either.
+type elementParent interface {
+	append(child gad.Object)
+}
+
+func parentArg(c gad.Call) (parent elementParent, offset int) {
 	if c.Args.Length() == 0 {
 		return nil, 0
 	}
 	switch first := c.Args.GetOnly(0).(type) {
 	case *Tag:
+		return first, 1
+	case *Elements:
 		return first, 1
 	case *gad.NilType:
 		return nil, 1
@@ -164,9 +177,16 @@ func (t *Tag) Enter(*gad.VM) error { return nil }
 func (t *Tag) Exit(_ *gad.VM, _ error) (gad.Object, error) { return t, nil }
 
 // append adds a single child element, skipping nil (e.g. an optional slot that
-// rendered nothing).
+// rendered nothing). An *Elements fragment is spliced in: its items are appended
+// individually (as if `tag ++= fragment.Items`), never nested as one node — a
+// component/slot/@main returns an Elements, and appending it to a parent must
+// merge its children, not wrap them.
 func (t *Tag) append(child gad.Object) {
 	if child == nil || child == gad.Nil {
+		return
+	}
+	if frag, ok := child.(*Elements); ok {
+		t.Children = append(t.Children, frag.Items...)
 		return
 	}
 	t.Children = append(t.Children, toElement(child))
@@ -252,16 +272,13 @@ func (t *Tag) IndexSet(_ *gad.VM, index, value gad.Object) error {
 	return nil
 }
 
-// WriteTo renders the tag and its subtree as HTML. An anonymous tag (empty
-// Name) writes only its children; a named tag writes its open tag with rendered
-// attributes, then either self-closes (for void elements) or writes its
-// children and a close tag.
+// WriteTo renders the tag and its subtree as HTML. A `@md` container (markdown)
+// renders its children as Markdown; a named tag writes its open tag with rendered
+// attributes, then either self-closes (for void elements) or writes its children
+// and a close tag.
 func (t *Tag) WriteTo(vm *gad.VM, w io.Writer) (n int64, err error) {
 	if t.markdown {
 		return t.writeMarkdown(vm, w)
-	}
-	if t.Name == "" {
-		return t.writeChildren(vm, w)
 	}
 
 	var wc writeCounter
@@ -345,7 +362,7 @@ func textCtor(c gad.Call) (gad.Object, error) {
 		t = append(t, c.Args.Get(i))
 	}
 	if parent != nil {
-		parent.Children = append(parent.Children, t)
+		parent.append(t)
 	}
 	return t, nil
 }
@@ -613,12 +630,19 @@ func (t *Tag) writeAttrs(vm *gad.VM, w io.Writer, wc *writeCounter) error {
 }
 
 // ElementData returns a gad.Object tree describing el for structured encoding
-// (e.g. JSON/YAML) instead of HTML rendering: a *Tag becomes a Dict
-// {tag, attrs, children} (children is an Array of each child's data), and a Text
-// node becomes the Str of its concatenated values. An anonymous tag keeps an
-// empty "tag". Attribute order follows the tag's attrsKeyValueArray.
+// (e.g. JSON/YAML) instead of HTML rendering: an *Elements fragment becomes the
+// Array of its children's data, a *Tag becomes a Dict {tag, attrs, children}
+// (children is an Array of each child's data), and a Text node becomes the Str of
+// its concatenated values. Attribute order follows the tag's attrsKeyValueArray.
 func ElementData(el Element) gad.Object {
 	switch e := el.(type) {
+	case *Elements:
+		// A fragment has no wrapper: encode it as the Array of its children's data.
+		items := make(gad.Array, 0, len(e.Items))
+		for _, c := range e.Items {
+			items = append(items, ElementData(c))
+		}
+		return items
 	case *Tag:
 		children := make(gad.Array, 0, len(e.Children))
 		for _, c := range e.Children {

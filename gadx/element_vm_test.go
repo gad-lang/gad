@@ -9,7 +9,8 @@ import (
 )
 
 // runGadReturningTag compiles and runs a gad program with the gadx builtins and
-// returns the root *Tag it yields, rendered to a string.
+// returns the root element (a *Tag or an Elements fragment) it yields, rendered
+// to a string.
 func runGadReturningTag(t *testing.T, src string) string {
 	t.Helper()
 	builtins := AppendBuiltins(gad.NewBuiltins())
@@ -36,10 +37,11 @@ func runGadReturningTag(t *testing.T, src string) string {
 }
 
 // TestTreeBuildBlocks exercises the whole tree-building surface from gad source
-// in the block/parent model the converter emits: a tag is `tag := gadx.Tag(tag,
-// name; **attrs)` inside a nested `{ }` block (so `tag` shadows the parent), the
+// in the block/parent model the converter emits: the root is an Elements
+// fragment (`tag := gadx.Elements()`), a tag is `tag := gadx.Tag(tag, name;
+// **attrs)` inside a nested `{ }` block (so `tag` shadows the parent), the
 // constructor links each tag to its parent, text is `gadx.Text(tag, …)`, and the
-// component/root returns its root tag.
+// component/root returns its root node.
 func TestTreeBuildBlocks(t *testing.T) {
 	tests := []struct {
 		name string
@@ -49,7 +51,7 @@ func TestTreeBuildBlocks(t *testing.T) {
 		{
 			name: "nested tags and text",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					tag := gadx.Tag(tag, "div"; class="a")
 					{
@@ -64,12 +66,12 @@ func TestTreeBuildBlocks(t *testing.T) {
 			want: `<div class="a">hi<span>x</span></div>`,
 		},
 		{
-			// Parentless constructor forms: gadx.Tag() / gadx.Tag(name) /
-			// gadx.Text(values) — no leading parent argument. Children are wired by
-			// explicit appends instead of self-linking.
+			// Parentless constructor forms: gadx.Tag(name) / gadx.Text(values) —
+			// no leading parent argument. Children are wired by explicit appends
+			// instead of self-linking.
 			name: "parentless constructor forms",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					div := gadx.Tag("div"; id="x")
 					div += gadx.Text(raw "hi")
@@ -83,7 +85,7 @@ func TestTreeBuildBlocks(t *testing.T) {
 			// gadx.Tag(nil, name) and gadx.Tag(name) are equivalent.
 			name: "nil parent equals parentless",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					a := gadx.Tag(nil, "b")
 					gadx.Text(a, raw "x")
@@ -95,7 +97,7 @@ func TestTreeBuildBlocks(t *testing.T) {
 		{
 			name: "many children",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					tag := gadx.Tag(tag, "ul")
 					{
@@ -109,7 +111,7 @@ func TestTreeBuildBlocks(t *testing.T) {
 		{
 			name: "dynamic attrs and single attr",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					tag := gadx.Tag(tag, "div")
 					{
@@ -126,7 +128,7 @@ func TestTreeBuildBlocks(t *testing.T) {
 			// directly (regular attrs first, then class, then style).
 			name: "class array and style",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					tag := gadx.Tag(tag, "div"; id="x", class=["a", "b"], style="color:red")
 					{ gadx.Text(tag, raw "y") }
@@ -138,7 +140,7 @@ func TestTreeBuildBlocks(t *testing.T) {
 			// Incremental single-attribute writes: class tokens accumulate.
 			name: "incremental class and attr",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					tag := gadx.Tag(tag, "div")
 					{
@@ -153,7 +155,7 @@ func TestTreeBuildBlocks(t *testing.T) {
 		{
 			name: "multi-value text node",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					tag := gadx.Tag(tag, "p")
 					{ gadx.Text(tag, raw "a", raw "b", raw "c") }
@@ -162,9 +164,9 @@ func TestTreeBuildBlocks(t *testing.T) {
 			want: `<p>abc</p>`,
 		},
 		{
-			name: "anonymous fragment writes only children",
+			name: "elements fragment writes only children",
 			src: `
-				tag := gadx.Tag()
+				tag := gadx.Elements()
 				{
 					{ tag := gadx.Tag(tag, "p"); { gadx.Text(tag, raw "1") } }
 					{ tag := gadx.Tag(tag, "p"); { gadx.Text(tag, raw "2") } }

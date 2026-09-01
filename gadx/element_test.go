@@ -36,14 +36,14 @@ func TestTagWriteTo(t *testing.T) {
 		t.Fatalf("void tag\n got: %s\nwant: %s", got, want)
 	}
 
-	// An anonymous tag writes only its children.
-	frag := NewTag(nil, "", []Element{
+	// An Elements fragment writes only its children (no wrapper).
+	frag := &Elements{Items: []Element{
 		Text{gad.RawStr("<b>")},
 		Text{gad.RawStr("hi")},
 		Text{gad.RawStr("</b>")},
-	}, nil)
+	}}
 	if got, want := writeElement(t, frag), `<b>hi</b>`; got != want {
-		t.Fatalf("anon tag\n got: %s\nwant: %s", got, want)
+		t.Fatalf("fragment\n got: %s\nwant: %s", got, want)
 	}
 }
 

@@ -36,8 +36,16 @@ func TestDirectiveSignatureRender(t *testing.T) {
 			want: "<div>hi</div>",
 		},
 		{
-			name:    "main param type",
-			src:     "@main(n int)\n    p {=n}\n",
+			// @main params are the `main` component's own params (with defaults),
+			// invoked as main(); a defaulted param is named, so it needs `;`.
+			name: "main default param",
+			src:  "@main(; n = 7)\n    p {=n}\n",
+			want: "<p>7</p>",
+		},
+		{
+			// A module global reaches @main's body as a free variable via @global.
+			name:    "main uses global",
+			src:     "@global n\n@main\n    p {=n}\n",
 			globals: gad.Dict{"n": gad.Int(7)},
 			want:    "<p>7</p>",
 		},

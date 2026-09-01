@@ -177,8 +177,8 @@ block and call the component directly — useful when the set of slots is dynami
 
 Each `slots` entry is a slot function whose **first parameter is `super`** (the
 component's default for that slot), followed by the slot's scope parameters. A
-slot function builds and **returns a fragment tag** (like a component): create it
-with `gadx.Tag()`, append content, and `return` it. Unlike `+super`,
+slot function builds and **returns an `Elements` fragment** (like a component):
+create it with `gadx.Elements()`, append content, and `return` it. Unlike `+super`,
 a raw `super(…)` call is not rewritten, so it must pass super's own super (an
 empty function) as its first argument; its returned fragment is appended with
 `tag += super(…)`. The component call's own result is appended with `tag += …`.
@@ -196,7 +196,7 @@ empty function) as its first argument; its returned fragment is appended with
     ~~
     tag += list(["a", "b"]; slots={
         row: func(super, i, it) {
-            tag := gadx.Tag()
+            tag := gadx.Elements()
             gadx.Text(tag, raw "<b>" + it + "</b>")
             return tag
         },
@@ -207,7 +207,7 @@ empty function) as its first argument; its returned fragment is appended with
     ~~
     tag += list(["a", "b"]; slots={
         row: func(super, i, it) {
-            tag := gadx.Tag()
+            tag := gadx.Elements()
             gadx.Text(tag, raw "* ")
             tag += super(func(*_){}, i, it)   // +super(i, it) sugars to this
             return tag
@@ -404,13 +404,28 @@ returned. The return type may itself be a `|` union (`<int|str>`).
 
 ### The `@main` entry point
 
-`@main` is an anonymous component and takes the same typed signature. Its
-parameters are supplied as template globals:
+`@main` is **sugar for `@comp main`** — a component named `main` that the module
+invokes for you. It takes the same typed signature, and its parameters are the
+`main` component's **own parameters**, *not* template globals. Since the module
+calls `main()` with no arguments, give a parameter a **default** (a defaulted
+parameter is named, so it needs the leading `;`):
 
 ```gadx
-@main(user str, count int)
+@main(; user = "guest", count = 0)
     p Hello {= user}, you have {= count} messages
 ```
+
+For values injected by the host, declare a `@global` (or a module `@param`) —
+they are visible inside `@main`'s body as free variables:
+
+```gadx
+@global user
+@param (count = 0)
+@main
+    p Hello {= user}, you have {= count} messages
+```
+
+See [Main Block](./syntax.md#main-block) for the full rules and return model.
 
 Source positions of every signature part — parameter identifiers, parameter
 types, type parameters and return types — are preserved back to the exact
