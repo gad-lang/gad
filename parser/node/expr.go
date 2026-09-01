@@ -2948,7 +2948,7 @@ func (e *MatchExpr) String() string {
 	b.WriteString("{")
 	for i, a := range e.Arms {
 		if i > 0 {
-			b.WriteString(", ")
+			b.WriteString("; ") // arms are separated by `;`; conditions by `,`
 		} else {
 			b.WriteString(" ")
 		}
@@ -2990,7 +2990,7 @@ func (e *MatchExpr) writeInline(ctx *CodeWriteContext) {
 	ctx.WriteString("{")
 	for i, a := range arms {
 		if i > 0 {
-			ctx.WriteString(",")
+			ctx.WriteString(";") // arms separated by `;` (conditions by `,`)
 		}
 		ctx.WriteString(" ")
 		a.WriteCode(ctx)

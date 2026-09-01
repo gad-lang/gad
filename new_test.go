@@ -1901,22 +1901,23 @@ func TestVMComprehension(t *testing.T) {
 }
 
 func TestVMMatchExpr(t *testing.T) {
-	// expression form: first matching arm wins, else is the default
-	const f = `f := func(x) { return match (x) { 1: "one", 2: "two", else: "other" } }; `
+	// expression form: first matching arm wins, else is the default. ARMS are
+	// separated by `;` (or a new line); CONDITIONS within an arm by `,`.
+	const f = `f := func(x) { return match (x) { 1: "one"; 2: "two"; else: "other" } }; `
 	testExpectRun(t, f+`return f(1)`, nil, Str("one"))
 	testExpectRun(t, f+`return f(2)`, nil, Str("two"))
 	testExpectRun(t, f+`return f(9)`, nil, Str("other"))
 
-	// single-line comma separators
-	testExpectRun(t, `return match (2) { 1: "a", 2: "b", else: "z" }`, nil, Str("b"))
+	// single-line `;` separators
+	testExpectRun(t, `return match (2) { 1: "a"; 2: "b"; else: "z" }`, nil, Str("b"))
 	// newline separators
 	testExpectRun(t, "return match (3) {\n1: \"a\"\n3: \"c\"\nelse: \"z\"\n}", nil, Str("c"))
 
 	// non-literal conditions evaluated against the subject
-	testExpectRun(t, `a := 10; b := 20; return match (20) { a: "x", b: "y" }`,
+	testExpectRun(t, `a := 10; b := 20; return match (20) { a: "x"; b: "y" }`,
 		nil, Str("y"))
 	// string subject
-	testExpectRun(t, `return match ("hi") { "hi": 1, "bye": 2, else: 0 }`, nil, Int(1))
+	testExpectRun(t, `return match ("hi") { "hi": 1; "bye": 2; else: 0 }`, nil, Int(1))
 
 	// no matching arm and no else => yields nil
 	testExpectRun(t, `return match (7) { 1: "a" }`, nil, Nil)
@@ -1924,22 +1925,30 @@ func TestVMMatchExpr(t *testing.T) {
 	testExpectRun(t, `x := match 7 {}; return x`, nil, Nil)
 
 	// the subject no longer requires parentheses
-	testExpectRun(t, `return match 2 { 1: "a", 2: "b", else: "z" }`, nil, Str("b"))
+	testExpectRun(t, `return match 2 { 1: "a"; 2: "b"; else: "z" }`, nil, Str("b"))
 
-	// multiple conditions per arm (OR), comma- and newline-separated
-	testExpectRun(t, `return match 3 { 1, 2, 3: "low", else: "hi" }`, nil, Str("low"))
-	testExpectRun(t, "return match 4 {\n1, 2\n3, 4: \"x\"\nelse: \"y\"\n}", nil, Str("x"))
-	// multi-condition statement-form arm
+	// multiple conditions per arm (OR), comma-separated
+	testExpectRun(t, `return match 3 { 1, 2, 3: "low"; else: "hi" }`, nil, Str("low"))
+	testExpectRun(t, `return match 4 { 1, 2, 3, 4: "x"; else: "y" }`, nil, Str("x"))
+	// multi-condition statement-form arm (the block `}` also ends the arm)
 	testExpectRun(t, `
 	var out = 0
 	match 3 { 1, 2 { out = 12 } 3, 4 { out = 34 } }
 	return out`, nil, Int(34))
 
-	// statement form: runs the matching block; returns from the enclosing func
-	const g = `g := func(x) { match (x) { 1 { return "ONE" }, 2 { return "TWO" }, else { return "OTHER" } } }; `
+	// statement form: runs the matching block; `return` returns from the enclosing
+	// func (statement context — it does NOT yield the match).
+	const g = `g := func(x) { match (x) { 1 { return "ONE" } 2 { return "TWO" } else { return "OTHER" } } }; `
 	testExpectRun(t, g+`return g(1)`, nil, Str("ONE"))
 	testExpectRun(t, g+`return g(2)`, nil, Str("TWO"))
 	testExpectRun(t, g+`return g(5)`, nil, Str("OTHER"))
+
+	// expression form with a block arm: `return` YIELDS the match value.
+	const h = `h := func(x) { return match x { 1: "one"; 2, 3 { if x == 2 { return "two" } return "three" }; else: "other" } }; `
+	testExpectRun(t, h+`return h(1)`, nil, Str("one"))
+	testExpectRun(t, h+`return h(2)`, nil, Str("two"))
+	testExpectRun(t, h+`return h(3)`, nil, Str("three"))
+	testExpectRun(t, h+`return h(9)`, nil, Str("other"))
 
 	// statement form, no else, no match => falls through (no effect)
 	testExpectRun(t, `
@@ -1954,7 +1963,7 @@ func TestVMMatchExpr(t *testing.T) {
 	return out`, nil, Int(100))
 
 	// match is usable inline as an expression value
-	testExpectRun(t, `return 1 + match (2) { 2: 40, else: 0 }`, nil, Int(41))
+	testExpectRun(t, `return 1 + match (2) { 2: 40; else: 0 }`, nil, Int(41))
 
 	// `match` keyword does not break selector method names (e.g. regexp.match)
 	testExpectRun(t, `re := regexp("ab"); return re.match("ab")`, nil, True)

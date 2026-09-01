@@ -182,17 +182,24 @@ func (c *Compiler) compileTryStmt(nd *node.TryStmt) error {
 	return nil
 }
 
-// compileMatchExpr compiles a PHP8-like match. The subject is evaluated once
+// compileMatchExprAs compiles a PHP8-like match. The subject is evaluated once
 // into a temp local and compared (strict equality) against each arm's
 // conditions; an arm matches when the subject equals any of its conditions
-// (`A, B: …`), and the first matching arm wins. Expression-form arms
-// (`conds: result`) leave the matched result on the stack; statement-form arms
-// (`conds { body }`) run the block and yield nil. An optional `else` arm is the
-// default; when nothing matches and there is no `else`, the match yields nil.
-func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
-	isStmt := nd.IsStmt()
-
-	// validate arm shapes are consistent and locate the else arm
+// (`A, B: …`), and the first matching arm wins.
+//
+// Every arm yields exactly one value, and arms of the two forms may be mixed:
+//   - `conds: result` leaves `result`.
+//   - `conds { body }` runs the block; a `return <expr>` inside it yields the
+//     match's value (asExpr only — see compileReturn), otherwise the block falls
+//     through to `nil`.
+//
+// An optional `else` arm is the default; when nothing matches and there is no
+// `else`, the match yields `nil`. asExpr is true when the match's value is used
+// (assignment, argument, …) and false when it is a bare statement: only the
+// former makes a block arm's `return` yield the match (the latter keeps `return`
+// as a normal function return).
+func (c *Compiler) compileMatchExprAs(nd *node.MatchExpr, asExpr bool) error {
+	// locate the else arm (at most one)
 	var elseArm *node.MatchArm
 	for _, arm := range nd.Arms {
 		if arm.IsElse() {
@@ -200,12 +207,6 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 				return c.Errorf(nd, "multiple else arms in match")
 			}
 			elseArm = arm
-		}
-		if isStmt && arm.Result != nil {
-			return c.Errorf(nd, "cannot mix `cond: result` and `cond { body }` match arms")
-		}
-		if !isStmt && arm.Body != nil {
-			return c.Errorf(nd, "cannot mix `cond: result` and `cond { body }` match arms")
 		}
 	}
 
@@ -224,6 +225,14 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 	}
 	subjectSym, _ := c.symbolTable.DefineLocal(":match")
 	c.emit(nd, OpDefineLocal, subjectSym.Index)
+
+	// In expression context, a block arm's `return` yields the match value: push
+	// a match-return context so compileReturn routes those returns to the end.
+	var mctx *matchExprCtx
+	if asExpr {
+		mctx = c.enterMatchExpr()
+		defer c.leaveMatchExpr()
+	}
 
 	var endJumps []int
 	for _, arm := range nd.Arms {
@@ -251,7 +260,7 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 		for _, j := range matchJumps {
 			c.changeOperand(j, bodyStart)
 		}
-		if err := c.compileMatchArmBody(nd, arm, isStmt); err != nil {
+		if err := c.compileMatchArmBody(arm); err != nil {
 			return err
 		}
 		endJumps = append(endJumps, c.emit(nd, OpJump, 0))
@@ -259,13 +268,12 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 		c.changeOperand(toNext, len(c.instructions))
 	}
 
-	// no condition matched: the expression form yields the else value or nil;
-	// the statement form runs the else block or does nothing (leaves no value).
+	// no condition matched: run the else arm, or yield nil.
 	if elseArm != nil {
-		if err := c.compileMatchArmBody(nd, elseArm, isStmt); err != nil {
+		if err := c.compileMatchArmBody(elseArm); err != nil {
 			return err
 		}
-	} else if !isStmt {
+	} else {
 		c.emit(nd, OpNil)
 	}
 
@@ -273,17 +281,25 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 	for _, j := range endJumps {
 		c.changeOperand(j, end)
 	}
+	if mctx != nil {
+		// block-arm `return <expr>` jumps land here with the value on the stack.
+		for _, j := range mctx.yields {
+			c.changeOperand(j, end)
+		}
+	}
 	return nil
 }
 
-// compileMatchArmBody compiles a single match arm body. The expression form
-// leaves the arm's result value on the stack; the statement form runs the arm
-// block and leaves nothing (the match as a whole is value-less).
-func (c *Compiler) compileMatchArmBody(nd *node.MatchExpr, arm *node.MatchArm, isStmt bool) error {
-	if isStmt {
-		if arm.Body != nil {
-			return c.Compile(arm.Body)
+// compileMatchArmBody compiles a single match arm body, leaving exactly one value
+// on the stack: a `conds: result` arm leaves `result`; a `conds { body }` arm
+// runs the block and falls through to nil (a `return` inside may have yielded a
+// value earlier and jumped past this nil — see compileReturn).
+func (c *Compiler) compileMatchArmBody(arm *node.MatchArm) error {
+	if arm.Body != nil {
+		if err := c.Compile(arm.Body); err != nil {
+			return err
 		}
+		c.emit(arm.Body, OpNil)
 		return nil
 	}
 	return c.Compile(arm.Result)
@@ -1436,6 +1452,25 @@ func (c *Compiler) compileBlockStmt(nd *node.BlockStmt) error {
 }
 
 func (c *Compiler) compileReturn(nd *node.Return) error {
+	// Inside an expression-context match's block arm, `return <expr>` yields the
+	// match's value: push the value (or nil), run any try finalizer, and jump to
+	// the match's end — a plain jump, no function-return. (Nested function bodies
+	// compile in a fork with an empty match stack, so their `return` is normal.)
+	if m := c.currentMatchExpr(); m != nil && !nd.Assign {
+		if nd.Result != nil {
+			if err := c.Compile(nd.Result); err != nil {
+				return err
+			}
+		} else {
+			c.emit(nd, OpNil)
+		}
+		if c.tryCatchIndex > m.lastTryCatchIndex {
+			c.emit(nd, OpFinalizer, m.lastTryCatchIndex+1)
+		}
+		m.yields = append(m.yields, c.emit(nd, OpJump, 0))
+		return nil
+	}
+
 	if nd.Result == nil {
 		if c.tryCatchIndex > -1 {
 			c.emit(nd, OpFinalizer, 0)

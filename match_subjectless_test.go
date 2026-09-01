@@ -26,8 +26,8 @@ func TestMatchSubjectless(t *testing.T) {
 // compile to the same behaviour.
 func TestMatchSubjectlessEqualsTrue(t *testing.T) {
 	testExpectRun(t, `
-		f := func(n) => match      { n > 0: "p", else: "np" }
-		g := func(n) => match true { n > 0: "p", else: "np" }
+		f := func(n) => match      { n > 0: "p"; else: "np" }
+		g := func(n) => match true { n > 0: "p"; else: "np" }
 		return [f(5), g(5), f(-5), g(-5)]`,
 		nil, Array{Str("p"), Str("p"), Str("np"), Str("np")})
 }
@@ -35,7 +35,7 @@ func TestMatchSubjectlessEqualsTrue(t *testing.T) {
 // TestMatchSubjectlessNoElseNil verifies a subject-less match with no matching
 // arm and no else yields nil (like the subject form).
 func TestMatchSubjectlessNoElseNil(t *testing.T) {
-	testExpectRun(t, `return match { false: "x", 1 > 2: "y" }`, nil, Nil)
+	testExpectRun(t, `return match { false: "x"; 1 > 2: "y" }`, nil, Nil)
 }
 
 // TestMatchSubjectlessStmtForm verifies the statement (block) arm form works
@@ -59,6 +59,6 @@ func TestMatchSubjectlessStmtForm(t *testing.T) {
 func TestMatchSubjectlessDictSubject(t *testing.T) {
 	testExpectRun(t, `
 		d := {a: 1}
-		return match (d) { {a: 1}: "hit", else: "miss" }`,
+		return match (d) { {a: 1}: "hit"; else: "miss" }`,
 		nil, Str("hit"))
 }

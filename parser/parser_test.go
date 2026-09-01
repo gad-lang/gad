@@ -4167,15 +4167,15 @@ func TestCodeNewNodes(t *testing.T) {
 	test.New(t, `x := a or b`).Code(`x := a or b`)
 	test.New(t, `x := [i * 2 for i in a if i > 1]`).Code(`x := [(i * 2) for i in a if (i > 1)]`)
 	test.New(t, `x := {[k]: v for k, v in m}`).Code(`x := {[k]: v for k, v in m}`)
-	test.New(t, `x := match (a) { 1: "one", else: "other" }`).
-		Code(`x := match (a) { 1: "one", else: "other" }`)
+	test.New(t, `x := match (a) { 1: "one"; else: "other" }`).
+		Code(`x := match (a) { 1: "one"; else: "other" }`)
 	test.New(t, `x := /ab+/`).Code(`x := /ab+/`)
 	test.New(t, `x := h"ffcc"`).Code(`x := h"ffcc"`)
 	test.New(t, `x := b"Hello"`).Code(`x := b"Hello"`)
 
 	// statement-form match with block arms: with the match formatter flag, one
 	// arm per line, bodies indented
-	test.New(t, `match a { 1 { b = 1 }, else { b = 2 } }`).
+	test.New(t, `match a { 1 { b = 1 } else { b = 2 } }`).
 		FormattedCode("match a {\n\t1 {\n\t\tb = 1\n\t}\n\telse {\n\t\tb = 2\n\t}\n}")
 }
 
@@ -4194,47 +4194,53 @@ func TestParseComprehension(t *testing.T) {
 }
 
 func TestParseMatchExpr(t *testing.T) {
-	// the subject no longer needs parentheses
+	// ARMS are separated by `;` (or a new line); CONDITIONS within an arm by `,`.
 	test.ExpectParseString(t,
-		`x := match a { 1: "one", 2: "two", else: "other" }`,
-		`x := match a { 1: "one", 2: "two", else: "other" }`)
-	// `(a)` is preserved as a parenthesized expression
+		`x := match a { 1: "one"; 2: "two"; else: "other" }`,
+		`x := match a { 1: "one"; 2: "two"; else: "other" }`)
+	// the subject no longer needs parentheses; `(a)` is preserved
 	test.ExpectParseString(t,
-		`x := match (a) { 1: "one", else: "other" }`,
-		`x := match (a) { 1: "one", else: "other" }`)
-	// comma and newline separators between arms
+		`x := match (a) { 1: "one"; else: "other" }`,
+		`x := match (a) { 1: "one"; else: "other" }`)
+	// a new line separates arms too
 	test.ExpectParseString(t,
 		"x := match a {\n1: \"one\"\n2: \"two\"\nelse: \"other\"\n}",
-		`x := match a { 1: "one", 2: "two", else: "other" }`)
+		`x := match a { 1: "one"; 2: "two"; else: "other" }`)
 	// non-literal conditions
 	test.ExpectParseString(t,
-		`x := match a { b: 1, c + 1: 2 }`,
-		`x := match a { b: 1, (c + 1): 2 }`)
-	// multiple conditions per arm (comma- and/or newline-separated)
+		`x := match a { b: 1; c + 1: 2 }`,
+		`x := match a { b: 1; (c + 1): 2 }`)
+	// multiple conditions per arm (comma-separated)
 	test.ExpectParseString(t,
-		`x := match a { 1, 2, 3: "low", else: "hi" }`,
-		`x := match a { 1, 2, 3: "low", else: "hi" }`)
+		`x := match a { 1, 2, 3: "low"; else: "hi" }`,
+		`x := match a { 1, 2, 3: "low"; else: "hi" }`)
+	// a trailing comma lets a condition list continue on the next line
 	test.ExpectParseString(t,
-		"x := match a {\n1, 2\n3: \"x\"\nelse: \"y\"\n}",
-		`x := match a { 1, 2, 3: "x", else: "y" }`)
-	// statement form, multi-condition arms
+		"x := match a { 1, 2,\n3: \"x\"; else: \"y\" }",
+		`x := match a { 1, 2, 3: "x"; else: "y" }`)
+	// statement form, multi-condition arms (the block `}` also ends the arm, so a
+	// `;` before the next arm is optional on input; the formatter adds it)
 	test.ExpectParseString(t,
 		`match a { 1, 2 { b = 1 } else { b = 2 } }`,
-		`match a { 1, 2 { b = 1 }, else { b = 2 } }`)
+		`match a { 1, 2 { b = 1 }; else { b = 2 } }`)
 	// an empty match is valid
 	test.ExpectParseString(t, `x := match a {}`, `x := match a {}`)
 	// subject-less `match { … }` (sugar for `match true`) round-trips with no
 	// subject — the leading `{` is the arm block, not a dict subject.
 	test.ExpectParseString(t,
-		`x := match { b > 0: "pos", else: "neg" }`,
-		`x := match { (b > 0): "pos", else: "neg" }`)
+		`x := match { b > 0: "pos"; else: "neg" }`,
+		`x := match { (b > 0): "pos"; else: "neg" }`)
 	test.ExpectParseString(t,
 		`match { c { d = 1 } else { d = 2 } }`,
-		`match { c { d = 1 }, else { d = 2 } }`)
+		`match { c { d = 1 }; else { d = 2 } }`)
 	// a dict-literal subject still works, parenthesized.
 	test.ExpectParseString(t,
-		`x := match ({a: 1}) { d: 1, else: "x" }`,
-		`x := match ({a: 1}) { d: 1, else: "x" }`)
+		`x := match ({a: 1}) { d: 1; else: "x" }`,
+		`x := match ({a: 1}) { d: 1; else: "x" }`)
+	// mixed arm forms: `: value` and `{ block }` in one (expression) match
+	test.ExpectParseString(t,
+		`x := match a { 1: "one"; 2, 3 { return "b" }; else: "c" }`,
+		`x := match a { 1: "one"; 2, 3 { return "b" }; else: "c" }`)
 }
 
 func TestParseMatchExprError(t *testing.T) {
@@ -4244,12 +4250,12 @@ func TestParseMatchExprError(t *testing.T) {
 
 func TestFormatMatchArms(t *testing.T) {
 	// NEW_LINE_CALC: a match that fits the budget stays inline.
-	test.New(t, `x := match n { 1: "a", else: "b" }`).
-		FormattedCalcCode(`x := match n { 1: "a", else: "b" }`, 80)
+	test.New(t, `x := match n { 1: "a"; else: "b" }`).
+		FormattedCalcCode(`x := match n { 1: "a"; else: "b" }`, 80)
 
 	// NEW_LINE_CALC: when the inline arms overflow, each arm goes on its own
-	// line with no comma between arms (the newline separates them).
-	test.New(t, `x := match n { 1, 2: "one or two", 3: "three", else: "other" }`).
+	// line with no separator between arms (the newline separates them).
+	test.New(t, `x := match n { 1, 2: "one or two"; 3: "three"; else: "other" }`).
 		FormattedCalcCode("x := match n {\n\t1, 2: \"one or two\"\n\t3: \"three\"\n\telse: \"other\"\n}", 40)
 
 	// NEW_LINE_CALC: a single arm whose conditions overflow wraps them greedily
@@ -4258,11 +4264,11 @@ func TestFormatMatchArms(t *testing.T) {
 		FormattedCalcCode("match i {\n\t1, 2, 3\n\t\t4, 5, 6\n\t\t7, 8 {}\n}", 10)
 
 	// Primitive arms are sorted ascending (else stays last).
-	test.New(t, `x := match n { 3: "c", 1: "a", 2: "b", else: "z" }`).
-		FormattedCalcCode(`x := match n { 1: "a", 2: "b", 3: "c", else: "z" }`, 80)
+	test.New(t, `x := match n { 3: "c"; 1: "a"; 2: "b"; else: "z" }`).
+		FormattedCalcCode(`x := match n { 1: "a"; 2: "b"; 3: "c"; else: "z" }`, 80)
 
-	// Force-all: arms always split, one per line, no commas.
-	test.New(t, `x := match n { 2: "b", 1: "a", else: "c" }`).
+	// Force-all: arms always split, one per line, no separators.
+	test.New(t, `x := match n { 2: "b"; 1: "a"; else: "c" }`).
 		FormattedCode("x := match n {\n\t1: \"a\"\n\t2: \"b\"\n\telse: \"c\"\n}")
 }
 

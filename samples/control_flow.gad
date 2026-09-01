@@ -53,17 +53,29 @@ passed through a function.
 ## Match
 
 `match` (PHP 8-style) compares a subject against arms and yields the first
-matching result. The subject needs no parentheses. Each arm lists one or more
-conditions (matched against the subject with OR), followed by either `: value`
-(expression form) or a `{ … }` block (statement form). An optional `else` arm is
-the default; an empty match — or one with no matching arm and no `else` — yields
-`nil`.
+matching result — an **expression**, so its value can be assigned, returned or
+used inline. The subject needs no parentheses.
 
-**Subject-less `match { … }`** is sugar for `match true { … }`: with no subject,
-each arm's conditions are matched against `true`, so the first arm whose condition
-is truthy wins — a clean multi-branch conditional (Gad's `if/else if/else` as an
-expression). A `{` right after `match` always opens the arm block; to match
-against a dict-literal subject, parenthesize it (`match ({…}) { … }`).
+**Separators.** Within an arm, several **conditions** are separated by `,` (the
+arm matches when the subject equals *any* of them — an OR). **Arms** are separated
+by `;` or a new line. So `,` groups conditions, `;`/newline ends an arm.
+
+**Arm forms**, freely mixable in one match:
+
+- `conds: value` — yields `value`.
+- `conds { … }` — a block; inside an **expression** match a `return <expr>`
+  yields the match's value (a plain jump, not a function return), and a block that
+  falls through yields `nil`. In a bare **statement** match a block's `return`
+  returns from the enclosing function instead.
+
+An optional `else` arm is the default; an empty match — or one with no matching
+arm and no `else` — yields `nil`.
+
+**Subject-less `match { … }`** is sugar for `match true { … }`: each arm's
+conditions are matched against `true`, so the first truthy arm wins — a clean
+multi-branch conditional (Gad's `if/else if/else` as an expression). A `{` right
+after `match` always opens the arm block; to match a dict-literal subject,
+parenthesize it (`match ({…}) { … }`).
 
 @snippet match
 
@@ -72,13 +84,13 @@ only when it overflows; see [Conventions](conventions.md).
 **/
 
 //snippet match
+// Subject-less `match { … }` (= `match true`): the first truthy arm wins; an arm
+// may list several `,`-separated OR-conditions; arms are separated by newlines.
 classify := func(n) {
-    // subject-less `match { … }` is `match true { … }`: the first truthy arm
-    // wins, and an arm may list several OR-conditions.
     return match {
         n < 0:          "negative"
         n == 0:         "zero"
-        n == 1, n == 2: "one or two"
+        n == 1, n == 2: "one or two"   // two conditions (OR)
         n < 10:         "small"
         else:           "large"
     }
@@ -87,18 +99,44 @@ for _, n in [-3, 0, 1, 4, 42] {
     println(#"{n} is {classify(n)}")
 }
 
-// Statement form: block arms (`cond { … }`) need no `:`, and the match runs for
-// effect. Here subject-less, as an if/else-if/else replacement.
-letter := func(score) {
-    label := ""
-    match {
-        score >= 90 { label = "A" }
-        score >= 80 { label = "B" }
-        else        { label = "C" }
+// Subject form + MIXED arms: a `: value` arm and a `{ block }` arm in one
+// expression match. In a block arm, `return` yields the match's value.
+sign := func(n) {
+    return match {
+        n == 0: "zero"                 // value arm
+        n > 0 {                        // block arm — return yields the match
+            if n > 100 { return "huge" }
+            return "positive"
+        }
+        else: "negative"
     }
-    return label
 }
-println("letter(95) =", letter(95)) // A
+for _, n in [0, 5, 500, -2] {
+    println(#"{n} -> {sign(n)}")
+}
+
+// Inline arms use `;` between arms and `,` within one; short matches stay on one
+// line.
+letterGrade := func(s) => match { s >= 90: "A"; s >= 80: "B"; else: "C" }
+println("letterGrade(83) =", letterGrade(83)) // B
+
+// A subject compares by value (`==`); several values share one arm with `,`.
+kind := func(day) => match day {
+    "sat", "sun": "weekend"
+    else:         "weekday"
+}
+println("sat is a", kind("sat"))
+
+// Statement context: a bare `match` used for effect. A block arm's `return`
+// returns from the ENCLOSING function (not the match).
+first := func(xs) {
+    match {
+        len(xs) == 0 { return "empty" }
+        else         { return "has " + str(len(xs)) }
+    }
+}
+println("first([]) =", first([]))
+println("first([1,2]) =", first([1, 2]))
 //endsnippet
 
 //snippet if

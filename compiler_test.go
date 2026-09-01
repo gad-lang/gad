@@ -3418,7 +3418,7 @@ func TestCompilerMatchExpr(t *testing.T) {
 	// subject -> :match local; each arm condition compares with OpEqual; a match
 	// jumps to the arm body, otherwise control falls to the next arm. The else
 	// arm is the fallthrough default.
-	expectCompile(t, `return match 1 { 1: "a", else: "b" }`, bytecode(
+	expectCompile(t, `return match 1 { 1: "a"; else: "b" }`, bytecode(
 		Array{Int(1), Str("a"), Str("b")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),    // 0000 subject 1
@@ -3438,8 +3438,9 @@ func TestCompilerMatchExpr(t *testing.T) {
 		),
 	))
 
-	// statement form leaves no value on the stack (no OpNil, no OpPop), and a
-	// no-match with no else simply falls through.
+	// A bare `match … { … }` statement now yields one value like any match — a
+	// block arm falls through to nil, a no-match to nil — which is popped as a
+	// statement (OpPop).
 	expectCompile(t, `match 1 { 1 {} }`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
@@ -3450,9 +3451,12 @@ func TestCompilerMatchExpr(t *testing.T) {
 			makeInst(OpEqual),          // 0010
 			makeInst(OpJumpFalsy, 17),  // 0011 -> next arm
 			makeInst(OpJump, 20),       // 0014 -> body
-			makeInst(OpJump, 23),       // 0017 -> after arm
-			makeInst(OpJump, 23),       // 0020 body end -> end
-			makeInst(OpReturn, 0),      // 0023
+			makeInst(OpJump, 24),       // 0017 -> no-match nil
+			makeInst(OpNil),            // 0020 body: {} falls through to nil
+			makeInst(OpJump, 25),       // 0021 -> end
+			makeInst(OpNil),            // 0024 no-match -> nil
+			makeInst(OpPop),            // 0025 statement: discard value
+			makeInst(OpReturn, 0),      // 0026
 		),
 			funcLocals(1),
 		),
@@ -3461,7 +3465,7 @@ func TestCompilerMatchExpr(t *testing.T) {
 
 func TestCompilerMatchExprForms(t *testing.T) {
 	// multiple conditions per arm (OR): each cond jumps to the shared body.
-	expectCompile(t, `return match 1 { 1, 2: "a", else: "b" }`, bytecode(
+	expectCompile(t, `return match 1 { 1, 2: "a"; else: "b" }`, bytecode(
 		Array{Int(1), Int(2), Str("a"), Str("b")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),    // 0000 subject 1
@@ -3487,7 +3491,7 @@ func TestCompilerMatchExprForms(t *testing.T) {
 	))
 
 	// no else: a no-match falls through to OpNil (the expression yields nil).
-	expectCompile(t, `return match 1 { 1: "a", 2: "b" }`, bytecode(
+	expectCompile(t, `return match 1 { 1: "a"; 2: "b" }`, bytecode(
 		Array{Int(1), Str("a"), Int(2), Str("b")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),    // 0000 subject 1
@@ -3548,8 +3552,8 @@ func TestCompilerPrefixIncDec(t *testing.T) {
 }
 
 func TestCompilerMatchStmtForms(t *testing.T) {
-	// statement form, multi-condition arm + else: bodies leave no value, and the
-	// whole match is value-less (no OpNil, no OpPop).
+	// statement form, multi-condition arm + else: each block arm falls through to
+	// nil; the match's value is popped as a statement (OpPop).
 	expectCompile(t, `match 1 { 1, 2 {} else {} }`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
@@ -3565,9 +3569,12 @@ func TestCompilerMatchStmtForms(t *testing.T) {
 			makeInst(OpEqual),          // 0022
 			makeInst(OpJumpFalsy, 29),  // 0023 -> next arm
 			makeInst(OpJump, 32),       // 0026 -> body
-			makeInst(OpJump, 35),       // 0029 -> else
-			makeInst(OpJump, 35),       // 0032 body end -> end
-			makeInst(OpReturn, 0),      // 0035
+			makeInst(OpJump, 36),       // 0029 -> else
+			makeInst(OpNil),            // 0032 body {} -> nil
+			makeInst(OpJump, 37),       // 0033 -> end
+			makeInst(OpNil),            // 0036 else {} -> nil
+			makeInst(OpPop),            // 0037 statement: discard value
+			makeInst(OpReturn, 0),      // 0038
 		),
 			funcLocals(1),
 		),

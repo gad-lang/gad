@@ -24,9 +24,9 @@ language = lang
 param (;lang="en")
 
 hello := match lang {
-    "pt": "Olá",
-    "es": "Hola",
-    else: "Hello",
+    "pt": "Olá"
+    "es": "Hola"
+    else: "Hello"
 }
 
 export greet(name) => #"{hello}, {name}!"

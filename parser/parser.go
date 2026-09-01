@@ -3780,12 +3780,13 @@ func (p *Parser) ParseMatchExpr() node.Expr {
 
 	m := &node.MatchExpr{MatchPos: matchPos, Expr: subject, LBrace: lbrace}
 
-	// arms (and the conditions within an arm) are separated by commas and/or
-	// new lines (semicolons)
-	skipSeps := func() {
+	// ARMS are separated by `;` or a new line (both are Semicolon tokens);
+	// CONDITIONS within an arm are separated by `,` (a trailing comma may precede
+	// a new line so a long condition list wraps). A `,` no longer separates arms.
+	skipArmSeps := func() {
 		for {
 			p.SkipSpace()
-			if p.Token.Token == token.Comma || p.Token.Token == token.Semicolon {
+			if p.Token.Token == token.Semicolon {
 				p.Next()
 				continue
 			}
@@ -3793,21 +3794,23 @@ func (p *Parser) ParseMatchExpr() node.Expr {
 		}
 	}
 
-	skipSeps()
+	skipArmSeps()
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
 		arm := &node.MatchArm{}
 		if p.Token.Token == token.Else {
 			p.Next()
 		} else {
-			// one or more conditions, separated by comma/new line, collected
-			// until the arm terminator (`:` for a value, `{` for a block).
+			// one or more conditions separated by `,`, collected until the arm
+			// terminator (`:` for a value, `{` for a block). A trailing comma lets
+			// the list continue on the next line.
 			for {
 				arm.Conds = append(arm.Conds, p.ParseExpr())
-				skipSeps()
-				if p.Token.Token == token.Colon || p.Token.Token == token.LBrace ||
-					p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
+				p.SkipSpace()
+				if p.Token.Token != token.Comma {
 					break
 				}
+				p.Next() // consume `,`
+				p.SkipSpace()
 			}
 		}
 		p.SkipSpace()
@@ -3825,7 +3828,7 @@ func (p *Parser) ParseMatchExpr() node.Expr {
 		}
 
 		m.Arms = append(m.Arms, arm)
-		skipSeps()
+		skipArmSeps()
 	}
 
 	m.RBrace = p.Expect(token.RBrace)

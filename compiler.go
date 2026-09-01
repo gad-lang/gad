@@ -70,14 +70,19 @@ type (
 		sourceMap    map[int]int
 		embeddedMap  *EmbeddedMap
 		// embeddedStore embeddeds represents map of name and constant index
-		embeddedStore        map[string]int
-		moduleMap            *ModuleMap
-		moduleStore          *moduleStore
-		module               *ModuleSpec
-		variadic             bool
-		varNamedParams       bool
-		loops                []*loopStmts
-		loopIndex            int
+		embeddedStore  map[string]int
+		moduleMap      *ModuleMap
+		moduleStore    *moduleStore
+		module         *ModuleSpec
+		variadic       bool
+		varNamedParams bool
+		loops          []*loopStmts
+		loopIndex      int
+		// matchExprs is the stack of enclosing expression-context matches (see
+		// enterMatchExpr): while one is active, a `return` inside a block arm yields
+		// the match's value instead of returning from the function. Empty in
+		// statement-context matches and reset in forked function bodies.
+		matchExprs           []*matchExprCtx
 		tryCatchIndex        int
 		iotaVal              int
 		opts                 CompileOptions
@@ -157,6 +162,15 @@ type (
 	loopStmts struct {
 		continues         []int
 		breaks            []int
+		lastTryCatchIndex int
+	}
+
+	// matchExprCtx tracks an expression-context match while its arms are
+	// compiled, so a `return <expr>` inside a block arm yields the match's value:
+	// it collects the jump positions to patch to the match's end, and remembers
+	// the try/catch nesting at entry so a yield across a try runs its finalizer.
+	matchExprCtx struct {
+		yields            []int
 		lastTryCatchIndex int
 	}
 )
@@ -658,13 +672,19 @@ func (c *Compiler) Compile(nd ast.Node) error {
 			return err
 		}
 	case *node.ExprStmt:
+		// A bare `match … { … }` statement is compiled in statement context
+		// (asExpr=false): a block arm's `return` is a normal function return, and
+		// the match's value is discarded. Every match now yields one value, so it
+		// is always popped.
+		if m, ok := nt.Expr.(*node.MatchExpr); ok {
+			if err := c.compileMatchExprAs(m, false); err != nil {
+				return err
+			}
+			c.emit(nt, OpPop)
+			break
+		}
 		if err := c.Compile(nt.Expr); err != nil {
 			return err
-		}
-		// a statement-form match leaves no value on the stack, so there is
-		// nothing to pop.
-		if m, ok := nt.Expr.(*node.MatchExpr); ok && m.IsStmt() {
-			break
 		}
 		c.emit(nt, OpPop)
 	case *node.FuncStmt:
@@ -699,7 +719,9 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.OrExpr:
 		return c.compileOrExpr(nt)
 	case *node.MatchExpr:
-		return c.compileMatchExpr(nt)
+		// value-used position (assignment RHS, argument, return value, …): a block
+		// arm's `return` yields the match's value.
+		return c.compileMatchExprAs(nt, true)
 	case *node.WithExpr:
 		return c.compileWithExpr(nt)
 	case *node.RegexLit:
@@ -1217,6 +1239,26 @@ func (c *Compiler) leaveLoop() {
 	}
 	c.loops = c.loops[:len(c.loops)-1]
 	c.loopIndex--
+}
+
+// enterMatchExpr pushes a match-return context (see matchExprCtx). Call only for
+// an expression-context match, so `return` in a block arm yields the match value.
+func (c *Compiler) enterMatchExpr() *matchExprCtx {
+	m := &matchExprCtx{lastTryCatchIndex: c.tryCatchIndex}
+	c.matchExprs = append(c.matchExprs, m)
+	return m
+}
+
+func (c *Compiler) leaveMatchExpr() {
+	c.matchExprs = c.matchExprs[:len(c.matchExprs)-1]
+}
+
+// currentMatchExpr returns the innermost active expression-context match, or nil.
+func (c *Compiler) currentMatchExpr() *matchExprCtx {
+	if n := len(c.matchExprs); n > 0 {
+		return c.matchExprs[n-1]
+	}
+	return nil
 }
 
 func (c *Compiler) currentLoop() *loopStmts {
