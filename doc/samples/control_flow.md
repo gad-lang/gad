@@ -133,14 +133,19 @@ matching result. The subject needs no parentheses. Each arm lists one or more
 conditions (matched against the subject with OR), followed by either `: value`
 (expression form) or a `{ … }` block (statement form). An optional `else` arm is
 the default; an empty match — or one with no matching arm and no `else` — yields
-`nil`. Because arm conditions are arbitrary expressions, `match true { … }`
-doubles as a clean multi-branch conditional.
+`nil`.
+
+**Subject-less `match { … }`** is sugar for `match true { … }`: with no subject,
+each arm's conditions are matched against `true`, so the first arm whose condition
+is truthy wins — a clean multi-branch conditional (Gad's `if/else if/else` as an
+expression). A `{` right after `match` always opens the arm block; to match
+against a dict-literal subject, parenthesize it (`match ({…}) { … }`).
 
 ```gad
 classify := func(n) {
-    // match true { … } as a multi-branch conditional: first matching arm wins,
-    // an arm may list several OR-conditions.
-    return match true {
+    // subject-less `match { … }` is `match true { … }`: the first truthy arm
+    // wins, and an arm may list several OR-conditions.
+    return match {
         n < 0:          "negative"
         n == 0:         "zero"
         n == 1, n == 2: "one or two"
@@ -151,6 +156,19 @@ classify := func(n) {
 for _, n in [-3, 0, 1, 4, 42] {
     println(#"{n} is {classify(n)}")
 }
+
+// Statement form: block arms (`cond { … }`) need no `:`, and the match runs for
+// effect. Here subject-less, as an if/else-if/else replacement.
+letter := func(score) {
+    label := ""
+    match {
+        score >= 90 { label = "A" }
+        score >= 80 { label = "B" }
+        else        { label = "C" }
+    }
+    return label
+}
+println("letter(95) =", letter(95)) // A
 ```
 
 The formatter keeps a match inline while it fits and switches to one arm per line
@@ -160,9 +178,9 @@ only when it overflows; see [Conventions](conventions.md).
 
 ```gad
 classify := func(n) {
-    // match true { … } as a multi-branch conditional: first matching arm wins,
-    // an arm may list several OR-conditions.
-    return match true {
+    // subject-less `match { … }` is `match true { … }`: the first truthy arm
+    // wins, and an arm may list several OR-conditions.
+    return match {
         n < 0:          "negative"
         n == 0:         "zero"
         n == 1, n == 2: "one or two"
@@ -173,6 +191,19 @@ classify := func(n) {
 for _, n in [-3, 0, 1, 4, 42] {
     println(#"{n} is {classify(n)}")
 }
+
+// Statement form: block arms (`cond { … }`) need no `:`, and the match runs for
+// effect. Here subject-less, as an if/else-if/else replacement.
+letter := func(score) {
+    label := ""
+    match {
+        score >= 90 { label = "A" }
+        score >= 80 { label = "B" }
+        else        { label = "C" }
+    }
+    return label
+}
+println("letter(95) =", letter(95)) // A
 
 /**
 Classic if / else if / else.

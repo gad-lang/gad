@@ -2923,11 +2923,29 @@ func (e *MatchExpr) IsStmt() bool {
 	return false
 }
 
+// header renders the `match ` or `match <subject> ` prefix, omitting the subject
+// for a subject-less `match { … }` (Expr == nil, sugar for `match true`).
+func (e *MatchExpr) header() string {
+	if e.Expr == nil {
+		return "match "
+	}
+	return "match " + e.Expr.String() + " "
+}
+
+// writeHeader writes the `match ` / `match <subject> ` prefix to ctx, omitting
+// the subject for a subject-less match (Expr == nil).
+func (e *MatchExpr) writeHeader(ctx *CodeWriteContext) {
+	ctx.WriteString("match ")
+	if e.Expr != nil {
+		e.Expr.WriteCode(ctx)
+		ctx.WriteString(" ")
+	}
+}
+
 func (e *MatchExpr) String() string {
 	var b strings.Builder
-	b.WriteString("match ")
-	b.WriteString(e.Expr.String())
-	b.WriteString(" {")
+	b.WriteString(e.header())
+	b.WriteString("{")
 	for i, a := range e.Arms {
 		if i > 0 {
 			b.WriteString(", ")
@@ -2968,9 +2986,8 @@ func (e *MatchExpr) wrap(ctx *CodeWriteContext) bool {
 // `match subj { a, b, else }`.
 func (e *MatchExpr) writeInline(ctx *CodeWriteContext) {
 	arms := e.orderedArms()
-	ctx.WriteString("match ")
-	e.Expr.WriteCode(ctx)
-	ctx.WriteString(" {")
+	e.writeHeader(ctx)
+	ctx.WriteString("{")
 	for i, a := range arms {
 		if i > 0 {
 			ctx.WriteString(",")
@@ -2989,9 +3006,8 @@ func (e *MatchExpr) writeInline(ctx *CodeWriteContext) {
 // greedily.
 func (e *MatchExpr) writeWrapped(ctx *CodeWriteContext) {
 	arms := e.orderedArms()
-	ctx.WriteString("match ")
-	e.Expr.WriteCode(ctx)
-	ctx.WriteString(" {")
+	e.writeHeader(ctx)
+	ctx.WriteString("{")
 	ctx.Depth++
 	for _, a := range arms {
 		ctx.WriteSemi() // newline + prefix

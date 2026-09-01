@@ -4223,6 +4223,18 @@ func TestParseMatchExpr(t *testing.T) {
 		`match a { 1, 2 { b = 1 }, else { b = 2 } }`)
 	// an empty match is valid
 	test.ExpectParseString(t, `x := match a {}`, `x := match a {}`)
+	// subject-less `match { … }` (sugar for `match true`) round-trips with no
+	// subject — the leading `{` is the arm block, not a dict subject.
+	test.ExpectParseString(t,
+		`x := match { b > 0: "pos", else: "neg" }`,
+		`x := match { (b > 0): "pos", else: "neg" }`)
+	test.ExpectParseString(t,
+		`match { c { d = 1 } else { d = 2 } }`,
+		`match { c { d = 1 }, else { d = 2 } }`)
+	// a dict-literal subject still works, parenthesized.
+	test.ExpectParseString(t,
+		`x := match ({a: 1}) { d: 1, else: "x" }`,
+		`x := match ({a: 1}) { d: 1, else: "x" }`)
 }
 
 func TestParseMatchExprError(t *testing.T) {

@@ -3764,8 +3764,18 @@ func (p *Parser) ParseMatchExpr() node.Expr {
 	// the subject no longer requires parentheses; `(subject)` still parses as a
 	// parenthesized expression. An expression never consumes a following `{`,
 	// so it terminates naturally at the match block.
-	subject := p.ParseExpr()
+	//
+	// `match { … }` — a `{` immediately after `match` means NO subject: it is
+	// sugar for `match true { … }`, so the arm conditions act as a multi-branch
+	// conditional (the first truthy arm wins). Expr stays nil; the compiler
+	// supplies `true`. To match against a dict-literal subject, parenthesize it:
+	// `match ({…}) { … }`.
 	p.SkipSpace()
+	var subject node.Expr
+	if p.Token.Token != token.LBrace {
+		subject = p.ParseExpr()
+		p.SkipSpace()
+	}
 	lbrace := p.Expect(token.LBrace)
 
 	m := &node.MatchExpr{MatchPos: matchPos, Expr: subject, LBrace: lbrace}

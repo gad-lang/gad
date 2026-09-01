@@ -212,9 +212,15 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 	c.symbolTable = c.symbolTable.Fork(true)
 	defer func() { c.symbolTable = c.symbolTable.Parent(false) }()
 
-	// evaluate the subject once into a temp local
-	if err := c.Compile(nd.Expr); err != nil {
-		return err
+	// evaluate the subject once into a temp local. A subject-less `match { … }`
+	// (nd.Expr == nil) defaults the subject to `true`, so each arm's conditions
+	// act as a multi-branch conditional.
+	if nd.Expr != nil {
+		if err := c.Compile(nd.Expr); err != nil {
+			return err
+		}
+	} else {
+		c.emit(nd, OpTrue)
 	}
 	subjectSym, _ := c.symbolTable.DefineLocal(":match")
 	c.emit(nd, OpDefineLocal, subjectSym.Index)
