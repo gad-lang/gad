@@ -1014,7 +1014,51 @@ func matchParen(s string, open int) int {
 // `**rest`) into a `;`, converting a gadx parameter list (positional and named
 // both comma-separated) into Gad syntax. The single-byte change preserves every
 // parameter's source position.
+// hasTopLevelSemicolon reports whether s contains a `;` outside any quotes or
+// brackets (the positional/named separator).
+func hasTopLevelSemicolon(s string) bool {
+	depth := 0
+	var quote byte
+	escaped := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			if depth > 0 {
+				depth--
+			}
+		case ';':
+			if depth == 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func gadxToGadParams(params string) string {
+	// If the params already carry a top-level `;`, they are already in Gad's
+	// `positional; named` shape — the named params after it are comma-separated in
+	// both dialects — so nothing needs translating. Inserting another `;` here
+	// would corrupt a `; a=1, b=2` list into the invalid `; a=1; b=2`.
+	if hasTopLevelSemicolon(params) {
+		return params
+	}
 	parts := splitTopLevelArgs(params)
 	namedIdx := -1
 	for i, p := range parts {

@@ -56,6 +56,29 @@ func TestDirectiveSignatureRender(t *testing.T) {
 			src:  "@comp greeting(name; greet = \"Hello\")\n    p {=greet}, {=name}\n@main\n    +greeting(\"Bob\")\n",
 			want: "<p>Hello, Bob</p>",
 		},
+		{
+			// Regression (#12): two or more named parameters were dropped whole,
+			// so the body could not resolve them.
+			name: "two named default params",
+			src:  "@comp opts(; a = 1, b = 2)\n    p {=a}-{=b}\n@main\n    +opts(; b = 9)\n",
+			want: "<p>1-9</p>",
+		},
+		{
+			name: "named params with positional and variadic",
+			src:  "@comp c(x; a = 1, b = 2)\n    p {=x}:{=a}:{=b}\n@main\n    +c(\"v\"; a = 8)\n",
+			want: "<p>v:8:2</p>",
+		},
+		{
+			name: "func with two named params",
+			src:  "@func f(; a = 1, b = 2)\n    | {=a + b}\n@main\n    +f(; a = 10, b = 20)\n",
+			want: "30",
+		},
+		{
+			// A `(…)` signature may span several lines (read until the closing `)`).
+			name: "multi-line signature",
+			src:  "@comp m(; a = 1\n    b = 2)\n    p {=a}-{=b}\n@main\n    +m(; a = 5)\n",
+			want: "<p>5-2</p>",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

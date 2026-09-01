@@ -1243,7 +1243,10 @@ func (s *scanner) scanFunc() gadparser.PToken {
 	// `[typeparams]`, `(params)` and `<return>`. It is validated and turned into a
 	// FuncType by the parser (via the Gad parser), so parameter types, type
 	// parameters and return types are all supported. sigoff records where the
-	// signature starts so its source positions are preserved.
+	// signature starts so its source positions are preserved. A `(…)`/`[…]`
+	// spanning several lines pulls the continuation lines in first.
+	s.extendBalancedSignature(i)
+	line = s.buffer
 	sig := strings.TrimRight(line[i:], " \t")
 	consumed := len(line)
 	lit := line[:consumed]
@@ -1255,6 +1258,62 @@ func (s *scanner) scanFunc() gadparser.PToken {
 	return pt
 }
 
+// extendBalancedSignature pulls continuation lines into s.buffer while the
+// directive signature starting at byte `from` has unbalanced `(`/`[` brackets, so
+// a `@comp`/`@func`/`@main` signature may span several lines. Source positions are
+// preserved: the original text (including the joining newlines) is kept verbatim
+// and s.offset tracks every byte read, exactly like scanBlockComment.
+func (s *scanner) extendBalancedSignature(from int) {
+	for s.sigOpenDepth(from) > 0 {
+		buf, err := s.reader.ReadString('\n')
+		if len(buf) == 0 {
+			break
+		}
+		s.offset += len(buf)
+		if buf[len(buf)-1] == '\n' {
+			buf = buf[:len(buf)-1]
+		}
+		s.buffer += "\n" + buf
+		if err != nil {
+			break
+		}
+	}
+}
+
+// sigOpenDepth returns the net `(`/`[` nesting depth of s.buffer[from:], ignoring
+// bracket characters inside quotes.
+func (s *scanner) sigOpenDepth(from int) int {
+	depth := 0
+	var quote byte
+	escaped := false
+	b := s.buffer
+	for i := from; i < len(b); i++ {
+		c := b[i]
+		if quote != 0 {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+		case '(', '[':
+			depth++
+		case ')', ']':
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+	return depth
+}
+
 func (s *scanner) scanComp() gadparser.PToken {
 	line := s.buffer
 	if strings.HasPrefix(line, "@main") {
@@ -1264,6 +1323,10 @@ func (s *scanner) scanComp() gadparser.PToken {
 		after := line[len("@main"):]
 		if after == "" || after[0] == ' ' || after[0] == '(' || after[0] == '[' {
 			i := len("@main") + (len(after) - len(strings.TrimLeft(after, " \t")))
+			// A `(…)`/`[…]` that opens on this line and closes on a later one pulls
+			// the continuation lines in first (positions preserved).
+			s.extendBalancedSignature(i)
+			line = s.buffer
 			sig := strings.TrimRight(line[i:], " \t")
 			consumed := len(line)
 			lit := line[:consumed]
@@ -1302,6 +1365,9 @@ func (s *scanner) scanComp() gadparser.PToken {
 	name := line[i:j]
 	// The signature is the name plus the rest of the line (optional
 	// `[typeparams]`, `(params)`, `<return>`), parsed by the parser (see scanFunc).
+	// A `(…)`/`[…]` spanning several lines pulls the continuation lines in first.
+	s.extendBalancedSignature(i)
+	line = s.buffer
 	sig := strings.TrimRight(line[i:], " \t")
 	consumed := len(line)
 	lit := line[:consumed]
