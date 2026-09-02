@@ -25,7 +25,7 @@ const compPrintLines = "@comp print_lines(rows)\n" +
 	"\t\t@slot line(i, line)\n" +
 	"\t\t\t~~\n" +
 	"\t\t\tconst custom = slots[\"line[\"+i+\"]\"]\n" +
-	"\t\t\ttag += (custom ? (*args) => custom(print_line, *args) : print_line)(i, line)\n" +
+	"\t\t\t$el += (custom ? (*args) => custom(print_line, *args) : print_line)(i, line)\n" +
 	"\t\t\t~~\n"
 
 // printLinesExpect renders tpl and asserts the trimmed output equals want.
@@ -75,7 +75,7 @@ func TestSlotParams_PrintLines(t *testing.T) {
 			"\t\t\t| line 1 {=\"\\n\"}\n"+
 			"\t\t@slot #\"line[{index}]\"(super, i, line)\n"+
 			"\t\t\t| line 3 @ \n"+
-			"\t\t\t~ tag += super(i, line)\n",
+			"\t\t\t~ $el += super(i, line)\n",
 		"0: a\nline 1 \n2: c\nline 3 @3: d")
 
 	// A per-index override that ignores `super` just declares its scope

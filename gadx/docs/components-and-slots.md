@@ -181,7 +181,7 @@ slot function builds and **returns an `Elements` fragment** (like a component):
 create it with `gadx.Elements()`, append content, and `return` it. Unlike `+super`,
 a raw `super(…)` call is not rewritten, so it must pass super's own super (an
 empty function) as its first argument; its returned fragment is appended with
-`tag += super(…)`. The component call's own result is appended with `tag += …`.
+`$el += super(…)`. The component call's own result is appended with `$el += …`.
 
 ```gadx
 @export comp list(items;slots={})
@@ -194,23 +194,23 @@ empty function) as its first argument; its returned fragment is appended with
 @main
     // render every row bold, ignoring the default
     ~~
-    tag += list(["a", "b"]; slots={
+    $el += list(["a", "b"]; slots={
         row: func(super, i, it) {
-            tag := gadx.Elements()
-            gadx.Text(tag, raw "<b>" + it + "</b>")
-            return tag
+            $el := gadx.Elements()
+            gadx.Text($el, raw "<b>" + it + "</b>")
+            return $el
         },
     })
     ~~
 
     // prefix each row, then render the default via super (scope forwarded)
     ~~
-    tag += list(["a", "b"]; slots={
+    $el += list(["a", "b"]; slots={
         row: func(super, i, it) {
-            tag := gadx.Elements()
-            gadx.Text(tag, raw "* ")
-            tag += super(func(*_){}, i, it)   // +super(i, it) sugars to this
-            return tag
+            $el := gadx.Elements()
+            gadx.Text($el, raw "* ")
+            $el += super(func(*_){}, i, it)   // +super(i, it) sugars to this
+            return $el
         },
     })
     ~~

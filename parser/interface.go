@@ -12,7 +12,7 @@ func (p *Parser) ParseInterfaceExpr() node.Expr {
 		defer untracep(tracep(p, "InterfaceExpr"))
 	}
 	doc := p.leadComment
-	tok := p.ExpectToken(token.Interface)
+	tok := p.expectContextualKeyword(token.Interface)
 	depth := p.parseInterfaceArrayDepth()
 	var name node.Expr
 	if p.Token.Token == token.Ident {
@@ -46,7 +46,7 @@ func (p *Parser) ParseInterfaceStmt() node.Stmt {
 		defer untracep(tracep(p, "InterfaceStmt"))
 	}
 	doc := p.leadComment
-	tok := p.ExpectToken(token.Interface)
+	tok := p.expectContextualKeyword(token.Interface)
 	depth := p.parseInterfaceArrayDepth()
 
 	var name node.Expr

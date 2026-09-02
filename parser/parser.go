@@ -1123,9 +1123,27 @@ func (p *Parser) ParseOperand() node.Expr {
 	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.Less {
 		return p.parseTypeUnionExpr()
 	}
-	// `type { … }` — an anonymous marker-type value (as in `const X = type { … }`).
-	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.LBrace {
-		return p.ParseStaticTypeExpr()
+	// `class { … }` / `mixin { … }` / `interface { … }` / `type { … }` — anonymous
+	// type literals. These are contextual keywords: only the immediate `{` (or `[`
+	// for interface's array form) makes them a literal; otherwise the bare word is
+	// an ordinary identifier value.
+	if p.Token.Token == token.Ident {
+		// interface may be named/array as a value (`interface Shape { … }`,
+		// `interface[] P`), so it uses the fuller start check.
+		if p.Token.Literal == "interface" {
+			if p.isInterfaceDeclStart() {
+				return p.ParseInterfaceExpr()
+			}
+		} else if p.Peek().Token == token.LBrace {
+			switch p.Token.Literal {
+			case "class":
+				return p.ParseClassExpr()
+			case "mixin":
+				return p.ParseMixinExpr()
+			case "type":
+				return p.ParseStaticTypeExpr()
+			}
+		}
 	}
 
 	if isPrimiteValue(p.Token.Token) {
@@ -1198,14 +1216,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParseFuncExpr()
 		case token.Prop: // property literal
 			return p.ParsePropExpr()
-		case token.Class: // class literal
-			return p.ParseClassExpr()
-		case token.Mixin: // mixin literal
-			return p.ParseMixinExpr()
 		case token.Enum: // enum literal
 			return p.ParseEnumExpr()
-		case token.Interface: // interface literal
-			return p.ParseInterfaceExpr()
 		case token.Less: // func-header value: `<()>`, `<(v int) <x int>>`
 			return p.ParseFuncHeaderExpr()
 		case token.Meti: // method interface: `meti { () }`
@@ -2574,7 +2586,7 @@ L:
 // types (e.g. `cb meti{(int)<float>}`).
 func (p *Parser) isTypeStart() bool {
 	switch p.Token.Token {
-	case token.Ident, token.Meti, token.Interface:
+	case token.Ident, token.Meti:
 		return true
 	case token.Method:
 		return p.Peek().Token == token.Less
@@ -2609,10 +2621,24 @@ func (p *Parser) isTypeUnionDeclStart() bool {
 	return p.PeekC(2)[1].Token == token.Less
 }
 
-// isStaticTypeDeclStart reports whether the current `type` identifier begins a
-// `type NAME { … }` or `type { … }` marker-type declaration (contextual: `type`
-// followed by `{`, or by a name and `{`).
-func (p *Parser) isStaticTypeDeclStart() bool {
+// isInterfaceDeclStart reports whether the current `interface` identifier begins
+// an interface literal — `interface { … }`, `interface NAME { … }`, or the
+// array form `interface[]… …` — as opposed to a plain `interface` identifier.
+func (p *Parser) isInterfaceDeclStart() bool {
+	switch next := p.Peek(); next.Token {
+	case token.LBrace, token.LBrack: // interface { … } / interface[]…
+		return true
+	case token.Ident:
+		return p.PeekC(2)[1].Token == token.LBrace
+	}
+	return false
+}
+
+// isDeclBodyStart reports whether the current contextual keyword (`class`,
+// `mixin` or `type`) begins a `{ … }`-body declaration — the keyword followed by
+// `{`, or by a NAME and `{` — as opposed to being an ordinary identifier (a
+// parameter name, a variable, a value).
+func (p *Parser) isDeclBodyStart() bool {
 	switch next := p.Peek(); next.Token {
 	case token.LBrace:
 		return true
@@ -2653,16 +2679,19 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 	switch p.Token.Token {
 	case token.Meti:
 		return &node.TypeExpr{Expr: p.ParseMethodInterfaceExpr()}
-	case token.Interface:
-		return &node.TypeExpr{Expr: p.ParseInterfaceExpr()}
 	case token.Method:
 		return &node.TypeExpr{Expr: p.parseMetShortcut()}
 	case token.Ident:
+		switch {
 		// `type<X>` in a parameter-type position is a meta type matching the type
 		// VALUE X (not an instance). At an expression position `type <…>` is a
 		// TypeUnion instead; here only the meta form is valid.
-		if p.Token.Literal == "type" && p.Peek().Token == token.Less {
+		case p.Token.Literal == "type" && p.Peek().Token == token.Less:
 			return &node.TypeExpr{Expr: p.parseMetaTypeExpr()}
+		// `interface { … }` / `interface[] P` — an interface type literal
+		// (`interface` is a contextual keyword; only `{`/`[` after it opens one).
+		case p.Token.Literal == "interface" && (p.Peek().Token == token.LBrace || p.Peek().Token == token.LBrack):
+			return &node.TypeExpr{Expr: p.ParseInterfaceExpr()}
 		}
 	}
 	return &node.TypeExpr{Expr: p.ParseSimpleSelectorExpr(p.ParseIdent())}
@@ -2747,10 +2776,30 @@ do:
 	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.isTypeUnionDeclStart() {
 		return p.parseTypeUnionDeclStmt()
 	}
-	// `type NAME { … }` / `type { … }` — a marker-type declaration. `type` is
-	// contextual (see isStaticTypeDeclStart).
-	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.isStaticTypeDeclStart() {
-		return p.ParseStaticTypeStmt()
+	// `class`/`mixin`/`interface`/`type [Name] { … }` — contextual declaration
+	// keywords. They introduce a declaration only in the `<kw> [Name] { … }` shape
+	// and are ordinary identifiers everywhere else (a parameter name, a variable,
+	// a value). (`type NAME <…>` — a union decl — is handled just above;
+	// `interface` also allows the array form `interface[] …`.)
+	if p.Token.Token == token.Ident {
+		switch p.Token.Literal {
+		case "class":
+			if p.isDeclBodyStart() {
+				return p.ParseClassStmt()
+			}
+		case "mixin":
+			if p.isDeclBodyStart() {
+				return p.ParseMixinStmt()
+			}
+		case "type":
+			if p.isDeclBodyStart() {
+				return p.ParseStaticTypeStmt()
+			}
+		case "interface":
+			if p.isInterfaceDeclStart() {
+				return p.ParseInterfaceStmt()
+			}
+		}
 	}
 	switch p.Token.Token {
 	case token.ConfigStart:
@@ -2794,14 +2843,8 @@ do:
 		return p.ParseFuncStmt()
 	case token.Prop:
 		return p.ParsePropStmt()
-	case token.Class:
-		return p.ParseClassStmt()
-	case token.Mixin:
-		return p.ParseMixinStmt()
 	case token.Enum:
 		return p.ParseEnumStmt()
-	case token.Interface:
-		return p.ParseInterfaceStmt()
 	case token.Meti:
 		return p.ParseMethodInterfaceStmt()
 	case // simple statements
@@ -4473,6 +4516,38 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 
 	p.SkipSpace()
 
+	// `export class/mixin/interface [Name] { … }` — contextual declaration
+	// keywords (ordinary identifiers otherwise, handled by the switch's default).
+	if p.Token.Token == token.Ident {
+		switch {
+		case (p.Token.Literal == "class" || p.Token.Literal == "mixin") && p.isDeclBodyStart():
+			kw := token.Class
+			if p.Token.Literal == "mixin" {
+				kw = token.Mixin
+			}
+			classTok := p.expectContextualKeyword(kw)
+			var name node.Expr
+			if p.Token.Token == token.Ident {
+				name = p.ParseIdent()
+			}
+			stmt.ValueExpr = p.parseClassBody(classTok, name)
+			return
+		case p.Token.Literal == "interface" && p.isInterfaceDeclStart():
+			ifaceTok := p.expectContextualKeyword(token.Interface)
+			depth := p.parseInterfaceArrayDepth()
+			var name node.Expr
+			if p.Token.Token == token.Ident {
+				name = p.ParseIdent()
+			}
+			iface := p.parseInterfaceBody(ifaceTok, name)
+			if iface != nil {
+				iface.ArrayDepth = depth
+			}
+			stmt.ValueExpr = iface
+			return
+		}
+	}
+
 	switch p.Token.Token {
 	case token.LBrack:
 		stmt.KeyExpr = p.ParseSingleParemExpr(token.LBrack, token.RBrack)
@@ -4501,13 +4576,6 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			stmt.ValueExpr = p.ParseExpr()
 		}
 		return
-	case token.Class, token.Mixin:
-		classTok := p.ExpectToken(p.Token.Token)
-		var name node.Expr
-		if p.Token.Token == token.Ident {
-			name = p.ParseIdent()
-		}
-		stmt.ValueExpr = p.parseClassBody(classTok, name)
 	case token.Enum:
 		enumTok := p.ExpectToken(token.Enum)
 		var name node.Expr
@@ -4515,13 +4583,6 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			name = p.ParseIdent()
 		}
 		stmt.ValueExpr = p.parseEnumBody(enumTok, name)
-	case token.Interface:
-		ifaceTok := p.ExpectToken(token.Interface)
-		var name node.Expr
-		if p.Token.Token == token.Ident {
-			name = p.ParseIdent()
-		}
-		stmt.ValueExpr = p.parseInterfaceBody(ifaceTok, name)
 	case token.Prop:
 		// export prop name { … } / => … exports a Prop under its name; member
 		// access on the module (m.name / m.name = x) then delegates to its
@@ -4725,6 +4786,18 @@ func (p *Parser) ExpectToken(token token.Token) (tok PToken) {
 	}
 	p.Next()
 	return
+}
+
+// expectContextualKeyword consumes the current token — a contextual keyword that
+// the scanner emits as an identifier (`class` / `mixin` / `interface`) — and
+// returns it as a PToken carrying kw, so downstream parsing that switches on the
+// token (e.g. parseClassBody distinguishing class from mixin) sees the keyword it
+// introduces. The caller has already checked the declaration shape.
+func (p *Parser) expectContextualKeyword(kw token.Token) PToken {
+	tok := p.Token
+	tok.Token = kw
+	p.Next()
+	return tok
 }
 
 func (p *Parser) ExpectSemi() {

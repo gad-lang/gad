@@ -2064,9 +2064,11 @@ d=#dVal,e=#(e val)
 	test.ExpectParseStringT(t, `(;[a=1],[("a"+"b")=4])`, `(;[a=1], [("a" + "b")=4])`, kva)
 
 	// keywords are accepted as bare keys (a name) in key positions.
-	test.ExpectParseString(t, `(;class=1, class, false, nil, met, meti, func, if, else)`,
-		`(;"class"=1, "class", "false", "nil", "met", "meti", "func", "if", "else")`)
-	test.ExpectParseString(t, `(;[class=1])`, `(;["class"=1])`)
+	// class/mixin/interface are contextual keywords (plain idents outside a
+	// declaration), so as bare keys they render unquoted like any name.
+	test.ExpectParseString(t, `(;false=1, false, nil, met, meti, func, if, else)`,
+		`(;"false"=1, "false", "nil", "met", "meti", "func", "if", "else")`)
+	test.ExpectParseString(t, `(;[class=1])`, `(;[class=1])`)
 }
 
 func TestParseKeywordKeys(t *testing.T) {
@@ -2075,8 +2077,10 @@ func TestParseKeywordKeys(t *testing.T) {
 	test.ExpectParseString(t, `x.class`, `x.class`)
 	test.ExpectParseString(t, `x.if.else`, `x.if.else`)
 	test.ExpectParseString(t, `d := {class: 1, else: 2, func: 3}`, `d := {class: 1, else: 2, func: 3}`)
-	test.ExpectParseString(t, `[class=1]`, `["class"=1]`)
-	test.ExpectParseString(t, `(;class=1, if, nil)`, `(;"class"=1, "if", "nil")`)
+	// if is a reserved keyword → quoted key; class is a contextual ident → bare.
+	test.ExpectParseString(t, `[if=1]`, `["if"=1]`)
+	test.ExpectParseString(t, `[class=1]`, `[class=1]`)
+	test.ExpectParseString(t, `(;class=1, if, nil)`, `(;class=1, "if", "nil")`)
 }
 
 func TestInterpolatedStringLit(t *testing.T) {

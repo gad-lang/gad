@@ -94,7 +94,7 @@ _, bc, err := gad.Compile(st, src, opts)
 ```
 
 `bc` is executable Gad bytecode. Give each independent template its own symbol
-table: a compiled template binds a root `tag` at the module top level, so a
+table: a compiled template binds a root `$el` at the module top level, so a
 symbol table cannot be reused across separate compiles.
 
 Register the Gadx builtins on the symbol table's builtins first

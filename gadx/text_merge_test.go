@@ -23,10 +23,10 @@ func codeOf(t *testing.T, src string) string {
 }
 
 // TestTextMergeBlock: a folded/literal text block coalesces its lines (literals
-// and their separators) into a single gadx.Text(tag, …) call.
+// and their separators) into a single gadx.Text($el, …) call.
 func TestTextMergeBlock(t *testing.T) {
 	code := codeOf(t, "@main\n    p\n        |>\n            one\n            two\n            three\n")
-	if want := `gadx.Text(tag, "one", " ", "two", " ", "three")`; !strings.Contains(code, want) {
+	if want := `gadx.Text($el, "one", " ", "two", " ", "three")`; !strings.Contains(code, want) {
 		t.Fatalf("folded block should merge into one Text call\n got: %s\nwant substring: %s", code, want)
 	}
 }
@@ -35,7 +35,7 @@ func TestTextMergeBlock(t *testing.T) {
 // interpolations into one gadx.Text call (multiple args).
 func TestTextMergeExprAndText(t *testing.T) {
 	code := codeOf(t, "@global a\n@global b\n@main\n    p\n        | x {= a } y {= b } z\n")
-	if want := `gadx.Text(tag, "x ", a, " y ", b, " z")`; !strings.Contains(code, want) {
+	if want := `gadx.Text($el, "x ", a, " y ", b, " z")`; !strings.Contains(code, want) {
 		t.Fatalf("text+expr should merge into one Text call\n got: %s\nwant substring: %s", code, want)
 	}
 }
@@ -44,7 +44,7 @@ func TestTextMergeExprAndText(t *testing.T) {
 // merged Text call and is emitted on its own, then merging resumes.
 func TestTextMergeControlSplits(t *testing.T) {
 	code := codeOf(t, "@global a\n@main\n    p\n        | x {= a }\n        { a }\n        | z {= a }\n")
-	for _, want := range []string{`gadx.Text(tag, "x ", a`, `gadx.Text(tag, "z ", a)`} {
+	for _, want := range []string{`gadx.Text($el, "x ", a`, `gadx.Text($el, "z ", a)`} {
 		if !strings.Contains(code, want) {
 			t.Fatalf("control should split the merged Text calls\n got: %s\nwant substring: %s", code, want)
 		}

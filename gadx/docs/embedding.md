@@ -57,7 +57,7 @@ does this for you.
 
 ## Compiling Several Templates
 
-Give each template its own symbol table: a compiled template binds a root `tag`
+Give each template its own symbol table: a compiled template binds a root `$el`
 at the module top level, so a symbol table is not shared across independent
 compiles.
 

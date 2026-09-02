@@ -11,7 +11,7 @@ function builds a fragment tag and returns it: create it with `gadx.Tag()`,
 append content, and `return` it. The template sugar forwards super for you —
 a raw call passes it by hand, so `super(…)` must supply super's own super (an
 empty function) as its first argument. Append the component's own result with
-`tag += …`.
+`$el += …`.
 **/
 
 @export comp box(; slots={})
@@ -28,8 +28,8 @@ empty function) as its first argument. Append the component's own result with
 
 @main
 	// 1) equivalent to: +box { @slot #main { b hi; +super } }
-	~ tag += box(; slots={ main(super) {tag := gadx.Tag(); gadx.Text(tag, raw "<b>hi</b>"); tag += super(func(*_) {}); return tag} })
+	~ $el += box(; slots={ main(super) {$el := gadx.Tag(); gadx.Text($el, raw "<b>hi</b>"); $el += super(func(*_) {}); return $el} })
 	// 2) a scoped slot, ignoring super — receives (super, i, it)
-	~ tag += list(["a", "b"]; slots={ row(super, i, it) {tag := gadx.Tag(); gadx.Text(tag, ((raw "<b>" + it) + "</b>")); return tag} })
+	~ $el += list(["a", "b"]; slots={ row(super, i, it) {$el := gadx.Tag(); gadx.Text($el, ((raw "<b>" + it) + "</b>")); return $el} })
 	// 3) a scoped slot forwarding the scope to super: super(empty, i, it)
-	~ tag += list(["a", "b"]; slots={ row(super, i, it) {tag := gadx.Tag(); gadx.Text(tag, raw "* "); tag += super(func(*_) {}, i, it); return tag} })
+	~ $el += list(["a", "b"]; slots={ row(super, i, it) {$el := gadx.Tag(); gadx.Text($el, raw "* "); $el += super(func(*_) {}, i, it); return $el} })

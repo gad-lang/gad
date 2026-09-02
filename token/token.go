@@ -766,6 +766,16 @@ func Unassign(tok Token) Token {
 func init() {
 	keywords = make(map[string]Token)
 	for i := GroupKeywordBegin + 1; i < GroupKeywordEnd; i++ {
+		// Class, Mixin and Interface are CONTEXTUAL keywords: they introduce a
+		// declaration only in `class`/`mixin`/`interface [Name] { … }` (or the
+		// literal/type forms), and are ordinary identifiers everywhere else — as a
+		// parameter name, a variable, a selector, a value. The parser detects the
+		// declaration shape; the scanner scans the bare word as an identifier. (The
+		// tokens still exist for the parser's own use and for token stringing.)
+		switch i {
+		case Class, Mixin, Interface:
+			continue
+		}
 		keywords[tokens[i]] = i
 	}
 }

@@ -37,21 +37,21 @@ func TestSlotProgrammatic(t *testing.T) {
 			// A raw super() call must supply super's own super (an empty fn).
 			name: "main slot with super",
 			src: box + "@main\n" +
-				"    ~ tag += box(; slots={main: func(super) { tag := gadx.Elements(); gadx.Text(tag, raw \"<b>hi</b>\"); tag += super(func(*_){}); return tag }})\n",
+				"    ~ $el += box(; slots={main: func(super) { $el := gadx.Elements(); gadx.Text($el, raw \"<b>hi</b>\"); $el += super(func(*_){}); return $el }})\n",
 			want: `<div><b>hi</b><span>default</span></div>`,
 		},
 		{
 			// A scoped slot: super is first, then the slot's (i, it) scope.
 			name: "scoped slot ignoring super",
 			src: list + "@main\n" +
-				"    ~ tag += list([\"a\", \"b\"]; slots={row: func(super, i, it) { tag := gadx.Elements(); gadx.Text(tag, raw \"<b>\"+it+\"</b>\"); return tag }})\n",
+				"    ~ $el += list([\"a\", \"b\"]; slots={row: func(super, i, it) { $el := gadx.Elements(); gadx.Text($el, raw \"<b>\"+it+\"</b>\"); return $el }})\n",
 			want: `<ul><li><b>a</b></li><li><b>b</b></li></ul>`,
 		},
 		{
 			// Forward the scope to super: super(super_of_super, i, it).
 			name: "scoped slot forwarding super",
 			src: list + "@main\n" +
-				"    ~ tag += list([\"a\", \"b\"]; slots={row: func(super, i, it) { tag := gadx.Elements(); gadx.Text(tag, raw \"* \"); tag += super(func(*_){}, i, it); return tag }})\n",
+				"    ~ $el += list([\"a\", \"b\"]; slots={row: func(super, i, it) { $el := gadx.Elements(); gadx.Text($el, raw \"* \"); $el += super(func(*_){}, i, it); return $el }})\n",
 			want: `<ul><li>* 0: a</li><li>* 1: b</li></ul>`,
 		},
 	}

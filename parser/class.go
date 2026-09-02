@@ -12,7 +12,7 @@ func (p *Parser) ParseClassExpr() node.Expr {
 		defer untracep(tracep(p, "TypeLitExpr"))
 	}
 	doc := p.leadComment
-	classTok := p.ExpectToken(token.Class)
+	classTok := p.expectContextualKeyword(token.Class)
 	cls := p.parseClassBody(classTok, nil)
 	if cls != nil {
 		cls.Doc = doc
@@ -28,7 +28,7 @@ func (p *Parser) ParseClassStmt() node.Stmt {
 		defer untracep(tracep(p, "TypeDeclStmt"))
 	}
 	doc := p.leadComment
-	classTok := p.ExpectToken(token.Class)
+	classTok := p.expectContextualKeyword(token.Class)
 
 	var name node.Expr
 	if p.Token.Token == token.Ident {
@@ -55,7 +55,7 @@ func (p *Parser) ParseMixinExpr() node.Expr {
 		defer untracep(tracep(p, "MixinExpr"))
 	}
 	doc := p.leadComment
-	tok := p.ExpectToken(token.Mixin)
+	tok := p.expectContextualKeyword(token.Mixin)
 	cls := p.parseClassBody(tok, nil)
 	if cls != nil {
 		cls.Doc = doc
@@ -70,7 +70,7 @@ func (p *Parser) ParseMixinStmt() node.Stmt {
 		defer untracep(tracep(p, "MixinStmt"))
 	}
 	doc := p.leadComment
-	tok := p.ExpectToken(token.Mixin)
+	tok := p.expectContextualKeyword(token.Mixin)
 	var name node.Expr
 	if p.Token.Token == token.Ident {
 		name = p.ParseIdent()

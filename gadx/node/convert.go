@@ -103,9 +103,11 @@ func funcExpr(params *gnode.FuncParams, body gnode.Stmts, pos, end source.Pos) *
 
 // tagVar is the identifier that always names the current parent node in scope
 // (a tag or the root Elements fragment). Each tag/fragment opens a block that
-// rebinds `tag` (via `:=`) to itself, so nested content appends to it while
-// sibling content sees the outer node.
-const tagVar = "tag"
+// rebinds `$el` (via `:=`) to itself, so nested content appends to it while
+// sibling content sees the outer node. The `$` prefix keeps it out of the user
+// identifier space, so a component parameter named `tag` no longer shadows it
+// (which previously sent rendering into infinite recursion).
+const tagVar = "$el"
 
 func tagIdent(pos source.Pos) *gnode.IdentExpr { return gnode.EIdent(tagVar, pos) }
 
