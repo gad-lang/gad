@@ -22,12 +22,16 @@ import (
 ## A Minimal Template
 
 ```gadx
+@global (; Name = "Gadx")
+
 @main
     p Hello {= Name}
 ```
 
 The template renders one paragraph. `{= Name}` writes the value of the `Name`
-global.
+global; `@global (; Name = "Gadx")` declares it with a default so the template
+renders on its own (`gad run minimal.gadx`). A host can supply or override the
+value from Go — see below.
 
 Expected output:
 
@@ -86,12 +90,17 @@ templates/
 `index.gadx`:
 
 ```gadx
-@import "components.gadx"
+@import { page } from "components.gadx"
 
 @main
     +page("Home")
         h1 {= Model.Title}
 ```
+
+`@import { page } from "components.gadx"` brings the exported `page` component
+into scope so `+page(…)` can call it. Other forms are `@import "…" as ns` (call
+as `+ns.page(…)`) and a bare `@import "…"` (runs the module for its side
+effects only, without binding its exports).
 
 `@import` lines are resolved automatically during compilation by the file
 importer (`github.com/gad-lang/gad/importers.FileImporter`), which compiles
