@@ -225,12 +225,45 @@ test("`:::` is one operator token (not `::` + `:`)", () => {
   expect(tokenize("x := a :: T").find((t) => t.text === "::")).toBeDefined();
 });
 
-test("`mixin` is a control keyword and `Mixin` a builtin", () => {
-  // `mixin` is a reserved keyword; `Mixin` is the global builtin it lowers to.
+test("`mixin` is a control keyword in decl position and `Mixin` a builtin", () => {
+  // `mixin` is contextual: a keyword only before a `{ … }` body; `Mixin` is the
+  // global builtin it lowers to.
   expect(scopesOf("mixin A {}", "mixin").some((s) => s.includes("keyword.control.gad"))).toBe(true);
   expect(scopesOf("M := Mixin(\"A\")", "Mixin").some((s) => s.includes("support.function.gad"))).toBe(true);
   // `use` is a contextual identifier (not reserved), so no `use` token is ever
   // scoped as a control keyword (it is absent from the grammar's keyword list).
   const useToks = tokenize("class C { use A }").filter((t) => t.text.trim() === "use");
   expect(useToks.every((t) => !t.scopes.some((s) => s.includes("keyword.control.gad")))).toBe(true);
+});
+
+/**
+ * True when `needle` falls inside a `keyword.control`-scoped token. Plain
+ * identifiers carry no scope, so vscode-textmate merges them with the
+ * surrounding text into one unscoped token (e.g. `f(class)` is a single token);
+ * checking scope containment works whether or not the keyword is its own token.
+ */
+function isKeyword(line: string, needle: string): boolean {
+  return tokenize(line).some(
+    (t) => t.text.includes(needle) && t.scopes.some((s) => s.includes("keyword.control.gad")),
+  );
+}
+
+test("class/mixin/interface are contextual: keywords only in declaration position", () => {
+  // Declaration position → keyword.
+  expect(isKeyword("class {}", "class")).toBe(true);
+  expect(isKeyword("C := class Point {}", "class")).toBe(true);
+  expect(isKeyword("mixin {}", "mixin")).toBe(true);
+  expect(isKeyword("mixin M {}", "mixin")).toBe(true);
+  expect(isKeyword("interface {}", "interface")).toBe(true);
+  expect(isKeyword("I := interface Shape {}", "interface")).toBe(true);
+  // `interface[]` array form also counts as a declaration.
+  expect(isKeyword("interface[] Points {}", "interface")).toBe(true);
+
+  // Identifier position (parameter, selector, dict key, variable) → NOT a keyword.
+  expect(isKeyword("f(class)", "class")).toBe(false);
+  expect(isKeyword("x.mixin", "mixin")).toBe(false);
+  expect(isKeyword("d := {interface: 1}", "interface")).toBe(false);
+  expect(isKeyword("class := 1", "class")).toBe(false);
+  // A bare reference with no following `{` is just an identifier.
+  expect(isKeyword("return class", "class")).toBe(false);
 });

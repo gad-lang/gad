@@ -52,6 +52,21 @@ func wordRegex(words []string) string {
 func TextMateGrammar() ([]byte, error) {
 	lang := Extract()
 
+	// class/mixin/interface are CONTEXTUAL keywords: the parser reserves them
+	// only in declaration position (`class [NAME] {`, `mixin [NAME] {`,
+	// `interface {`/`[`/`NAME {`) and treats them as ordinary identifiers
+	// everywhere else (parameter names, variables, keys). Pull them out of the
+	// general keyword rule and highlight them as keywords only when a
+	// declaration body follows (mirroring isDeclBodyStart / isInterfaceDeclStart),
+	// so `fn(class)`, `x.mixin`, `{interface: 1}` stay un-keyworded.
+	contextualDecl := map[string]bool{"class": true, "mixin": true, "interface": true}
+	plainKeywords := make([]string, 0, len(lang.Keywords))
+	for _, k := range lang.Keywords {
+		if !contextualDecl[k] {
+			plainKeywords = append(plainKeywords, k)
+		}
+	}
+
 	repo := map[string]tmRule{
 		"comments": {Patterns: []tmRule{
 			// Doc comments first so `/**`/`/***`/`///` are not read as ordinary
@@ -169,7 +184,11 @@ func TextMateGrammar() ([]byte, error) {
 			{Name: "constant.numeric.gad", Match: `\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][-+]?\d+)?[uUdD]?\b`},
 		}},
 		"keywords": {Patterns: []tmRule{
-			{Name: "keyword.control.gad", Match: wordRegex(lang.Keywords)},
+			{Name: "keyword.control.gad", Match: wordRegex(plainKeywords)},
+			// Contextual declaration keywords: `class`/`mixin` before `{` or a
+			// `NAME {` body, `interface` also before `[` (the `interface[]` form).
+			{Name: "keyword.control.gad", Match: `\b(?:class|mixin)\b(?=\s*\{|\s+[A-Za-z_]\w*\s*\{)`},
+			{Name: "keyword.control.gad", Match: `\binterface\b(?=\s*[\{\[]|\s+[A-Za-z_]\w*\s*\{)`},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Atoms)},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Constants)},
 			{Name: "support.function.gad", Match: wordRegex(lang.Builtins)},
