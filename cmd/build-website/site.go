@@ -64,15 +64,6 @@ func (c siteConfig) releaseURL() string {
 	return c.RepoURL + "/releases/latest"
 }
 
-// assetURL returns the download URL of a release asset for the known tag; when
-// no tag is known it points at the latest release's asset by name.
-func (c siteConfig) assetURL(name string) string {
-	if c.hasRelease() {
-		return c.RepoURL + "/releases/download/" + c.ReleaseTag + "/" + name
-	}
-	return c.RepoURL + "/releases/latest/download/" + name
-}
-
 // page is one rendered documentation page.
 type page struct {
 	Slug     string
@@ -744,16 +735,16 @@ func plainText(src string) string {
 
 // downloadAsset is one row of the Download page's asset table.
 type downloadAsset struct {
-	label string // human label, e.g. "Linux (amd64)"
-	name  string // file name, e.g. gad_1.2.3_linux_amd64.tar.gz
+	label string // file name / human label, e.g. "gad.wasm"
 	url   string // download URL
 	desc  string // short description
 	local bool   // served directly from the site (download attribute)
 }
 
 // downloadBody renders the Download page: a highlighted release banner, the
-// release notes, and a table of downloadable assets (CLI binaries for
-// linux/windows on amd64/arm64, both WASM modules, and checksums).
+// release notes, a link to the GitHub release page for the CLI archives (whose
+// names embed the version, so there is no stable "latest" asset URL), and the
+// site-hosted WASM modules.
 func downloadBody(cfg siteConfig) template.HTML {
 	var b strings.Builder
 
@@ -782,52 +773,32 @@ func downloadBody(cfg siteConfig) template.HTML {
 		b.WriteString(`</section>`)
 	}
 
-	ver := strings.TrimPrefix(cfg.ReleaseTag, "v")
-	archiveName := func(goos, arch string) string {
-		ext := "tar.gz"
-		if goos == "windows" {
-			ext = "zip"
-		}
-		return fmt.Sprintf("gad_%s_%s_%s.%s", ver, goos, arch, ext)
-	}
-
-	// CLI binaries (goreleaser archives). Names include the version only when a
-	// release tag is known; otherwise the "latest/download/<name>" URL resolves
-	// server-side, so we still show a stable label.
-	bins := []struct{ label, goos, arch, desc string }{
-		{"Linux (amd64)", "linux", "amd64", "64-bit Intel/AMD Linux"},
-		{"Linux (arm64)", "linux", "arm64", "64-bit ARM Linux"},
-		{"Windows (amd64)", "windows", "amd64", "64-bit Intel/AMD Windows"},
-		{"Windows (arm64)", "windows", "arm64", "64-bit ARM Windows"},
-	}
-	var assets []downloadAsset
-	for _, bn := range bins {
-		name := archiveName(bn.goos, bn.arch)
-		assets = append(assets, downloadAsset{label: bn.label, name: name, url: cfg.assetURL(name), desc: bn.desc})
-	}
-	// WebAssembly module — served directly from the site (it is built into the
-	// output dir), so it downloads even without a published release.
-	assets = append(assets,
-		downloadAsset{label: "WebAssembly", name: "gad.wasm", url: "gad.wasm", desc: "Browser/WASM module (run, format, diagnostics and the gadDebug* debugger)", local: true},
-	)
+	// CLI binaries are goreleaser archives whose names embed the version
+	// (gad_<version>_<os>_<arch>.tar.gz|zip). GitHub exposes no
+	// version-independent "latest" asset URL for them, so rather than emit a
+	// per-file link that breaks whenever the version changes, the CLI download
+	// points at the release page, which always lists the newest assets.
+	relLabel := "latest"
 	if cfg.hasRelease() {
-		assets = append(assets, downloadAsset{label: "Checksums", name: "checksums.txt", url: cfg.assetURL("checksums.txt"), desc: "SHA-256 checksums of the release assets"})
+		relLabel = cfg.releaseName()
 	}
+	b.WriteString(`<h2>CLI</h2>`)
+	b.WriteString(`<p>Prebuilt <code>gad</code> archives for Linux and Windows (amd64 and arm64), plus SHA-256 checksums, are attached to every release. Pick the one for your platform on the release page:</p>`)
+	fmt.Fprintf(&b, `<p class="dl-cta"><a href="%s">Download from the %s release on GitHub &rarr;</a></p>`,
+		template.HTMLEscapeString(cfg.releaseURL()), template.HTMLEscapeString(relLabel))
 
-	b.WriteString(`<h2>Assets</h2><div class="dl-table"><table><thead><tr><th>Platform</th><th>File</th><th>Description</th></tr></thead><tbody>`)
-	for _, a := range assets {
-		dl := ""
-		if a.local {
-			dl = ` download`
-		}
-		fmt.Fprintf(&b, `<tr><td>%s</td><td><a href="%s"%s><code>%s</code></a></td><td>%s</td></tr>`,
-			template.HTMLEscapeString(a.label), template.HTMLEscapeString(a.url), dl,
-			template.HTMLEscapeString(a.name), template.HTMLEscapeString(a.desc))
+	// WebAssembly modules — served directly from the site (built into the output
+	// dir), so they download even without a published release.
+	wasm := []downloadAsset{
+		{label: "gad.wasm", url: "gad.wasm", desc: "Browser/WASM module (run, format, diagnostics and the gadDebug* debugger)", local: true},
+		{label: "wasm_exec.js", url: "wasm_exec.js", desc: "Go's WASM loader; must match the toolchain the module was built with", local: true},
+	}
+	b.WriteString(`<h2>WebAssembly</h2><div class="dl-table"><table><thead><tr><th>File</th><th>Description</th></tr></thead><tbody>`)
+	for _, a := range wasm {
+		fmt.Fprintf(&b, `<tr><td><a href="%s" download><code>%s</code></a></td><td>%s</td></tr>`,
+			template.HTMLEscapeString(a.url), template.HTMLEscapeString(a.label), template.HTMLEscapeString(a.desc))
 	}
 	b.WriteString(`</tbody></table></div>`)
-
-	fmt.Fprintf(&b, `<p class="muted">All release assets are on the <a href="%s">GitHub releases page</a>.</p>`,
-		template.HTMLEscapeString(cfg.releaseURL()))
 
 	return template.HTML(b.String())
 }
