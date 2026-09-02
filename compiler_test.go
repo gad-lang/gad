@@ -693,13 +693,16 @@ func TestCompiler_CompileImportCompilableModule(t *testing.T) {
 			ModuleMap: moduleMap,
 		}},
 		bytecode(
-			// Exports collected into one dict + OpExtendModule per module reorders
-			// the shared constants (dict keys are added before their values).
+			// `export a = …` / `export b = …` now declare a module local (prelude)
+			// and export its name, so each module's init defines the locals first,
+			// then the export dict references them. Exports still merge into one dict
+			// + OpExtendModule per module, and the shared-constant pool reorders as
+			// the prelude values are emitted before the dict keys.
 			Array{
-				Str("a"),
 				Int(1),
-				Str("b"),
+				Str("a"),
 				Int(2),
+				Str("b"),
 			},
 			compFunc(concatInsts(
 				makeInst(OpLoadModule, 1),
@@ -712,29 +715,35 @@ func TestCompiler_CompileImportCompilableModule(t *testing.T) {
 				b.Compiled("cmod", compFunc(concatInsts(
 					makeInst(OpLoadModule, 2),
 					makeInst(OpJumpFalsy, 12),
-					makeInst(OpConstant, 1), // import arg 1
+					makeInst(OpConstant, 0), // import arg 1
 					makeInst(OpInitModule, 1, 0),
-					makeInst(OpDefineLocal, 0),
-					makeInst(OpConstant, 0), // "a" key
-					makeInst(OpGetLocal, 0), // mod
-					makeInst(OpConstant, 0), // "a" (mod.a)
+					makeInst(OpDefineLocal, 0), // mod
+					makeInst(OpGetLocal, 0),    // mod
+					makeInst(OpConstant, 1),    // "a" (mod.a)
 					makeInst(OpGetIndex, 1),
-					makeInst(OpConstant, 2), // "b" key
-					makeInst(OpConstant, 3), // 2
+					makeInst(OpDefineLocal, 1), // var a = mod.a
+					makeInst(OpConstant, 2),    // 2
+					makeInst(OpDefineLocal, 2), // var b = 2
+					makeInst(OpConstant, 1),    // "a" key
+					makeInst(OpGetLocal, 1),    // a
+					makeInst(OpConstant, 3),    // "b" key
+					makeInst(OpGetLocal, 2),    // b
 					makeInst(OpDict, 4),
 					makeInst(OpExtendModule),
 					makeInst(OpPop),
 					makeInst(OpReturn, 0),
-				), funcLocals(1)))
+				), funcLocals(3)))
 
 				b.Compiled("mod", compFunc(concatInsts(
-					makeInst(OpConstant, 0), // "a" key
-					makeInst(OpConstant, 1), // 1
+					makeInst(OpConstant, 0),    // 1
+					makeInst(OpDefineLocal, 0), // var a = 1
+					makeInst(OpConstant, 1),    // "a" key
+					makeInst(OpGetLocal, 0),    // a
 					makeInst(OpDict, 2),
 					makeInst(OpExtendModule),
 					makeInst(OpPop),
 					makeInst(OpReturn, 0),
-				), funcName("#main")))
+				), funcName("#main"), funcLocals(1)))
 			}),
 		),
 	)
@@ -881,14 +890,16 @@ func TestCompiler_Export(t *testing.T) {
 	// Exports are compiled for importable (non-main) modules; the main module
 	// ignores them (see TestCompiler_ExportMainIgnored).
 	// all local variables are initialized as nil
+	// `export b = 2` now declares a module local `b` (prelude) and exports its
+	// name, so it lowers to DEFINELOCAL + GETLOCAL like `b := 2; export b`. The
+	// func-declaration export forms (`export c(){…}`, `export func d(){…}`,
+	// `export e() => …`) likewise desugar to `func …; export name`; their runtime
+	// result (module dict of func-with-methods) is asserted by TestVMExport.
 	expectCompileModule(t, `
 var @exports
 const a = 1
 export a
 export b = 2
-export c(){return 3}
-export func d(){return 3}
-export e() => 4
 export {f:5, g:6}
 export [2**3] = 7
 `, bytecode(
@@ -896,61 +907,41 @@ export [2**3] = 7
 		// with one OpExtendModule (emitted after the last export statement).
 		Array{
 			Int(1),
+			Int(2),
 			Str("a"),
 			Str("b"),
-			Int(2),
-			Str("c"),
-			Int(3),
-			compFunc(concatInsts(
-				makeInst(OpConstant, 5),
-				makeInst(OpReturn, 1),
-			), funcName("c")),
-			Str("d"),
-			compFunc(concatInsts(
-				makeInst(OpConstant, 5),
-				makeInst(OpReturn, 1),
-			), funcName("d")),
-			Str("e"),
-			Int(4),
-			compFunc(concatInsts(
-				makeInst(OpConstant, 10),
-				makeInst(OpReturn, 1),
-			), funcName("e")),
 			Str("f"),
 			Int(5),
 			Str("g"),
 			Int(6),
+			Int(3),
 			Int(7),
 		},
 		compFunc(concatInsts(
 			makeInst(OpNil),
-			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 0),
-			makeInst(OpDefineLocal, 1),
-			makeInst(OpConstant, 1),  // "a"
-			makeInst(OpGetLocal, 1),  // a
-			makeInst(OpConstant, 2),  // "b"
-			makeInst(OpConstant, 3),  // 2
-			makeInst(OpConstant, 4),  // "c"
-			makeInst(OpConstant, 6),  // func c
-			makeInst(OpConstant, 7),  // "d"
-			makeInst(OpConstant, 8),  // func d
-			makeInst(OpConstant, 9),  // "e"
-			makeInst(OpConstant, 11), // func e
-			makeInst(OpConstant, 12), // "f"
-			makeInst(OpConstant, 13), // 5
-			makeInst(OpConstant, 14), // "g"
-			makeInst(OpConstant, 15), // 6
-			makeInst(OpConstant, 3),  // 2 (key 2**3)
-			makeInst(OpConstant, 5),  // 3
+			makeInst(OpDefineLocal, 0), // @exports
+			makeInst(OpConstant, 0),    // 1
+			makeInst(OpDefineLocal, 1), // const a
+			makeInst(OpConstant, 1),    // 2
+			makeInst(OpDefineLocal, 2), // var b = 2 (export prelude)
+			makeInst(OpConstant, 2),    // "a"
+			makeInst(OpGetLocal, 1),    // a
+			makeInst(OpConstant, 3),    // "b"
+			makeInst(OpGetLocal, 2),    // b
+			makeInst(OpConstant, 4),    // "f"
+			makeInst(OpConstant, 5),    // 5
+			makeInst(OpConstant, 6),    // "g"
+			makeInst(OpConstant, 7),    // 6
+			makeInst(OpConstant, 1),    // 2 (key 2**3 base)
+			makeInst(OpConstant, 8),    // 3
 			makeInst(OpBinary, int(token.Pow)),
-			makeInst(OpConstant, 16), // 7
-			makeInst(OpDict, 16),
+			makeInst(OpConstant, 9), // 7
+			makeInst(OpDict, 10),
 			makeInst(OpExtendModule),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		),
-			funcLocals(2),
+			funcLocals(3),
 		),
 	))
 }

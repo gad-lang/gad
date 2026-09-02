@@ -5228,6 +5228,21 @@ export (cfn())
 export (import("abc"))`)
 }
 
+func TestParseExportTypeDecls(t *testing.T) {
+	// export of contextual declaration keywords (closes #14). Each declares a
+	// module-local binding and exports its name; the source round-trips to the
+	// same `export <decl>` surface form.
+	test.ExpectParseString(t, `export class Point { x = 0 }`, `export class Point {x = 0}`)
+	test.ExpectParseString(t, `export mixin M { count = 0 }`, `export mixin M {count = 0}`)
+	test.ExpectParseString(t, `export interface I { f() }`, `export interface I {f(); }`)
+	test.ExpectParseString(t, `export type T { a }`, `export type T {a}`)
+	test.ExpectParseString(t, `export type U <int|str>`, `export type U <int|str>`)
+	// class/mixin/interface/type stay ordinary identifiers when exported as a
+	// plain name (no declaration body follows).
+	test.ExpectParseString(t, `export class`, `export class`)
+	test.ExpectParseString(t, `export type = 1`, `export type = 1`)
+}
+
 type pfn = test.Pfn               // position conversion function
 type expectedFn = test.ExpectedFn // callback function to return expected results
 

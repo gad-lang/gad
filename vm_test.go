@@ -5627,16 +5627,45 @@ export e(v bool|int) => 4
 export {f:5, g:6}
 export [2**3] = 7
 `),
+		// `export c(){…}` / `export func d(){…}` / `export e(…) => …` now behave
+		// like `func …; export name`, so the exported value is the module-level
+		// func (a func-with-methods), matching a plain declaration.
 		Str(`{
 	8: 7,
 	a: 1,
 	b: 2,
-	c: ‹compiledFunction: mod.c()›,
-	d: ‹compiledFunction: mod.d()›,
-	e: ‹compiledFunction: mod.e(v bool|int)›,
+	c: ‹func ‹mod.c› with 1 methods›,
+	d: ‹func ‹mod.d› with 1 methods›,
+	e: ‹func ‹mod.e› with 2 methods›,
 	f: 5,
 	g: 6
 }`))
+}
+
+func TestVMExportTypeDecls(t *testing.T) {
+	// `export class/mixin/interface/type Name { … }` and `export type Name <…>`
+	// export the declaration under its own name (closes #14).
+	mod := `
+export class Point { x = 0; y = 0 }
+export mixin Counter { count = 0; methods { inc() { this.count += 1 } } }
+export interface HasF { f() }
+export type Marker { a }
+export type Num <int|uint>
+`
+	testExpectRun(t,
+		`mod := import("mod")
+return [typeName(mod.Point), typeName(mod.Counter), typeName(mod.HasF), typeName(mod.Marker), typeName(mod.Num)]`,
+		newOpts().Module("mod", mod),
+		Array{Str("Class"), Str("Mixin"), Str("Interface"), Str("staticType"), Str("typeUnion")})
+
+	// The exported class is instantiable and the exported union works in a cast.
+	testExpectRun(t,
+		`mod := import("mod")
+p := mod.Point()
+p.x = 3
+return [p.x, int(5) :: mod.Num]`,
+		newOpts().Module("mod", mod),
+		Array{Int(3), Int(5)})
 }
 
 type callerObject struct {

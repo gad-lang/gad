@@ -219,7 +219,10 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 				})
 			}
 		case nil:
-			// `export const NAME` / `export NAME` with no value: name only.
+			// Declaration exports (`export class/func/type … Name …`, `export
+			// NAME = value`) desugar to a prelude declaration + a name export, so
+			// the value/signature lives in the prelude, not ValueExpr.
+			fillFromPrelude(&sym, es)
 		default:
 			sym.Signature = " = " + es.ValueExpr.String()
 		}
@@ -296,6 +299,59 @@ func cleanDoc(raw string) string {
 		return strings.TrimSpace(s[2:])
 	}
 	return s
+}
+
+// fillFromPrelude populates a symbol's signature/overloads from a declaration
+// export's prelude (the `export <decl>` desugaring), so the public-API entry
+// reflects the exported func signature, marker/union type or constant value.
+func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
+	switch d := es.Prelude.(type) {
+	case *gnode.FuncStmt:
+		if d.Func != nil && d.Func.Type != nil {
+			sym.Signature = d.Func.Type.Params.String() + gnode.FormatFuncReturn(d.Func.Type.Return)
+		}
+	case *gnode.FuncWithMethodsStmt:
+		if d.Doc != nil && sym.Doc == "" {
+			sym.Doc = gadDocText(d.Doc)
+		}
+		for _, m := range d.Methods {
+			sym.Overloads = append(sym.Overloads, DocOverload{
+				Signature: m.Params.String() + gnode.FormatFuncReturn(m.Return),
+				Doc:       gadDocText(m.Doc),
+			})
+		}
+	case *gnode.TypeDeclStmt:
+		kw := "class"
+		if d.Mixin {
+			kw = "mixin"
+		} else if d.Static {
+			kw = "type"
+		}
+		sym.Signature = " " + kw
+	case *gnode.InterfaceStmt:
+		sym.Signature = " interface"
+	case *gnode.DeclStmt:
+		if _, val := declPreludeValue(d); val != nil {
+			if u, ok := val.(*gnode.TypeUnionExpr); ok {
+				sym.Signature = " " + u.String()
+			} else {
+				sym.Signature = " = " + val.String()
+			}
+		}
+	}
+}
+
+// declPreludeValue returns the name and value of a const/var prelude declaration.
+func declPreludeValue(ds *gnode.DeclStmt) (*gnode.IdentExpr, gnode.Expr) {
+	gd, _ := ds.Decl.(*gnode.GenDecl)
+	if gd == nil || len(gd.Specs) == 0 {
+		return nil, nil
+	}
+	vs, _ := gd.Specs[0].(*gnode.ValueSpec)
+	if vs == nil || len(vs.Idents) == 0 || len(vs.Values) == 0 {
+		return nil, nil
+	}
+	return vs.Idents[0], vs.Values[0]
 }
 
 func gadExportName(es *gnode.ExportStmt) string {

@@ -1403,9 +1403,57 @@ func (s *ExportStmt) preludeInit() Expr {
 	return vs.Values[0]
 }
 
+// declPreludeName returns the declared name and value of a `const`/`var`
+// prelude synthesized for `export NAME = EXPR` / `export type NAME <…>`, or
+// (nil, nil) when the prelude is not such a declaration.
+func (s *ExportStmt) declPreludeName() (*IdentExpr, Expr) {
+	ds, _ := s.Prelude.(*DeclStmt)
+	if ds == nil {
+		return nil, nil
+	}
+	gd, _ := ds.Decl.(*GenDecl)
+	if gd == nil || len(gd.Specs) == 0 {
+		return nil, nil
+	}
+	vs, _ := gd.Specs[0].(*ValueSpec)
+	if vs == nil || len(vs.Idents) == 0 || len(vs.Values) == 0 {
+		return nil, nil
+	}
+	return vs.Idents[0], vs.Values[0]
+}
+
+func unionTypeSuffix(u *TypeUnionExpr) string {
+	parts := make([]string, len(u.Types))
+	for i, t := range u.Types {
+		parts[i] = t.String()
+	}
+	return "<" + strings.Join(parts, "|") + ">"
+}
+
 func (s *ExportStmt) String() string {
-	if init := s.preludeInit(); init != nil {
-		return "export prop " + s.KeyExpr.String() + " = " + init.String()
+	// export prop name = init (Prelude var + synthesized getter/setter).
+	if _, isProp := s.ValueExpr.(*PropExpr); isProp {
+		if init := s.preludeInit(); init != nil {
+			return "export prop " + s.KeyExpr.String() + " = " + init.String()
+		}
+	}
+	// Declaration exports render their original `export <decl>` surface form.
+	switch d := s.Prelude.(type) {
+	case *TypeDeclStmt:
+		return "export " + d.String()
+	case *InterfaceStmt:
+		return "export " + d.String()
+	case *FuncStmt:
+		return "export " + d.String()
+	case *FuncWithMethodsStmt:
+		return "export " + d.String()
+	case *DeclStmt:
+		if name, val := s.declPreludeName(); name != nil {
+			if u, ok := val.(*TypeUnionExpr); ok {
+				return "export type " + name.String() + " " + unionTypeSuffix(u)
+			}
+			return "export " + name.String() + " = " + val.String()
+		}
 	}
 	str := "export "
 	if s.Const {
@@ -1426,12 +1474,48 @@ func (s *ExportStmt) String() string {
 func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
 	// `export prop name = init` renders in its concise source form (the Prelude
 	// var + synthesized getter/setter are an internal desugaring).
-	if init := s.preludeInit(); init != nil {
-		ctx.WriteString("export prop ")
-		s.KeyExpr.WriteCode(ctx)
-		ctx.WriteString(" = ")
-		init.WriteCode(ctx)
+	if _, isProp := s.ValueExpr.(*PropExpr); isProp {
+		if init := s.preludeInit(); init != nil {
+			ctx.WriteString("export prop ")
+			s.KeyExpr.WriteCode(ctx)
+			ctx.WriteString(" = ")
+			init.WriteCode(ctx)
+			return
+		}
+	}
+	// Declaration exports render their original `export <decl>` surface form (the
+	// module-local prelude + name export is an internal desugaring).
+	switch d := s.Prelude.(type) {
+	case *TypeDeclStmt:
+		ctx.WriteString("export ")
+		d.WriteCode(ctx)
 		return
+	case *InterfaceStmt:
+		ctx.WriteString("export ")
+		d.WriteCode(ctx)
+		return
+	case *FuncStmt:
+		ctx.WriteString("export ")
+		d.WriteCode(ctx)
+		return
+	case *FuncWithMethodsStmt:
+		ctx.WriteString("export ")
+		d.WriteCode(ctx)
+		return
+	case *DeclStmt:
+		if name, val := s.declPreludeName(); name != nil {
+			ctx.WriteString("export ")
+			if u, ok := val.(*TypeUnionExpr); ok {
+				ctx.WriteString("type ")
+				name.WriteCode(ctx)
+				ctx.WriteString(" " + unionTypeSuffix(u))
+				return
+			}
+			name.WriteCode(ctx)
+			ctx.WriteString(" = ")
+			val.WriteCode(ctx)
+			return
+		}
 	}
 	ctx.WriteString("export ")
 	if s.Const {

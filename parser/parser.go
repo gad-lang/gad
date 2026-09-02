@@ -4516,34 +4516,69 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 
 	p.SkipSpace()
 
-	// `export class/mixin/interface [Name] { … }` — contextual declaration
-	// keywords (ordinary identifiers otherwise, handled by the switch's default).
+	// `export class/mixin/interface/type [Name] { … }` (and `export type NAME
+	// <T1|T2>`) — contextual declaration keywords (ordinary identifiers
+	// otherwise, handled by the switch's default).
 	if p.Token.Token == token.Ident {
 		switch {
+		case p.Token.Literal == "type" && p.isTypeUnionDeclStart():
+			// export type NAME <T1|T2|…> — like `const NAME = type <…>; export NAME`.
+			tokPos := p.Token.Pos
+			p.Next() // consume `type`
+			name := p.ParseIdent()
+			p.Expect(token.Less)
+			types := p.ParseTypes()
+			if len(types) == 0 {
+				p.Error(p.Token.Pos, "expected a type after `type "+name.Name+" <`")
+			}
+			p.Expect(token.Greater)
+			union := &node.TypeUnionExpr{TypePos: tokPos, Types: types}
+			p.declExport(stmt, name, p.newConstDecl(name, union))
+			return
+		case p.Token.Literal == "type" && p.isDeclBodyStart():
+			// export type Name { … } — a marker/static type.
+			typeTok := p.Token
+			p.Next()
+			name := p.parseDeclExportName("type")
+			if name == nil {
+				return
+			}
+			cls := p.parseClassBody(PToken{TokenLit: typeTok.TokenLit}, name)
+			if cls != nil {
+				cls.Static = true
+				cls.Doc = doc
+			}
+			p.declExport(stmt, name, &node.TypeDeclStmt{TypeLitExpr: *cls})
+			return
 		case (p.Token.Literal == "class" || p.Token.Literal == "mixin") && p.isDeclBodyStart():
 			kw := token.Class
 			if p.Token.Literal == "mixin" {
 				kw = token.Mixin
 			}
 			classTok := p.expectContextualKeyword(kw)
-			var name node.Expr
-			if p.Token.Token == token.Ident {
-				name = p.ParseIdent()
+			name := p.parseDeclExportName(kw.String())
+			if name == nil {
+				return
 			}
-			stmt.ValueExpr = p.parseClassBody(classTok, name)
+			cls := p.parseClassBody(classTok, name)
+			if cls != nil {
+				cls.Doc = doc
+			}
+			p.declExport(stmt, name, &node.TypeDeclStmt{TypeLitExpr: *cls})
 			return
 		case p.Token.Literal == "interface" && p.isInterfaceDeclStart():
 			ifaceTok := p.expectContextualKeyword(token.Interface)
 			depth := p.parseInterfaceArrayDepth()
-			var name node.Expr
-			if p.Token.Token == token.Ident {
-				name = p.ParseIdent()
+			name := p.parseDeclExportName("interface")
+			if name == nil {
+				return
 			}
 			iface := p.parseInterfaceBody(ifaceTok, name)
 			if iface != nil {
 				iface.ArrayDepth = depth
+				iface.Doc = doc
 			}
-			stmt.ValueExpr = iface
+			p.declExport(stmt, name, &node.InterfaceStmt{InterfaceExpr: *iface})
 			return
 		}
 	}
@@ -4556,11 +4591,31 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 	case token.LParen:
 		stmt.ValueExpr = p.ParseSingleParemExpr(token.LParen, token.RParen)
 	case token.Func:
+		// export func f() { … } — like `func f() { … }; export f`. A multi-
+		// signature `func f { … }` parses as a func-with-methods.
 		s := p.ParseFuncExprT(p.ExpectToken(p.Token.Token))
 		if p.Failed() {
 			return
 		}
-		stmt.ValueExpr = s
+		switch fe := s.(type) {
+		case *node.FuncExpr:
+			name, _ := fe.Type.NameExpr.(*node.IdentExpr)
+			if name == nil {
+				p.Error(fe.Pos(), "export func requires a name")
+				return
+			}
+			p.declExport(stmt, name, &node.FuncStmt{Func: fe})
+		case *node.FuncWithMethodsExpr:
+			name, _ := fe.NameExpr.(*node.IdentExpr)
+			if name == nil {
+				p.Error(fe.Pos(), "export func requires a name")
+				return
+			}
+			p.declExport(stmt, name, &node.FuncWithMethodsStmt{FuncWithMethodsExpr: *fe})
+		default:
+			p.Error(s.Pos(), "expected *FuncExpr | *FuncWithMethodsExpr")
+		}
+		return
 	case token.Const:
 		// export const NAME [= value] — a read-only module constant. The value is
 		// optional (a documentation stub may omit it); when present it initializes
@@ -4639,26 +4694,30 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 				exp := p.ParseParenOrClosure(token.LParen, token.RParen)
 				switch t := exp.(type) {
 				case *node.ClosureExpr:
-					stmt.ValueExpr = &node.FuncExpr{
+					// export f() => … — like `f := func() => …; export f`.
+					fe := &node.FuncExpr{
 						LambdaPos: t.Lambda.Pos,
 						Type: &node.FuncType{
 							FuncHeader: node.FuncHeader{NameExpr: ident, Params: t.Params, Return: t.Return},
 						},
 						BodyExpr: t.Body,
 					}
-					stmt.KeyExpr = nil
+					p.declExport(stmt, ident, &node.FuncStmt{Func: fe})
+					return
 				case node.ToMultiParenConverter:
 					if p.Token.Token == token.LBrace || p.Token.Token == token.Less {
 						if params, err := t.ToMultiParenExpr().ToFuncParams(); err == nil {
 							returnTypes := p.ParseFuncReturnTypes()
 							block := p.ParseBlockStmt(token.RBrace)
-							stmt.ValueExpr = &node.FuncExpr{
+							// export f() { … } — like `func f() { … }; export f`.
+							fe := &node.FuncExpr{
 								Type: &node.FuncType{
 									FuncHeader: node.FuncHeader{Params: params, NameExpr: ident, Return: returnTypes},
 								},
 								Body: block,
 							}
-							stmt.KeyExpr = nil
+							p.declExport(stmt, ident, &node.FuncStmt{Func: fe})
+							return
 						} else {
 							return
 						}
@@ -4678,7 +4737,19 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 
 	if p.Token.Token == token.Assign {
 		p.Next()
-		stmt.ValueExpr = p.ParseExpr()
+		rhs := p.ParseExpr()
+		if p.Failed() {
+			return
+		}
+		// `export NAME = EXPR` declares a real module local and exports its name
+		// (like `const NAME = EXPR; export NAME`), so the binding is usable by the
+		// rest of the module and reads as a read-only public value. A computed key
+		// (`export [expr] = v`) keeps its inline form.
+		if id, ok := stmt.KeyExpr.(*node.IdentExpr); ok {
+			p.declExport(stmt, id, p.newConstDecl(id, rhs))
+		} else {
+			stmt.ValueExpr = rhs
+		}
 	}
 
 	return
@@ -4693,6 +4764,34 @@ const propSetterParam = "$value"
 func (p *Parser) newVarDecl(name *node.IdentExpr, init node.Expr) node.Stmt {
 	spec := node.NewValueSpec([]*node.IdentExpr{name}, []node.Expr{init})
 	return node.SDecl(node.NewGenDecl(token.Var, name.Pos(), source.NoPos, source.NoPos, spec))
+}
+
+// newConstDecl builds a `const name = init` declaration statement.
+func (p *Parser) newConstDecl(name *node.IdentExpr, init node.Expr) node.Stmt {
+	spec := node.NewValueSpec([]*node.IdentExpr{name}, []node.Expr{init})
+	return node.SDecl(node.NewGenDecl(token.Const, name.Pos(), source.NoPos, source.NoPos, spec))
+}
+
+// parseDeclExportName parses the required name of an `export <kw> Name …`
+// declaration. A declaration export must be named (the name is what gets
+// exported), so an anonymous form reports an error and returns nil.
+func (p *Parser) parseDeclExportName(kw string) *node.IdentExpr {
+	if p.Token.Token != token.Ident {
+		p.Error(p.Token.Pos, "export "+kw+" requires a name")
+		return nil
+	}
+	return p.ParseIdent()
+}
+
+// declExport wires an `export <decl>` so that it first declares a real
+// module-local binding (prelude) and then exports only that name — i.e.
+// `export class User { … }` behaves exactly like `class User { … }; export User`.
+// The declaration is usable by the rest of the module and its doc comment
+// documents the exported public API. name must be non-nil.
+func (p *Parser) declExport(stmt *node.ExportStmt, name *node.IdentExpr, prelude node.Stmt) {
+	stmt.Prelude = prelude
+	stmt.KeyExpr = name
+	stmt.ValueExpr = nil
 }
 
 // newPropGetter builds a getter method `() => name` reading the variable.

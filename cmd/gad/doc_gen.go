@@ -367,6 +367,19 @@ func exportEntries(es *node.ExportStmt) []docEntry {
 		return out
 	}
 
+	// Declaration exports desugar to `<prelude decl>; export <name>` (ValueExpr is
+	// nil; the value lives in the prelude). Document the declaration itself so the
+	// public API entry carries the class/mixin/interface/type/func signature and
+	// members, and `export NAME = value` its value.
+	if es.ValueExpr == nil && es.Prelude != nil {
+		if ds, ok := es.Prelude.(*node.DeclStmt); ok {
+			return declEntriesDoc(ds, doc)
+		}
+		if e, ok := internalStmtEntry(es.Prelude, doc); ok {
+			return []docEntry{e}
+		}
+	}
+
 	// export IDENT [= value]
 	name := identName(es.KeyExpr)
 	if name == "" {
@@ -379,6 +392,37 @@ func exportEntries(es *node.ExportStmt) []docEntry {
 		e.code = []string{"const " + name}
 	}
 	return []docEntry{e}
+}
+
+// declEntriesDoc documents a `var`/`const` declaration used as an export prelude
+// (`export NAME = value` / `export type NAME <…>`), attaching the export's own
+// doc comment (the declaration is synthetic and carries none of its own).
+func declEntriesDoc(ds *node.DeclStmt, doc string) []docEntry {
+	gd, ok := ds.Decl.(*node.GenDecl)
+	if !ok {
+		return nil
+	}
+	kw := gd.Tok.String()
+	kind := docConst
+	if kw != "const" {
+		kind = docVar
+	}
+	var out []docEntry
+	for _, sp := range gd.Specs {
+		vs, ok := sp.(*node.ValueSpec)
+		if !ok {
+			continue
+		}
+		for j, id := range vs.Idents {
+			name := id.String()
+			code := kw + " " + name
+			if j < len(vs.Values) && vs.Values[j] != nil {
+				code += " = " + vs.Values[j].String()
+			}
+			out = append(out, docEntry{name: name, kind: kind, keyword: kw, code: []string{code}, doc: doc})
+		}
+	}
+	return out
 }
 
 // funcEntry builds a Types entry for a single-signature function.
