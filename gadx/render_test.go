@@ -45,6 +45,47 @@ func TestNewRenderEmpty(t *testing.T) {
 	}
 }
 
+func TestRenderRunOptsFunc(t *testing.T) {
+	dir := t.TempDir()
+	src := "@main\n    p Hello"
+	srcPath := filepath.Join(dir, "opts.gadx")
+	if err := os.WriteFile(srcPath, []byte(src), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := newTestRender(t, dir)
+	var (
+		called    int
+		gotFlags  gad.RunFlags
+		gotStdOut bool
+	)
+	r.RunOptsFunc = func(opts *gad.RunOpts) {
+		called++
+		gotFlags = opts.Flags
+		gotStdOut = opts.StdOut != nil
+		// Add a VM-scoped env to prove the callback can customise the opts.
+		opts.Env = gad.NewEnv(nil)
+	}
+
+	out, err := renderString(r, srcPath, gad.Dict{})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if out != "<p>Hello</p>" {
+		t.Fatalf("unexpected output: %q", out)
+	}
+	if called != 1 {
+		t.Fatalf("RunOptsFunc called %d times, want 1", called)
+	}
+	// The opts are pre-initialised with RunFlagSkipReceiverTypeCheck and StdOut.
+	if !gotFlags.Has(gad.RunFlagSkipReceiverTypeCheck) {
+		t.Fatalf("RunFlagSkipReceiverTypeCheck not set by default (flags=%d)", gotFlags)
+	}
+	if !gotStdOut {
+		t.Fatal("StdOut not set on the opts passed to RunOptsFunc")
+	}
+}
+
 func renderString(r *Render, filePath string, globals gad.Dict) (string, error) {
 	var buf bytes.Buffer
 	err := r.Render(&buf, filePath, globals)

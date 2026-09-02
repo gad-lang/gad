@@ -66,6 +66,13 @@ type Render struct {
 
 	ModuleMapFunc func(mm *gad.ModuleMap) *gad.ModuleMap
 
+	// RunOptsFunc, when set, is called with the *gad.RunOpts assembled for each
+	// render just before execution, letting the caller customise it (flags,
+	// env, stdin/stderr, …). The opts are pre-initialised with StdOut, Globals
+	// and gad.RunFlagSkipReceiverTypeCheck; the callback may add to or override
+	// any field. StdOut and Globals are set by Render and normally left as-is.
+	RunOptsFunc func(opts *gad.RunOpts)
+
 	mu             sync.Mutex
 	compileMu      sync.Mutex
 	templateCache  map[string]*templateCacheEntry
@@ -222,7 +229,18 @@ func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error 
 	if _, err := st.DefineGlobals(globalNames); err != nil {
 		return err
 	}
-	e := gad.NewEval(r.cachedStatic, st, gad.CompileOptions{}, &gad.RunOpts{StdOut: out, Globals: gad.Dict(globals)})
+	// The template builds and returns a render tree; the receiver of every
+	// gadx.Tag/component method is trusted, so skip the `this` type check by
+	// default. RunOptsFunc may override this (or any other option).
+	runOpts := &gad.RunOpts{
+		StdOut:  out,
+		Globals: gad.Dict(globals),
+		Flags:   gad.RunFlagSkipReceiverTypeCheck,
+	}
+	if r.RunOptsFunc != nil {
+		r.RunOptsFunc(runOpts)
+	}
+	e := gad.NewEval(r.cachedStatic, st, gad.CompileOptions{}, runOpts)
 	// Reuse the compiled template's interface-satisfaction cache across renders;
 	// it is reset only when the template recompiles (a fresh entry, above), so
 	// `obj :: Interface` checks in the template are validated once per type.
