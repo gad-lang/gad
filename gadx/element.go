@@ -535,7 +535,8 @@ func (t *Tag) setAttr(name string, value gad.Object) {
 }
 
 // addClass appends class token(s) from value, honoring the same shapes as
-// gadx.attrs (string, raw string, keyed value, or array of any of these).
+// gadx.attrs (string, raw string, keyed value, array of any of these, or a
+// JSX/Vue-style dict {className: condition} keeping truthy keys).
 func (t *Tag) addClass(value gad.Object) {
 	if value.IsFalsy() {
 		return
@@ -558,6 +559,15 @@ func (t *Tag) addClass(value gad.Object) {
 	case gad.Array:
 		for _, o := range attrFilter(v) {
 			t.ClassList = append(t.ClassList, o.ToString())
+		}
+	case gad.Dict:
+		// JSX/Vue object form: {className: condition} — include each key whose
+		// value is truthy. Keys are emitted in sorted order for determinism.
+		for _, k := range v.SortedKeys() {
+			name := k.ToString()
+			if !v[name].IsFalsy() {
+				t.ClassList = append(t.ClassList, name)
+			}
 		}
 	}
 }

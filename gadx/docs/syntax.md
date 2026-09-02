@@ -126,6 +126,29 @@ div[title=join(items, ", "), data-ids=[1, 2, 3]]
 
 A trailing `? condition` applies to every attribute in the group.
 
+### The `class` attribute
+
+`class` accepts several value shapes, all merged with any static `.token`
+classes on the tag into a single space-separated list:
+
+```gadx
+// string
+div[class="card"]                          // class="card"
+
+// static tokens merged with a class attribute
+div.card.wide[class="active"]              // class="card wide active"
+
+// array — falsy entries (nil, false, "") are dropped
+div[class=[cond ? "on" : nil, "base"]]     // class="base" (or "on base")
+
+// dict — JSX/Vue object form: keep each key whose value is truthy.
+// Keys are emitted in sorted order, so output is deterministic.
+button[class={primary: true, active: on, muted: off}]  // class="active primary"
+```
+
+Multiple `[class=…]` groups accumulate, so static tokens, arrays and dicts can
+be combined: `div.base[class=["x"]][class={hl: on}]` → `class="base x hl"`.
+
 ## Inline HTML
 
 A line starting with `<` is parsed as an inline HTML region. It runs from the

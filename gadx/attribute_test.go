@@ -72,6 +72,92 @@ func TestAttributeGroupRendering(t *testing.T) {
 	}
 }
 
+// TestClassAttributeForms exercises every accepted shape of the `class`
+// attribute: plain string, static (dotted) tokens merged with a class attr,
+// arrays (with falsy filtering), the JSX/Vue object form {name: condition}
+// (truthy keys only, emitted sorted for determinism), and multiple class
+// groups merging.
+func TestClassAttributeForms(t *testing.T) {
+	tests := []struct {
+		name    string
+		src     string
+		globals gad.Dict
+		want    string
+	}{
+		{
+			name: "string",
+			src:  "@main\n    div[class=\"a\"] hi\n",
+			want: `<div class="a">hi</div>`,
+		},
+		{
+			name: "dotted merged with class attr",
+			src:  "@main\n    div.a.b[class=\"c\"] hi\n",
+			want: `<div class="a b c">hi</div>`,
+		},
+		{
+			name: "array",
+			src:  "@main\n    div[class=[\"x\", \"y\", \"z\"]] hi\n",
+			want: `<div class="x y z">hi</div>`,
+		},
+		{
+			name: "array with falsy filtered",
+			src:  "@main\n    div[class=[nil, \"base\", false, \"\"]] hi\n",
+			want: `<div class="base">hi</div>`,
+		},
+		{
+			name: "dict truthy keys only",
+			src:  "@main\n    div[class={active: true, off: false}] hi\n",
+			want: `<div class="active">hi</div>`,
+		},
+		{
+			name: "dict sorted for determinism",
+			src:  "@main\n    div[class={zeta: true, alpha: true, beta: false}] hi\n",
+			want: `<div class="alpha zeta">hi</div>`,
+		},
+		{
+			name:    "dict driven by globals",
+			src:     "@global on\n@global off\n@main\n    div[class={active: on, muted: off}] hi\n",
+			globals: gad.Dict{"on": gad.True, "off": gad.False},
+			want:    `<div class="active">hi</div>`,
+		},
+		{
+			name: "static tokens plus dict",
+			src:  "@main\n    div.base[class={active: true}] hi\n",
+			want: `<div class="base active">hi</div>`,
+		},
+		{
+			name: "two class groups merge",
+			src:  "@main\n    div[class=[\"p\"]][class=[\"q\"]] hi\n",
+			want: `<div class="p q">hi</div>`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			globals := tc.globals
+			if globals == nil {
+				globals = gad.Dict{}
+			}
+			got := renderGadx(t, tc.src, globals)
+			if got != tc.want {
+				t.Fatalf("render mismatch\n got: %s\nwant: %s", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestClassAttrsBuiltinDict verifies the gadx.attrs builtin (the programmatic
+// attribute formatter, distinct from the render-tree path) accepts the JSX/Vue
+// dict form for class, keeping truthy keys in sorted order.
+func TestClassAttrsBuiltinDict(t *testing.T) {
+	src := "@main\n" +
+		"    div{= gadx.attrs(; class={active: true, off: false, base: true}) }\n"
+	got := renderGadx(t, src, gad.Dict{})
+	want := `<div> class="active base"</div>`
+	if got != want {
+		t.Fatalf("render mismatch\n got: %s\nwant: %s", got, want)
+	}
+}
+
 // TestAttributeExpressionPosition verifies a runtime error inside a multi-line
 // attribute value reports the correct source line and column.
 func TestAttributeExpressionPosition(t *testing.T) {

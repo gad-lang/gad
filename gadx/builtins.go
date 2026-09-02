@@ -181,6 +181,15 @@ var (
 								}
 								class = append(class, string(s))
 							}
+						case gad.Dict:
+							// JSX/Vue object form: {className: condition} —
+							// keep each key whose value is truthy, sorted.
+							for _, k := range t.SortedKeys() {
+								name := k.ToString()
+								if !t[name].IsFalsy() {
+									class = append(class, name)
+								}
+							}
 						}
 					}
 				case "style":

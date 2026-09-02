@@ -2,6 +2,7 @@
 
 ## Files
 
+- [class_attribute](class_attribute.md)
 - [doc_comments](doc_comments.md)
 - [enum](enum.md)
 - [global](global.md)
