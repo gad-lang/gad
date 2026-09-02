@@ -43,7 +43,11 @@ var (
 			toRawStr = vm.Builtins.ArgsInvoker(gad.BuiltinRawStr, gad.Call{VM: vm})
 		)
 
-		if value.IsFalsy() {
+		// A bool renders its literal value (`x="true"` / `x="false"`), so it is
+		// exempt from the falsy-omit below; presence is controlled by the flag
+		// type (`yes`/`no`) instead. Other falsy values (nil, "", no) omit the
+		// attribute.
+		if _, isBool := value.(gad.Bool); !isBool && value.IsFalsy() {
 			return
 		}
 

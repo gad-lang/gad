@@ -56,11 +56,11 @@ func TestHtmlRegions(t *testing.T) {
 			want: `<br />`,
 		},
 		{
-			// A boolean attribute becomes name="name" (gadx.Tag flag semantics),
-			// and `input` is void, so it self-closes.
+			// A valueless attribute is the flag `yes`, rendered as a bare
+			// boolean attribute (no value); `input` is void, so it self-closes.
 			name: "boolean attribute",
 			src:  "@main\n    <input disabled>\n",
-			want: `<input disabled="disabled" />`,
+			want: `<input disabled />`,
 		},
 		{
 			name: "nested elements collapse whitespace",

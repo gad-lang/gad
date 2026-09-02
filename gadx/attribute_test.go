@@ -54,7 +54,7 @@ func TestAttributeGroupRendering(t *testing.T) {
 		{
 			name: "flag and expression",
 			src:  "@main\n    input[type=\"text\", disabled, value=1+2]\n",
-			want: `<input type="text" disabled="disabled" value="3" />`,
+			want: `<input type="text" disabled value="3" />`,
 		},
 		{
 			name: "comma inside value not split",
@@ -138,6 +138,66 @@ func TestClassAttributeForms(t *testing.T) {
 				globals = gad.Dict{}
 			}
 			got := renderGadx(t, tc.src, globals)
+			if got != tc.want {
+				t.Fatalf("render mismatch\n got: %s\nwant: %s", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestBooleanAttributeForms verifies attribute presence vs. value semantics:
+// the flag type (yes/no, and a valueless attribute) controls presence and
+// renders bare, while a bool (true/false) always renders its literal value.
+func TestBooleanAttributeForms(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "valueless is bare flag",
+			src:  "@main\n    div[data-value] x\n",
+			want: `<div data-value>x</div>`,
+		},
+		{
+			name: "flag yes is bare",
+			src:  "@main\n    div[data-value=yes] x\n",
+			want: `<div data-value>x</div>`,
+		},
+		{
+			name: "flag no is omitted",
+			src:  "@main\n    div[data-value=no] x\n",
+			want: `<div>x</div>`,
+		},
+		{
+			name: "bool true renders value",
+			src:  "@main\n    div[data-value=true] x\n",
+			want: `<div data-value="true">x</div>`,
+		},
+		{
+			name: "bool false renders value",
+			src:  "@main\n    div[data-value=false] x\n",
+			want: `<div data-value="false">x</div>`,
+		},
+		{
+			name: "number renders value",
+			src:  "@main\n    div[data-value=1] x\n",
+			want: `<div data-value="1">x</div>`,
+		},
+		{
+			name: "nil is omitted",
+			src:  "@main\n    div[data-value=nil] x\n",
+			want: `<div>x</div>`,
+		},
+		{
+			name: "empty string is omitted",
+			src:  "@main\n    div[data-value=\"\"] x\n",
+			want: `<div>x</div>`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := renderGadx(t, tc.src, gad.Dict{})
 			if got != tc.want {
 				t.Fatalf("render mismatch\n got: %s\nwant: %s", got, tc.want)
 			}

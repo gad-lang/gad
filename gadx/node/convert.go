@@ -898,7 +898,11 @@ func applyTagAttrs(call *gnode.CallExpr, attrs []*TagAttribute) {
 		value := attr.Value
 		if value == nil {
 			if attr.IsFlag {
-				value = gnode.Str(attr.Name, 0)
+				// A valueless attribute `[x]` is the flag `yes` (like a named
+				// param `fn(;x)`): it renders as a bare boolean attribute `x`
+				// (no value). `[x=no]` omits it. Distinct from `[x=true]`,
+				// which renders the literal value `x="true"`.
+				value = gnode.Flag(true, 0)
 			} else {
 				value = gnode.Str("", 0)
 			}

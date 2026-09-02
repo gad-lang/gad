@@ -149,6 +149,24 @@ button[class={primary: true, active: on, muted: off}]  // class="active primary"
 Multiple `[class=…]` groups accumulate, so static tokens, arrays and dicts can
 be combined: `div.base[class=["x"]][class={hl: on}]` → `class="base x hl"`.
 
+### Boolean and flag attributes
+
+Presence is controlled by the **flag** type (`yes` / `no`), and is separate
+from a boolean **value** (`true` / `false`):
+
+```gadx
+div[data-value]            // <div data-value>          — valueless ≡ =yes
+div[data-value=yes]        // <div data-value>          — bare boolean attribute
+div[data-value=no]         //                           — attribute omitted
+div[data-value=true]       // <div data-value="true">   — literal value
+div[data-value=false]      // <div data-value="false">  — literal value
+```
+
+So a valueless attribute `[x]` is the flag `yes` (like a named param
+`fn(;x)`): it renders bare, with no value, and `[x=no]` drops it entirely.
+A `bool` (`true`/`false`) always renders its literal value. Other falsy values
+(`nil`, `""`) omit the attribute.
+
 ## Inline HTML
 
 A line starting with `<` is parsed as an inline HTML region. It runs from the
@@ -169,8 +187,8 @@ children with no wrapping element (spliced into the enclosing parent).
 
 The region is **compiled to the same `gadx.Tag` / `gadx.Text` elements as the
 pug-style tag syntax** — it is not emitted as a raw string. So it shares the
-tag rendering rules: void elements self-close (`<br>` → `<br />`), boolean
-attributes expand (`<input disabled>` → `<input disabled="disabled" />`), and
+tag rendering rules: void elements self-close (`<br>` → `<br />`), valueless
+boolean attributes stay bare (`<input disabled>` → `<input disabled />`), and
 attributes are classified (regular attributes first, then the class list).
 Because the AST carries real gadx tag nodes, an inline HTML region also
 transpiles back to pug-style gadx (`gofmt`-style, via `WriteGadx`):
