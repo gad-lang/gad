@@ -69,11 +69,11 @@ point from inside that directory (the IDE does this automatically):
 cd samples/modules && gad main.gad
 ```
 
-| File                | Purpose                                              |
-|---------------------|------------------------------------------------------|
-| `modules/mathx.gad` | a module that `export`s constants and functions      |
-| `modules/greet.gad` | a parameterised module (`param (;lang="en")`)        |
-| `modules/main.gad`  | imports both, including a parameterised import       |
+| File                  | Purpose                                                  |
+|-----------------------|----------------------------------------------------------|
+| `modules/mathx.gad`   | a module that `export`s constants and functions          |
+| `modules/exports.gad` | every `export` form (class/type/func/prop) + a `param`   |
+| `modules/main.gad`    | imports both, including a parameterised import           |
 
 ## Standard library
 

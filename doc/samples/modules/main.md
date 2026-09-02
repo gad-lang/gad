@@ -19,14 +19,14 @@ println("rectArea    =", mathx.rectArea(3, 4))
 Import with parameters (named import args). A module runs once and is then
 cached, so the params apply on its first import.
 **/
-pt := import("./greet.gad"; lang="pt")
+pt := import("./exports.gad"; lang="pt")
 println("language:", pt.language)   // pt
 println(pt.greet("Gad"))            // Olá, Gad!
 
 /**
 A module exporting a property: member access delegates to its getter/setter.
 **/
-counter := import("./counter.gad")
+counter := import("./exports.gad")
 println("count       =", counter.count)          // 0  (getter)
 counter.count = 5                                 // setter
 counter.inc()                                     // 6

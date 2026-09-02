@@ -1,6 +1,6 @@
 # exports
 
-exports.gad — declaration exports.
+exports.gad — the module `export` forms (and a module param).
 
 `export` accepts a declaration directly. Each form behaves like writing the
 declaration and then exporting its name (`export class User { … }` ≡
@@ -15,8 +15,19 @@ rest of the module, and exports only that name.
     export func name(…) { … }       // a function (also `export name(…) { … }`)
     export NAME = EXPR              // a read-only value (a const)
 
+Properties are exported with `export prop`:
+
+    export prop name { … }         // a managed field behind a getter/setter
+    export prop name = init         // a live read/write binding over a module var
+
+`param (…)` declares import-time module parameters, passed as named import args
+(`import("./exports.gad"; lang="pt")`). A module runs once and is then cached, so
+the params apply on its first import.
+
 A doc comment before the `export` documents the exported symbol (its signature,
 members or value) as the module's public API.
+
+Imported by main.gad.
 
 ## Public API
 
@@ -52,9 +63,56 @@ origin = Point()
 
 The origin point.
 
+### greet
+
+```gad
+greet(name)
+```
+
+Greet name in the module's configured language.
+
+### language
+
+```gad
+language = lang
+```
+
+The language this module was imported with.
+
+### count
+
+```gad
+count = prop count {() => value; (n) { value = ((n < 0) ? 0 : n) }; }
+```
+
+A managed counter: reads return the current value; writes clamp at 0. Member
+access on the imported module (`m.count` / `m.count = n`) delegates to the
+getter/setter.
+
+### total
+
+```gad
+total = prop total {() => total; ($value) { total = $value }; }
+```
+
+A live binding: `total` is a real module var; both the module and importers
+read/write the same value.
+
+### inc
+
+```gad
+inc()
+```
+
+A plain exported function that bumps both, showing the shared state.
+
 ## Example — `exports.gad`
 
 ```gad
+param (;lang="en")
+
+// --- Declaration exports ---------------------------------------------------
+
 /// A 2D point.
 export class Point {
     x = 0
@@ -76,4 +134,46 @@ export func scale(p, n Number) {
 
 /// The origin point.
 export origin = Point()
+
+// --- A parameterised greeting ----------------------------------------------
+
+hello := match lang {
+    "pt": "Olá"
+    "es": "Hola"
+    else: "Hello"
+}
+
+/// Greet name in the module's configured language.
+export greet(name) => #"{hello}, {name}!"
+
+/// The language this module was imported with.
+export language = lang
+
+// --- Property exports ------------------------------------------------------
+
+var value = 0
+
+/**
+A managed counter: reads return the current value; writes clamp at 0. Member
+access on the imported module (`m.count` / `m.count = n`) delegates to the
+getter/setter.
+**/
+export prop count {
+    () => value                              // getter
+    (n) { value = n < 0 ? 0 : n }            // setter (never goes negative)
+}
+
+/**
+A live binding: `total` is a real module var; both the module and importers
+read/write the same value.
+**/
+export prop total = 0
+
+/**
+A plain exported function that bumps both, showing the shared state.
+**/
+export inc() {
+    value = value + 1
+    total = total + 1
+}
 ```
