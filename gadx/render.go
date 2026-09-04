@@ -275,13 +275,26 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 	})
 
 	tr := newTrackingReader()
-	workDir := r.workDir
+
+	// The root is the template tree: a plain import name means the same file
+	// from every template, and no template reaches outside the tree with "..".
+	root := r.workDir
+	if root == "" {
+		root = filepath.Dir(filePath)
+	}
+
+	// The working directory is the entry file's own, which is what "./" and
+	// "../" are relative to. For an entry sitting in a subdirectory the two
+	// differ, and using the root for both made "./sibling.gadx" look for the
+	// sibling beside the root instead of beside the file.
+	workDir := filepath.Dir(filePath)
 	if workDir == "" {
-		workDir = filepath.Dir(filePath)
+		workDir = root
 	}
 
 	mm := gad.NewModuleMap().SetExtImporter(&importers.FileImporter{
 		WorkDir:       workDir,
+		Root:          root,
 		FileReader:    tr.Read,
 		TranspilePath: r.TranspilePath,
 	})
@@ -293,7 +306,7 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
 		ModuleFile:  filePath,
 		ModuleMap:   mm,
-		EmbededdMap: gad.NewEmbedMap().SetExtImporter(&importers.EmbeddedFileImporter{WorkDirs: []string{workDir}}),
+		EmbededdMap: gad.NewEmbedMap().SetExtImporter(&importers.EmbeddedFileImporter{WorkDirs: []string{root}}),
 	}}
 	// A .gadx ModuleFile compiles through gad's native Gadx front-end; a plain
 	// .gad entry compiles as ordinary Gad. The dialect is chosen by extension.

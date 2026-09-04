@@ -3,9 +3,11 @@ package importers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/gad-lang/gad"
 )
@@ -19,13 +21,44 @@ import (
 type FileImporter struct {
 	NameResolver func(cwd, name string) (string, error)
 	WorkDir      string
-	FileReader   func(string) (data []byte, uri string, err error)
+	// Root is the base a plain import name resolves against, and the boundary
+	// no import may cross. It stays put as imports nest, while WorkDir follows
+	// the module being compiled, which is what makes the two forms differ:
+	//
+	//	"layouts/default.gadx"    from Root — the same name means the same file,
+	//	                          whichever module writes it
+	//	"./sibling.gadx"          from WorkDir, the importing module's directory
+	//	"../comps.gadx"           likewise, and refused if it climbs above Root
+	//
+	// Empty Root keeps the older behaviour, where every name resolved against
+	// WorkDir and nesting shifted what a plain name meant.
+	Root       string
+	FileReader func(string) (data []byte, uri string, err error)
 	// TranspilePath, when set and non-empty for a ".gadx" module, is the output
 	// path its transpiled Gad source is written to on import (see
 	// gad.TranspileGadx).
 	TranspilePath func(srcPath string) string
 	name          string
 }
+
+// root reports the boundary for this importer, falling back to WorkDir so that
+// the first fork of an importer created without one still gets a root.
+func (m *FileImporter) root() string {
+	if m.Root != "" {
+		return m.Root
+	}
+	return m.WorkDir
+}
+
+// isRelative reports whether name asks to be resolved against the importing
+// module's directory rather than the root.
+func isRelative(name string) bool {
+	return strings.HasPrefix(name, "./") || strings.HasPrefix(name, "../") ||
+		name == "." || name == ".."
+}
+
+// ErrImportOutsideRoot is returned for an import that climbs above the root.
+var ErrImportOutsideRoot = errors.New("import path escapes the root directory")
 
 var _ gad.ExtImporter = (*FileImporter)(nil)
 
@@ -48,14 +81,35 @@ func (m *FileImporter) Name() (string, error) {
 		return m.NameResolver(m.WorkDir, m.name)
 	}
 
-	path := m.name
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(m.WorkDir, path)
-		if p, err := filepath.Abs(path); err == nil {
-			path = p
+	pth := m.name
+	if filepath.IsAbs(pth) {
+		return pth, nil
+	}
+
+	root := m.root()
+	base := root
+	if root != "" && isRelative(pth) {
+		// Relative to the module doing the importing, not to the root.
+		base = m.WorkDir
+	}
+
+	pth = filepath.Join(base, pth)
+	if p, err := filepath.Abs(pth); err == nil {
+		pth = p
+	}
+
+	if root != "" {
+		absRoot, err := filepath.Abs(root)
+		if err != nil {
+			absRoot = root
+		}
+		rel, err := filepath.Rel(absRoot, pth)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("%w: %s", ErrImportOutsideRoot, m.name)
 		}
 	}
-	return path, nil
+
+	return pth, nil
 }
 
 // Import returns the module source paired with its dialect as a gad.SourceCode.
@@ -100,7 +154,10 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 	// Note that; moduleName == Literal()
 	return &FileImporter{
-		WorkDir:       filepath.Dir(moduleName),
+		WorkDir: filepath.Dir(moduleName),
+		// Carried through so nesting never moves the root: a plain name means
+		// the same file however deep the import chain goes.
+		Root:          m.root(),
 		FileReader:    m.FileReader,
 		NameResolver:  m.NameResolver,
 		TranspilePath: m.TranspilePath,
