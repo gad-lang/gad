@@ -5,10 +5,135 @@
 package main
 
 import (
+	"fmt"
 	"html"
 	"regexp"
 	"strings"
 )
+
+// htmlInlineElements render in the line box, so whitespace beside them is part
+// of the text: the space in `<b>a</b> <i>b</i>` is what separates the two words.
+// Between anything else — a block, a table cell, a list item — that whitespace
+// only exists because the source was indented, and a browser lays the boxes out
+// the same without it.
+var htmlInlineElements = map[string]bool{
+	"a": true, "abbr": true, "b": true, "bdi": true, "bdo": true, "br": true,
+	"cite": true, "code": true, "data": true, "dfn": true, "em": true,
+	"i": true, "img": true, "kbd": true, "label": true, "mark": true,
+	"q": true, "rp": true, "rt": true, "ruby": true, "s": true, "samp": true,
+	"small": true, "span": true, "strong": true, "sub": true, "sup": true,
+	"time": true, "u": true, "var": true, "wbr": true,
+}
+
+var (
+	// RE2 has no backreference, so the two raw-text elements are spelled out.
+	rgxRawRegion = regexp.MustCompile(
+		`(?is)<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>`)
+	rgxTagBefore  = regexp.MustCompile(`(?s)<(/?)([a-zA-Z][-\w]*)[^<>]*>\s*$`)
+	rgxTagAfter   = regexp.MustCompile(`^<(/?)([a-zA-Z][-\w]*)`)
+	rgxTagGapOnly = regexp.MustCompile(`(?s)>[ \t\r\n]+<`)
+)
+
+// dropLayoutWhitespace removes the whitespace between two tags when neither is
+// an inline element.
+//
+// That whitespace is a text node, so once it reaches the template Gadx has to
+// keep it — it is what separates two words in `<b>a</b> <i>b</i>`. Between
+// blocks it exists only because the source was indented, and carrying it would
+// put a `{= " " }` line between every pair of tags in the file.
+//
+// Script and stylesheet content is code, so it is held aside under a stand-in
+// while the rule runs and put back after: that way the gaps *around* those
+// elements are considered like any other, without the rule ever looking inside
+// them.
+func dropLayoutWhitespace(src string) string {
+	var raws []string
+	masked := rgxRawRegion.ReplaceAllStringFunc(src, func(m string) string {
+		raws = append(raws, trimRawEdges(m))
+		return fmt.Sprintf("<gad-raw-%d></gad-raw-%d>", len(raws)-1, len(raws)-1)
+	})
+
+	masked = dropGaps(masked)
+
+	for i, raw := range raws {
+		masked = strings.Replace(masked,
+			fmt.Sprintf("<gad-raw-%d></gad-raw-%d>", i, i), raw, 1)
+	}
+	return masked
+}
+
+// trimRawEdges strips a `<script>` or `<style>` body of the indentation the
+// page put around it: the line break that follows the open tag, the whitespace
+// before the closing one, and the indentation common to every line between.
+//
+// None of it is part of the language inside — it sits outside every token, and
+// is there because the element itself was indented. It has to go for the body
+// to be written under its tag: a body opening with a blank line has no
+// indentation to read, and one carrying the page's own would gain the tag's on
+// top of it. What the lines have *beyond* the common prefix is the code's own
+// nesting, and that is kept.
+func trimRawEdges(region string) string {
+	open := strings.IndexByte(region, '>')
+	close := strings.LastIndexByte(region, '<')
+	if open < 0 || close <= open {
+		return region
+	}
+	body := strings.TrimLeft(strings.TrimRight(region[open+1:close], " \t\r\n"), "\r\n")
+	return region[:open+1] + dedentLines(body) + region[close:]
+}
+
+// dedentLines removes the indentation common to every non-blank line.
+func dedentLines(s string) string {
+	lines := strings.Split(s, "\n")
+	prefix, first := "", true
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		lead := l[:len(l)-len(strings.TrimLeft(l, " \t"))]
+		if first {
+			prefix, first = lead, false
+			continue
+		}
+		n := 0
+		for n < len(prefix) && n < len(lead) && prefix[n] == lead[n] {
+			n++
+		}
+		prefix = prefix[:n]
+	}
+	for i, l := range lines {
+		lines[i] = strings.TrimPrefix(l, prefix)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// dropGaps removes every gap whose two sides are non-inline elements.
+func dropGaps(src string) string {
+	var b strings.Builder
+	last := 0
+	for _, m := range rgxTagGapOnly.FindAllStringIndex(src, -1) {
+		gapStart, gapEnd := m[0]+1, m[1]-1 // between the `>` and the `<`
+		if inlineBeside(src[:gapStart], src[gapEnd:]) {
+			continue
+		}
+		b.WriteString(src[last:gapStart])
+		last = gapEnd
+	}
+	b.WriteString(src[last:])
+	return b.String()
+}
+
+// inlineBeside reports whether either side of a gap is an inline element, in
+// which case the whitespace between them is content.
+func inlineBeside(before, after string) bool {
+	if m := rgxTagBefore.FindStringSubmatch(before); m != nil && htmlInlineElements[strings.ToLower(m[2])] {
+		return true
+	}
+	if m := rgxTagAfter.FindStringSubmatch(after); m != nil && htmlInlineElements[strings.ToLower(m[2])] {
+		return true
+	}
+	return false
+}
 
 // isHTMLFile reports whether name is an HTML document that `transpile` lifts
 // into a Gadx template.
@@ -17,8 +142,11 @@ func isHTMLFile(name string) bool {
 	return strings.HasSuffix(lower, ".html") || strings.HasSuffix(lower, ".htm")
 }
 
+// doctypeMark stands in for the doctype between the lift's two passes.
+const doctypeMark = "\x00gad-doctype\x00"
+
 var (
-	rgxHTML5Doctype = regexp.MustCompile(`(?i)^<!DOCTYPE\s+html\s*>$`)
+	rgxHTML5Doctype = regexp.MustCompile(`(?im)^\s*<!DOCTYPE\s+html\s*>\s*$`)
 	rgxRawTextOpen  = regexp.MustCompile(`(?i)<(script|style)\b[^>]*>`)
 	rgxRawTextClose = regexp.MustCompile(`(?i)</(script|style)\s*>`)
 )
@@ -34,6 +162,10 @@ var (
 //   - A `{` outside a script or a stylesheet is escaped. In Gadx it opens an
 //     interpolation; in HTML text it is just a brace. Script and stylesheet
 //     content is raw, so braces there are left as they are.
+//   - The whitespace between two tags that are not inline elements is dropped.
+//     It is a text node, so the template would have to keep it, and a page
+//     indented over hundreds of lines would carry one for every pair of tags.
+//     Beside an inline element it separates words, and is left alone.
 //   - A character entity becomes the character it names. Gadx escapes what it
 //     writes, so an entity left as it is would go out with its `&` escaped and
 //     the reader would see "&copy;" instead of ©. `&lt;` and `&gt;` are the
@@ -51,14 +183,17 @@ func htmlToGadx(src string) string {
 	)
 	b.WriteString("@main\n")
 
-	src = strings.ReplaceAll(src, "\r\n", "\n")
+	// The doctype is lifted before the gaps are closed: closing them first
+	// would glue it to the next tag and it would no longer be a line of its own.
+	src = rgxHTML5Doctype.ReplaceAllString(strings.ReplaceAll(src, "\r\n", "\n"), doctypeMark)
+	src = dropLayoutWhitespace(src)
 	for _, line := range strings.Split(src, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			b.WriteString("\n")
 			continue
 		}
-		if !inRaw && rgxHTML5Doctype.MatchString(trimmed) {
+		if !inRaw && trimmed == doctypeMark {
 			b.WriteString(indent + "!!! 5\n")
 			continue
 		}

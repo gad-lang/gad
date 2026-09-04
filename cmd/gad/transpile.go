@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/web/gadbridge"
 	cc "github.com/moisespsena-go/command-context"
 )
 
@@ -127,6 +128,46 @@ func transpileFile(ctx *cc.CommandContext, path string) error {
 	return nil
 }
 
+// htmlGadxMaxColumns is the line budget for the templates lifted out of HTML,
+// wider than the one `gad fmt` keeps for hand-written code.
+//
+// A page's markup carries attributes nobody typed — a utility-class list runs
+// past 80 columns on its own — and the narrower budget spends that overflow by
+// pushing a tag's text onto a line of its own, which is where the tag and the
+// words it holds stop reading as one thing. The wider budget keeps them
+// together and lets only the genuinely long attribute lists wrap.
+const htmlGadxMaxColumns = 200
+
+// htmlToGadxFormatted lifts an HTML page into Gadx and rewrites it in the tag
+// syntax the language is written in — `div.card` in place of `<div class="card">`.
+//
+// The rewrite is the pass `gad fmt` runs, so the result is what formatting the
+// lifted file would produce anyway, and its guards apply: a rewrite that would
+// not settle, or that would change what the page renders, is refused and the
+// inline form is kept.
+func htmlToGadxFormatted(src string) string {
+	opts := gadbridge.GadxFormatOptions{
+		Indent:     "\t",
+		MaxColumns: htmlGadxMaxColumns,
+		EmbedFlags: fmtFormatFlag(),
+	}
+	content := htmlToGadx(src)
+	res := gadbridge.FormatGadx(content, opts)
+	if !res.OK {
+		return content
+	}
+	again := gadbridge.FormatGadx(res.Source, opts)
+	if !again.OK || again.Source != res.Source {
+		return content
+	}
+	before, ok1 := gadbridge.GadxLowered(content)
+	after, ok2 := gadbridge.GadxLowered(res.Source)
+	if !ok1 || !ok2 || before != after {
+		return content
+	}
+	return res.Source
+}
+
 // transpileHTMLFile lifts one HTML document into a `.gadx` template of the same
 // name, whose `@main` renders the page.
 func transpileHTMLFile(ctx *cc.CommandContext, path string) error {
@@ -135,9 +176,13 @@ func transpileHTMLFile(ctx *cc.CommandContext, path string) error {
 		return err
 	}
 	dest := strings.TrimSuffix(path, filepath.Ext(path)) + ".gadx"
-	if err := os.WriteFile(dest, []byte(htmlToGadx(string(src))), 0o644); err != nil {
+
+	content := htmlToGadxFormatted(string(src))
+
+	if err := os.WriteFile(dest, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", dest, err)
 	}
+
 	fmt.Fprintf(ctx.Out, "%s -> %s\n", path, dest)
 	return nil
 }
