@@ -184,13 +184,22 @@ func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error 
 	}
 	if entry != nil {
 		lastTime = entry.compiledAt
-		if changedFiles := changedPaths(entry.files, base); len(changedFiles) > 0 {
-			if entry.changedAt.IsZero() {
+		if changedFiles, newest := changedPaths(entry.files, base); len(changedFiles) > 0 {
+			changed = changedFiles
+
+			// The delay exists to avoid compiling a file still being written,
+			// so it is measured from the file's own mtime. Anchoring it on the
+			// moment a request first noticed instead made the wait start at the
+			// page load: an edit saved long ago still served the old build, and
+			// no amount of waiting helped — only a second request did.
+			switch {
+			case !newest.IsZero() && time.Since(newest) >= delay:
+				needsCompile = true
+			case entry.changedAt.IsZero():
 				entry.changedAt = time.Now()
 			}
-			changed = changedFiles
 		}
-		if !entry.changedAt.IsZero() && time.Since(entry.changedAt) >= delay {
+		if !needsCompile && !entry.changedAt.IsZero() && time.Since(entry.changedAt) >= delay {
 			needsCompile = true
 		}
 	}
@@ -348,8 +357,11 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 	}, nil
 }
 
-func changedPaths(files map[string]time.Time, base string) []string {
-	var out []string
+// changedPaths lists the tracked files that no longer match the recorded
+// modification times, and reports the newest of their current mtimes. That time
+// is what the recompile delay is measured against: it says when the editing
+// stopped, which a request arriving later should not have to wait out again.
+func changedPaths(files map[string]time.Time, base string) (out []string, newest time.Time) {
 	for p, mod := range files {
 		fi, err := os.Stat(p)
 		if err != nil || !fi.ModTime().Equal(mod) {
@@ -358,7 +370,10 @@ func changedPaths(files map[string]time.Time, base string) []string {
 				rel = p
 			}
 			out = append(out, filepath.ToSlash(rel))
+			if err == nil && fi != nil && fi.ModTime().After(newest) {
+				newest = fi.ModTime()
+			}
 		}
 	}
-	return out
+	return out, newest
 }

@@ -211,9 +211,11 @@ func TestRenderRecompilesOnFileChange(t *testing.T) {
 		t.Fatal("expected first=true on first render")
 	}
 
-	// Modify the file with a newer mtime.
+	// Modify the file, with the mtime a save produces: the debounce is measured
+	// from it, so a backdated one would read as an edit that settled long ago
+	// and compile at once.
 	writeFileWithMtime(t, srcPath, `@main
-    p Changed`, baseTime.Add(time.Hour))
+    p Changed`, time.Now())
 
 	// Render immediately — change is detected but not yet compiled (debounce).
 	r.TemplateDelay = 50 * time.Millisecond
@@ -280,7 +282,9 @@ func TestRenderFileChangeDetectsImportedFile(t *testing.T) {
 	}
 
 	// Modify the imported component's mtime.
-	writeFileWithMtime(t, compPath, ``, baseTime.Add(time.Hour))
+	// A save's own mtime: the debounce is measured from it (see
+	// TestRenderRecompilesOnFileChange).
+	writeFileWithMtime(t, compPath, ``, time.Now())
 
 	// First post-change render — stamps changedAt, no recompile yet.
 	if _, err := renderString(r, tplPath, gad.Dict{}); err != nil {
@@ -392,9 +396,10 @@ func TestRenderOldCachePreservedOnCompileError(t *testing.T) {
 		t.Fatalf("expected `<p>Hello</p>`, got %q", out)
 	}
 
-	// Write invalid source (undefined var) with newer mtime.
+	// Write invalid source (undefined var), with a save's own mtime so the
+	// debounce below is what governs when it is compiled.
 	writeFileWithMtime(t, srcPath, `@main
-    p {= undefinedVar}`, baseTime.Add(time.Hour))
+    p {= undefinedVar}`, time.Now())
 
 	// First post-change render — stamps changedAt, serves stale cache.
 	if _, err := renderString(r, srcPath, gad.Dict{}); err != nil {
