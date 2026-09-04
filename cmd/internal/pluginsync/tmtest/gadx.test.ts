@@ -43,6 +43,8 @@ beforeAll(async () => {
     loadGrammar: async (scope) =>
       scope === "source.gad" ? (gad as any)
       : scope === "source.gadx" ? (gadx as any)
+      : scope === "source.js" ? (stub("source.js", "js") as any)
+      : scope === "source.css" ? (stub("source.css", "css") as any)
       : null,
   });
   const g = await registry.loadGrammar("source.gadx");
@@ -50,9 +52,39 @@ beforeAll(async () => {
   grammar = g;
 });
 
+/**
+ * A stand-in grammar for an embedded language. The real JavaScript and CSS
+ * grammars ship with the editor, not with this bundle, so what is asserted here
+ * is that the embedding *resolves* — every token the raw-text body hands over
+ * comes back carrying this grammar's mark — rather than how JS or CSS is
+ * coloured, which is the editor's business.
+ */
+function stub(scopeName: string, tag: string) {
+  return {
+    scopeName,
+    name: tag,
+    patterns: [{ name: `stub.${tag}`, match: "\\S+" }],
+  };
+}
+
 function tokenize(line: string): { text: string; scopes: string[] }[] {
   const r = grammar.tokenizeLine(line, null);
   return r.tokens.map((t) => ({ text: line.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+}
+
+/** Tokenize a whole document, threading the rule stack line by line. */
+function tokenizeLines(lines: string[]): { text: string; scopes: string[] }[][] {
+  let stack: any = null;
+  return lines.map((ln) => {
+    const r = grammar.tokenizeLine(ln, stack);
+    stack = r.ruleStack;
+    return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+  });
+}
+
+/** Every token of a line whose text is not blank. */
+function solid(toks: { text: string; scopes: string[] }[]) {
+  return toks.filter((t) => t.text.trim() !== "");
 }
 
 /** The scopes of the token that exactly equals `text`. */
@@ -140,4 +172,110 @@ test("doc-comment body styles inline Markdown (#docmarkup)", () => {
   // the fence still closes; the tag below is not comment
   expect(scoped[2][0].scopes[scoped[2][0].scopes.length - 1]).toContain("comment.documentation.block.gadx");
   expect(scoped[3].some((t) => t.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
+});
+
+test("`script` in tag syntax: the body is JavaScript, the tag line is still a tag", () => {
+  const doc = [
+    "@main",
+    "\tscript[src=\"a.js\"]",
+    "\tscript",
+    "\t\tconst a = { b: 1 }",
+    "",
+    "\t\tif (a) { run() }",
+    "\tdiv after",
+  ];
+  const t = tokenizeLines(doc);
+
+  // the tag's own line stays a tag, attributes included
+  expect(t[1].some((x) => x.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
+  expect(t[1].some((x) => x.scopes.some((s) => s.includes("meta.attributes.gadx")))).toBe(true);
+
+  // the indented body goes to the JavaScript grammar
+  for (const line of [3, 5]) {
+    expect(solid(t[line]).every((x) => x.scopes.includes("stub.js"))).toBe(true);
+    expect(t[line].some((x) => x.scopes.some((s) => s.includes("meta.embedded.block.javascript")))).toBe(true);
+  }
+  // a blank line does not close the block
+  expect(t[4].every((x) => x.scopes.some((s) => s.includes("meta.embedded.block.javascript")))).toBe(true);
+  // and a line back at the tag's own indentation does
+  expect(t[6].some((x) => x.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
+  expect(t[6].some((x) => x.scopes.some((s) => s.includes("javascript")))).toBe(false);
+});
+
+test("`style` in tag syntax: the body is CSS", () => {
+  const t = tokenizeLines(["@main", "\tstyle", "\t\t.a { color: red }", "\tp x"]);
+  expect(solid(t[2]).every((x) => x.scopes.includes("stub.css"))).toBe(true);
+  expect(t[2].some((x) => x.scopes.some((s) => s.includes("meta.embedded.block.css")))).toBe(true);
+  expect(t[3].some((x) => x.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
+});
+
+test("`#{ … }#` in raw text is an interpolation, its body coloured as gad", () => {
+  const t = tokenizeLines([
+    "@main",
+    "\tstyle",
+    "\t\t.a { color: #{= accent }#; }",
+    "\t\t#{ log(\"x\") }#",
+  ]);
+
+  const open = t[2].find((x) => x.text === "#{=")!;
+  expect(open.scopes).toContain("keyword.control.interpolation.output.begin.gadx");
+  const close = t[2].find((x) => x.text === "}#")!;
+  expect(close.scopes).toContain("keyword.control.interpolation.output.end.gadx");
+
+  // the code between them is gad, not CSS
+  const code = t[2].find((x) => x.text.trim() === "accent")!;
+  expect(code.scopes.some((s) => s.includes("meta.embedded.gad"))).toBe(true);
+  expect(code.scopes).not.toContain("stub.css");
+
+  // the control form is marked as such
+  expect(t[3].find((x) => x.text === "#{")!.scopes)
+    .toContain("keyword.control.interpolation.control.begin.gadx");
+});
+
+test("a lone `}` inside raw text does not close the interpolation", () => {
+  // The closing `}#` is what makes it unambiguous: the `}` of the CSS rule
+  // belongs to the CSS.
+  const t = tokenizeLines(["@main", "\tstyle", "\t\t.a { color: #{= f({a: 1}) }#; }"]);
+  const line = t[2];
+  const closers = line.filter((x) => x.scopes.includes("keyword.control.interpolation.output.end.gadx"));
+  expect(closers.length).toBe(1);
+  // what follows the island is CSS again
+  expect(line.filter((x) => x.text === ";").every((x) => x.scopes.includes("stub.css"))).toBe(true);
+});
+
+test("`@raw_text` reads its body verbatim, with `#{ … }#` as the interpolation", () => {
+  const t = tokenizeLines([
+    "@main",
+    "\t@raw_text",
+    "\t\t{ not an interpolation }",
+    "\t\tvalue: #{= v }#",
+    "\tp after",
+  ]);
+
+  expect(t[1].find((x) => x.text === "@raw_text")!.scopes).toContain("keyword.control.gadx");
+  // a brace is literal text there
+  expect(solid(t[2]).every((x) => x.scopes.some((s) => s.includes("string.unquoted.rawtext.gadx")))).toBe(true);
+  expect(t[2].some((x) => x.scopes.some((s) => s.includes("keyword.control.interpolation")))).toBe(false);
+  // `#{= … }#` is not
+  expect(t[3].find((x) => x.text === "#{=")!.scopes)
+    .toContain("keyword.control.interpolation.output.begin.gadx");
+  expect(t[4].some((x) => x.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
+});
+
+test("an inline `<script>` region is JavaScript across lines", () => {
+  const t = tokenizeLines([
+    "@main",
+    "\t<div><script src=\"a.js\">",
+    "\t\tif (x) { y() }",
+    "\t</script></div>",
+  ]);
+
+  expect(t[1].some((x) => x.scopes.some((s) => s.includes("entity.name.tag.gadx")))).toBe(true);
+  expect(solid(t[2]).every((x) => x.scopes.includes("stub.js"))).toBe(true);
+  expect(t[3].some((x) => x.scopes.some((s) => s.includes("punctuation.definition.tag.gadx")))).toBe(true);
+});
+
+test("a tag merely named like a word starting with `script` is an ordinary tag", () => {
+  const t = tokenizeLines(["@main", "\tscripts x", "\t\tp y"]);
+  expect(t[2].some((x) => x.scopes.some((s) => s.includes("javascript")))).toBe(false);
 });

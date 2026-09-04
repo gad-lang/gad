@@ -1,3 +1,46 @@
+# TASK: TextMate — script/style e `#{ … }#` no gadx
+> Created: 2026-09-04 | Updated: 2026-09-04
+
+## Goal
+No realce do gadx, o corpo de um `script` é JavaScript e o de um `style` é CSS,
+com `#{ CODE }#` lido como interpolação e o CODE colorido como gad, igual ao
+`{ CODE }` das demais situações. O `#{ … }#` vale também dentro de `@raw_text`.
+
+## Plan
+- [x] `script` / `style` em sintaxe de tag: corpo indentado vai para `source.js` / `source.css`
+- [x] `<script>` / `<style>` como região HTML inline, atravessando linhas
+- [x] `#{= … }#` (saída) e `#{ … }#` (controle) como ilhas de gad no texto cru
+- [x] `@raw_text` com o corpo verbatim e as mesmas ilhas
+- [x] Testes no tmtest (bun + vscode-textmate)
+
+## Log
+### 2026-09-04
+- `make grammar-test` → `31 pass, 0 fail` (8 casos novos em `gadx.test.ts`).
+- Tokenização do `site_template/index.gadx` real (628 linhas) com a gramática
+  nova: 33 tokens de JS, 92 de CSS, 445 nomes de tag, nenhum vazamento (nenhuma
+  linha de tag comum dentro de um bloco embutido).
+- Dump da tokenização conferido à mão: a linha da própria tag continua tag
+  (`script[src="a.js"]` com `entity.name.tag` + `meta.attributes`), o corpo sai
+  todo na outra linguagem, uma linha em branco não fecha o bloco e uma linha na
+  indentação da tag fecha.
+
+## Unverified / Pending
+- O `source.js` / `source.css` de verdade vem do editor; o teste usa uma
+  gramática-sentinela, então o que está provado é que o embed *resolve*, não
+  como o JS ou o CSS é colorido.
+- Nada commitado foi empurrado: gad-textmate `619199f`, vscode-gad `950217b`,
+  intellij-gad `cc8432f` e gad `2f019ff` estão só locais, todos em `main`. O
+  `main` do gad-textmate estava atrasado (`8668b60`) em relação ao HEAD
+  destacado (`1a1599a`, = `origin/main`); foi fast-forward, sem divergência.
+
+## Errors & Fixes
+| Error | Cause | Fix | Evidence |
+|-------|-------|-----|----------|
+| a linha da tag ganhava o escopo do bloco | o bloco usava `name`, que cobre o `begin` | trocar por `contentName`, que só cobre o corpo | dump mostra `script[…]` sem `meta.embedded.block` |
+
+## Current State
+Feito, testado e commitado nos quatro repositórios, nenhum empurrado.
+
 # TASK: Gadx — `gad transpile page.html` em sintaxe de tags
 > Created: 2026-09-04 | Updated: 2026-09-04
 
@@ -22,9 +65,6 @@ elementos inline legível e sem perder nada do que a página renderiza.
       o resto vira laço contado; escrever as cópias é o que deixa `a(2) x` e
       dois `a x` serem o mesmo template, sem o qual o formatter não poderia
       fundir um no outro.
-- [ ] faça com que o textmate format o gadx `script` como javascript e `style` como css, reconhecendo o `#{ CODE }#` 
-  como interpolação, colorindo CODE como codigo gad corretamente como em `{ CODE }` nas nas demais situações.
-  o `#{ CODE }#` tabem deve ser reconhecido em `@raw_text`. faça os testes no textmate.
 
 ## Log
 ### 2026-09-04
