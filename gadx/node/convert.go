@@ -847,7 +847,53 @@ func convertTag(t *TagStmt) gnode.Stmts {
 	if !t.SelfClosing {
 		inner = append(inner, convertBody(t.Body)...)
 	}
-	return gnode.Stmts{gnode.SBlock(t.Pos(), t.End(), inner...)}
+	return repeatTag(t, gnode.SBlock(t.Pos(), t.End(), inner...))
+}
+
+// maxUnrolledRepeat is how many copies a literal `(N)` is written out as before
+// the loop is used instead. Writing them out is what makes `a(2) x` and two
+// `a x` lines the same template — the formatter folds one into the other, and
+// it may only do that if nothing downstream can tell them apart. Past a few
+// copies that stops being a saving, and the loop takes over.
+const maxUnrolledRepeat = 32
+
+// repeatTag writes a tag's block as many times as its `(N)` says.
+//
+// A literal count is written out; anything else becomes a counted loop, since
+// the number is only known when the template runs.
+func repeatTag(t *TagStmt, block gnode.Stmt) gnode.Stmts {
+	if t.Repeat == nil {
+		return gnode.Stmts{block}
+	}
+	if lit, ok := t.Repeat.(*gnode.IntLit); ok && lit.Value >= 0 && lit.Value <= maxUnrolledRepeat {
+		out := make(gnode.Stmts, 0, lit.Value)
+		for i := int64(0); i < lit.Value; i++ {
+			out = append(out, block)
+		}
+		return out
+	}
+
+	// for $rep := 0; $rep < N; $rep += 1 { … }
+	//
+	// The counter's name carries no position: reformatting a file moves every
+	// node, and a name built from one would make the same template lower to
+	// different code each time — which is exactly what the formatter's
+	// round-trip check refuses. A nested repeat shadows it inside its own
+	// block, where the outer loop's header no longer looks.
+	ident := func() *gnode.IdentExpr { return gnode.EIdent("$rep", t.NodePos) }
+	return gnode.Stmts{&gnode.ForStmt{
+		ForPos: t.NodePos,
+		Init: &gnode.AssignStmt{
+			LHS: []gnode.Expr{ident()}, RHS: []gnode.Expr{gnode.Int(0, t.NodePos)},
+			Token: token.Define, TokenPos: t.NodePos,
+		},
+		Cond: gnode.EBinary(ident(), t.Repeat, token.Less, t.NodePos),
+		Post: &gnode.AssignStmt{
+			LHS: []gnode.Expr{ident()}, RHS: []gnode.Expr{gnode.Int(1, t.NodePos)},
+			Token: token.AddAssign, TokenPos: t.NodePos,
+		},
+		Body: gnode.SBlock(t.Pos(), t.End(), block),
+	}}
 }
 
 // convertFragmentTag lowers a `<>…</>` fragment to a gadx.Elements() node built

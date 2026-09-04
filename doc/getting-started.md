@@ -241,7 +241,10 @@ what the page renders, is refused and the inline HTML is kept.
 
 A plain `id` or `class` is written in its shorthand form, `#title` and `.card`,
 with a name quoted when it carries more than letters, digits, `_` and `-` — see
-[samples/gadx/shorthand](../samples/gadx/shorthand.gadx).
+[samples/gadx/shorthand](../samples/gadx/shorthand.gadx). A run of sibling tags
+that come out the same is folded into one `(N)` — five identical star icons
+become `i.fa-solid.fa-star(5)` — see
+[samples/gadx/repeat](../samples/gadx/repeat.gadx).
 
 The whitespace between two block-level tags was the source's indentation, so it
 is dropped. Between inline elements it is content — the space in

@@ -181,6 +181,9 @@ type TagStmt struct {
 	Attributes  []*TagAttribute
 	Body        gnode.Stmts
 	SelfClosing bool
+	// Repeat is the `(N)` written after the tag's head: the tag, with its whole
+	// subtree, is written that many times. Nil when the tag is written once.
+	Repeat gnode.Expr
 	// Fragment marks a `<>…</>` inline-HTML fragment: it has no name/attributes
 	// and lowers to a gadx.Elements() node whose children are its Body (spliced
 	// into the enclosing parent on append).

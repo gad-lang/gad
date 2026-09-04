@@ -42,7 +42,10 @@ type scanner struct {
 	readRaw bool
 	// pendingRawTag marks a `script`/`style` written in tag syntax, whose body
 	// is read verbatim; the force frame is pushed once its own line ends.
-	pendingRawTag  bool
+	pendingRawTag bool
+	// inTagHead is true between a tag's name and its text: the only place a
+	// `(N)` repeat count is read, so a `(…)` anywhere else stays text.
+	inTagHead      bool
 	mode           gadparser.ScanMode
 	mixedDelimiter gadparser.MixedDelimiter
 	errorHandler   []source.ScannerErrorHandler
@@ -133,6 +136,7 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		// own line, so the attributes on that line are still scanned as
 		// attributes; it records the tag's depth, so it pops as soon as a line
 		// comes back to it (a `script[src=…]` with no body pops at once).
+		s.inTagHead = false
 		if s.pendingRawTag {
 			s.pendingRawTag = false
 			s.pushForce(false)
@@ -256,6 +260,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 			return tok
 		}
 		if tok := s.scanAttribute(); tok.Valid() {
+			return tok
+		}
+		if tok := s.scanRepeat(); tok.Valid() {
 			return tok
 		}
 		if tok := s.scanBlockComment(); tok.Valid() {
@@ -736,6 +743,7 @@ var (
 func (s *scanner) scanID() gadparser.PToken {
 	if sm := rgxID.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
+		s.inTagHead = true
 		pt := s.newToken(gadxtoken.ID, sm[0], shorthandName(sm[1], sm[2]))
 		pt.Set("condition", sm[3])
 		return pt
@@ -746,6 +754,7 @@ func (s *scanner) scanID() gadparser.PToken {
 func (s *scanner) scanClassName() gadparser.PToken {
 	if sm := rgxClassName.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
+		s.inTagHead = true
 		pt := s.newToken(gadxtoken.ClassName, sm[0], shorthandName(sm[1], sm[2]))
 		pt.Set("condition", sm[3])
 		return pt
@@ -807,6 +816,7 @@ func (s *scanner) scanAttribute() gadparser.PToken {
 	innerPos := source.Pos(s.file.Base+s.offset-len(s.buffer)-1) + 1
 	lit := s.buffer[:consumed]
 	s.consume(consumed)
+	s.inTagHead = true
 	pt := s.newToken(gadxtoken.Attribute, lit, "")
 	pt.Set("inner", inner)
 	pt.Set("innerPos", innerPos)
@@ -1197,9 +1207,33 @@ func (s *scanner) scanTag() gadparser.PToken {
 		if gadxnode.IsRawText(sm[1]) {
 			s.pendingRawTag = true
 		}
+		s.inTagHead = true
 		return s.newToken(gadxtoken.Tag, sm[0], sm[1])
 	}
 	return gadparser.PToken{}
+}
+
+// scanRepeat reads the `(N)` that may close a tag's head — `a(2) link` — as the
+// count of times the tag is written.
+//
+// It is read only right after the tag's name or one of its attributes, and only
+// when the `(` sits against them with no space between: `p (a note) here` keeps
+// its parentheses, which are text. The count runs to the balanced `)`, so it
+// may be any expression.
+func (s *scanner) scanRepeat() gadparser.PToken {
+	if !s.inTagHead || !strings.HasPrefix(s.buffer, "(") {
+		return gadparser.PToken{}
+	}
+	s.ensureBalanced(0, '(', ')')
+	balanced, end, ok := s.readBalanced(0, '(', ')')
+	if !ok || end <= 2 {
+		return gadparser.PToken{}
+	}
+	lit := s.buffer[:end]
+	s.consume(end)
+	pt := s.newToken(gadxtoken.Repeat, lit, strings.TrimSpace(balanced[1:len(balanced)-1]))
+	pt.Set("valuePos", []source.Pos{pt.Pos + 1})
+	return pt
 }
 
 var rgxExport = regexp.MustCompile(`^@export\s+([a-zA-Z_]\w*)(\s*=\s*(.+))?$`)

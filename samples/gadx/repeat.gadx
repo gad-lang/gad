@@ -1,0 +1,38 @@
+/**
+`(N)` — the same tag, written N times.
+
+`(N)` closes a tag's head: after the name, the shorthands and the attributes,
+before the text. The tag is written that many times, with everything under it —
+`li.item(3)` is three list items, and a tag with a subtree is repeated whole.
+
+    star(5)
+    div.card(2)
+        p inside
+
+The count is an expression, so it may be computed: `li(len(items))`. A literal
+count is written out as copies; anything else becomes a counted loop, since the
+number is only known when the template runs.
+
+The `(` has to sit against the tag, with no space before it. A tag's text may
+open with a parenthesis of its own — `a[href="tel:…"] (781) 496-8660` — and the
+space is what keeps it text.
+
+The formatter goes the other way: a run of sibling tags that write out the same
+is folded into one `(N)`. It compares what they *write*, so two subtrees fold
+only when they are the same down to the last attribute, and only up to the
+number of copies the lowering writes out — past that a `(N)` is a loop, and
+folding would change the template rather than only how it is written.
+**/
+
+@param (; stars=4)
+
+@main
+    hr(3)
+    div.rating
+        i.star(5)
+    ul
+        li.item(2)
+            b two of these
+    div.dynamic
+        i.star(stars)
+    p (this stays text) — the space before the parenthesis is what says so

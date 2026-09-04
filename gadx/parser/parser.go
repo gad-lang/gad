@@ -750,6 +750,17 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 		}
 	}
 
+	// `(N)` closes the tag's head, after the attributes and before the text.
+	if p.Token.Token == gadxtoken.Repeat {
+		tok := p.Token
+		p.expect(gadxtoken.Repeat)
+		base := tok.Pos + 1
+		if positions, ok := tokenValuePos(tok); ok && len(positions) > 0 {
+			base = positions[0]
+		}
+		tag.Repeat = parseExprStr(stringData(tok, "value", ""), base)
+	}
+
 	tag.Attributes = hoistID(tag.Attributes)
 
 	tag.SelfClosing = gadxnode.IsSelfClosing(name)

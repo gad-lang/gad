@@ -185,11 +185,67 @@ func (c *GadxCodeWriteContext) WriteLine(s string) {
 
 // WriteStmts writes a list of gadx statements at the current depth.
 func (c *GadxCodeWriteContext) WriteStmts(stmts gnode.Stmts) {
-	for _, stmt := range stmts {
-		if gc, ok := stmt.(GadxCoder); ok {
-			gc.WriteGadx(c)
-		}
+	// Each statement is written once, into a string, so that a run of siblings
+	// that come out the same can be folded into one `tag(N)` — comparing what
+	// they *write* is what makes two subtrees the same, not walking them.
+	forms := make([]string, len(stmts))
+	for i, stmt := range stmts {
+		forms[i] = c.render(stmt)
 	}
+
+	for i := 0; i < len(stmts); {
+		n := c.repeatRun(stmts, forms, i)
+		if n > 1 {
+			folded := *stmts[i].(*TagStmt)
+			folded.Repeat = &gnode.IntLit{
+				Value: int64(n), ValuePos: folded.NodePos,
+				Literal: strconv.Itoa(n),
+			}
+			c.write(c.render(&folded))
+			i += n
+			continue
+		}
+		c.write(forms[i])
+		i++
+	}
+}
+
+// render writes one statement to a string, at the current depth, so it can be
+// compared with its siblings before going out.
+func (c *GadxCodeWriteContext) render(stmt gnode.Stmt) string {
+	gc, ok := stmt.(GadxCoder)
+	if !ok {
+		return ""
+	}
+	var b strings.Builder
+	sub := *c
+	sub.Writer = &b
+	gc.WriteGadx(&sub)
+	return b.String()
+}
+
+// repeatRun returns how many statements from i on are the same tag written
+// again, which `tag(N)` says in one line.
+//
+// The run is capped at what the lowering writes out as copies: past that a
+// `(N)` becomes a loop, and folding would then change the template rather than
+// only how it is written. A tag that already carries its own `(N)` is left
+// alone, and so is anything that is not a tag — two identical `| ` lines are
+// two lines of text, and joining them would change what the page says.
+func (c *GadxCodeWriteContext) repeatRun(stmts gnode.Stmts, forms []string, i int) int {
+	tag, ok := stmts[i].(*TagStmt)
+	if !ok || tag.Repeat != nil || tag.Fragment || forms[i] == "" {
+		return 1
+	}
+	n := 1
+	for i+n < len(stmts) && n < maxUnrolledRepeat {
+		next, ok := stmts[i+n].(*TagStmt)
+		if !ok || next.Repeat != nil || next.Fragment || forms[i+n] != forms[i] {
+			break
+		}
+		n++
+	}
+	return n
 }
 
 // GadxCoder is implemented by nodes that can write formatted gadx source.
@@ -437,6 +493,11 @@ func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	inline := t.Name + shorthand
 	for _, g := range groups {
 		inline += g.inline()
+	}
+	// `(N)` closes the head: after everything that describes the tag, before
+	// the text that is inside it.
+	if t.Repeat != nil {
+		inline += "(" + ctx.gadExpr(t.Repeat) + ")"
 	}
 
 	if IsRawText(t.Name) && len(t.Body) > 0 && !rawTextBlockSafe(ctx.rawTextContent(t.Body)) {

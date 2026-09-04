@@ -16,6 +16,7 @@
 - [paragraphs](paragraphs.md)
 - [param](param.md)
 - [raw_text](raw_text.md)
+- [repeat](repeat.md)
 - [shorthand](shorthand.md)
 - [slot_dynamic_name](slot_dynamic_name.md)
 - [slot_params](slot_params.md)
