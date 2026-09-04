@@ -39,6 +39,7 @@ const (
 	Enum
 	HTML
 	TextBlock // @text — raw literal-text block
+	RawText   // @raw_text — verbatim block, `#{= … }#` interpolation
 	Para      // @p — paragraph block
 	Md        // @md — Markdown block
 	Test      // @test — test block (lowers to Gad `test NAME { … }`)
@@ -81,6 +82,7 @@ var tokNames = [...]string{
 	Enum:         "ENUM",
 	HTML:         "HTML",
 	TextBlock:    "TEXT_BLOCK",
+	RawText:      "RAW_TEXT",
 	Para:         "PARA",
 	Md:           "MD",
 	Test:         "TEST",

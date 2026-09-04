@@ -931,6 +931,16 @@ func textCall(pos, end source.Pos, values ...gnode.Expr) *gnode.CallExpr {
 // gadx.Text append, and consecutive lines are separated by a newline write so the
 // original line breaks are preserved. Interpolation (`{ … }`) inside a line keeps
 // its source position because each line reuses convertText.
+// convertRawTextBlock lowers a `@raw_text` block: its body is already a run of
+// raw-string literals and `#{= … }#` values, so it lowers as one text node,
+// exactly like the content of a script or a stylesheet.
+func convertRawTextBlock(t *RawTextBlockStmt) gnode.Stmts {
+	if len(t.Body) == 0 {
+		return nil
+	}
+	return convertText(&TextStmt{NodePos: t.NodePos, NodeEnd: t.NodeEnd, Stmts: t.Body})
+}
+
 func convertTextBlock(t *TextBlockStmt) gnode.Stmts {
 	// The folded style (`|>`, YAML `>`) joins lines with a space; the literal
 	// style (`|` / `@text`) preserves line breaks.

@@ -292,17 +292,44 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	// interpolations — a bare `| ` line strips only trailing whitespace, which
 	// would otherwise be lost when the segments are split across lines.
 	if strings.TrimSpace(text) == "" {
-		return // drop a whitespace-only run: `| ` strips it and it does not survive
+		if text == "" {
+			return
+		}
+		// A run of pure whitespace still renders — it is the space between two
+		// inline elements — so dropping it changes the page. A `| ` line cannot
+		// carry it (parsing strips the edges), but an interpolated literal can,
+		// and it lowers to the same text node.
+		ctx.WriteLine("| {= " + strconv.Quote(text) + " }")
+		return
 	}
-	for _, line := range strings.Split(text, "\n") {
-		// Trim edge whitespace: a `| ` line strips trailing space on parse and a
-		// leading run collapses, so `|  x ` would not round-trip. This matches the
-		// HTML rule that whitespace at a text run's edges collapses.
-		line = strings.TrimSpace(line)
-		if line == "" {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
 			continue
 		}
-		ctx.WriteLine("| " + line)
+		// A `| ` line strips its edges on parse, so whitespace that matters is
+		// written as an interpolated literal instead. It matters at the very
+		// edges of the run, where it is the space between this text and the
+		// element beside it; between lines the HTML rule collapses it anyway.
+		keepLead := i == 0 && line != strings.TrimLeft(line, " \t")
+		keepTail := i == len(lines)-1 && line != strings.TrimRight(line, " \t")
+		if keepLead || keepTail {
+			// The whole line goes out as one interpolated literal, edges and
+			// all. Writing only the edges that way would split one text node
+			// into three: the page reads the same, but the lowered code does
+			// not, and that is what the formatter is checked against.
+			edged := line
+			if !keepLead {
+				edged = strings.TrimLeft(edged, " \t")
+			}
+			if !keepTail {
+				edged = strings.TrimRight(edged, " \t")
+			}
+			ctx.WriteLine("| {= " + strconv.Quote(edged) + " }")
+			continue
+		}
+		ctx.WriteLine("| " + trimmed)
 	}
 }
 
@@ -348,6 +375,23 @@ func (t *TextBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	}
 	ctx.writeRawBlock(directive, t.Body)
 }
+
+// WriteGadx writes a `@raw_text` block with its body verbatim, one line per
+// line. The body is content, so it is not reflowed; the block's indentation is
+// re-applied at the current depth, which is what the parser stripped.
+func (t *RawTextBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	ctx.WriteLine("@raw_text")
+	ctx.Depth++
+	for _, line := range t.Lines {
+		if line == "" {
+			ctx.write("\n")
+			continue
+		}
+		ctx.WriteLine(line)
+	}
+	ctx.Depth--
+}
+
 func (t *ParaBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) { ctx.writeRawBlock("@p", t.Body) }
 func (t *MdBlockStmt) WriteGadx(ctx *GadxCodeWriteContext)   { ctx.writeRawBlock("@md", t.Body) }
 
@@ -365,6 +409,16 @@ func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	inline := t.Name
 	for _, g := range groups {
 		inline += g.inline()
+	}
+
+	if IsRawText(t.Name) {
+		// A script or a stylesheet is written back as the HTML region it came
+		// from. Its content is text that has to come out byte for byte — the
+		// language depends on it — and no pug form reproduces arbitrary
+		// whitespace: `| ` lines strip their edges, and a literal block
+		// normalises indentation.
+		ctx.writeRawTextTag(t)
+		return
 	}
 
 	if !ctx.overflows(inline) {
@@ -408,9 +462,30 @@ func (a *TagAttribute) mergeable() bool { return a.Condition == nil && a.Spread 
 func (a *TagAttribute) inner(ctx *GadxCodeWriteContext) string {
 	s := a.Name
 	if !a.IsFlag && a.Value != nil {
+		if IsEmptyAttrValue(a.Value) {
+			// `@empty` is how the source says "present, with an empty value".
+			// Writing the gadx.EMPTY selector back out would be correct but
+			// unreadable, and a bare "" means the opposite: dropped.
+			return s + "=@empty"
+		}
 		s += "=" + ctx.gadExpr(a.Value)
 	}
 	return s
+}
+
+// IsEmptyAttrValue reports whether e is the gadx.EMPTY selector — the value an
+// attribute carries when it is present and empty.
+func IsEmptyAttrValue(e gnode.Expr) bool {
+	sel, ok := e.(*gnode.SelectorExpr)
+	if !ok {
+		return false
+	}
+	x, ok := sel.X.(*gnode.IdentExpr)
+	if !ok || x.Name != "gadx" {
+		return false
+	}
+	name, ok := sel.Sel.(*gnode.StrLit)
+	return ok && name.Value() == "EMPTY"
 }
 
 // attrGroups builds the tag's attribute groups: consecutive mergeable
@@ -487,11 +562,18 @@ func (c *GadxCodeWriteContext) inlineTagText(body gnode.Stmts) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	// Trim edge whitespace exactly as the `| ` text path does, so a tag body that
-	// came from an HTML region (with surrounding whitespace text nodes) inlines to
-	// the same result on every pass (idempotent).
-	text := strings.TrimSpace(c.buildMixed(ts.Stmts))
+	raw := c.buildMixed(ts.Stmts)
+	text := strings.TrimSpace(raw)
 	if text == "" || strings.ContainsAny(text, "\n") {
+		return "", false
+	}
+	// Inlining a body drops the whitespace around it, and that whitespace
+	// renders — it is the space between this text and whatever sits beside the
+	// element. A run that has any keeps its own line, where it can be written
+	// with the edges intact. The check is on what the run holds, not on how it
+	// is written: once the edges have moved into a `{= " x " }` literal, the
+	// source form no longer shows them.
+	if runHasEdgeSpace(ts.Stmts) {
 		return "", false
 	}
 	// A leading `|`/`<`/`@`/`!`/`+`/`~` would be re-parsed as a directive rather
@@ -878,3 +960,97 @@ var (
 	_ GadxCoder = (*CallLineStmt)(nil)
 	_ GadxCoder = (*EnumStmt)(nil)
 )
+
+// writeRawTextTag writes a raw-text element (a script or a stylesheet) in the
+// inline-HTML form, so its content survives verbatim. The attributes come out as
+// HTML: a literal value quoted, a flag bare, anything computed in `{ … }`.
+func (c *GadxCodeWriteContext) writeRawTextTag(t *TagStmt) {
+	var b strings.Builder
+	b.WriteString("<" + t.Name)
+	for _, a := range t.Attributes {
+		if a.Name == "" {
+			continue
+		}
+		switch {
+		case a.IsFlag || a.Value == nil:
+			b.WriteString(" " + a.Name)
+		default:
+			if lit, ok := a.Value.(*gnode.StrLit); ok {
+				b.WriteString(" " + a.Name + "=" + strconv.Quote(lit.Value()))
+			} else {
+				b.WriteString(" " + a.Name + "={" + c.gadExpr(a.Value) + "}")
+			}
+		}
+	}
+	b.WriteString(">")
+	c.write(c.indent() + b.String())
+	c.write(c.rawTextContent(t.Body))
+	c.write("</" + t.Name + ">\n")
+}
+
+// rawTextContent rebuilds the source text of a raw-text element's body: the
+// literal chunks as they were, and each interpolation back in its `#{= … }#`
+// form.
+func (c *GadxCodeWriteContext) rawTextContent(body gnode.Stmts) string {
+	var b strings.Builder
+	for _, stmt := range body {
+		ts, ok := stmt.(*TextStmt)
+		if !ok {
+			continue
+		}
+		for _, s := range ts.Stmts {
+			switch v := s.(type) {
+			case *gnode.MixedTextStmt:
+				b.WriteString(v.Lit.Value)
+			case *gnode.MixedValueStmt:
+				if rs, ok := v.Expr.(*gnode.RawStrLit); ok && v.StartLit.Value == "" {
+					b.WriteString(rs.Value())
+					continue
+				}
+				b.WriteString("#{= " + c.gadExpr(v.Expr) + " }#")
+			case *gnode.ExprStmt:
+				b.WriteString("#{ " + c.gadExpr(v.Expr) + " }#")
+			}
+		}
+	}
+	return b.String()
+}
+
+// runHasEdgeSpace reports whether a text run begins or ends with whitespace,
+// looking through a literal interpolation to the string it carries.
+func runHasEdgeSpace(stmts gnode.Stmts) bool {
+	first, last, ok := runEdges(stmts)
+	if !ok {
+		return false
+	}
+	return first != strings.TrimLeft(first, " \t") || last != strings.TrimRight(last, " \t")
+}
+
+// runEdges returns the leading and trailing literal text of a run. ok is false
+// when an edge is a computed value, whose whitespace cannot be known here.
+func runEdges(stmts gnode.Stmts) (first, last string, ok bool) {
+	literal := func(stmt gnode.Stmt) (string, bool) {
+		switch v := stmt.(type) {
+		case *gnode.MixedTextStmt:
+			return v.Lit.Value, true
+		case *gnode.MixedValueStmt:
+			switch e := v.Expr.(type) {
+			case *gnode.StrLit:
+				return e.Value(), true
+			case *gnode.RawStrLit:
+				return e.Value(), true
+			}
+		}
+		return "", false
+	}
+	if len(stmts) == 0 {
+		return "", "", false
+	}
+	if first, ok = literal(stmts[0]); !ok {
+		return "", "", false
+	}
+	if last, ok = literal(stmts[len(stmts)-1]); !ok {
+		return "", "", false
+	}
+	return first, last, true
+}

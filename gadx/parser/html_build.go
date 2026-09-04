@@ -43,6 +43,18 @@ func (b *htmlBuilder) parseNodes(i int) (gnode.Stmts, int) {
 			if i+1 < len(s) && s[i+1] == '/' {
 				return out, i // close tag — stop here
 			}
+			if i+1 < len(s) && s[i+1] == '!' {
+				// A comment, doctype or CDATA section. It is not an element, and
+				// letting parseElement read it as one made a `/` in the comment
+				// look like a self-closing tag and the scan stop advancing. The
+				// declaration is dropped: it carries nothing to render.
+				next, ok := skipMarkupDeclaration(s, i)
+				if !ok || next <= i {
+					return out, len(s)
+				}
+				i = next
+				continue
+			}
 			if i+1 < len(s) && s[i+1] == '>' {
 				// `<>…</>` fragment: a wrapper-less node lowering to gadx.Elements()
 				// (its children are spliced into the enclosing parent on append).
@@ -155,6 +167,25 @@ func (b *htmlBuilder) parseElement(i int) (gnode.Stmt, int) {
 	if selfClose {
 		return tag, tagEnd
 	}
+	if gadxnode.IsSelfClosing(name) {
+		// A void element has no close tag, so it has no children either. Reading
+		// on for them made a `<meta>` adopt its following siblings and then eat
+		// the close tag of whatever element actually enclosed it, which cut the
+		// rest of the document off the tree.
+		tag.SelfClosing = true
+		return tag, tagEnd
+	}
+	if lower := strings.ToLower(name); htmlRawTextElements[lower] {
+		contentEnd, after := skipRawTextElement(s, tagEnd, lower)
+		if contentEnd < 0 {
+			contentEnd, after = len(s), len(s)
+		}
+		if txt := b.rawTextNode(tagEnd, contentEnd); txt != nil {
+			tag.Body = gnode.Stmts{txt}
+		}
+		tag.NodeEnd = b.pos(contentEnd)
+		return tag, after
+	}
 	children, ci := b.parseNodes(tagEnd)
 	tag.Body = children
 	tag.NodeEnd = b.pos(ci)
@@ -222,6 +253,71 @@ func (b *htmlBuilder) textNode(start, end int) gnode.Stmt {
 	return &gadxnode.TextStmt{NodePos: b.pos(start), NodeEnd: b.pos(end), Stmts: stmts}
 }
 
+// rawTextNode builds the content of a raw-text element — a script or a
+// stylesheet — from src[start:end]. That content is code, not markup: it is
+// written verbatim, so braces are literal (a CSS rule is not an interpolation),
+// whitespace survives, and nothing is HTML-escaped, which would corrupt a
+// string in either language.
+//
+// `#{= expr }#` writes a value and `#{ expr }#` is a control statement that
+// runs and writes nothing — the same pair as `{= … }` and `{ … }` in ordinary
+// text. The closing `}#` is what makes either unambiguous: a lone `}` belongs
+// to the CSS or the JS. A written value goes out verbatim like the rest, so
+// whatever it carries must already be valid in the language it lands in.
+func (b *htmlBuilder) rawTextNode(start, end int) gnode.Stmt {
+	stmts := rawTextStmts(b.src[start:end], b.pos(start))
+	if len(stmts) == 0 {
+		return nil
+	}
+	return &gadxnode.TextStmt{NodePos: b.pos(start), NodeEnd: b.pos(end), Stmts: stmts}
+}
+
+// rawTextStmts parses raw text — the content of a script, a stylesheet or a
+// `@raw_text` block — into the statements of a text run. Everything is literal
+// except `#{= expr }#`, which writes a value, and `#{ expr }#`, which runs and
+// writes nothing. The literal spans are carried as raw strings so that rendering
+// writes them verbatim instead of HTML-escaping code.
+//
+// base is the source position of s[0], so every expression maps back onto the
+// original file.
+func rawTextStmts(s string, base source.Pos) gnode.Stmts {
+	pos := func(i int) source.Pos { return base + source.Pos(i) }
+
+	var stmts gnode.Stmts
+	litStart := 0
+	flushLit := func(to int) {
+		if to <= litStart {
+			return
+		}
+		stmts = append(stmts, gnode.SMixedValue(
+			gnode.Lit("", pos(litStart)), gnode.Lit("", pos(to)),
+			gnode.RawStr(s[litStart:to], pos(litStart))))
+	}
+	for i := 0; i < len(s); {
+		if s[i] != '#' || i+1 >= len(s) || s[i+1] != '{' {
+			i++
+			continue
+		}
+		close := strings.Index(s[i+2:], "}#")
+		if close < 0 {
+			break
+		}
+		close += i + 2
+		flushLit(i)
+		if i+2 < close && s[i+2] == '=' {
+			expr := parseExprStr(s[i+3:close], pos(i+3))
+			stmts = append(stmts, gnode.SMixedValue(
+				gnode.Lit("#{=", pos(i)), gnode.Lit("}#", pos(close)), expr))
+		} else {
+			stmts = append(stmts, gnode.SExpr(parseExprStr(s[i+2:close], pos(i+2))))
+		}
+		i = close + 2
+		litStart = i
+	}
+	flushLit(len(s))
+	return stmts
+}
+
 // parseAttrs parses the attribute list in src[start:end] into gadx TagAttributes.
 func (b *htmlBuilder) parseAttrs(start, end int) []*gadxnode.TagAttribute {
 	s := b.src
@@ -273,6 +369,13 @@ func (b *htmlBuilder) makeAttr(nameParts []gnode.Expr, nameLit string, valExpr g
 		return attr
 	}
 	if valIsLit {
+		if unquoteAttr(valLit) == "" {
+			// `value=""` is present and empty, which a plain "" cannot express:
+			// falsy attribute values are dropped so conditional attributes work.
+			// gadx.EMPTY carries the distinction through to the renderer.
+			attr.Value = emptyAttrValue(b.pos(0))
+			return attr
+		}
 		// A plain string value: stored as a StrLit whose gadx-source form is
 		// already quoted (`[href="/x"]`), so IsRaw (which would re-quote) is left
 		// unset.
@@ -410,4 +513,10 @@ func concatExprs(parts []gnode.Expr) gnode.Expr {
 		expr = gnode.EBinary(expr, p, token.Add, expr.Pos())
 	}
 	return expr
+}
+
+// emptyAttrValue is the expression for an attribute that is present and empty:
+// the gadx.EMPTY constant, which the attribute renderer writes as `name=""`.
+func emptyAttrValue(pos source.Pos) gnode.Expr {
+	return gnode.ESelector(gnode.EIdent("gadx", pos), gnode.Str("EMPTY", pos))
 }

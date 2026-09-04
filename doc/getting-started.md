@@ -133,7 +133,7 @@ The CLI is organised as subcommands. Run `gad help` for the list, or
 |-----------------|----------------------------------------------------------|
 | `gad run`       | Run a script file/stdin, or start the REPL (the default).|
 | `gad fmt`       | Format Gad source files in place.                        |
-| `gad transpile` | Lower `.gadt`/`.gadx` templates to formatted `.gad` (file or directory, recursive). |
+| `gad transpile` | Lower `.gadt`/`.gadx` templates to formatted `.gad`, or lift an `.html` page into a `.gadx` (file or directory, recursive). |
 | `gad debug`     | Debug a script (interactive REPL or `--dap` for editors).|
 | `gad ide`       | Start a local web IDE for a workspace directory or file. |
 | `gad version`   | Print the Gad version and build (Go/OS/arch).            |
@@ -190,6 +190,28 @@ gad transpile templates/     # every .gadt/.gadx under ./templates, recursively
 The output runs identically to the template: a `.gadx` becomes `gadx.Tag` /
 `gadx.Text` calls (including `@md` blocks, which are rendered to HTML and parsed
 into tags at transpile time), and a `.gadt` becomes `write(…)` calls.
+
+An `.html` file goes the other way: it is lifted into a `.gadx` template whose
+`@main` renders the page, which is how an existing page becomes a component to
+build on.
+
+```sh
+gad transpile page.html      # -> page.gadx
+```
+
+Three things are rewritten on the way, and nothing else — each would otherwise
+change the page:
+
+- the HTML5 doctype becomes the `!!! 5` statement, since written as markup it is
+  a declaration and Gadx drops declarations;
+- a `{` outside a script or a stylesheet is escaped, because in Gadx it opens an
+  interpolation and in HTML text it is just a brace;
+- a character entity becomes the character it names, since Gadx escapes what it
+  writes and `&copy;` would otherwise go out as `&amp;copy;`. `&lt;` and `&gt;`
+  stay: decoded, they would turn into markup.
+
+Script and stylesheet content is left exactly as it is, indentation included —
+see [samples/gadx/raw_text](../samples/gadx/raw_text.gadx).
 
 ### The web IDE (`gad ide`)
 

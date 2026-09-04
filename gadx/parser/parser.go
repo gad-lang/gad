@@ -30,6 +30,10 @@ type Parser struct {
 	// attaches to an immediately following @comp/@func, otherwise it is flushed
 	// as a file-level comment (a blank line or any other statement breaks it).
 	pendingDoc *gadxnode.CommentStmt
+	// rawText counts the `@raw_text` blocks being parsed. Inside one, a body
+	// line is kept exactly as written: its braces are content, not an
+	// interpolation, and only the whole block knows where `#{= … }#` starts.
+	rawText int
 }
 
 // NewParser creates a new Parser for the given source file.
@@ -149,6 +153,8 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		return p.parseText()
 	case gadxtoken.TextBlock:
 		return p.parseTextBlock()
+	case gadxtoken.RawText:
+		return p.parseRawTextBlock()
 	case gadxtoken.Para:
 		return p.parseParaBlock()
 	case gadxtoken.Md:
@@ -348,6 +354,12 @@ func (p *Parser) parseText() *gadxnode.TextStmt {
 		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
 	}
 
+	if content != "" && p.rawText > 0 {
+		// Verbatim: the block reads the run itself, by the raw rules.
+		t.Stmts = gnode.Stmts{gnode.SMixedText(tok.Pos, content)}
+		return t
+	}
+
 	if content != "" {
 		base := noBase
 		if positions, ok := tokenValuePos(tok); ok && len(positions) > 0 {
@@ -391,6 +403,88 @@ func (p *Parser) parseTextBlock() *gadxnode.TextBlockStmt {
 		}
 	}
 	return tb
+}
+
+// parseRawTextBlock parses a `@raw_text` directive and its indented body. The
+// body lines were scanned verbatim (force-text mode), so this joins them, drops
+// the indentation the block itself introduces — keeping the indentation inside
+// it, which is content — and reads the result by the raw rules: braces literal,
+// `#{= … }#` the interpolation.
+func (p *Parser) parseRawTextBlock() *gadxnode.RawTextBlockStmt {
+	tok := p.Token
+	p.expect(gadxtoken.RawText)
+
+	rt := &gadxnode.RawTextBlockStmt{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+	}
+	if p.Token.Token != gadxtoken.Indent {
+		return rt
+	}
+
+	base := noBase
+	p.rawText++
+	body := p.parseBlock(rt)
+	p.rawText--
+	for _, stmt := range body {
+		ts, ok := stmt.(*gadxnode.TextStmt)
+		if !ok {
+			continue
+		}
+		if base == noBase {
+			base = ts.Pos()
+		}
+		rt.Lines = append(rt.Lines, rawLineText(ts))
+		rt.NodeEnd = ts.End()
+	}
+
+	text := dedent(rt.Lines)
+	rt.Lines = strings.Split(text, "\n")
+	if base == noBase {
+		base = rt.NodePos
+	}
+	rt.Body = rawTextStmts(text, base)
+	return rt
+}
+
+// rawLineText recovers the source text of one body line, which parseText kept
+// verbatim while inside the block.
+func rawLineText(ts *gadxnode.TextStmt) string {
+	var b strings.Builder
+	for _, stmt := range ts.Stmts {
+		if mt, ok := stmt.(*gnode.MixedTextStmt); ok {
+			b.WriteString(mt.Lit.Value)
+		}
+	}
+	return b.String()
+}
+
+// dedent removes the indentation common to every non-blank line, so a block's
+// own indentation does not become part of its content while the indentation
+// inside it — which is content — is kept.
+func dedent(lines []string) string {
+	prefix := ""
+	first := true
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		lead := l[:len(l)-len(strings.TrimLeft(l, " \t"))]
+		if first {
+			prefix, first = lead, false
+			continue
+		}
+		n := 0
+		for n < len(prefix) && n < len(lead) && prefix[n] == lead[n] {
+			n++
+		}
+		prefix = prefix[:n]
+	}
+	out := make([]string, len(lines))
+	for i, l := range lines {
+		out[i] = strings.TrimPrefix(l, prefix)
+	}
+	return strings.Join(out, "\n")
 }
 
 // parseParaBlock parses a `@p` directive and its indented body, which was
@@ -607,13 +701,26 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 	// by an indented block (`h2 Text\n    code …` — the leading text and the child
 	// tags are all children of the tag). An inline `|` / `|>` (`p |>`) opens a
 	// text block right on the tag, equivalent to `p` with an indented `|>` block.
-	if p.Token.Token == gadxtoken.TextBlock {
-		tag.Body = gnode.Stmts{p.parseTextBlock()}
-	} else if p.Token.Token == gadxtoken.Text {
-		tag.Body = gnode.Stmts{p.parseText()}
-	}
-	if p.Token.Token == gadxtoken.Indent {
-		tag.Body = append(tag.Body, p.parseBlock(tag)...)
+	// A void element has no closing tag and so no children. Taking a following
+	// text run as its body swallowed it — the element renders nothing, so the
+	// text was simply lost — and left the formatter unable to round-trip the
+	// space between two of them.
+	if !tag.SelfClosing {
+		if p.Token.Token == gadxtoken.TextBlock {
+			tag.Body = gnode.Stmts{p.parseTextBlock()}
+		} else if p.Token.Token == gadxtoken.Text && p.sameLine(p.PrevToken.Pos+source.Pos(len(p.PrevToken.Literal)), p.Token.Pos) {
+			// Only text on the tag's own line is its inline body (`span x`, and
+			// `] link` after a wrapped attribute group — hence the comparison
+			// against where the token just consumed ends, since an attribute
+			// group is one token that may span lines). A `| …` line
+			// below is a sibling: reading it as the body moved it inside, which
+			// the formatter then wrote back inline, and the file stopped
+			// round-tripping.
+			tag.Body = gnode.Stmts{p.parseText()}
+		}
+		if p.Token.Token == gadxtoken.Indent {
+			tag.Body = append(tag.Body, p.parseBlock(tag)...)
+		}
 	}
 
 	if len(tag.Body) > 0 {
@@ -1207,7 +1314,12 @@ func parseAttributeEntry(entry string, base source.Pos) *gadxnode.TagAttribute {
 	value := strings.TrimSpace(entry[valOffset:])
 
 	attr := &gadxnode.TagAttribute{Name: name}
-	if len(value) >= 2 && strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
+	if value == "@empty" {
+		// Present and empty. A plain "" is falsy and the renderer drops falsy
+		// values, which is what makes `[hidden=cond]` disappear; gadx.EMPTY is
+		// how an attribute says it is there with nothing in it.
+		attr.Value = emptyAttrValue(base + source.Pos(valOffset))
+	} else if len(value) >= 2 && strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
 		attr.IsRaw = true
 		attr.Value = gnode.Str(value[1:len(value)-1], base+source.Pos(valOffset))
 	} else if value != "" && value != `""` {
@@ -2045,4 +2157,17 @@ func bodyEndFor(s *gadxnode.ForStmt) source.Pos {
 		return s.Body[len(s.Body)-1].End()
 	}
 	return s.Pos()
+}
+
+// sameLine reports whether two positions fall on the same source line.
+func (p *Parser) sameLine(a, b source.Pos) bool {
+	if p.file == nil {
+		return true
+	}
+	pa, erra := p.file.Position(a)
+	pb, errb := p.file.Position(b)
+	if erra != nil || errb != nil {
+		return true
+	}
+	return pa.Line == pb.Line
 }

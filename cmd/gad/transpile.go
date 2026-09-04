@@ -26,7 +26,8 @@ func transpileCommand() *cc.Command {
 		Usage: "PATH [PATH...]",
 		Description: "Transpile Gad templates to plain Gad source. " +
 			"A .gadt or .gadx file is written as a .gad file of the same name; " +
-			"a directory is transpiled recursively (all .gadt and .gadx files).",
+			"an .html file is lifted into a .gadx template whose @main renders it; " +
+			"a directory is transpiled recursively.",
 		ParseArgs: func(ctx *cc.CommandContext) error { return ctx.Args.Min(1) },
 		Run: func(ctx *cc.CommandContext) error {
 			for _, arg := range ctx.Args {
@@ -53,8 +54,11 @@ func transpilePath(ctx *cc.CommandContext, path string) error {
 		return err
 	}
 	if !info.IsDir() {
+		if isHTMLFile(path) {
+			return transpileHTMLFile(ctx, path)
+		}
 		if !isTemplateFile(path) {
-			return fmt.Errorf("not a Gad template (.gadt/.gadx): %s", path)
+			return fmt.Errorf("not a Gad template (.gadt/.gadx) or an HTML document: %s", path)
 		}
 		return transpileFile(ctx, path)
 	}
@@ -68,7 +72,13 @@ func transpilePath(ctx *cc.CommandContext, path string) error {
 			}
 			return nil
 		}
-		if isHidden(d.Name()) || !isTemplateFile(d.Name()) {
+		if isHidden(d.Name()) {
+			return nil
+		}
+		if isHTMLFile(d.Name()) {
+			return transpileHTMLFile(ctx, p)
+		}
+		if !isTemplateFile(d.Name()) {
 			return nil
 		}
 		return transpileFile(ctx, p)
@@ -113,6 +123,21 @@ func transpileFile(ctx *cc.CommandContext, path string) error {
 		return fmt.Errorf("write %s: %w", dest, err)
 	}
 
+	fmt.Fprintf(ctx.Out, "%s -> %s\n", path, dest)
+	return nil
+}
+
+// transpileHTMLFile lifts one HTML document into a `.gadx` template of the same
+// name, whose `@main` renders the page.
+func transpileHTMLFile(ctx *cc.CommandContext, path string) error {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	dest := strings.TrimSuffix(path, filepath.Ext(path)) + ".gadx"
+	if err := os.WriteFile(dest, []byte(htmlToGadx(string(src))), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", dest, err)
+	}
 	fmt.Fprintf(ctx.Out, "%s -> %s\n", path, dest)
 	return nil
 }

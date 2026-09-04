@@ -155,6 +155,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanExport(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanRawTextBlock(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanTextBlock(); tok.Valid() {
 			return tok
 		}
@@ -584,6 +587,22 @@ func (s *scanner) scanTextBlock() gadparser.PToken {
 		s.consume(len(s.buffer))
 		s.pushForce(false)
 		return s.newToken(gadxtoken.TextBlock, lit, "")
+	}
+	return gadparser.PToken{}
+}
+
+var rgxRawTextBlock = regexp.MustCompile(`^@raw_text\s*$`)
+
+// scanRawTextBlock matches the `@raw_text` directive and switches the scanner
+// into force-text mode for its indented body, the same as `@text`. What differs
+// is how the parser reads those lines: verbatim, with `{` literal and
+// `#{= … }#` as the interpolation — the rules a script or a stylesheet needs.
+func (s *scanner) scanRawTextBlock() gadparser.PToken {
+	if rgxRawTextBlock.MatchString(s.buffer) {
+		lit := s.buffer
+		s.consume(len(s.buffer))
+		s.pushForce(false)
+		return s.newToken(gadxtoken.RawText, lit, "")
 	}
 	return gadparser.PToken{}
 }
@@ -1042,6 +1061,34 @@ func (s *scanner) scanHTML() gadparser.PToken {
 	}
 	c := s.buffer[1]
 	isLetter := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+	if c == '!' {
+		// A comment, doctype or CDATA standing on its own. It nests nothing, so
+		// it is a complete region by itself; without this nothing consumed the
+		// leading `<` and the scan could not move past the line.
+		base0 := source.Pos(s.file.Base + s.offset - len(s.buffer) - 1)
+		s.ensureMarkupDeclComplete()
+		end, _ := skipMarkupDeclaration(s.buffer, 0)
+		raw := s.buffer[:end]
+		s.consume(end)
+		pt := s.newToken(gadxtoken.HTML, raw, raw)
+		pt.Set("htmlPos", base0)
+		return pt
+	}
+	if c == '/' {
+		// A close tag with no opener in this region — markup that drifted out of
+		// balance. Consuming it lets the scan proceed to the rest of the file;
+		// nothing else here takes a leading `<`, so leaving it would stall.
+		gt := strings.IndexByte(s.buffer, '>')
+		if gt < 0 {
+			return gadparser.PToken{}
+		}
+		base0 := source.Pos(s.file.Base + s.offset - len(s.buffer) - 1)
+		raw := s.buffer[:gt+1]
+		s.consume(gt + 1)
+		pt := s.newToken(gadxtoken.HTML, raw, raw)
+		pt.Set("htmlPos", base0)
+		return pt
+	}
 	if !(c == '>' || isLetter) {
 		return gadparser.PToken{}
 	}
@@ -1049,7 +1096,14 @@ func (s *scanner) scanHTML() gadparser.PToken {
 	s.ensureHTMLComplete(0)
 	end, ok := htmlRegionEnd(s.buffer, 0)
 	if !ok {
-		return gadparser.PToken{}
+		// The region never closes — an unclosed tag, say. Nothing else in the
+		// scanner consumes a leading `<`, so returning no token here left the
+		// caller looping over the same buffer forever. Taking what is there
+		// lets the scan finish and the parser report the real problem.
+		end = len(s.buffer)
+		if end == 0 {
+			return gadparser.PToken{}
+		}
 	}
 	raw := s.buffer[:end]
 	s.consume(end)
@@ -1061,6 +1115,28 @@ func (s *scanner) scanHTML() gadparser.PToken {
 // ensureHTMLComplete pulls additional source lines into the buffer until the
 // HTML region opened at s.buffer[start] closes, or input ends. The separating
 // newline is preserved so buffer offsets stay aligned with file offsets.
+// ensureMarkupDeclComplete reads on until the buffer holds the whole `<!…>`,
+// since a comment may well span lines.
+func (s *scanner) ensureMarkupDeclComplete() {
+	for {
+		if _, done := skipMarkupDeclaration(s.buffer, 0); done {
+			return
+		}
+		buf, err := s.reader.ReadString('\n')
+		if len(buf) == 0 {
+			return
+		}
+		s.offset += len(buf)
+		if buf[len(buf)-1] == '\n' {
+			buf = buf[:len(buf)-1]
+		}
+		s.buffer += "\n" + buf
+		if err != nil {
+			return
+		}
+	}
+}
+
 func (s *scanner) ensureHTMLComplete(start int) {
 	for {
 		if _, ok := htmlRegionEnd(s.buffer, start); ok {

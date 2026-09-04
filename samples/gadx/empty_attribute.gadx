@@ -1,0 +1,35 @@
+/**
+Attributes that are present and empty.
+
+An attribute whose value is falsy is left out — that is what makes
+`[hidden=cond]` disappear when `cond` is false. It also means a plain `""`
+cannot say "present, with an empty value", and some attributes need to: an
+`<option value="">` is the placeholder entry of a select, and dropping its
+value changes what the form submits.
+
+`@empty` is that value. It is `gadx.EMPTY`, a value of its own type, never
+falsy, which the attribute renderer writes as `name=""`:
+
+- **`[value=@empty]`** — `value=""`.
+- **`[value=""]`** — omitted, like any other falsy value.
+- **`<option value="">`** — inline HTML means what HTML means, so a literal
+  empty value there is present and empty.
+
+`gad fmt` writes it back as `@empty`, since a bare `""` would mean the opposite.
+**/
+
+@main
+    label Filter
+
+    select[name="kind"]
+        // The placeholder: present, with an empty value, so submitting it
+        // sends "kind=".
+        option[value=@empty] Any kind
+        option[value="finish-carpentry"] Finish carpentry
+        option[value="kitchen-bath"] Kitchen & bath
+
+    // A falsy value is still dropped: this renders as a bare <div>.
+    div[data-note=""] omitted
+
+    // Inline HTML keeps an empty value, the way a browser reads it.
+    <select name="inline"><option value="">Any</option></select>

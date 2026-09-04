@@ -164,6 +164,7 @@ func init() {
 		(*gadxnode.MdBlockStmt)(nil),
 		(*gadxnode.ParaBlockStmt)(nil),
 		(*gadxnode.ParamStmt)(nil),
+		(*gadxnode.RawTextBlockStmt)(nil),
 		(*gadxnode.SlotDecl)(nil),
 		(*gadxnode.SlotPassStmt)(nil),
 		(*gadxnode.TagStmt)(nil),

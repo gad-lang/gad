@@ -86,6 +86,34 @@ func (t *TextBlockStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 }
 
 // =============================================================================
+// RawTextBlockStmt — `@raw_text` verbatim block
+// =============================================================================
+
+// RawTextBlockStmt is a `@raw_text` block: its body is written out exactly as
+// given, with the block's own indentation removed and the indentation inside it
+// kept. Braces are literal and `#{= … }#` interpolates — the rules a script or a
+// stylesheet needs, available on their own.
+type RawTextBlockStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	// Lines holds the body, already dedented, one entry per source line.
+	Lines []string
+	// Body is the parsed run: raw-string literals interleaved with the
+	// `#{= … }#` values.
+	Body gnode.Stmts
+}
+
+func (t *RawTextBlockStmt) Pos() source.Pos { return t.NodePos }
+func (t *RawTextBlockStmt) End() source.Pos { return t.NodeEnd }
+func (t *RawTextBlockStmt) StmtNode()       {}
+func (t *RawTextBlockStmt) String() string  { return "gadx.RawText" }
+
+func (t *RawTextBlockStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertRawTextBlock(t)...)
+}
+
+// =============================================================================
 // ParaBlockStmt — `@p` paragraph block (blank lines split <p> paragraphs)
 // =============================================================================
 
@@ -997,21 +1025,31 @@ var (
 	_ gnode.Stmt = (*ExportStmt)(nil)
 )
 
+// selfClosingTags are the HTML void elements: they have no closing tag and so
+// can hold no children. This is the one list — the scanner, the node builder and
+// the source writer all ask IsSelfClosing, so none of them can disagree about
+// whether an element closes itself.
 var selfClosingTags = map[string]bool{
-	"meta":   true,
-	"img":    true,
-	"link":   true,
-	"input":  true,
-	"source": true,
 	"area":   true,
 	"base":   true,
-	"col":    true,
 	"br":     true,
+	"col":    true,
+	"embed":  true,
 	"hr":     true,
+	"img":    true,
+	"input":  true,
+	"link":   true,
+	"meta":   true,
+	"param":  true,
+	"source": true,
+	"track":  true,
+	"wbr":    true,
 }
 
+// IsSelfClosing reports whether name is an HTML void element. The name is
+// matched case-insensitively, since HTML tag names are.
 func IsSelfClosing(name string) bool {
-	return selfClosingTags[name]
+	return selfClosingTags[strings.ToLower(name)]
 }
 
 func IsRawText(name string) bool {

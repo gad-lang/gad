@@ -51,6 +51,17 @@ var (
 			return
 		}
 
+		// EMPTY is the way to say "present, with an empty value": a plain `""`
+		// is falsy and would have been dropped just above.
+		if _, isEmpty := value.(EmptyValue); isEmpty {
+			if _, ok := name.(gad.RawStr); !ok {
+				if name, err = toRawStr(name); err != nil {
+					return
+				}
+			}
+			return gad.RawStr(name.ToString() + `=""`), nil
+		}
+
 		if _, ok := name.(gad.RawStr); !ok {
 			if name, err = toRawStr(name); err != nil {
 				return
