@@ -251,7 +251,8 @@ tags, and just inside a block — right after its open tag and right before its
 close tag, so a paragraph written across three lines is `p Hello` and not a
 quoted literal. A browser drops it too, trimming a block's edges when it lays
 the lines out; `<pre>` and `<textarea>` keep every space, being laid out as
-written. Between inline elements the whitespace is content — the space in
+written — their content is carried through as a quoted literal, which is the
+only form that survives the parse with its line breaks intact. Between inline elements the whitespace is content — the space in
 `<a>one</a> <a>two</a>` is what keeps the words apart — and it comes out as a
 `*` line, or as `{= " …" }` where a run's own edges have to survive. See
 [samples/gadx/text_space](../samples/gadx/text_space.gadx).

@@ -13,6 +13,7 @@ com `#{ CODE }#` lido como interpolação e o CODE colorido como gad, igual ao
 - [x] `@raw_text` com o corpo verbatim e as mesmas ilhas
 - [x] Testes no tmtest (bun + vscode-textmate)
 - [x] Aparar o espaço lateral de dentro de uma tag de bloco (`<p>  x  </p>` → `p x`)
+- [x] `<pre>` / `<textarea>` mantêm o whitespace: na leitura do HTML, no lift e no formatter
 
 ## Log
 ### 2026-09-04
@@ -31,11 +32,13 @@ com `#{ CODE }#` lido como interpolação e o CODE colorido como gad, igual ao
   layout à moda de navegador — whitespace colapsado, quebra só em borda de
   bloco — entre o render e o `index.html`: 121 linhas idênticas nos dois.
 
+- `<pre>`: `go test ./gadx/ -run TestPreKeepsWhitespace` e
+  `go test ./cmd/gad -run TestHTMLToGadx` ok. Transpile de um documento com
+  `<pre>`, `<pre><code>` e `<textarea>`: sai em sintaxe de tag e as quatro
+  regiões voltam byte a byte iguais à fonte. `index.gadx` segue em 540 linhas,
+  com o layout ainda idêntico ao `index.html` (121 linhas).
+
 ## Unverified / Pending
-- O conteúdo de um `<pre>` é colapsado na leitura do HTML (`<pre>\n  a   b\n</pre>`
-  vira `pre {= " a b " }`). É anterior a estas mudanças — conferido no binário
-  do HEAD — e o `dropEdges` já deixa `pre` e `textarea` de fora; o que colapsa
-  é o modelo de texto do gadx, não o transpile.
 - O `source.js` / `source.css` de verdade vem do editor; o teste usa uma
   gramática-sentinela, então o que está provado é que o embed *resolve*, não
   como o JS ou o CSS é colorido.

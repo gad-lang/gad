@@ -32,8 +32,10 @@ var (
 	rgxTagBefore  = regexp.MustCompile(`(?s)<(/?)([a-zA-Z][-\w]*)[^<>]*>\s*$`)
 	rgxTagAfter   = regexp.MustCompile(`^<(/?)([a-zA-Z][-\w]*)`)
 	rgxTagGapOnly = regexp.MustCompile(`(?s)>[ \t\r\n]+<`)
-	rgxOpenEdge   = regexp.MustCompile(`(?s)<([a-zA-Z][-\w]*)([^<>]*)>[ \t\r\n]+`)
-	rgxCloseEdge  = regexp.MustCompile(`(?s)[ \t\r\n]+</([a-zA-Z][-\w]*)[ \t]*>`)
+	rgxPreRegion  = regexp.MustCompile(
+		`(?is)<pre\b[^>]*>.*?</pre\s*>|<textarea\b[^>]*>.*?</textarea\s*>`)
+	rgxOpenEdge  = regexp.MustCompile(`(?s)<([a-zA-Z][-\w]*)([^<>]*)>[ \t\r\n]+`)
+	rgxCloseEdge = regexp.MustCompile(`(?s)[ \t\r\n]+</([a-zA-Z][-\w]*)[ \t]*>`)
 )
 
 // htmlPreserveElements lay their content out as written, so no whitespace in
@@ -70,10 +72,19 @@ func blockEdged(name string) bool {
 // them.
 func dropLayoutWhitespace(src string) string {
 	var raws []string
-	masked := rgxRawRegion.ReplaceAllStringFunc(src, func(m string) string {
-		raws = append(raws, trimRawEdges(m))
-		return fmt.Sprintf("<gad-raw-%d></gad-raw-%d>", len(raws)-1, len(raws)-1)
-	})
+	mask := func(trim bool) func(string) string {
+		return func(m string) string {
+			if trim {
+				m = trimRawEdges(m)
+			}
+			raws = append(raws, m)
+			return fmt.Sprintf("<gad-raw-%d></gad-raw-%d>", len(raws)-1, len(raws)-1)
+		}
+	}
+	masked := rgxRawRegion.ReplaceAllStringFunc(src, mask(true))
+	// A `<pre>` is held aside untouched: the gaps inside it are content, and
+	// so is the whitespace at its edges.
+	masked = rgxPreRegion.ReplaceAllStringFunc(masked, mask(false))
 
 	masked = dropEdges(dropGaps(masked))
 
@@ -230,6 +241,7 @@ func htmlToGadx(src string) string {
 	var (
 		b      strings.Builder
 		inRaw  bool
+		inPre  int
 		indent = "    "
 	)
 	b.WriteString("@main\n")
@@ -239,6 +251,17 @@ func htmlToGadx(src string) string {
 	src = rgxHTML5Doctype.ReplaceAllString(strings.ReplaceAll(src, "\r\n", "\n"), doctypeMark)
 	src = dropLayoutWhitespace(src)
 	for _, line := range strings.Split(src, "\n") {
+		// Inside a `<pre>` or a `<textarea>` the line is laid out as written, so
+		// it goes out at its own indentation: shifting it would shift the page.
+		// Its content is still HTML — entities decode, braces are escaped —
+		// which is what separates it from a script's or a stylesheet's.
+		if inPre > 0 && !inRaw {
+			out, endsInRaw := convertLine(line, false)
+			b.WriteString(out + "\n")
+			inRaw = endsInRaw
+			inPre += preDepthDelta(line)
+			continue
+		}
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			b.WriteString("\n")
@@ -258,8 +281,27 @@ func htmlToGadx(src string) string {
 			b.WriteString(indent + out + "\n")
 		}
 		inRaw = endsInRaw
+		if !inRaw {
+			inPre += preDepthDelta(line)
+		}
 	}
 	return b.String()
+}
+
+var rgxPreTag = regexp.MustCompile(`(?i)<(/?)(pre|textarea)\b`)
+
+// preDepthDelta reports how many preserve-whitespace elements a line opens
+// minus how many it closes, so the lift knows when it is inside one.
+func preDepthDelta(line string) int {
+	d := 0
+	for _, m := range rgxPreTag.FindAllStringSubmatch(line, -1) {
+		if m[1] == "/" {
+			d--
+		} else {
+			d++
+		}
+	}
+	return d
 }
 
 // rgxEntity matches a character entity. `&lt;` and `&gt;` are left out on

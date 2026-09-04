@@ -1089,3 +1089,15 @@ func IsSelfClosing(name string) bool {
 func IsRawText(name string) bool {
 	return name == "style" || name == "script"
 }
+
+// IsPreserveWhitespace reports whether an element lays its content out as
+// written — `<pre>` and `<textarea>` — so the whitespace inside it is content
+// and not the source's indentation. Unlike a raw-text element, what it holds is
+// still markup: a `<pre>` may carry tags.
+func IsPreserveWhitespace(name string) bool {
+	switch strings.ToLower(name) {
+	case "pre", "textarea":
+		return true
+	}
+	return false
+}

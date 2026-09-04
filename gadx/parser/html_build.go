@@ -26,6 +26,10 @@ type htmlBuilder struct {
 	base     source.Pos
 	blocks   []gnode.Stmts // inline gadx blocks, in source order (see rewriteGadxBlocks)
 	blockCur int           // next block to splice at a sentinel
+	// preserve counts the enclosing `<pre>` / `<textarea>` elements. Inside one,
+	// text is laid out as written, so its whitespace is content and is kept
+	// exactly instead of being collapsed.
+	preserve int
 }
 
 func (b *htmlBuilder) pos(i int) source.Pos { return b.base + source.Pos(i) }
@@ -129,7 +133,7 @@ func (b *htmlBuilder) emitTextRun(start, end int, out *gnode.Stmts) {
 		if s[i] != sentinel {
 			continue
 		}
-		if strings.TrimSpace(s[seg:i]) != "" {
+		if b.preserve > 0 || strings.TrimSpace(s[seg:i]) != "" {
 			if txt := b.textNode(seg, i); txt != nil {
 				*out = append(*out, txt)
 			}
@@ -140,7 +144,7 @@ func (b *htmlBuilder) emitTextRun(start, end int, out *gnode.Stmts) {
 		}
 		seg = i + 1
 	}
-	if strings.TrimSpace(s[seg:end]) != "" {
+	if b.preserve > 0 || strings.TrimSpace(s[seg:end]) != "" {
 		if txt := b.textNode(seg, end); txt != nil {
 			*out = append(*out, txt)
 		}
@@ -196,6 +200,10 @@ func (b *htmlBuilder) parseElement(i int) (gnode.Stmt, int) {
 		tag.NodeEnd = b.pos(contentEnd)
 		return tag, after
 	}
+	if htmlPreserveElements[strings.ToLower(name)] {
+		b.preserve++
+		defer func() { b.preserve-- }()
+	}
 	children, ci := b.parseNodes(tagEnd)
 	tag.Body = children
 	tag.NodeEnd = b.pos(ci)
@@ -215,8 +223,12 @@ func (b *htmlBuilder) textNode(start, end int) gnode.Stmt {
 		if lit.Len() == 0 {
 			return
 		}
-		if collapsed := collapseWS(lit.String()); collapsed != "" {
-			stmts = append(stmts, gnode.SMixedText(b.pos(litStart), collapsed))
+		text := lit.String()
+		if b.preserve == 0 {
+			text = collapseWS(text)
+		}
+		if text != "" {
+			stmts = append(stmts, gnode.SMixedText(b.pos(litStart), text))
 		}
 		lit.Reset()
 	}
@@ -475,6 +487,10 @@ func (b *htmlBuilder) attrValue(start, end int) (expr gnode.Expr, lit string, is
 }
 
 // --- helpers ---
+
+// htmlPreserveElements lay their content out as written, so the whitespace in
+// them is content: it is what makes a `<pre>` block preformatted.
+var htmlPreserveElements = map[string]bool{"pre": true, "textarea": true}
 
 // collapseWS replaces every run of ASCII whitespace with a single space.
 // collapseWS collapses runs of whitespace to a single space, keeping a single

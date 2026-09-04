@@ -165,3 +165,17 @@ func TestHTMLToGadxKeepsInlineSpacing(t *testing.T) {
 		t.Errorf("trailing edge wrongly kept or word run broken:\n%s", got)
 	}
 }
+
+// A `<pre>` is laid out as written: the lift may not shift its lines, and the
+// formatter has to write the content back in a form that carries it.
+func TestHTMLToGadxKeepsPreVerbatim(t *testing.T) {
+	got := htmlToGadxFormatted("<div>\n  <pre>  a   b\n  c    d\n</pre>\n</div>\n")
+
+	if !strings.Contains(got, `{= "  a   b\n  c    d\n" }`) {
+		t.Errorf("pre content was collapsed or shifted:\n%s", got)
+	}
+	// short content with nothing to lose still reads plainly
+	if plain := htmlToGadxFormatted("<pre>hello</pre>\n"); !strings.Contains(plain, "pre hello") {
+		t.Errorf("a plain pre was written the long way:\n%s", plain)
+	}
+}

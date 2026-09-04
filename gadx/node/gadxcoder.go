@@ -31,6 +31,10 @@ type GadxCodeWriteContext struct {
 	// its text lines are written verbatim (no `| ` prefix) and blank lines are
 	// preserved.
 	raw bool
+	// preserve is set while emitting the body of a `<pre>` / `<textarea>`,
+	// whose whitespace is content: a text run there is written as one quoted
+	// literal, the only form that carries it back through the parse.
+	preserve bool
 }
 
 // NewGadxCodeContext creates a new context writing to w, with 1-tab indentation
@@ -342,6 +346,15 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		return
 	}
 
+	// Inside a `<pre>` the whitespace is content, down to the line breaks, and
+	// no line-based form carries it: a `| ` line strips its own edges and the
+	// break between two of them is not the same as a break in the text. One
+	// quoted literal is, so the run goes out whole.
+	if ctx.preserve && preserveNeeded(t.Stmts) {
+		ctx.WriteLine(preservedRun(ctx, t.Stmts))
+		return
+	}
+
 	// A run that renders to a single space is the space between two elements,
 	// and it has a marker of its own: a lone `*`. It reaches here in either
 	// form — literal text, from HTML, or the `{= " " }` this writer used to
@@ -523,7 +536,11 @@ func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	if !ctx.overflows(inline) {
 		// A tag whose whole body is a single short text run is written inline as
 		// `tag text` (so `<span>one</span>` → `span one`, not `span` + `| one`).
-		if text, ok := ctx.inlineTagText(t.Body); ok && !ctx.overflows(inline+" "+text) {
+		// Inside a `<pre>` the whitespace is content for every element under it,
+		// not only the `<pre>` itself: a `<code>` nested in one carries the line
+		// breaks just the same.
+		preserve := ctx.preserve || IsPreserveWhitespace(t.Name)
+		if text, ok := ctx.inlineTagText(t.Body, preserve); ok && !ctx.overflows(inline+" "+text) {
 			ctx.WriteLine(inline + " " + text)
 			return
 		}
@@ -533,7 +550,14 @@ func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		ctx.writeWrappedTag(t.Name, groups)
 	}
 	ctx.Depth++
-	ctx.WriteStmts(t.Body)
+	if IsPreserveWhitespace(t.Name) {
+		was := ctx.preserve
+		ctx.preserve = true
+		ctx.WriteStmts(t.Body)
+		ctx.preserve = was
+	} else {
+		ctx.WriteStmts(t.Body)
+	}
 	ctx.Depth--
 }
 
@@ -710,9 +734,25 @@ func (c *GadxCodeWriteContext) overflows(line string) bool {
 // single-line text run (no interpolation newlines), and whether it qualifies.
 // Such a body is emitted as `tag text` on the tag line rather than an indented
 // `| text`.
-func (c *GadxCodeWriteContext) inlineTagText(body gnode.Stmts) (string, bool) {
+func (c *GadxCodeWriteContext) inlineTagText(body gnode.Stmts, preserve bool) (string, bool) {
 	if len(body) != 1 {
 		return "", false
+	}
+	if preserve {
+		ts, ok := body[0].(*TextStmt)
+		if !ok {
+			return "", false
+		}
+		if !preserveNeeded(ts.Stmts) {
+			// Nothing an ordinary inline text would lose, so it reads better
+			// written plainly.
+			preserve = false
+		} else {
+			if plain, ok := runPlainText(ts.Stmts); !ok || strings.Contains(plain, "\n") {
+				return "", false
+			}
+			return preservedRun(c, ts.Stmts), true
+		}
 	}
 	ts, ok := body[0].(*TextStmt)
 	if !ok {
@@ -1249,6 +1289,54 @@ func runHasEdgeSpace(stmts gnode.Stmts) bool {
 		return false
 	}
 	return first != strings.TrimLeft(first, " \t") || last != strings.TrimRight(last, " \t")
+}
+
+// preserveNeeded reports whether a run holds whitespace that the ordinary
+// line-based forms would lose: a line break, or an edge that a `| ` line strips.
+// Everything else reads the same written plainly, and reads better.
+func preserveNeeded(stmts gnode.Stmts) bool {
+	for _, stmt := range stmts {
+		switch stmt.(type) {
+		case *gnode.MixedTextStmt, *gnode.MixedValueStmt:
+		default:
+			// A statement the quoted form cannot carry; write the run the
+			// ordinary way rather than dropping part of it.
+			return false
+		}
+	}
+	if runHasEdgeSpace(stmts) {
+		return true
+	}
+	// The test is on the text the run renders, not on how it is written: once
+	// the whitespace has moved into a `{= "…" }` literal the source form no
+	// longer shows it, and reading only the plain segments would say the run is
+	// ordinary and write it back as one — losing what the quotes were carrying.
+	if plain, ok := runPlainText(stmts); ok {
+		return strings.Contains(plain, "\n")
+	}
+	for _, stmt := range stmts {
+		if mt, ok := stmt.(*gnode.MixedTextStmt); ok && strings.Contains(mt.Lit.Value, "\n") {
+			return true
+		}
+	}
+	return false
+}
+
+// preservedRun writes a run whose whitespace is content: every literal segment
+// goes out as a quoted string, so the line breaks and the edges survive the
+// parse, and the interpolations between them keep their own form. It is one
+// line, and it lowers to the one text run it came from.
+func preservedRun(c *GadxCodeWriteContext, stmts gnode.Stmts) string {
+	var b strings.Builder
+	for _, stmt := range stmts {
+		switch v := stmt.(type) {
+		case *gnode.MixedTextStmt:
+			b.WriteString("{= " + strconv.Quote(v.Lit.Value) + " }")
+		case *gnode.MixedValueStmt:
+			b.WriteString(c.gadxInterp(v))
+		}
+	}
+	return b.String()
 }
 
 // runPlainText returns the text a run renders to, when every one of its parts
