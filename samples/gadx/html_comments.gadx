@@ -4,11 +4,13 @@ Comments and declarations in inline HTML.
 An inline HTML region may carry the markup a real document does, and Gadx reads
 each for what it is rather than as an element:
 
-- **`<!-- … -->`** is a comment. It nests nothing and renders nothing, so it is
-  dropped: a `/` inside it (`js/main.js`) is text, not a self-closing tag.
-- **`<!DOCTYPE …>`** and **`<![CDATA[ … ]]>`** are declarations, and are dropped
-  the same way. To emit a doctype, use the `!!! 5` statement, which renders
-  `<!DOCTYPE html>`.
+- **`<!-- … -->`** is a comment, and it is written into the page: that is how a
+  template hands a note to whatever reads the rendered HTML. It nests nothing,
+  so a `/` inside it (`js/main.js`) is text, not a self-closing tag. A note for
+  the template itself, one that stops here, is a `//` line comment.
+- **`<!DOCTYPE …>`** and **`<![CDATA[ … ]]>`** are declarations. They carry
+  nothing to render and are dropped. To emit a doctype, use the `!!! 5`
+  statement, which renders `<!DOCTYPE html>`.
 - **Void elements** — `<meta>`, `<br>`, `<img>`, `<input>`, `<embed>` and the
   rest — have no closing tag and so no children: what follows one is its
   sibling.
@@ -22,7 +24,7 @@ characters they name, and a `{` outside a script or a stylesheet is escaped.
     !!! 5
     <html lang="en">
     <head>
-    <!-- A comment renders nothing, whatever it contains: a/b.js, {braces}. -->
+    <!-- A comment goes out as it stands, whatever it holds: a/b.js, {braces}. -->
     <meta charset="UTF-8">
     <title>Voids and comments</title>
     </head>

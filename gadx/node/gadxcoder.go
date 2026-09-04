@@ -717,6 +717,16 @@ func (d *DoctypeStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.WriteLine("!!! " + d.Value)
 }
 
+// WriteGadx writes an HTML comment back as it was written. It is content, so it
+// keeps its own delimiters; a `//` line would make it a note in the template
+// and it would stop reaching the page.
+func (c *HTMLCommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	lines := strings.Split(c.Source(), "\n")
+	for _, line := range lines {
+		ctx.WriteLine(line)
+	}
+}
+
 func (c *CommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	if c.Block {
 		// A `/* … */` block comment (silent); a `/** … **/` doc comment (gad

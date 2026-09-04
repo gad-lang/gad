@@ -184,6 +184,8 @@ func convertStmt(s gnode.Stmt) gnode.Stmts {
 		return convertIf(st)
 	case *DoctypeStmt:
 		return convertDoctype(st)
+	case *HTMLCommentStmt:
+		return convertHTMLComment(st)
 	case *TextStmt:
 		return convertText(st)
 	case *TagStmt:
@@ -1220,6 +1222,14 @@ func replaceMdInterpPlaceholders(stmts gnode.Stmts, exprs []gnode.Expr) {
 func convertDoctype(d *DoctypeStmt) gnode.Stmts {
 	raw := gnode.EToRaw(0, gnode.Str(doctypeValue(d.Value), 0))
 	return gnode.Stmts{gnode.SExpr(textCall(d.NodePos, d.NodeEnd, raw))}
+}
+
+// convertHTMLComment lowers an HTML comment to the text it writes. It goes out
+// raw: escaped, `<!--` would reach the page as `&lt;!--` and the comment would
+// be a line of visible text instead.
+func convertHTMLComment(c *HTMLCommentStmt) gnode.Stmts {
+	raw := gnode.EToRaw(0, gnode.Str(c.Source(), 0))
+	return gnode.Stmts{gnode.SExpr(textCall(c.NodePos, c.NodeEnd, raw))}
 }
 
 // convertText lowers text content to gadx.Text appends: consecutive literal and

@@ -158,6 +158,7 @@ func init() {
 		(*gadxnode.ForStmt)(nil),
 		(*gadxnode.FuncDecl)(nil),
 		(*gadxnode.GlobalStmt)(nil),
+		(*gadxnode.HTMLCommentStmt)(nil),
 		(*gadxnode.HTMLStmt)(nil),
 		(*gadxnode.IfStmt)(nil),
 		(*gadxnode.MatchStmt)(nil),

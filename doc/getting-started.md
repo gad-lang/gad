@@ -203,7 +203,8 @@ Three things are rewritten on the way, and nothing else — each would otherwise
 change the page:
 
 - the HTML5 doctype becomes the `!!! 5` statement, since written as markup it is
-  a declaration and Gadx drops declarations;
+  a declaration and Gadx drops declarations — a `<!-- … -->` comment is not one
+  and stays, going into the rendered page as it stands;
 - a `{` outside a script or a stylesheet is escaped, because in Gadx it opens an
   interpolation and in HTML text it is just a brace;
 - a character entity becomes the character it names, since Gadx escapes what it

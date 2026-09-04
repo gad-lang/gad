@@ -337,9 +337,39 @@ func (c *CommentStmt) End() source.Pos { return c.NodeEnd }
 func (c *CommentStmt) StmtNode()       {}
 func (c *CommentStmt) String() string  { return "gadx.Comment" }
 
-// WriteCode emits nothing: gadx comments (`//`, `///`, `/* … */`) are silent.
-// Use an inline HTML region (`<!-- … -->`) to emit an HTML comment into the output.
+// WriteCode emits nothing: gadx comments (`//`, `///`, `/* … */`) are notes in
+// the template and stop there. Write `<!-- … -->` for a comment that goes into
+// the page (see HTMLCommentStmt).
 func (c *CommentStmt) WriteCode(ctx *gnode.CodeWriteContext) {}
+
+// =============================================================================
+// HTMLCommentStmt — an HTML comment, `<!-- … -->`
+// =============================================================================
+
+// HTMLCommentStmt is a comment written into the page, as opposed to a
+// CommentStmt (`//`, `/* … */`), which is a note in the template and never
+// leaves it. It is how a template hands a comment to whatever reads the
+// rendered HTML — a build step, a CDN, a person reading source — so it goes out
+// verbatim, delimiters and all.
+type HTMLCommentStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	// Text is what stands between the delimiters, exactly as written.
+	Text string
+}
+
+func (c *HTMLCommentStmt) Pos() source.Pos { return c.NodePos }
+func (c *HTMLCommentStmt) End() source.Pos { return c.NodeEnd }
+func (c *HTMLCommentStmt) StmtNode()       {}
+func (c *HTMLCommentStmt) String() string  { return "gadx.HTMLComment(" + c.Text + ")" }
+
+func (c *HTMLCommentStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertHTMLComment(c)...)
+}
+
+// Source returns the comment as it is written, delimiters included.
+func (c *HTMLCommentStmt) Source() string { return "<!--" + c.Text + "-->" }
 
 // =============================================================================
 // IfStmt — conditional block
@@ -1008,6 +1038,7 @@ var (
 	_ gnode.Stmt = (*TagStmt)(nil)
 	_ gnode.Stmt = (*DoctypeStmt)(nil)
 	_ gnode.Stmt = (*CommentStmt)(nil)
+	_ gnode.Stmt = (*HTMLCommentStmt)(nil)
 	_ gnode.Stmt = (*IfStmt)(nil)
 	_ gnode.Stmt = (*ForStmt)(nil)
 	_ gnode.Stmt = (*AssignStmt)(nil)

@@ -46,11 +46,21 @@ func (b *htmlBuilder) parseNodes(i int) (gnode.Stmts, int) {
 			if i+1 < len(s) && s[i+1] == '!' {
 				// A comment, doctype or CDATA section. It is not an element, and
 				// letting parseElement read it as one made a `/` in the comment
-				// look like a self-closing tag and the scan stop advancing. The
-				// declaration is dropped: it carries nothing to render.
+				// look like a self-closing tag and the scan stop advancing.
 				next, ok := skipMarkupDeclaration(s, i)
 				if !ok || next <= i {
 					return out, len(s)
+				}
+				// A comment is content — it is how a template hands a note to
+				// whatever reads the rendered page — so it is kept. A doctype or
+				// a CDATA section carries nothing to render and is dropped; the
+				// doctype has the `!!! 5` statement of its own.
+				if strings.HasPrefix(s[i:], "<!--") && next-i >= 7 {
+					out = append(out, &gadxnode.HTMLCommentStmt{
+						NodePos: b.pos(i),
+						NodeEnd: b.pos(next),
+						Text:    s[i+4 : next-3],
+					})
 				}
 				i = next
 				continue
