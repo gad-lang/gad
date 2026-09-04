@@ -246,8 +246,12 @@ that come out the same is folded into one `(N)` — five identical star icons
 become `i.fa-solid.fa-star(5)` — see
 [samples/gadx/repeat](../samples/gadx/repeat.gadx).
 
-The whitespace between two block-level tags was the source's indentation, so it
-is dropped. Between inline elements it is content — the space in
+The whitespace a page was indented with is dropped: between two block-level
+tags, and just inside a block — right after its open tag and right before its
+close tag, so a paragraph written across three lines is `p Hello` and not a
+quoted literal. A browser drops it too, trimming a block's edges when it lays
+the lines out; `<pre>` and `<textarea>` keep every space, being laid out as
+written. Between inline elements the whitespace is content — the space in
 `<a>one</a> <a>two</a>` is what keeps the words apart — and it comes out as a
 `*` line, or as `{= " …" }` where a run's own edges have to survive. See
 [samples/gadx/text_space](../samples/gadx/text_space.gadx).

@@ -12,6 +12,7 @@ com `#{ CODE }#` lido como interpolação e o CODE colorido como gad, igual ao
 - [x] `#{= … }#` (saída) e `#{ … }#` (controle) como ilhas de gad no texto cru
 - [x] `@raw_text` com o corpo verbatim e as mesmas ilhas
 - [x] Testes no tmtest (bun + vscode-textmate)
+- [x] Aparar o espaço lateral de dentro de uma tag de bloco (`<p>  x  </p>` → `p x`)
 
 ## Log
 ### 2026-09-04
@@ -24,7 +25,17 @@ com `#{ CODE }#` lido como interpolação e o CODE colorido como gad, igual ao
   todo na outra linguagem, uma linha em branco não fecha o bloco e uma linha na
   indentação da tag fecha.
 
+- Espaço lateral de bloco: `go test ./cmd/gad -run TestHTMLToGadx` ok. No
+  `index.gadx` real, 627 → 540 linhas e os literais `{= " …"` caíram de 33 para
+  9 (os 9 são bordas de elemento inline, que são conteúdo). Comparação de
+  layout à moda de navegador — whitespace colapsado, quebra só em borda de
+  bloco — entre o render e o `index.html`: 121 linhas idênticas nos dois.
+
 ## Unverified / Pending
+- O conteúdo de um `<pre>` é colapsado na leitura do HTML (`<pre>\n  a   b\n</pre>`
+  vira `pre {= " a b " }`). É anterior a estas mudanças — conferido no binário
+  do HEAD — e o `dropEdges` já deixa `pre` e `textarea` de fora; o que colapsa
+  é o modelo de texto do gadx, não o transpile.
 - O `source.js` / `source.css` de verdade vem do editor; o teste usa uma
   gramática-sentinela, então o que está provado é que o embed *resolve*, não
   como o JS ou o CSS é colorido.

@@ -32,7 +32,29 @@ var (
 	rgxTagBefore  = regexp.MustCompile(`(?s)<(/?)([a-zA-Z][-\w]*)[^<>]*>\s*$`)
 	rgxTagAfter   = regexp.MustCompile(`^<(/?)([a-zA-Z][-\w]*)`)
 	rgxTagGapOnly = regexp.MustCompile(`(?s)>[ \t\r\n]+<`)
+	rgxOpenEdge   = regexp.MustCompile(`(?s)<([a-zA-Z][-\w]*)([^<>]*)>[ \t\r\n]+`)
+	rgxCloseEdge  = regexp.MustCompile(`(?s)[ \t\r\n]+</([a-zA-Z][-\w]*)[ \t]*>`)
 )
+
+// htmlPreserveElements lay their content out as written, so no whitespace in
+// them may be touched.
+var htmlPreserveElements = map[string]bool{"pre": true, "textarea": true}
+
+// htmlVoidElements have no content of their own, so they have no inner edges to
+// trim — whatever follows one is its sibling, not something inside it.
+var htmlVoidElements = map[string]bool{
+	"area": true, "base": true, "br": true, "col": true, "embed": true,
+	"hr": true, "img": true, "input": true, "link": true, "meta": true,
+	"param": true, "source": true, "track": true, "wbr": true,
+}
+
+// blockEdged reports whether an element's inner edges may be trimmed: a block
+// with content of its own, laid out normally.
+func blockEdged(name string) bool {
+	name = strings.ToLower(name)
+	return !htmlInlineElements[name] && !htmlPreserveElements[name] &&
+		!htmlVoidElements[name]
+}
 
 // dropLayoutWhitespace removes the whitespace between two tags when neither is
 // an inline element.
@@ -53,7 +75,7 @@ func dropLayoutWhitespace(src string) string {
 		return fmt.Sprintf("<gad-raw-%d></gad-raw-%d>", len(raws)-1, len(raws)-1)
 	})
 
-	masked = dropGaps(masked)
+	masked = dropEdges(dropGaps(masked))
 
 	for i, raw := range raws {
 		masked = strings.Replace(masked,
@@ -105,6 +127,35 @@ func dedentLines(s string) string {
 		lines[i] = strings.TrimPrefix(l, prefix)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// dropEdges removes the whitespace just inside a block element — right after
+// its open tag and right before its close tag.
+//
+// A browser drops it too: whitespace at the edges of a block box is trimmed
+// when the lines are laid out, so `<p>\n    Hello\n</p>` and `<p>Hello</p>`
+// render identically. Kept, it would have to be carried through the template
+// as `{= " Hello " }`, since a text line strips its own edges — a whole
+// paragraph written as a quoted literal for whitespace that never shows.
+//
+// Inline elements keep theirs, because there the space is what separates two
+// words. So do `<pre>` and `<textarea>`, whose content is laid out as written,
+// and void elements, which have no inside.
+func dropEdges(src string) string {
+	src = rgxOpenEdge.ReplaceAllStringFunc(src, func(m string) string {
+		g := rgxOpenEdge.FindStringSubmatch(m)
+		if !blockEdged(g[1]) {
+			return m
+		}
+		return "<" + g[1] + g[2] + ">"
+	})
+	return rgxCloseEdge.ReplaceAllStringFunc(src, func(m string) string {
+		g := rgxCloseEdge.FindStringSubmatch(m)
+		if !blockEdged(g[1]) {
+			return m
+		}
+		return "</" + g[1] + ">"
+	})
 }
 
 // dropGaps removes every gap whose two sides are non-inline elements.

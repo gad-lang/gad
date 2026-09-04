@@ -128,3 +128,40 @@ func TestIsHTMLFile(t *testing.T) {
 		}
 	}
 }
+
+// Whitespace just inside a block is trimmed: a browser trims it too, and kept
+// it would turn a whole paragraph into a quoted literal.
+func TestHTMLToGadxTrimsBlockEdges(t *testing.T) {
+	got := htmlToGadxFormatted(
+		"<div>\n  <p>\n    Hello there\n  </p>\n" +
+			"  <span> kept </span>\n" +
+			"  <pre>\n  as written\n  </pre>\n</div>\n")
+
+	if !strings.Contains(got, "p Hello there\n") {
+		t.Errorf("the paragraph's edges were not trimmed:\n%s", got)
+	}
+	// an inline element's own edges are content
+	if !strings.Contains(got, `span {= " kept " }`) {
+		t.Errorf("an inline element lost its edges:\n%s", got)
+	}
+	// `pre` is laid out as written, so nothing in it is touched
+	if !strings.Contains(got, "as written") {
+		t.Errorf("pre content was lost:\n%s", got)
+	}
+}
+
+// The trim is on the element's inner edges only — the space between two inline
+// elements is still content.
+func TestHTMLToGadxKeepsInlineSpacing(t *testing.T) {
+	got := htmlToGadxFormatted("<p>\n  Some <b>bold</b> <i>and</i> more\n</p>\n")
+
+	if !strings.Contains(got, `{= "Some " }`) {
+		t.Errorf("leading edge not trimmed, or the word run broken:\n%s", got)
+	}
+	if !strings.Contains(got, "*\n") {
+		t.Errorf("the space between the two inline elements was dropped:\n%s", got)
+	}
+	if !strings.Contains(got, `{= " more" }`) {
+		t.Errorf("trailing edge wrongly kept or word run broken:\n%s", got)
+	}
+}
