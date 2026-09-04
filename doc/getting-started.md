@@ -210,8 +210,43 @@ change the page:
   writes and `&copy;` would otherwise go out as `&amp;copy;`. `&lt;` and `&gt;`
   stay: decoded, they would turn into markup.
 
-Script and stylesheet content is left exactly as it is, indentation included —
-see [samples/gadx/raw_text](../samples/gadx/raw_text.gadx).
+A script or a stylesheet keeps its content exactly, its own nesting included;
+what goes is the indentation the page put around the element, which is not part
+of the language inside and would otherwise be added to the tag's own — see
+[samples/gadx/raw_text](../samples/gadx/raw_text.gadx).
+
+The markup itself comes out in the tag syntax Gadx is written in, not as inline
+HTML: `<div class="card">` becomes `div[class="card"]`, and the tree is the
+indentation. The lifted file is passed through the same formatter `gad fmt`
+runs, on a 200-column budget — a page's utility-class lists are long, and a
+narrower one would push a heading's own words onto a line of their own. The
+formatter's guards apply: a rewrite that would not settle, or that would change
+what the page renders, is refused and the inline HTML is kept.
+
+```gadx
+@main
+	!!! 5
+	html[lang="en"]
+		body
+			div.card.shadow
+				h1#title Hello
+				p
+					{= "Some " }
+					b bold
+					{= " text" }
+				style
+					.card { color: red }
+```
+
+A plain `id` or `class` is written in its shorthand form, `#title` and `.card`,
+with a name quoted when it carries more than letters, digits, `_` and `-` — see
+[samples/gadx/shorthand](../samples/gadx/shorthand.gadx).
+
+The whitespace between two block-level tags was the source's indentation, so it
+is dropped. Between inline elements it is content — the space in
+`<a>one</a> <a>two</a>` is what keeps the words apart — and it comes out as a
+`*` line, or as `{= " …" }` where a run's own edges have to survive. See
+[samples/gadx/text_space](../samples/gadx/text_space.gadx).
 
 ### The web IDE (`gad ide`)
 

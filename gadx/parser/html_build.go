@@ -161,7 +161,7 @@ func (b *htmlBuilder) parseElement(i int) (gnode.Stmt, int) {
 		NodePos:     b.pos(i),
 		NodeEnd:     b.pos(tagEnd),
 		Name:        name,
-		Attributes:  attrs,
+		Attributes:  hoistID(attrs),
 		SelfClosing: selfClose,
 	}
 	if selfClose {

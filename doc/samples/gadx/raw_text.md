@@ -19,6 +19,11 @@ control form: it runs and writes nothing, the same pair as `{= … }` and `{ …
 in ordinary text. A written value goes out verbatim like the rest, so whatever
 it carries must already be valid in the language it lands in.
 
+A `script` or a `style` can also be written in tag syntax, with its content as
+an indented block — `gad transpile page.html` writes them that way. The block's
+own indentation is stripped on the way in and restored on the way out, so what
+the lines have beyond it, their nesting, is kept exactly.
+
 `@raw_text` gives the same reading to a block of its own, for text that is not
 inside a script or a stylesheet — an inline JSON payload, a shell snippet, a
 license header. Its body is written out as given, minus the indentation the

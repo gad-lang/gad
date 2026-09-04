@@ -447,6 +447,43 @@ func (p *Parser) parseRawTextBlock() *gadxnode.RawTextBlockStmt {
 	return rt
 }
 
+// parseRawTagBody reads the indented body of a `script` or `style` written in
+// tag syntax, by the same rules as `@raw_text`: the lines are content, so they
+// are taken verbatim — braces literal, `#{= … }#` the interpolation — minus the
+// indentation the block itself introduces, which is what the tag's own depth
+// put there. The indentation *inside* the body is content and is kept, so a
+// nested CSS rule or JS block stays nested.
+func (p *Parser) parseRawTagBody(tag *gadxnode.TagStmt) gnode.Stmts {
+	base := noBase
+	p.rawText++
+	body := p.parseBlock(tag)
+	p.rawText--
+
+	var lines []string
+	end := tag.NodePos
+	for _, stmt := range body {
+		ts, ok := stmt.(*gadxnode.TextStmt)
+		if !ok {
+			continue
+		}
+		if base == noBase {
+			base = ts.Pos()
+		}
+		lines = append(lines, rawLineText(ts))
+		end = ts.End()
+	}
+	if base == noBase {
+		base = tag.NodePos
+	}
+	stmts := rawTextStmts(dedent(lines), base)
+	if len(stmts) == 0 {
+		return nil
+	}
+	// One text run, as the HTML region form builds it: the run is the tag's
+	// child, and the statements inside it are what writes the content.
+	return gnode.Stmts{&gadxnode.TextStmt{NodePos: base, NodeEnd: end, Stmts: stmts}}
+}
+
 // rawLineText recovers the source text of one body line, which parseText kept
 // verbatim while inside the block.
 func rawLineText(ts *gadxnode.TextStmt) string {
@@ -681,6 +718,12 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 	}
 
 	// Consume inline attributes (id, class, and `[ … ]` attribute groups).
+	// A run of `.class` shorthands is folded into the one `class` attribute it
+	// describes, so `div.a.b` and `div[class="a b"]` are the same tag and not
+	// merely the same page — which is what lets the formatter write one as the
+	// other. Classes written out as separate attributes in a group are left
+	// alone: they were spelled that way on purpose.
+	lastClass := -1
 	for p.Token.Token == gadxtoken.ID ||
 		p.Token.Token == gadxtoken.ClassName ||
 		p.Token.Token == gadxtoken.Attribute {
@@ -688,12 +731,26 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 			tok := p.Token
 			p.expect(gadxtoken.Attribute)
 			tag.Attributes = append(tag.Attributes, p.parseAttributeGroup(tok)...)
+			lastClass = -1
 			continue
 		}
-		if attr := p.parseInlineAttribute(); attr != nil {
-			tag.Attributes = append(tag.Attributes, attr)
+		shorthandClass := p.Token.Token == gadxtoken.ClassName
+		attr := p.parseInlineAttribute()
+		if attr == nil {
+			lastClass = -1
+			continue
+		}
+		if shorthandClass && lastClass >= 0 && mergeInto(tag.Attributes[lastClass], attr) {
+			continue
+		}
+		tag.Attributes = append(tag.Attributes, attr)
+		lastClass = -1
+		if shorthandClass {
+			lastClass = len(tag.Attributes) - 1
 		}
 	}
+
+	tag.Attributes = hoistID(tag.Attributes)
 
 	tag.SelfClosing = gadxnode.IsSelfClosing(name)
 
@@ -719,7 +776,11 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 			tag.Body = gnode.Stmts{p.parseText()}
 		}
 		if p.Token.Token == gadxtoken.Indent {
-			tag.Body = append(tag.Body, p.parseBlock(tag)...)
+			if gadxnode.IsRawText(name) {
+				tag.Body = append(tag.Body, p.parseRawTagBody(tag)...)
+			} else {
+				tag.Body = append(tag.Body, p.parseBlock(tag)...)
+			}
 		}
 	}
 
@@ -730,6 +791,63 @@ func (p *Parser) parseTag() *gadxnode.TagStmt {
 	}
 
 	return tag
+}
+
+// mergeInto appends one shorthand class to the attribute holding the run so
+// far, and reports whether it could. Both must be plain literals: a `? cond`
+// class is written or not as a unit, so it stands on its own.
+func mergeInto(into, class *gadxnode.TagAttribute) bool {
+	if into.Condition != nil || class.Condition != nil || class.Spread != nil {
+		return false
+	}
+	prev, ok := into.Value.(*gnode.StrLit)
+	if !ok {
+		return false
+	}
+	next, ok := class.Value.(*gnode.StrLit)
+	if !ok {
+		return false
+	}
+	into.Value = gnode.Str(prev.Value()+" "+next.Value(), into.Value.Pos())
+	return true
+}
+
+// hoistID moves a literal `id` to the front of a tag's attributes, which is
+// where it is rendered from anyway — `gadx.Tag` writes the id first and the
+// class last, whatever order they were given in. Fixing that order here is what
+// lets `#id` be written before `.class`: the shorthand and the bracket form
+// then describe the same tag, so the formatter can rewrite one as the other
+// without touching the compiled template.
+func hoistID(attrs []*gadxnode.TagAttribute) []*gadxnode.TagAttribute {
+	for i, a := range attrs {
+		if i == 0 {
+			continue
+		}
+		if a.Name != "id" || a.Condition != nil || a.Spread != nil {
+			continue
+		}
+		if hasIDBefore(attrs[:i]) {
+			// With two of them the last one wins, so moving this one ahead of
+			// the other would change which id the tag ends up with.
+			return attrs
+		}
+		if _, ok := a.Value.(*gnode.StrLit); !ok {
+			continue
+		}
+		out := append([]*gadxnode.TagAttribute{a}, attrs[:i]...)
+		return append(out, attrs[i+1:]...)
+	}
+	return attrs
+}
+
+// hasIDBefore reports whether an `id` attribute already stands in the list.
+func hasIDBefore(attrs []*gadxnode.TagAttribute) bool {
+	for _, a := range attrs {
+		if a.Name == "id" {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Parser) parseInlineAttribute() *gadxnode.TagAttribute {

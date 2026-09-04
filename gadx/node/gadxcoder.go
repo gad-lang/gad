@@ -286,6 +286,15 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		return
 	}
 
+	// A run that renders to a single space is the space between two elements,
+	// and it has a marker of its own: a lone `*`. It reaches here in either
+	// form — literal text, from HTML, or the `{= " " }` this writer used to
+	// emit — so the test is on what it renders, not on how it is written.
+	if plain, ok := runPlainText(t.Stmts); ok && plain == " " {
+		ctx.WriteLine("*")
+		return
+	}
+
 	// Reconstruct the mixed run (literal text interleaved with interpolations)
 	// as one string, then emit each source line as its own `| ` line. Keeping a
 	// run like `x = {= v } (y)` on a single line preserves the spaces around the
@@ -297,9 +306,14 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		}
 		// A run of pure whitespace still renders — it is the space between two
 		// inline elements — so dropping it changes the page. A `| ` line cannot
-		// carry it (parsing strips the edges), but an interpolated literal can,
-		// and it lowers to the same text node.
-		ctx.WriteLine("| {= " + strconv.Quote(text) + " }")
+		// carry it (parsing strips the edges). A single space has its own
+		// marker; anything else goes out as an interpolated literal, which
+		// lowers to the same text node.
+		if text == " " {
+			ctx.WriteLine("*")
+			return
+		}
+		ctx.WriteLine("{= " + strconv.Quote(text) + " }")
 		return
 	}
 	lines := strings.Split(text, "\n")
@@ -326,11 +340,24 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 			if !keepTail {
 				edged = strings.TrimRight(edged, " \t")
 			}
-			ctx.WriteLine("| {= " + strconv.Quote(edged) + " }")
+			ctx.WriteLine("{= " + strconv.Quote(edged) + " }")
 			continue
 		}
-		ctx.WriteLine("| " + trimmed)
+		ctx.WriteLine(ctx.textLine(t.Stmts, trimmed))
 	}
+}
+
+// textLine returns the source line for a run's text. A run that is exactly one
+// interpolation is written bare — a line opening with `{=` reads back as that
+// value — which is what keeps a spacer line down to `{= " " }`. Everything else
+// takes the `| ` prefix, without which it would be read as a directive.
+func (c *GadxCodeWriteContext) textLine(stmts gnode.Stmts, trimmed string) string {
+	if len(stmts) == 1 {
+		if _, ok := stmts[0].(*gnode.MixedValueStmt); ok && strings.HasPrefix(trimmed, "{=") {
+			return trimmed
+		}
+	}
+	return "| " + trimmed
 }
 
 // buildMixed reconstructs a run of mixed statements (literal text interleaved
@@ -405,19 +432,30 @@ func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	// Attributes merge into a single `[a=v, b=x]` group (canonical gadx); spread
 	// and conditional attributes keep their own group (their `? cond` is
 	// group-scoped). The result is written inline on the tag line.
-	groups := ctx.attrGroups(t.Attributes)
-	inline := t.Name
+	shorthand, rest := shorthandAttrs(t.Attributes)
+	groups := ctx.attrGroups(rest)
+	inline := t.Name + shorthand
 	for _, g := range groups {
 		inline += g.inline()
 	}
 
-	if IsRawText(t.Name) {
-		// A script or a stylesheet is written back as the HTML region it came
-		// from. Its content is text that has to come out byte for byte — the
-		// language depends on it — and no pug form reproduces arbitrary
-		// whitespace: `| ` lines strip their edges, and a literal block
-		// normalises indentation.
-		ctx.writeRawTextTag(t)
+	if IsRawText(t.Name) && len(t.Body) > 0 && !rawTextBlockSafe(ctx.rawTextContent(t.Body)) {
+		// The body cannot be written under the tag and read back unchanged, so
+		// it stays the HTML region it came from. A body opening with a blank
+		// line has no indentation for the block to be read from, and one
+		// ending in blank space would have that space stripped as the line's
+		// own trailing whitespace.
+		ctx.writeRawTextRegion(t)
+		return
+	}
+
+	if IsRawText(t.Name) && len(t.Body) > 0 {
+		// A script or a stylesheet holds text, not markup, so its body is
+		// written the way `@raw_text` writes one: verbatim under the tag,
+		// carrying only the block's own indentation, which the parser strips
+		// again. That keeps the content byte for byte — the language depends
+		// on it — while the tag itself reads like every other tag.
+		ctx.writeRawTextTag(t, inline)
 		return
 	}
 
@@ -491,6 +529,63 @@ func IsEmptyAttrValue(e gnode.Expr) bool {
 // attrGroups builds the tag's attribute groups: consecutive mergeable
 // attributes fold into one group (order preserved), each spread/conditional
 // attribute is its own group.
+// shorthandAttrs peels the leading `id` and `class` attributes off a tag and
+// returns them in their shorthand form — `#title.card.shadow` — along with the
+// attributes that are left.
+//
+// Only a literal, unconditional value is written this way: `[class=cond ? …]`
+// or a computed one is an expression, and there is no shorthand for an
+// expression. Only a *leading* run is taken, so nothing is reordered — the
+// parser has already put a literal id first, which is where it renders from.
+func shorthandAttrs(attrs []*TagAttribute) (shorthand string, rest []*TagAttribute) {
+	var b strings.Builder
+	i := 0
+	for ; i < len(attrs); i++ {
+		a := attrs[i]
+		if a.Condition != nil || a.Spread != nil {
+			break
+		}
+		lit, ok := a.Value.(*gnode.StrLit)
+		if !ok {
+			break
+		}
+		switch a.Name {
+		case "id":
+			if b.Len() > 0 || lit.Value() == "" {
+				// A second id is not a shorthand, and an empty one would read
+				// back as no name at all.
+				return b.String(), attrs[i:]
+			}
+			b.WriteString("#" + shorthandToken(lit.Value()))
+		case "class":
+			names := strings.Fields(lit.Value())
+			if len(names) == 0 {
+				return b.String(), attrs[i:]
+			}
+			for _, n := range names {
+				b.WriteString("." + shorthandToken(n))
+			}
+		default:
+			return b.String(), attrs[i:]
+		}
+	}
+	return b.String(), attrs[i:]
+}
+
+// shorthandToken writes one shorthand name: bare when it is only letters,
+// digits, `_` and `-`, quoted otherwise — a Tailwind variant such as
+// `group-hover:bg-black/60` ends at its `:` unless it is quoted.
+func shorthandToken(name string) string {
+	for _, r := range name {
+		if r == '-' || r == '_' || r >= '0' && r <= '9' ||
+			r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' {
+			continue
+		}
+		return strconv.Quote(name)
+	}
+	return name
+}
+
 func (c *GadxCodeWriteContext) attrGroups(attrs []*TagAttribute) []attrGroup {
 	var groups []attrGroup
 	var run []string
@@ -567,14 +662,17 @@ func (c *GadxCodeWriteContext) inlineTagText(body gnode.Stmts) (string, bool) {
 	if text == "" || strings.ContainsAny(text, "\n") {
 		return "", false
 	}
-	// Inlining a body drops the whitespace around it, and that whitespace
+	// Inlining a plain body drops the whitespace around it, and that whitespace
 	// renders — it is the space between this text and whatever sits beside the
-	// element. A run that has any keeps its own line, where it can be written
-	// with the edges intact. The check is on what the run holds, not on how it
-	// is written: once the edges have moved into a `{= " x " }` literal, the
-	// source form no longer shows them.
+	// element. A literal run keeps it by going out interpolated (`tag {= " x " }`),
+	// which carries the edges through the parse. A run with a computed part
+	// cannot be quoted whole, so it keeps its own line.
 	if runHasEdgeSpace(ts.Stmts) {
-		return "", false
+		plain, ok := runPlainText(ts.Stmts)
+		if !ok {
+			return "", false
+		}
+		return "{= " + strconv.Quote(plain) + " }", true
 	}
 	// A leading `|`/`<`/`@`/`!`/`+`/`~` would be re-parsed as a directive rather
 	// than inline text, so keep those on their own `| ` line.
@@ -964,7 +1062,20 @@ var (
 // writeRawTextTag writes a raw-text element (a script or a stylesheet) in the
 // inline-HTML form, so its content survives verbatim. The attributes come out as
 // HTML: a literal value quoted, a flag bare, anything computed in `{ … }`.
-func (c *GadxCodeWriteContext) writeRawTextTag(t *TagStmt) {
+// rawTextBlockSafe reports whether a raw-text body survives being written as an
+// indented block: its first and last lines have to carry content, since the
+// block's edges are where indentation is read and trailing space is trimmed.
+func rawTextBlockSafe(content string) bool {
+	if content == "" {
+		return false
+	}
+	lines := strings.Split(dedentRaw(content), "\n")
+	return strings.TrimSpace(lines[0]) != "" && strings.TrimSpace(lines[len(lines)-1]) != ""
+}
+
+// writeRawTextRegion writes a raw-text element back as the inline HTML region
+// it came from, for a body the block form cannot carry unchanged.
+func (c *GadxCodeWriteContext) writeRawTextRegion(t *TagStmt) {
 	var b strings.Builder
 	b.WriteString("<" + t.Name)
 	for _, a := range t.Attributes {
@@ -986,6 +1097,49 @@ func (c *GadxCodeWriteContext) writeRawTextTag(t *TagStmt) {
 	c.write(c.indent() + b.String())
 	c.write(c.rawTextContent(t.Body))
 	c.write("</" + t.Name + ">\n")
+}
+
+func (c *GadxCodeWriteContext) writeRawTextTag(t *TagStmt, inline string) {
+	c.WriteLine(inline)
+	c.Depth++
+	for _, line := range strings.Split(dedentRaw(c.rawTextContent(t.Body)), "\n") {
+		if line == "" {
+			// A blank line carries no indentation to restore, and writing one
+			// would put trailing whitespace in the file.
+			c.write("\n")
+			continue
+		}
+		c.WriteLine(line)
+	}
+	c.Depth--
+}
+
+// dedentRaw removes the indentation common to every non-blank line of a
+// raw-text body, which is the indentation of the element it came from rather
+// than part of its content. What is left is written back under the tag, where
+// the parser strips the block's indentation the same way.
+func dedentRaw(s string) string {
+	lines := strings.Split(s, "\n")
+	prefix, first := "", true
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		lead := l[:len(l)-len(strings.TrimLeft(l, " \t"))]
+		if first {
+			prefix, first = lead, false
+			continue
+		}
+		n := 0
+		for n < len(prefix) && n < len(lead) && prefix[n] == lead[n] {
+			n++
+		}
+		prefix = prefix[:n]
+	}
+	for i, l := range lines {
+		lines[i] = strings.TrimPrefix(l, prefix)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // rawTextContent rebuilds the source text of a raw-text element's body: the
@@ -1024,6 +1178,31 @@ func runHasEdgeSpace(stmts gnode.Stmts) bool {
 		return false
 	}
 	return first != strings.TrimLeft(first, " \t") || last != strings.TrimRight(last, " \t")
+}
+
+// runPlainText returns the text a run renders to, when every one of its parts
+// is a literal — plain text, or an interpolation of a string constant. ok is
+// false as soon as a part is computed, whose text cannot be known here.
+func runPlainText(stmts gnode.Stmts) (string, bool) {
+	var b strings.Builder
+	for _, stmt := range stmts {
+		switch v := stmt.(type) {
+		case *gnode.MixedTextStmt:
+			b.WriteString(v.Lit.Value)
+		case *gnode.MixedValueStmt:
+			switch e := v.Expr.(type) {
+			case *gnode.StrLit:
+				b.WriteString(e.Value())
+			case *gnode.RawStrLit:
+				b.WriteString(e.Value())
+			default:
+				return "", false
+			}
+		default:
+			return "", false
+		}
+	}
+	return b.String(), len(stmts) > 0
 }
 
 // runEdges returns the leading and trailing literal text of a run. ok is false

@@ -16,6 +16,7 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 
+	gadxnode "github.com/gad-lang/gad/gadx/node"
 	gadxtoken "github.com/gad-lang/gad/gadx/token"
 )
 
@@ -38,7 +39,10 @@ type scanner struct {
 	lastTokenPos  source.Pos
 	lastTokenSize int
 
-	readRaw        bool
+	readRaw bool
+	// pendingRawTag marks a `script`/`style` written in tag syntax, whose body
+	// is read verbatim; the force frame is pushed once its own line ends.
+	pendingRawTag  bool
 	mode           gadparser.ScanMode
 	mixedDelimiter gadparser.MixedDelimiter
 	errorHandler   []source.ScannerErrorHandler
@@ -124,6 +128,15 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 
 	case gadxtoken.ScnNewLine:
 		s.state = gadxtoken.ScnLine
+		// A `script` / `style` written in tag syntax reads its body the way
+		// `@raw_text` does. The frame is pushed here, at the end of the tag's
+		// own line, so the attributes on that line are still scanned as
+		// attributes; it records the tag's depth, so it pops as soon as a line
+		// comes back to it (a `script[src=…]` with no body pops at once).
+		if s.pendingRawTag {
+			s.pendingRawTag = false
+			s.pushForce(false)
+		}
 		// A blank line inside a `@text`/`@p`/`@md` body is kept as an empty text
 		// line so the original paragraph breaks survive; it does not touch the
 		// indent stack, so the block only ends on a non-blank line dedented back to
@@ -252,6 +265,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 			return tok
 		}
 		if tok := s.scanPipeBlock(); tok.Valid() {
+			return tok
+		}
+		if tok := s.scanSpace(); tok.Valid() {
 			return tok
 		}
 		if tok := s.scanText(); tok.Valid() {
@@ -709,28 +725,44 @@ func (s *scanner) scanComment() gadparser.PToken {
 	return gadparser.PToken{}
 }
 
-var rgxID = regexp.MustCompile(`^#([\w-]+)(?:\s*\?\s*(.*)$)?`)
+// A shorthand name is either bare — letters, digits, `_` and `-` — or a quoted
+// string, which is how a name carrying anything else is written: a Tailwind
+// variant like `."group-hover:bg-black/60"` would otherwise end at the `:`.
+var (
+	rgxID        = regexp.MustCompile(`^#(?:([\w-]+)|"((?:[^"\\]|\\.)*)")(?:\s*\?\s*(.*)$)?`)
+	rgxClassName = regexp.MustCompile(`^\.(?:([\w-]+)|"((?:[^"\\]|\\.)*)")(?:\s*\?\s*(.*)$)?`)
+)
 
 func (s *scanner) scanID() gadparser.PToken {
 	if sm := rgxID.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
-		pt := s.newToken(gadxtoken.ID, sm[0], sm[1])
-		pt.Set("condition", sm[2])
+		pt := s.newToken(gadxtoken.ID, sm[0], shorthandName(sm[1], sm[2]))
+		pt.Set("condition", sm[3])
 		return pt
 	}
 	return gadparser.PToken{}
 }
 
-var rgxClassName = regexp.MustCompile(`^\.([\w-]+)(?:\s*\?\s*(.*)$)?`)
-
 func (s *scanner) scanClassName() gadparser.PToken {
 	if sm := rgxClassName.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
-		pt := s.newToken(gadxtoken.ClassName, sm[0], sm[1])
-		pt.Set("condition", sm[2])
+		pt := s.newToken(gadxtoken.ClassName, sm[0], shorthandName(sm[1], sm[2]))
+		pt.Set("condition", sm[3])
 		return pt
 	}
 	return gadparser.PToken{}
+}
+
+// shorthandName returns the name a `#`/`.` shorthand carries: the bare form as
+// it stands, the quoted form with its escapes read.
+func shorthandName(bare, quoted string) string {
+	if bare != "" {
+		return bare
+	}
+	if unquoted, err := strconv.Unquote(`"` + quoted + `"`); err == nil {
+		return unquoted
+	}
+	return quoted
 }
 
 // scanAttribute scans an attribute group `[ … ]`. A group may hold one or many
@@ -1162,6 +1194,9 @@ var rgxTag = regexp.MustCompile(`^(\w[-:/\w]*)`)
 func (s *scanner) scanTag() gadparser.PToken {
 	if sm := rgxTag.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
+		if gadxnode.IsRawText(sm[1]) {
+			s.pendingRawTag = true
+		}
 		return s.newToken(gadxtoken.Tag, sm[0], sm[1])
 	}
 	return gadparser.PToken{}
@@ -1550,6 +1585,31 @@ func (s *scanner) scanCompCall() gadparser.PToken {
 	pt := s.newToken(gadxtoken.CompCall, lit, name)
 	pt.Set("args", args)
 	pt.Set("withCode", fmt.Sprint(withCode))
+	return pt
+}
+
+// scanSpace reads a lone `*` line as a single space of text.
+//
+// That space is content — it is what separates `<a>one</a>` from `<a>two</a>`
+// on the rendered page — but it cannot be written as text: a `| ` line strips
+// its own edges, so the space would be lost. `*` names it instead, in one
+// character, where the alternative is a line reading `{= " " }`.
+//
+// To write a literal asterisk on its own, pipe it: `| *`.
+func (s *scanner) scanSpace() gadparser.PToken {
+	// Exactly `*` and nothing else on the line: no argument, no trailing
+	// whitespace. `*x` is a tag, `* x` is text, and both keep their meaning.
+	if s.buffer != "*" {
+		return gadparser.PToken{}
+	}
+	lit := s.buffer
+	s.consume(len(lit))
+	// The space is handed over as an interpolated literal, not as plain text:
+	// a text run of pure whitespace is trimmed away on the way down, while the
+	// interpolation keeps it — the same form `| {= " " }` has always used.
+	pt := s.newToken(gadxtoken.Text, lit, `{= " " }`)
+	pt.Set("mode", "piped")
+	pt.Set("valuePos", []source.Pos{pt.Pos})
 	return pt
 }
 

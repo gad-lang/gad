@@ -84,7 +84,7 @@ func TestFormatSourceGadxRoundTrip(t *testing.T) {
 	require.Equal(t, first, second, "Gadx formatting must be idempotent (round-trip)")
 
 	// Attributes merge into one group; a single text body is inlined on the tag.
-	require.Contains(t, first, `div[class="card", data=`)
+	require.Contains(t, first, `div.card[data=`)
 	require.Contains(t, first, "@global")
 	require.Contains(t, first, "Model")
 	// A text interpolation is emitted as the output form `{= expr }` (with `=`),

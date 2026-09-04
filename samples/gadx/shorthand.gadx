@@ -1,0 +1,37 @@
+/**
+`#id` and `.class` — the shorthand forms.
+
+An id and a class are what a tag is usually named by, so they have a form
+shorter than an attribute: `div#main.card.shadow` is
+`div[id="main", class="card shadow"]`. The id comes first, then the classes.
+
+A name that is only letters, digits, `_` or `-` is written bare. Anything else
+is quoted — a Tailwind variant such as `"group-hover:bg-black/60"` would
+otherwise end at its `:`, and the `/` would open a comment.
+
+A run of `.class` shorthands is one `class` attribute, not several: `div.a.b`
+and `div[class="a b"]` compile to the same tag, which is what lets the
+formatter write either one as the other.
+
+The bracket form carries what the shorthand cannot say — a value that is not
+plain text:
+
+- a **computed** one, `[class=variant]` or `[id=item.slug]`, since there is no
+  shorthand for an expression;
+- a **dict of conditions**, `[class={card: true, muted: false}]`, which is how
+  several classes are switched at once (see
+  [class_attribute](class_attribute.gadx)).
+
+`gad transpile page.html` writes the shorthand wherever a page's `id` and
+`class` are plain text, which is nearly everywhere.
+**/
+
+@main
+    div#main.card.shadow
+        h1.title Hello
+    a."group-hover:bg-black/60"."md:px-6" quoted names
+    @var (variant = "wide")
+    section[class=variant]
+        p Computed class
+    section[class={card: true, muted: false}]
+        p Conditional classes
