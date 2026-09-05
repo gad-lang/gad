@@ -187,6 +187,15 @@ func (e *FlagLit) String() string {
 }
 
 func (e *FlagLit) WriteCode(ctx *CodeWriteContext) {
+	// A flag built by the compiler carries no source text — `Flag(true, 0)` is
+	// what a valueless tag attribute lowers to — and writing that empty string
+	// produced `name=` with nothing after it, which is not Gad: the code came
+	// back out unparseable. The literal is what it renders to when there is no
+	// source to quote.
+	if e.Literal == "" {
+		ctx.WriteString(e.String())
+		return
+	}
 	ctx.WriteString(e.Literal)
 }
 

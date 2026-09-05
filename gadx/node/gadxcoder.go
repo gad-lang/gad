@@ -583,8 +583,13 @@ func (a *TagAttribute) mergeable() bool { return a.Condition == nil && a.Spread 
 // inner renders the attribute as a bracket-group item (`name`, `name=value`),
 // without the surrounding `[ ]`.
 func (a *TagAttribute) inner(ctx *GadxCodeWriteContext) string {
-	s := a.Name
+	s := attrName(a.Name)
 	if !a.IsFlag && a.Value != nil {
+		if isYesFlag(a.Value) {
+			// `x=yes` and a bare `x` are the same attribute — the flag the
+			// lowering writes out in full. Bare is the form it is written in.
+			return s
+		}
 		if IsEmptyAttrValue(a.Value) {
 			// `@empty` is how the source says "present, with an empty value".
 			// Writing the gadx.EMPTY selector back out would be correct but
@@ -594,6 +599,38 @@ func (a *TagAttribute) inner(ctx *GadxCodeWriteContext) string {
 		s += "=" + ctx.gadExpr(a.Value)
 	}
 	return s
+}
+
+// isYesFlag reports whether e is the `yes` flag. `no` is not folded into the
+// bare form: it omits the attribute, which is the opposite of what a bare name
+// says.
+func isYesFlag(e gnode.Expr) bool {
+	f, ok := e.(*gnode.FlagLit)
+	return ok && f.Value
+}
+
+// attrName writes an attribute name back: bare when the name rules read it
+// whole, quoted when they would stop early. Without the quotes the name comes
+// back cut at its first unusual character, so what was written is not what is
+// read again.
+func attrName(name string) string {
+	if name == "" {
+		return name
+	}
+	for i := 0; i < len(name); i++ {
+		if !isAttrNameChar(name[i]) {
+			return strconv.Quote(name)
+		}
+	}
+	return name
+}
+
+// isAttrNameChar mirrors the parser's rule for what a bare attribute name may
+// hold — HTML and framework punctuation such as `xlink:href`, `data-x`,
+// `@click`, `v.on`.
+func isAttrNameChar(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9') || c == '_' || c == '-' || c == ':' || c == '@' || c == '.'
 }
 
 // IsEmptyAttrValue reports whether e is the gadx.EMPTY selector — the value an
@@ -796,7 +833,7 @@ func (a *TagAttribute) fragment(ctx *GadxCodeWriteContext) string {
 	if a.Spread != nil {
 		return "[**" + ctx.gadExpr(a.Spread) + cond + "]"
 	}
-	s := "[" + a.Name
+	s := "[" + attrName(a.Name)
 	if a.IsFlag {
 		s += cond
 	} else if a.Value != nil {

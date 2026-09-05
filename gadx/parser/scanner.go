@@ -430,7 +430,11 @@ func (s *scanner) scanFor() gadparser.PToken {
 	return gadparser.PToken{}
 }
 
-var rgxAssignment = regexp.MustCompile(`^(\$[\w0-9\-_]*)?\s*([+-/*:]?)=\s*(.+)$`)
+// An assignment names what it assigns to. The name used to be optional, so a
+// line that was only `=value` — the tail of a mistyped `tag[…]="x"`, say —
+// scanned as an assignment with no target, and the empty node it produced
+// crashed the code writer instead of being reported where the mistake is.
+var rgxAssignment = regexp.MustCompile(`^(\$[\w0-9\-_]*)\s*([+-/*:]?)=\s*(.+)$`)
 
 func (s *scanner) scanAssignment() gadparser.PToken {
 	if sm := rgxAssignment.FindStringSubmatch(s.buffer); len(sm) != 0 {

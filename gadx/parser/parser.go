@@ -1396,6 +1396,23 @@ func isAttrNameChar(c byte) bool {
 		(c >= '0' && c <= '9') || c == '_' || c == '-' || c == ':' || c == '@' || c == '.'
 }
 
+// readQuotedAttrName reads a `"…"` attribute name at i, returning the name with
+// its escapes read and the index just past the closing quote.
+func readQuotedAttrName(entry string, i int) (name string, end int, ok bool) {
+	for j := i + 1; j < len(entry); j++ {
+		switch entry[j] {
+		case '\\':
+			j++
+		case '"':
+			if v, err := strconv.Unquote(entry[i : j+1]); err == nil {
+				return v, j + 1, true
+			}
+			return "", 0, false
+		}
+	}
+	return "", 0, false
+}
+
 // parseAttributeEntry parses a single `name`, `name=value` or `name="raw"`
 // attribute from an entry slice. base is the absolute position of entry[0], so
 // the value expression maps back to the original source.
@@ -1417,14 +1434,28 @@ func parseAttributeEntry(entry string, base source.Pos) *gadxnode.TagAttribute {
 		return &gadxnode.TagAttribute{Spread: parseExprStr(exprStr, base+source.Pos(i+2))}
 	}
 
-	nameStart := i
-	for i < len(entry) && isAttrNameChar(entry[i]) {
-		i++
+	var name string
+	if i < len(entry) && entry[i] == '"' {
+		// A quoted name says what the bare form cannot: `"@submit.prevent"` or
+		// any name holding punctuation the name rules stop at. Unquoted it
+		// would end at the first such character, and the entry used to be
+		// dropped whole — the attribute simply did not reach the page, with
+		// nothing said about it.
+		q, end, ok := readQuotedAttrName(entry, i)
+		if !ok {
+			return nil
+		}
+		name, i = q, end
+	} else {
+		nameStart := i
+		for i < len(entry) && isAttrNameChar(entry[i]) {
+			i++
+		}
+		if i == nameStart {
+			return nil
+		}
+		name = entry[nameStart:i]
 	}
-	if i == nameStart {
-		return nil
-	}
-	name := entry[nameStart:i]
 
 	j := i
 	for j < len(entry) && (entry[j] == ' ' || entry[j] == '\t' || entry[j] == '\n' || entry[j] == '\r') {

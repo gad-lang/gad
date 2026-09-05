@@ -1,3 +1,88 @@
+# TASK: Gadx — três defeitos em atributos de tag
+> Created: 2026-09-05 | Updated: 2026-09-05
+
+## Goal
+Três formas de atributo que falham em silêncio ou derrubam o processo, achadas
+escrevendo um formulário Vue num template. Nenhuma dá erro de sintaxe onde o
+erro está.
+
+## Plan
+- [x] 1. Nome de atributo entre aspas é descartado sem aviso
+- [x] 2. `tag[…]="x"` — grupo seguido de `=` — derruba com nil pointer
+- [x] 3. Atributo sem valor desce como `nome=` e o Gad gerado não reparseia
+
+## Os casos
+
+**1. Nome entre aspas some.** Um nome que precisa de aspas (uma diretiva Vue,
+por exemplo) é aceito e depois ignorado; os outros atributos do grupo saem
+normalmente, então nada indica a perda.
+
+    @main
+        div["v-model"="form.name", title="t"] a
+
+    →  <div title="t">a</div>          (o v-model sumiu)
+
+O nome cru funciona: `div[v-model="form.name"]` sai correto. Ou o nome entre
+aspas passa a valer, ou tem de ser erro de sintaxe — o que não serve é sumir.
+
+**2. Grupo seguido de `=` derruba o processo.** Escrevendo o valor fora do
+grupo, por engano, o writer recebe um nó sem expressão:
+
+    @main
+        span["v-text"]="x"
+
+    →  %!v(PANIC=Format method: runtime error: invalid memory address or nil
+       pointer dereference)
+       em node.(*CodeWriteContext).WriteExprs → (*AssignStmt).WriteCode
+       (parser/node/coder.go:974, stmt.go:59)
+
+**3. Atributo sem valor não sobrevive ao transpile.** Renderizar funciona; o
+`gad transpile` gera Gad que ele próprio não consegue ler de volta:
+
+    @main
+        div[novalidate]
+            span x
+
+    gad v.gadx        →  <div novalidate><span>x</span></div>     (ok)
+    gad transpile     →  Parse Error: expected operand, found ','
+
+O lowered mostra a causa — `GadxLowered` devolve um argumento nomeado sem
+valor:
+
+              8: "\t\t$el := gadx.Tag("
+             11: "\t\t\t; novalidate="        ← sem valor
+
+Deveria descer como `novalidate=yes`, que é o que o próprio render faz. Vale
+para qualquer atributo-bandeira, e **atinge o sample do repositório**:
+`gad transpile samples/gadx/boolean_attribute.gadx` falha em `ba.gad:18:3`. O
+`make verify` não pega porque nada transpila os samples.
+
+## Log
+### 2026-09-05
+- **(1)** `parseAttributeEntry` passou a ler um nome entre aspas
+  (`readQuotedAttrName`), e o writer devolve as aspas só quando o nome as
+  precisa (`attrName`). `div["x/y"="1", title="t"]` → `<div x/y="1" title="t">`;
+  `div["v-model"=…]` volta do fmt como `v-model=…`, sem aspas, porque o nome cru
+  já lê inteiro.
+- **(2)** A regex do scanner de atribuição tinha o alvo opcional, então `="x"`
+  virava atribuição sem alvo e o nó vazio derrubava o writer. Alvo agora é
+  obrigatório: `span["v-text"]="x"` lê o resto como texto, sem panic.
+- **(3)** `FlagLit.WriteCode` escrevia `e.Literal`, vazio num flag sintetizado,
+  gerando `; novalidate=`. Cai para `String()` (`yes`/`no`) quando não há texto
+  de origem. E `x=yes` é escrito de volta na forma nua `x` — `x=no` não, que
+  omite o atributo e diz o contrário.
+- `go test ./...` → `exit=0`.
+- Comportamento fixado em teste: `gadx/attr_name_test.go` (nome entre aspas,
+  atribuição sem alvo) e `web/gadbridge/flag_attr_test.go` (o flag desce como
+  `=yes` e volta nu; `=no` preservado).
+- `TestSamplesLowerAndReparse` baixa e reparseia **todos** os samples de
+  `samples/gadx` — é o teste que teria pego o (3), que quebrava o
+  `boolean_attribute.gadx` do próprio repositório sem nada acusar.
+
+## Current State
+Os três corrigidos, com teste. O `make verify` agora cobre o transpile dos
+samples, que era o buraco por onde o (3) passou.
+
 # TASK: TextMate — script/style e `#{ … }#` no gadx
 > Created: 2026-09-04 | Updated: 2026-09-04
 
