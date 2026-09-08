@@ -69,6 +69,20 @@ func TestVMDict(t *testing.T) {
 	var d struct{}
 	testExpectRun(t, `return ({a:1} + {b:2})`, nil, Dict{"a": Int(1), "b": Int(2)})
 	testExpectRun(t, `d := {a:1}; d += {b:2}; return d`, nil, Dict{"a": Int(1), "b": Int(2)})
+
+	// `+` takes a single keyValue as one entry, the way `arr += v` appends one
+	// element. It used to fail: every operand was read as a sequence of
+	// entries, and a lone keyValue is not one.
+	testExpectRun(t, `d := {a:1}; d += keyValue("b", 2); return d`, nil, Dict{"a": Int(1), "b": Int(2)})
+	testExpectRun(t, `d := {}; d += keyValue(1, "x"); return d`, nil, Dict{"1": Str("x")})
+	testExpectRun(t, `d := {a:1}; d += keyValue("a", 2); return d`, nil, Dict{"a": Int(2)})
+	testExpectRun(t, `d := {a:1}; d += keyValueArray(keyValue("b", 2)); return d`, nil, Dict{"a": Int(1), "b": Int(2)})
+
+	// `++` always spreads, so its operand has to be a sequence of entries — a
+	// lone keyValue is a mistake there, and is reported as one.
+	testExpectRun(t, `d := {a:1}; d ++= {b:2, c:3}; return d`, nil, Dict{"a": Int(1), "b": Int(2), "c": Int(3)})
+	testExpectRun(t, `d := {a:1}; d ++= keyValueArray(keyValue("b", 2)); return d`, nil, Dict{"a": Int(1), "b": Int(2)})
+	expectErrIs(t, `d := {}; d ++= keyValue("b", 2); return d`, nil, ErrNotIterable)
 	testExpectRun(t, `return {a:1,b:2} - ["a"]`, nil, Dict{"b": Int(2)})
 	testExpectRun(t, `return {a:1,b:2} - {a:1}`, nil, Dict{"b": Int(2)})
 	testExpectRun(t, `return {a:1,b:2} - (;a)`, nil, Dict{"b": Int(2)})

@@ -1896,10 +1896,34 @@ func (o Dict) BinOpIn(_ *VM, v Object) (Object, error) {
 	return Bool(ok), nil
 }
 
-// BinOpAdd merges right's entries into the dict (ObjectWithAddBinOperator).
+// BinOpAdd puts right's entries into the dict (ObjectWithAddBinOperator).
+//
+// A single keyValue sets that one entry — `d += keyValue(k, v)` — the way
+// `arr += v` appends one element. Anything else is read as a sequence of
+// entries and merged, which is what a dict, a keyValueArray or any iterable
+// is. Use `++` when the operand must be a sequence.
 func (o Dict) BinOpAdd(vm *VM, right Object) (Object, error) {
 	if right == Nil {
 		return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+	}
+	if kv, ok := right.(*KeyValue); ok {
+		o[kv.K.ToString()] = kv.V
+		return o, nil
+	}
+	err := IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
+		o[e.K.ToString()] = e.V
+		return nil
+	})
+	return o, err
+}
+
+// BinOpInc handles `dict ++ v` (ObjectWithIncBinOperator): v is a sequence of
+// entries and they are merged in. Unlike `+`, which takes a single keyValue as
+// one entry, `++` always spreads — so a keyValue reaches it as the two-element
+// sequence it is, and `d ++ keyValue(k, v)` is a mistake this reports.
+func (o Dict) BinOpInc(vm *VM, right Object) (Object, error) {
+	if right == Nil {
+		return nil, NewOperandTypeError(token.Inc.String(), o.Type().Name(), right.Type().Name())
 	}
 	err := IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
 		o[e.K.ToString()] = e.V

@@ -1,7 +1,7 @@
 
 # Assignment and Append
 
-Assignment lists and array append operators.
+Assignment lists, and the append operators for arrays and dicts.
 
 ## Example — `assign_and_append.gad`
 
@@ -33,5 +33,17 @@ acc ++= [2, 3]      // extend with an iterable
 acc ++= 4, 5        // ++= a, b  ==  ++= [a, b]
 println("acc                 ->", acc)              // [1, 2, 3, 4, 5]
 
-return acc == [1, 2, 3, 4, 5]
+// --- Dict entries: the same two operators, the same rule ---
+// `+` takes one entry, as it takes one element of an array; `++` spreads, so
+// its right side has to be a sequence of entries.
+d := {a: 1}
+d += keyValue("b", 2)   // put one entry
+d += {c: 3}             // a dict reads as a sequence of entries, and merges
+d ++= {e: 5, f: 6}      // extend with a sequence
+println("d                   ->", d)                // {a: 1, b: 2, c: 3, e: 5, f: 6}
+
+// `d ++ keyValue(…)` is an error: `++` always spreads, and one entry is not a
+// sequence of them.
+
+return acc == [1, 2, 3, 4, 5] && d == {a: 1, b: 2, c: 3, e: 5, f: 6}
 ```
