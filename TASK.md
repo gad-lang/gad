@@ -1,3 +1,60 @@
+# TASK: TextMate — a gramática do gadx não é gerada
+> Created: 2026-09-08 | Updated: 2026-09-08
+
+## Goal
+Ao acrescentar `+(expr)` ao gadx, verificar se os plugins de editor precisavam
+acompanhar. Precisavam? Não — e o motivo é que a gramática do gadx não vem do
+gerador, ao contrário da do gad. Isso é dívida, e está anotado aqui porque não
+aparece em lugar nenhum do código.
+
+## Plan
+- [x] Verificar se `+(expr)` realça corretamente
+- [x] Fixar o comportamento num teste
+- [ ] Decidir se as gramáticas do gadx e do gadt passam a ser geradas
+
+## O que existe hoje
+
+`cmd/update-vscode-plugin` chama `pluginsync.TextMateGrammar()` e escreve **um**
+arquivo: `gad.tmLanguage.json`. É esse que o `make textmate-publish` publica no
+repo `gad-lang/gad-textmate`.
+
+    gad.tmLanguage.json    gerado do vocabulário da linguagem
+    gadx.tmLanguage.json   escrito à mão, no gad-textmate
+    gadt.tmLanguage.json   escrito à mão, no gad-textmate
+
+`cmd/internal/pluginsync/tmtest/gadx.test.ts` carrega o arquivo commitado, não
+uma saída de gerador.
+
+## A assimetria
+
+A gramática do gad acompanha o compilador sozinha; as outras duas dependem de
+alguém lembrar. Um token novo no gadx não quebra teste nenhum — só deixa de ser
+colorido, o que ninguém nota até abrir o editor.
+
+Estender o `pluginsync` para gerar as três resolveria. O custo é modelar em Go
+as regras do gadx (tag, atributo, forma curta, slot, raw text, interpolação),
+que hoje são JSON escrito à mão e mais ricas que as do gad.
+
+## Log
+### 2026-09-08
+- `+(expr)` já realça sem mudar a gramática. A regra `component` é
+  `^(\s*)(\+)\s*([A-Za-z_][\w.]*)?` e o nome é opcional: com `+(`, o grupo do
+  nome não casa, o `+` fica como marcador e o resto cai em `source.gad`.
+  Verificado com um caso novo em `tmtest/gadx.test.ts` que passou **sem** tocar
+  no JSON — `bun test` → 32 pass, 0 fail, 3 arquivos.
+- Teste commitado (`0607052`) para que uma futura mudança na regra não desfaça
+  isso em silêncio.
+
+## Unverified / Pending
+- Gerar as gramáticas do gadx e do gadt pelo `pluginsync`: NÃO feito, e nem
+  dimensionado além do parágrafo acima. É decisão em aberto, não tarefa
+  aceita.
+
+## Current State
+Nada a corrigir nos plugins para o `+(expr)`: verificado que já realça, e o
+teste que o prova está commitado. O que fica em aberto é a assimetria — a
+gramática do gad é gerada, as do gadx e do gadt não —, sem prazo nem decisão.
+
 # TASK: Gadx — três defeitos em atributos de tag
 > Created: 2026-09-05 | Updated: 2026-09-05
 
