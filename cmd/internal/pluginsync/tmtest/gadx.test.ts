@@ -128,6 +128,17 @@ test("`+ EXPR` component call: marker + name, args embedded gad", () => {
   expect(scopesOf("    +box(; a=1)", "box")).toContain("entity.name.function.gadx");
 });
 
+test("`+(EXPR)` component call: marker, then the head as embedded gad", () => {
+  const line = '    +(cfg.comp ?? fancy)("x")';
+  // The `+` still reads as the component marker.
+  expect(scopesOf(line, "+")).toContain("keyword.operator.component.gadx");
+  // The head is an expression, not a name: nothing is scoped as the component's
+  // name, and its parts come back as Gad code.
+  const toks = solid(tokenize(line));
+  expect(toks.some((t) => t.scopes.some((x) => x.includes("entity.name.function.gadx")))).toBe(false);
+  expect(toks.some((t) => t.scopes.some((x) => x.includes("source.gad")))).toBe(true);
+});
+
 test("a single-line `/** … **/` block doc is doc-comment scoped", () => {
   const toks = tokenize("/** # Title **/");
   expect(toks.some((t) => t.scopes.some((x) => x.includes("comment.documentation.block.gadx")))).toBe(true);
