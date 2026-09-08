@@ -8,6 +8,7 @@
 - [doc_comments](doc_comments.md)
 - [empty_attribute](empty_attribute.md)
 - [enum](enum.md)
+- [func](func.md)
 - [global](global.md)
 - [greeting_test](greeting_test.md)
 - [html](html.md)

@@ -18,6 +18,52 @@ Call it:
     +button("Read more" ; href="/docs", kind="secondary")
 ```
 
+## `@func` And `@comp`
+
+Both define a template function, and both lower to the same thing: a Gad
+function that takes a `slots` named parameter and whose body builds into a
+fresh `gadx.Elements()` fragment, which it returns.
+
+That return is the part worth knowing. A `@func` is not a statement that
+prints; it is a value. `+name(args)` appends what it returned, and the same
+result can be held and appended later, or twice:
+
+```gadx
+@func badge(text)
+    span[class="badge"] {= text }
+
+@main
+    +badge("direct")
+
+    ~ b := badge("held")
+    div
+        ~ $el += b
+        ~ $el += b
+```
+
+At runtime the two are the same: a `@func` takes slots and can be filled by a
+caller's `@slot #name` block exactly as a `@comp` can. What only `@comp` does
+is record its slots on the declaration, which is what the generated docs and
+the tooling list; nothing in the lowering reads that.
+
+Where slots surprise people is that they come from the *call*, not from the
+file. A helper invoked with `+helper` is called with none, so its defaults
+render even when the caller filled a slot of that name on the surrounding
+component. Forward them and it resolves:
+
+```gadx
+@comp outer()
+    @func inner()
+        @slot main
+            p default
+
+    +inner                       // no slots passed: the default renders
+    ~ $el += inner(; slots=slots) // the caller's block reaches it
+```
+
+Use `@comp` for a unit a caller composes with slots, and `@func` for a helper
+that builds markup. See `samples/gadx/func.gadx`.
+
 ## Layout Component
 
 ```gadx
