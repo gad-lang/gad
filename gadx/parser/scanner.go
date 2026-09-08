@@ -1580,18 +1580,41 @@ func (s *scanner) scanCompCall() gadparser.PToken {
 	line := s.buffer
 	i := 1
 	j := i
-	for j < len(line) {
-		c := line[j]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '$' || c == '@' || c == '.' {
-			j++
-			continue
+
+	// `+(expr)` renders whatever the expression evaluates to, for the times the
+	// component is chosen rather than named — `+(cfg.comp ?? fallback)`. The
+	// bare form below reads a name, and a name cannot hold an operator.
+	var callee string
+	if j < len(line) && line[j] == '(' {
+		balanced, end, ok := s.readBalanced(j, '(', ')')
+		if !ok {
+			return gadparser.PToken{}
 		}
-		break
+		callee = strings.TrimSpace(balanced[1 : len(balanced)-1])
+		if callee == "" {
+			return gadparser.PToken{}
+		}
+		// readBalanced may have pulled continuation lines in.
+		line = s.buffer
+		j = end
+	} else {
+		for j < len(line) {
+			c := line[j]
+			if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '$' || c == '@' || c == '.' {
+				j++
+				continue
+			}
+			break
+		}
+		if j == i {
+			return gadparser.PToken{}
+		}
 	}
-	if j == i {
-		return gadparser.PToken{}
+
+	name := ""
+	if callee == "" {
+		name = line[i:j]
 	}
-	name := line[i:j]
 	rest := strings.TrimSpace(line[j:])
 	args := ""
 	withCode := false
@@ -1622,6 +1645,7 @@ func (s *scanner) scanCompCall() gadparser.PToken {
 	s.consume(consumed)
 	pt := s.newToken(gadxtoken.CompCall, lit, name)
 	pt.Set("args", args)
+	pt.Set("callee", callee)
 	pt.Set("withCode", fmt.Sprint(withCode))
 	return pt
 }

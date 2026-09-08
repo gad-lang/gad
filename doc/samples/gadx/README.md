@@ -5,6 +5,7 @@
 - [attribute_name](attribute_name.md)
 - [boolean_attribute](boolean_attribute.md)
 - [class_attribute](class_attribute.md)
+- [comp_call](comp_call.md)
 - [doc_comments](doc_comments.md)
 - [empty_attribute](empty_attribute.md)
 - [enum](enum.md)

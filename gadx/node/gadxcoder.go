@@ -1020,6 +1020,9 @@ func (c *CompDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 
 func (c *CompCallStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	line := "+" + c.Name
+	if c.Callee != "" {
+		line = "+(" + c.Callee + ")"
+	}
 	if c.Args.Args.Valid() || c.Args.NamedArgs.Valid() {
 		line += c.Args.String()
 	}

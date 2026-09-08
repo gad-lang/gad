@@ -2024,10 +2024,18 @@ func (p *Parser) parseCompCall() *gadxnode.CompCallStmt {
 	p.expect(gadxtoken.CompCall)
 
 	name := stringData(tok, "value", tok.Literal)
+	callee := stringData(tok, "callee", "")
+
 	call := &gadxnode.CompCallStmt{
 		NodePos: tok.Pos,
 		Name:    name,
-		Func:    compCallFuncExpr(name, tok.Pos),
+		Callee:  callee,
+	}
+	if callee != "" {
+		call.Name = ""
+		call.Func = parseExprStr(callee, tok.Pos)
+	} else {
+		call.Func = compCallFuncExpr(name, tok.Pos)
 	}
 
 	if header := stringData(tok, "args", ""); header != "" {

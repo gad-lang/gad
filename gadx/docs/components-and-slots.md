@@ -18,6 +18,33 @@ Call it:
     +button("Read more" ; href="/docs", kind="secondary")
 ```
 
+## Which Component To Render
+
+`+` takes three kinds of head, and they differ only in how the component is
+identified:
+
+```gadx
++button("Read more")            // by name
++lib.kind.card("Read more")     // through a value
++(cfg.comp ?? button)("more")   // by expression
+```
+
+The first two read a name — an identifier, optionally a `a.b.c` path — so an
+operator cannot appear in them. `+(expr)` exists for when the component is
+chosen rather than written: a fallback for what configuration did not set, a
+branch, an entry looked up at render time.
+
+Arguments and a call block work the same in all three; the head only decides
+which component runs:
+
+```gadx
++(cfg.comp ?? button)("Read more")
+    @slot #main
+        p filled by the caller
+```
+
+See `samples/gadx/comp_call.gadx`.
+
 ## `@func` And `@comp`
 
 Both define a template function, and both lower to the same thing: a Gad

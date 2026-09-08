@@ -627,9 +627,13 @@ func (c *CompDecl) WriteCode(ctx *gnode.CodeWriteContext) {
 
 type CompCallStmt struct {
 	ast.NodeData
-	NodePos  source.Pos
-	NodeEnd  source.Pos
-	Name     string
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Name    string
+	// Callee is the source of a `+(expr)` head — the component chosen by an
+	// expression rather than named. Empty for the `+name` form, and the two are
+	// exclusive: Name is empty when this is set.
+	Callee   string
 	Func     gnode.Expr
 	Args     gnode.CallArgs
 	SlotPass []*SlotPassStmt

@@ -60,3 +60,28 @@ func TestDifferentClassesStillDiffer(t *testing.T) {
 		t.Error("a different class set was normalized away")
 	}
 }
+
+// A `+(expr)` head has to be written back as it was read, or `gad fmt` would
+// refuse the file.
+func TestFormatterRoundTripsExpressionCall(t *testing.T) {
+	src := "@comp a()\n\tp A\n\n@main\n\t+(  1 < 2 ? a : a  )(\"x\")\n"
+
+	res := FormatGadx(src, GadxFormatOptions{Indent: "\t"})
+	if !res.OK {
+		t.Fatalf("%v", res.Diagnostics)
+	}
+	if !strings.Contains(res.Source, `+(1 < 2 ? a : a)("x")`) {
+		t.Errorf("got:\n%s", res.Source)
+	}
+
+	again := FormatGadx(res.Source, GadxFormatOptions{Indent: "\t"})
+	if !again.OK || again.Source != res.Source {
+		t.Error("the formatted source does not round-trip")
+	}
+
+	before, ok1 := GadxLowered(src)
+	after, ok2 := GadxLowered(res.Source)
+	if !ok1 || !ok2 || before != after {
+		t.Error("formatting changed what the file lowers to")
+	}
+}

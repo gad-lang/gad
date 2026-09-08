@@ -1,0 +1,72 @@
+# comp_call
+
+`+` sample — the three ways to say which component to render.
+
+`+name` names it. `+a.b.c` reaches it through a value. `+(expr)` renders
+whatever the expression evaluates to, for when the component is chosen rather
+than written: a fallback, a branch, an entry looked up in configuration.
+
+All three take arguments the same way, and all three accept a call block with
+`@slot #name` — the head only decides *which* component runs.
+
+## Components
+
+### plain
+
+```gadx
+plain(label)
+```
+
+### fancy
+
+```gadx
+fancy(label)
+```
+
+### box
+
+```gadx
+box(label)
+```
+
+### main
+
+## Example — `comp_call.gadx`
+
+```gadx
+@comp plain(label)
+	p plain: {= label }
+
+@comp fancy(label)
+	p ★ {= label }
+
+@comp box(label)
+	div[class="box"]
+		@slot main
+			p default: {= label }
+
+@main
+	// 1) by name
+	+plain("one")
+
+	// 2) through a value: a dict entry holding a component
+	~ lib := {kind: {card: fancy}}
+	+lib.kind.card("two")
+
+	// 3) by expression — a branch
+	+(1 < 2 ? plain : fancy)("three")
+
+	// 4) by expression — a fallback for what configuration did not set.
+	//    This is the shape that motivated the form: `cfg.comp` may be unset,
+	//    and `??` cannot appear in a name.
+	~ cfg := {}
+	+(cfg.comp ?? fancy)("four")
+
+	~ cfg.comp = plain
+	+(cfg.comp ?? fancy)("five")
+
+	// 5) an expression head takes a call block like any other
+	+(box)("six")
+		@slot #main
+			em filled by the caller
+```
