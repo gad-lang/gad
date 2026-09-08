@@ -3,6 +3,7 @@ package node
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -660,8 +661,27 @@ func IsEmptyAttrValue(e gnode.Expr) bool {
 // expression. Only a *leading* run is taken, so nothing is reordered — the
 // parser has already put a literal id first, which is where it renders from.
 func shorthandAttrs(attrs []*TagAttribute) (shorthand string, rest []*TagAttribute) {
-	var b strings.Builder
-	i := 0
+	var (
+		id      string
+		classes []string
+		i       int
+	)
+
+	// The shorthand is written after the run is read, not as it goes: the
+	// classes are sorted, and a name cannot be written before the ones that
+	// might sort ahead of it are known.
+	write := func() string {
+		var b strings.Builder
+		if id != "" {
+			b.WriteString("#" + shorthandToken(id))
+		}
+		sort.Strings(classes)
+		for _, n := range classes {
+			b.WriteString("." + shorthandToken(n))
+		}
+		return b.String()
+	}
+
 	for ; i < len(attrs); i++ {
 		a := attrs[i]
 		if a.Condition != nil || a.Spread != nil {
@@ -673,25 +693,24 @@ func shorthandAttrs(attrs []*TagAttribute) (shorthand string, rest []*TagAttribu
 		}
 		switch a.Name {
 		case "id":
-			if b.Len() > 0 || lit.Value() == "" {
-				// A second id is not a shorthand, and an empty one would read
-				// back as no name at all.
-				return b.String(), attrs[i:]
+			if id != "" || len(classes) > 0 || lit.Value() == "" {
+				// A second id is not a shorthand, one written after a class
+				// would move ahead of it, and an empty one would read back as
+				// no name at all.
+				return write(), attrs[i:]
 			}
-			b.WriteString("#" + shorthandToken(lit.Value()))
+			id = lit.Value()
 		case "class":
 			names := strings.Fields(lit.Value())
 			if len(names) == 0 {
-				return b.String(), attrs[i:]
+				return write(), attrs[i:]
 			}
-			for _, n := range names {
-				b.WriteString("." + shorthandToken(n))
-			}
+			classes = append(classes, names...)
 		default:
-			return b.String(), attrs[i:]
+			return write(), attrs[i:]
 		}
 	}
-	return b.String(), attrs[i:]
+	return write(), attrs[i:]
 }
 
 // shorthandToken writes one shorthand name: bare when it is only letters,

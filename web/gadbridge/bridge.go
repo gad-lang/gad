@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/gad-lang/gad"
@@ -194,6 +195,17 @@ func formatGadx(src string) FormatResult {
 // stronger guard than a text round-trip (which can be idempotent while silently
 // changing meaning) and than the node WriteCode lowering (which diverges from
 // the compiler for slots/`@for`).
+// gadxClassAttr matches a literal class attribute in the lowered code, as
+// `class="a b c"`. An expression-valued class is not literal and is left alone.
+var gadxClassAttr = regexp.MustCompile(`class="([^"\\]*)"`)
+
+// sortClassNames rewrites one matched class attribute with its names in order.
+func sortClassNames(match string) string {
+	names := strings.Fields(match[len(`class="`) : len(match)-1])
+	sort.Strings(names)
+	return `class="` + strings.Join(names, " ") + `"`
+}
+
 func GadxLowered(src string) (string, bool) {
 	out, err := gad.TranspileGadxSource(sourceName+".gadx", []byte(src))
 	if err != nil {
@@ -204,8 +216,13 @@ func GadxLowered(src string) (string, bool) {
 	//   - position-derived synthetic slot names ($slotN / $$slotsN / slots.dN),
 	//     whose numbers shift with offsets;
 	//   - blank lines (empty statements from blank lines in the source).
+	//   - the order of the names in a literal `class="…"`, which the formatter
+	//     sorts: which classes an element carries is what the attribute means,
+	//     and the order they are written in is not — CSS resolves by stylesheet
+	//     order, never by the order of the attribute.
 	// Code content is left untouched, so a real change is never hidden.
 	normalized := gadxSyntheticID.ReplaceAllString(string(out), "${1}#")
+	normalized = gadxClassAttr.ReplaceAllStringFunc(normalized, sortClassNames)
 	var b strings.Builder
 	for _, line := range strings.Split(normalized, "\n") {
 		if strings.TrimSpace(line) == "" {
