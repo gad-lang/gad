@@ -430,21 +430,46 @@ func (s *scanner) scanFor() gadparser.PToken {
 	return gadparser.PToken{}
 }
 
-// An assignment names what it assigns to. The name used to be optional, so a
-// line that was only `=value` — the tail of a mistyped `tag[…]="x"`, say —
-// scanned as an assignment with no target, and the empty node it produced
-// crashed the code writer instead of being reported where the mistake is.
-var rgxAssignment = regexp.MustCompile(`^(\$[\w0-9\-_]*)\s*([+-/*:]?)=\s*(.+)$`)
+// An assignment binds a GAD identifier to an expression: `IDENT := EXPR` (define)
+// or `IDENT = EXPR` (assign), plus the compound forms (`+=`, `-=`, `*=`, `/=`,
+// `%=`, `??=`). IDENT is a plain GAD identifier (letters, digits and `_`, an
+// optional leading `$`, no `-`), which is what distinguishes an assignment line
+// from a tag: a tag never has a bare `=` at this position. The value may span
+// several lines while its brackets are unbalanced (see below).
+var rgxAssignment = regexp.MustCompile(`^([$\p{L}_][\p{L}\p{N}_]*)\s*(:=|\?\?=|[-+*/%]=|=)\s*(.+)$`)
 
 func (s *scanner) scanAssignment() gadparser.PToken {
-	if sm := rgxAssignment.FindStringSubmatch(s.buffer); len(sm) != 0 {
-		s.consume(len(sm[0]))
-		pt := s.newToken(gadxtoken.Assignment, sm[0], sm[3])
-		pt.Set("x", sm[1])
-		pt.Set("op", sm[2])
-		return pt
+	sm := rgxAssignment.FindStringSubmatch(s.buffer)
+	if len(sm) == 0 {
+		return gadparser.PToken{}
 	}
-	return gadparser.PToken{}
+	s.consume(len(sm[0]))
+	value := sm[3]
+
+	// Multi-line value: when the expression has an open `(`/`[`/`{` (a multi-line
+	// array/dict/call/func literal or comprehension), keep reading continuation
+	// lines until the brackets balance, so the value expression can span lines —
+	// the same way `~` code and `+EXPR` (component call) do.
+	if bracketDepth(value) > 0 {
+		lines := []string{value}
+		depth := bracketDepth(value)
+		for depth > 0 {
+			s.ensureBuffer()
+			if s.state == gadxtoken.ScnEOF {
+				break
+			}
+			line := s.buffer
+			s.consume(len(s.buffer))
+			lines = append(lines, line)
+			depth += bracketDepth(line)
+		}
+		value = strings.Join(lines, "\n")
+	}
+
+	pt := s.newToken(gadxtoken.Assignment, sm[0], value)
+	pt.Set("x", sm[1])
+	pt.Set("op", sm[2])
+	return pt
 }
 
 var rgxCode = regexp.MustCompile(`^\s*~\s+(.+)$`)
