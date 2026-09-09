@@ -31,6 +31,27 @@ counts := {[v]: (_[v] ?? 0) + 1 for v in ["a", "b", "a", "a"]}
 // => [{a: 1, bb: 2, ccc: 3}, {a: 3, b: 1}]
 ```
 
+## Multi-line comprehensions
+
+The `for` clause (and any further `for` / `if` clauses) may start on its own
+line after the element, so a long comprehension can span several lines. It reads
+as a comprehension, not a multi-line array/dict literal, because `for` can never
+be an element.
+
+```gad
+// the `for` and `if` clauses may each begin on their own line
+labels := [
+    "#" + str(n)
+    for n in [1, 2, 3, 4]
+    if n % 2 == 0]
+// the same for a dict comprehension
+squared := {
+    [n]: n * n
+    for n in [2, 3]}
+[labels, squared]
+// => [["#2", "#4"], {"2": 4, "3": 9}]
+```
+
 ## Example — `comprehensions.gad`
 
 ```gad
@@ -43,6 +64,17 @@ lengths := {[w]: len(w) for w in ["a", "bb", "ccc"]} // [w] computes the key
 // `_` accumulates into the dict being built
 counts := {[v]: (_[v] ?? 0) + 1 for v in ["a", "b", "a", "a"]}
 [lengths, counts]
+
+// the `for` and `if` clauses may each begin on their own line
+labels := [
+    "#" + str(n)
+    for n in [1, 2, 3, 4]
+    if n % 2 == 0]
+// the same for a dict comprehension
+squared := {
+    [n]: n * n
+    for n in [2, 3]}
+[labels, squared]
 
 return [4, 9, 16]
 ```
