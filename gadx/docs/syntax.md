@@ -490,14 +490,25 @@ close, so its arguments may be written one per line:
 
 ## Variables And Assignment
 
+A body line `IDENT := EXPR` declares a template-local variable, and `IDENT = EXPR`
+assigns to an existing one (with the compound forms `+=`, `-=`, `*=`, `/=`, `%=`,
+`??=`) — no `~` prefix needed. `IDENT` is a plain Gad identifier (letters, digits
+and `_`, an optional leading `$`, no `-`); that is what tells an assignment apart
+from a tag, so a name with a `-` stays a tag. Like a `~` line, the value may span
+several lines while its brackets are unbalanced.
+
 ```gadx
 @main
-    @assign total = len(Items)
-    p {= total + " items"}
+    total := len(Items)
+    widths := [
+        500,
+        900,
+        1920]
+    p {= str(total) + " items"}
 ```
 
-Depending on parser form, assignment can also be represented by Gad code inside
-`~~` blocks.
+Use a `~~ … ~~` block (see [Code Block](#code-block)) for a group of statements
+or for module-level declarations shared across components.
 
 ## Conditions
 
