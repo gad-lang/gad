@@ -1,5 +1,26 @@
 @global Model
 
+~~
+// coverWidths are the crop widths a cover image is served at (mirrors the
+// admin's CoverSizes: thumb, middle, full). srcset and sizes are both derived
+// from this one list, so changing it updates both. A cover URL is served at a
+// given width via the `?w=` query (an image server resizes on it).
+coverWidths := [500, 900, 1920]
+
+// coverSrcset builds the `srcset` candidates: one `url?w=W W w` per width.
+coverSrcset := func(url) => strings.join(
+    [url + "?w=" + str(w) + " " + str(w) + "w" for w in coverWidths], ", ")
+
+// coverSizes is the `sizes` hint derived from coverWidths: each width but the
+// widest maps to a `(max-width: Wpx) Wpx` clause, and the widest is the default.
+coverSizes := func() {
+    last := len(coverWidths) - 1
+    return strings.join([
+        i < last ? "(max-width: " + str(w) + "px) " + str(w) + "px" : str(w) + "px"
+        for i, w in coverWidths], ", ")
+}()
+~~
+
 @export comp topbar()
     header.topbar
         div.container.nav
@@ -25,7 +46,7 @@
                 h1 {= title}
                 p {= summary}
             @if cover
-                img.cover[src=cover][alt=title]
+                img.cover[src=cover, srcset=coverSrcset(cover), sizes=coverSizes, alt=title]
 
 @export comp post_card(post)
     article.post-card
