@@ -610,7 +610,8 @@ every element of the first, then of the second, and so on.
 keyValue(key any, value any) <keyValue>
 ```
 
-Builds a single key/value pair value.
+Builds a single key/value pair value. A dict takes one with `+`:
+`d += keyValue(k, v)` sets that entry. `++` is for a sequence of entries.
 
 ### keyValueArray
 
@@ -1008,7 +1009,8 @@ every element of the first, then of the second, and so on.
 export zip(*iterables) <iterator> => nil
 
 /**
-Builds a single key/value pair value.
+Builds a single key/value pair value. A dict takes one with `+`:
+`d += keyValue(k, v)` sets that entry. `++` is for a sequence of entries.
 **/
 export keyValue(key any, value any) <keyValue> => nil
 
