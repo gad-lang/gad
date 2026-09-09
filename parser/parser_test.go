@@ -4195,6 +4195,17 @@ func TestParseComprehension(t *testing.T) {
 	test.ExpectParseString(t, `x := {[i]: i * i for i in a}`, `x := {[i]: (i * i) for i in a}`)
 	test.ExpectParseString(t, `x := {a: 1, [k]: v for k, v in m}`,
 		`x := {a: 1, [k]: v for k, v in m}`)
+	// the comprehension `for` (and further `for`/`if` clauses) may start on a new
+	// line after the element, so a comprehension can span multiple lines.
+	test.ExpectParseString(t, "x := [i\n for i in a]", `x := [i for i in a]`)
+	test.ExpectParseString(t, "x := {k: v\n for k, v in m}", `x := {k: v for k, v in m}`)
+	test.ExpectParseString(t, "x := [i * 2\n for i in a\n if i > 1]",
+		`x := [(i * 2) for i in a if (i > 1)]`)
+	test.ExpectParseString(t, "x := [i + j\n for i in a\n for j in b]",
+		`x := [(i + j) for i in a for j in b]`)
+	// a plain multi-line array/dict literal is NOT a comprehension.
+	test.ExpectParseString(t, "x := [1,\n 2,\n 3]", `x := [1, 2, 3]`)
+	test.ExpectParseString(t, "x := {a: 1,\n b: 2}", `x := {a: 1, b: 2}`)
 }
 
 func TestParseMatchExpr(t *testing.T) {

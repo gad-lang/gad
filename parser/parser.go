@@ -1715,8 +1715,9 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 			return expr
 		}
 
-		// array comprehension: `[elem for x in it if cond ...]`
-		if p.Token.Token == token.For {
+		// array comprehension: `[elem for x in it if cond ...]` (the `for` may
+		// start on a new line after the element).
+		if p.atComprehensionFor() {
 			clauses := p.parseComprehensionClauses()
 			p.ExprLevel--
 			rbrack := p.Expect(token.RBrack)
@@ -4299,8 +4300,9 @@ func (p *Parser) ParseDictLit() node.Expr {
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
 		elements = append(elements, p.ParseDictElementLit())
 
-		// dict comprehension: `{k1: v1, [ke]: ve, ... for x in it if cond}`
-		if p.Token.Token == token.For {
+		// dict comprehension: `{k1: v1, [ke]: ve, ... for x in it if cond}` (the
+		// `for` may start on a new line after the last element).
+		if p.atComprehensionFor() {
 			clauses := p.parseComprehensionClauses()
 			p.ExprLevel--
 			rbrace := p.Expect(token.RBrace)
@@ -5084,6 +5086,17 @@ func (p *Parser) PeekNoSpace() (r PToken) {
 		return false
 	})
 	return
+}
+
+// atComprehensionFor reports whether a comprehension `for` clause begins at the
+// current position — either directly, or after a newline so the `for` may start
+// on its own line (`[elem\n for x in it]`). `for` is a keyword and can never be
+// an array/dict element, so a newline followed by `for` is unambiguous.
+func (p *Parser) atComprehensionFor() bool {
+	if p.Token.Token == token.For {
+		return true
+	}
+	return p.Token.IsSpace() && p.PeekNoSpace().Token == token.For
 }
 
 func (p *Parser) next0() {
