@@ -77,6 +77,47 @@ func TestAttributeGroupRendering(t *testing.T) {
 // arrays (with falsy filtering), the JSX/Vue object form {name: condition}
 // (truthy keys only, emitted sorted for determinism), and multiple class
 // groups merging.
+// TestAttributeValueExpressions covers attribute values that are expressions —
+// including one that starts and ends with a quote (`"#" + x + "-fill"`), which
+// must be evaluated, not mistaken for a raw string literal — and names/tags that
+// contain a `:` (e.g. `xlink:href`), which are kept verbatim.
+func TestAttributeValueExpressions(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "expr value bounded by quotes",
+			src:  "@main\n    ~ x := \"mid\"\n    a[href=\"#\" + x + \"-fill\"] go",
+			want: `<a href="#mid-fill">go</a>`,
+		},
+		{
+			name: "colon attribute name with expr value",
+			src:  "@main\n    ~ x := \"danger\"\n    use[xlink:href=\"#\" + x + \"-fill\"]",
+			want: `<use xlink:href="#danger-fill"></use>`,
+		},
+		{
+			name: "colon tag name",
+			src:  "@main\n    svg:use[xlink:href=\"#icon\"]",
+			want: `<svg:use xlink:href="#icon"></svg:use>`,
+		},
+		{
+			name: "single quoted string stays a raw literal",
+			src:  "@main\n    a[class=\"card wide\"] x",
+			want: `<a class="card wide">x</a>`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := renderGadx(t, tc.src, gad.Dict{})
+			if got != tc.want {
+				t.Fatalf("render mismatch\n got: %s\nwant: %s", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestClassAttributeForms(t *testing.T) {
 	tests := []struct {
 		name    string

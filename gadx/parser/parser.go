@@ -1391,6 +1391,26 @@ func (p *Parser) parseAttributeGroup(tok gadparser.PToken) []*gadxnode.TagAttrib
 
 // isAttrNameChar reports whether c is valid in an attribute name. Names allow
 // HTML/framework punctuation such as `xlink:href`, `data-x`, `@click`, `v.on`.
+// singleQuotedString reports whether v is exactly one double-quoted string
+// literal — its opening `"` is matched by a closing `"` at the very end (honoring
+// `\` escapes) — and returns the unquoted content. An expression that only
+// happens to start and end with a quote (`"a" + x + "b"`) is not one: its first
+// string closes before the end, so it is parsed as an expression instead.
+func singleQuotedString(v string) (content string, ok bool) {
+	if len(v) < 2 || v[0] != '"' {
+		return "", false
+	}
+	for i := 1; i < len(v); i++ {
+		switch v[i] {
+		case '\\':
+			i++ // skip the escaped character
+		case '"':
+			return v[1:i], i == len(v)-1
+		}
+	}
+	return "", false
+}
+
 func isAttrNameChar(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c >= '0' && c <= '9') || c == '_' || c == '-' || c == ':' || c == '@' || c == '.'
@@ -1479,10 +1499,13 @@ func parseAttributeEntry(entry string, base source.Pos) *gadxnode.TagAttribute {
 		// values, which is what makes `[hidden=cond]` disappear; gadx.EMPTY is
 		// how an attribute says it is there with nothing in it.
 		attr.Value = emptyAttrValue(base + source.Pos(valOffset))
-	} else if len(value) >= 2 && strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
+	} else if lit, ok := singleQuotedString(value); ok {
+		// A single quoted string is a raw literal value (`class="card"`); an
+		// expression that merely starts and ends with a quote (`"a-" + x + "-b"`)
+		// is NOT — it is parsed as an expression below.
 		attr.IsRaw = true
-		attr.Value = gnode.Str(value[1:len(value)-1], base+source.Pos(valOffset))
-	} else if value != "" && value != `""` {
+		attr.Value = gnode.Str(lit, base+source.Pos(valOffset))
+	} else if value != "" {
 		attr.Value = parseExprStr(value, base+source.Pos(valOffset))
 	}
 	return attr
