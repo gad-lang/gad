@@ -5248,6 +5248,7 @@ func TestParseExportTypeDecls(t *testing.T) {
 	test.ExpectParseString(t, `export interface I { f() }`, `export interface I {f(); }`)
 	test.ExpectParseString(t, `export type T { a }`, `export type T {a}`)
 	test.ExpectParseString(t, `export type U <int|str>`, `export type U <int|str>`)
+	test.ExpectParseString(t, `export enum E { a, b, c }`, `export enum E {a, b, c}`)
 	// class/mixin/interface/type stay ordinary identifiers when exported as a
 	// plain name (no declaration body follows).
 	test.ExpectParseString(t, `export class`, `export class`)

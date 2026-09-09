@@ -4634,12 +4634,20 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 		}
 		return
 	case token.Enum:
+		// export enum Name { … } — like `enum Name { … }; export Name`.
 		enumTok := p.ExpectToken(token.Enum)
-		var name node.Expr
-		if p.Token.Token == token.Ident {
-			name = p.ParseIdent()
+		if p.Token.Token != token.Ident {
+			p.Error(p.Token.Pos, "export enum requires a name")
+			return
 		}
-		stmt.ValueExpr = p.parseEnumBody(enumTok, name)
+		name := p.ParseIdent()
+		e := p.parseEnumBody(enumTok, name)
+		if e == nil {
+			return
+		}
+		e.Doc = doc
+		p.declExport(stmt, name, &node.EnumStmt{EnumExpr: *e})
+		return
 	case token.Prop:
 		// export prop name { … } / => … exports a Prop under its name; member
 		// access on the module (m.name / m.name = x) then delegates to its

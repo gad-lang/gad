@@ -1443,6 +1443,8 @@ func (s *ExportStmt) String() string {
 		return "export " + d.String()
 	case *InterfaceStmt:
 		return "export " + d.String()
+	case *EnumStmt:
+		return "export " + d.String()
 	case *FuncStmt:
 		return "export " + d.String()
 	case *FuncWithMethodsStmt:
@@ -1491,6 +1493,10 @@ func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
 		d.WriteCode(ctx)
 		return
 	case *InterfaceStmt:
+		ctx.WriteString("export ")
+		d.WriteCode(ctx)
+		return
+	case *EnumStmt:
 		ctx.WriteString("export ")
 		d.WriteCode(ctx)
 		return

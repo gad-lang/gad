@@ -5665,12 +5665,15 @@ export mixin Counter { count = 0; methods { inc() { this.count += 1 } } }
 export interface HasF { f() }
 export type Marker { a }
 export type Num <int|uint>
+export enum Level { primary, secondary, danger }
+// the exported declarations are real module locals, usable by other exports
+export func level_name() { return Level.danger.name }
 `
 	testExpectRun(t,
 		`mod := import("mod")
-return [typeName(mod.Point), typeName(mod.Counter), typeName(mod.HasF), typeName(mod.Marker), typeName(mod.Num)]`,
+return [typeName(mod.Point), typeName(mod.Counter), typeName(mod.HasF), typeName(mod.Marker), typeName(mod.Num), typeName(mod.Level), mod.level_name()]`,
 		newOpts().Module("mod", mod),
-		Array{Str("Class"), Str("Mixin"), Str("Interface"), Str("staticType"), Str("typeUnion")})
+		Array{Str("Class"), Str("Mixin"), Str("Interface"), Str("staticType"), Str("typeUnion"), Str("Enum"), Str("danger")})
 
 	// The exported class is instantiable and the exported union works in a cast.
 	testExpectRun(t,
