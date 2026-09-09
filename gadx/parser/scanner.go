@@ -1290,7 +1290,7 @@ func (s *scanner) scanVar() gadparser.PToken {
 	return s.scanDeclDirective("@var", gadxtoken.Var)
 }
 
-var rgxEnumHead = regexp.MustCompile(`^@enum\s+([a-zA-Z_]\w*)\s*\(`)
+var rgxEnumHead = regexp.MustCompile(`^(@export\s+)?@?enum\s+([a-zA-Z_]\w*)\s*\(`)
 
 // scanEnum scans `@enum IDENT ( … )`. The parenthesized body holds the enum
 // fields, whose syntax mirrors a `@var` declaration (comma- or newline-separated
@@ -1303,7 +1303,8 @@ func (s *scanner) scanEnum() gadparser.PToken {
 	if m == nil {
 		return gadparser.PToken{}
 	}
-	name := m[1]
+	exported := m[1] != ""
+	name := m[2]
 	start := len(m[0]) - 1 // index of the opening '('
 
 	base0 := source.Pos(s.file.Base + s.offset - len(s.buffer) - 1)
@@ -1322,6 +1323,9 @@ func (s *scanner) scanEnum() gadparser.PToken {
 	pt := s.newToken(gadxtoken.Enum, lit, strings.TrimSpace(inner))
 	pt.Set("name", name)
 	pt.Set("innerPos", base0+source.Pos(innerStart+lead))
+	if exported {
+		pt.Set("exported", "true")
+	}
 	return pt
 }
 

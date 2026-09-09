@@ -75,7 +75,11 @@ func (c *GadxCodeWriteContext) gadxInterp(s *gnode.MixedValueStmt) string {
 		b.WriteString(" ")
 	}
 	b.WriteString("= ")
-	b.WriteString(c.gadExpr(s.Expr))
+	// Unwrap a single enclosing ParenExpr, like gadCond: the formatter renders a
+	// conditional (`a ? b : c`) with its own parens, so re-parsing the emitted
+	// `(a ? b : c)` yields a ParenExpr that would otherwise gain another paren
+	// layer on every format pass (breaking idempotency and the fmt round-trip).
+	b.WriteString(c.gadExpr(unwrapParen(s.Expr)))
 	b.WriteString(" ")
 	b.WriteString(rightMark)
 	b.WriteString("}")
@@ -1099,8 +1103,12 @@ func (t *TestDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 
 func (s *EnumStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	writeDoc(ctx, s.Doc)
+	kw := "@enum "
+	if s.Exported {
+		kw = "@export enum "
+	}
 	if s.Decl == nil {
-		ctx.WriteLine("@enum " + s.Name)
+		ctx.WriteLine(kw + s.Name)
 		return
 	}
 	// The Decl renders as `enum Name { fields }`; re-emit it as the `@enum`
@@ -1110,10 +1118,10 @@ func (s *EnumStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	closeB := strings.LastIndexByte(code, '}')
 	if open >= 0 && closeB > open {
 		fields := strings.TrimSpace(code[open+1 : closeB])
-		ctx.WriteLine("@enum " + s.Name + " (" + fields + ")")
+		ctx.WriteLine(kw + s.Name + " (" + fields + ")")
 		return
 	}
-	ctx.WriteLine("@enum " + s.Name)
+	ctx.WriteLine(kw + s.Name)
 }
 
 func (s *CallLineStmt) WriteGadx(ctx *GadxCodeWriteContext) {

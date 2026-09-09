@@ -102,6 +102,30 @@ func TestEnumTranspile(t *testing.T) {
 	}
 }
 
+// TestExportEnumTranspile checks that `@export enum IDENT ( … )` declares the
+// enum locally and exports its name, so other declarations can reference it.
+func TestExportEnumTranspile(t *testing.T) {
+	src := "@export enum Levels (primary, secondary, danger)\n"
+	fs := source.NewFileSet()
+	f := fs.AddFileData("t.gadx", -1, []byte(src))
+	p := gadxparser.NewParser(f)
+	parsed, err := p.ParseFile()
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	es, ok := parsed.Stmts[0].(*gadxnode.EnumStmt)
+	if !ok {
+		t.Fatalf("expected *gadxnode.EnumStmt, got %T", parsed.Stmts[0])
+	}
+	if !es.Exported {
+		t.Fatal("expected Exported to be true for @export enum")
+	}
+	code := gnode.Code(gadxnode.Convert(parsed.Stmts))
+	if want := "enum Levels {primary, secondary, danger}; export Levels"; code != want {
+		t.Fatalf("transpiled code:\n got: %q\nwant: %q", code, want)
+	}
+}
+
 // TestEnumInvalidField reports a parse error for a malformed field, resolving to
 // the gadx source line.
 func TestEnumInvalidField(t *testing.T) {

@@ -927,6 +927,9 @@ type EnumStmt struct {
 	// Decl is the fully-formed Gad enum statement (`enum Name { … }`), parsed
 	// from the directive body.
 	Decl *gnode.EnumStmt
+	// Exported marks an `@export enum`: the enum is declared locally and its name
+	// is exported.
+	Exported bool
 	// Doc is the text of a `/** … */` doc comment immediately preceding the
 	// declaration, or "".
 	Doc string

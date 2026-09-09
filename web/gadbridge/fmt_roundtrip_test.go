@@ -84,6 +84,23 @@ func TestFormatWritesEmptyAttr(t *testing.T) {
 	assertFormatSafe(t, "empty attr", "@main\n    <option value=\"\">x</option>\n")
 }
 
+// A `{= expr }` interpolation whose expression is a ternary (or any expression
+// that renders parenthesised) must round-trip: the formatter re-emits the value
+// with its own parens, so without unwrapping a redundant paren every pass would
+// add another and the lowering would drift.
+func TestFormatInterpolationExpr(t *testing.T) {
+	for name, expr := range map[string]string{
+		"ternary":        "cond ? a : b",
+		"ternary empty":  `msg ? msg[0] : ""`,
+		"nested ternary": "a ? (b ? c : d) : e",
+		"binary":         "1 + 2",
+		"paren value":    "(x)",
+		"string":         `"hi"`,
+	} {
+		assertFormatSafe(t, name, "@main\n    div {= "+expr+" }\n")
+	}
+}
+
 // A `@raw_text` block is content: it survives formatting unchanged, and its
 // indentation is re-applied rather than reflowed.
 func TestFormatKeepsRawTextBlock(t *testing.T) {

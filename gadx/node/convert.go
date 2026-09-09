@@ -569,7 +569,16 @@ func convertEnum(s *EnumStmt) gnode.Stmts {
 	if s.Decl == nil {
 		return nil
 	}
-	return gnode.Stmts{s.Decl}
+	stmts := gnode.Stmts{s.Decl}
+	// `@export enum` declares the enum locally and exports its name (like
+	// `@export func`), so other declarations in the module can reference it.
+	if s.Exported {
+		stmts = append(stmts, &gnode.ExportStmt{
+			TokenPos: s.Pos(),
+			KeyExpr:  gnode.EIdent(s.Name, s.Pos()),
+		})
+	}
+	return stmts
 }
 
 func convertGlobal(s *GlobalStmt) gnode.Stmts {
@@ -1318,7 +1327,12 @@ func (a *textAccum) addText(t *TextStmt) {
 		case *gnode.MixedTextStmt:
 			a.values = append(a.values, gnode.Str(s.Value(), s.Pos()))
 		case *gnode.MixedValueStmt:
-			a.values = append(a.values, s.Expr)
+			// Unwrap a single enclosing ParenExpr: a `{= expr }` value is already a
+			// complete expression, so `{= (a ? b : c) }` lowers the same as
+			// `{= a ? b : c }`. Without this the redundant paren survives (a
+			// self-parenthesising CondExpr would double up), so the formatter — which
+			// re-emits the value parenthesised — would change what the file lowers to.
+			a.values = append(a.values, unwrapParen(s.Expr))
 		case gnode.Stmt:
 			a.flush()
 			a.out.Append(s)

@@ -1737,9 +1737,10 @@ func (p *Parser) parseEnum() *gadxnode.EnumStmt {
 
 	name := stringData(tok, "name", "")
 	s := &gadxnode.EnumStmt{
-		NodePos: tok.Pos,
-		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
-		Name:    name,
+		NodePos:  tok.Pos,
+		NodeEnd:  tok.Pos + source.Pos(len(tok.Literal)),
+		Name:     name,
+		Exported: stringData(tok, "exported", "") == "true",
 	}
 
 	inner := stringData(tok, "value", "")
