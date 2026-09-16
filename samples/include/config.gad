@@ -1,0 +1,13 @@
+/***
+config.gad — a partial meant to be `include`d, not imported.
+
+It declares plain variables in the INCLUDER's scope. `@file` here reports this
+file's name (the source currently running), even though the code is inlined into
+main.gad.
+***/
+
+appName := "Gadapp"
+version := "1.0"
+
+// The source name of the file being compiled/run right now.
+loadedFrom := @file

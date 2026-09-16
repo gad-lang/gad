@@ -1,0 +1,11 @@
+# banner
+
+banner.gad — another partial. It defines a helper that closes over nothing and
+can be called after the include. Because `include` shares the includer's scope,
+`banner` is just a normal binding in main.gad after the include.
+
+## Example — `banner.gad`
+
+```gad
+banner := func(title) => #"== {title} =="
+```

@@ -717,7 +717,24 @@ VMLoop:
 			vm.stack[vm.sp] = Str(vm.CurrentModuleSpec().Name)
 			vm.sp++
 		case OpDotFile:
-			vm.stack[vm.sp] = Str(vm.CurrentModuleSpec().URL)
+			vm.stack[vm.sp] = Str(vm.currentSourceName())
+			vm.sp++
+		case OpPushSource:
+			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			vm.ip += 2
+			switch e := vm.constants[cidx].(type) {
+			case SourceStackEntry:
+				vm.sourceStack = append(vm.sourceStack, e)
+			default:
+				vm.sourceStack = append(vm.sourceStack, SourceName(e.ToString()))
+			}
+		case OpPopSource:
+			if n := len(vm.sourceStack); n > 0 {
+				vm.sourceStack[n-1] = nil
+				vm.sourceStack = vm.sourceStack[:n-1]
+			}
+		case OpFiles:
+			vm.stack[vm.sp] = vm.sourceFiles()
 			vm.sp++
 		case OpIsMain:
 			vm.stack[vm.sp] = Bool(vm.CurrentModuleSpec().IsMain())

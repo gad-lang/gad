@@ -1,13 +1,34 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	gadxnode "github.com/gad-lang/gad/gadx/node"
 	gadxparser "github.com/gad-lang/gad/gadx/parser"
+	"github.com/gad-lang/gad/langsym"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
 )
+
+// The language service follows `include ("…")` across files so an included
+// file's top-level declarations show up in the includer's completion and
+// go-to-definition. Read the included source from disk, resolving a relative
+// path against the including file's directory.
+func init() {
+	langsym.IncludeResolver = func(fromFile, path string) ([]byte, string, bool) {
+		p := path
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(filepath.Dir(fromFile), path)
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return nil, "", false
+		}
+		return data, p, true
+	}
+}
 
 // langsymParse parses source into a gad *parser.File for the language service
 // (`gad def` / `gad complete`), choosing the front-end by the file name:

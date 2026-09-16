@@ -65,6 +65,22 @@ Positional arguments come after the file name; named arguments use `--NAME` or
 $ gad greet.gad Gad world
 ```
 
+## Includes
+
+`include ("file.gad")` compiles another source file **inline** into the current
+scope — unlike `import`, which loads an isolated module and returns its exports.
+The included file's statements run in place and its bindings become the
+includer's own. The parentheses are required, and several files can be included
+at once: `include ("a.gad", "b.gad")`. While an included file's code runs,
+`@file` reports that file and `@files` is the whole source stack; `@mod` stays
+the including module.
+
+The full, runnable documentation lives in the sample source itself:
+[`samples/include/main.gad`](../samples/include/main.gad) (with its partials
+[`config.gad`](../samples/include/config.gad) and
+[`banner.gad`](../samples/include/banner.gad)). In Gadx templates the same
+feature is the [`@include`](../samples/gadx/include.gadx) directive.
+
 ## The REPL
 
 The REPL evaluates expressions as you type and prints their values, which makes

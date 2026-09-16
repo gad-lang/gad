@@ -111,6 +111,10 @@ type (
 		// typeExprSymbols). Set for the duration of one signature's type
 		// resolution and restored afterwards.
 		typeParams map[string][]*node.TypeExpr
+		// includeActive tracks the source URLs currently being compiled inline via
+		// `include`, so a cyclic include (a file that includes itself, directly or
+		// transitively) is reported instead of recursing forever.
+		includeActive map[string]bool
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -798,6 +802,12 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpIsMain)
 	case *node.ModuleLit:
 		c.emit(nt, OpModule)
+	case *node.ModLit:
+		c.emit(nt, OpModule)
+	case *node.FilesLit:
+		c.emit(nt, OpFiles)
+	case *node.IncludeStmt:
+		return c.compileIncludeStmt(nt)
 	case *node.GlobalsLit:
 		c.emit(nt, OpGlobals)
 	case *node.EnvLit:
@@ -1389,7 +1399,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	switch op {
 	case OpGetBuiltin, OpConstant, OpDict, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
 		OpJumpFalsy, OpAndJump, OpOrJump, OpKeyValueArray, OpJumpNil, OpJumpNotNil,
-		OpLoadModule, OpEnvSet, OpInterfaceBind:
+		OpLoadModule, OpEnvSet, OpInterfaceBind, OpPushSource:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
 		return buf, nil
@@ -1418,7 +1428,8 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule, OpGlobals,
 		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpExtendModuleConst, OpSetReturnModule, OpToRawStr,
-		OpAssign, OpAssignTransform, OpEnv, OpEnvGet, OpDelete:
+		OpAssign, OpAssignTransform, OpEnv, OpEnvGet, OpDelete,
+		OpPopSource, OpFiles:
 		return buf, nil
 	default:
 		return buf, &Error{

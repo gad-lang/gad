@@ -49,6 +49,7 @@
 
 - [class](class/README.md)
 - [gadx](gadx/README.md)
+- [include](include/README.md)
 - [modules](modules/README.md)
 - [stdlib](stdlib/README.md)
 - [testing](testing/README.md)

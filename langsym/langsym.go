@@ -14,6 +14,16 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+// IncludeResolver reads the source of an `include`d file for the language
+// service, so an included file's top-level declarations show up in the
+// includer's completion and go-to-definition (since `include` compiles inline).
+// fromFile is the name of the file that contains the include (for relative path
+// resolution); path is the include argument. It returns the included source, its
+// canonical name, and ok=false when it cannot be resolved (the include is then
+// ignored). It is nil by default (no cross-file resolution); the editor host
+// (e.g. `gad complete`/`gad def`) sets it to read from disk.
+var IncludeResolver func(fromFile, path string) (src []byte, name string, ok bool)
+
 // Decl is a declared name, where it was declared, the declaring node, and its
 // lead doc comment (when the declaration carries one).
 type Decl struct {
@@ -48,10 +58,12 @@ type resolver struct {
 	file     *source.File
 	root     *scope
 	comments []*ast.CommentGroup
+	// visited guards against include cycles while collecting cross-file decls.
+	visited map[string]bool
 }
 
 func newResolver(f *parser.File, sf *source.File) *resolver {
-	r := &resolver{file: sf, comments: f.Comments}
+	r := &resolver{file: sf, comments: f.Comments, visited: map[string]bool{}}
 	r.root = &scope{start: f.Pos(), end: f.End() + 1}
 	for _, s := range f.Stmts {
 		r.walk(s, r.root)
@@ -217,11 +229,65 @@ func (r *resolver) walk(n ast.Node, sc *scope) {
 			}
 		}
 		return
+
+	case *node.IncludeStmt:
+		// `include ("a.gad", …)` compiles each file inline, so its top-level
+		// declarations become visible here (from the include line onward). Pull
+		// them in via the host-provided IncludeResolver.
+		if IncludeResolver != nil {
+			for _, pth := range x.Paths {
+				r.addIncludeDecls(pth.Value(), x.Pos(), sc)
+			}
+		}
+		return
 	}
 
 	// Any other node: descend into its children in the same scope, so nested
 	// functions/closures/declarations inside arbitrary expressions are found.
 	r.walkChildren(reflect.ValueOf(n), sc)
+}
+
+// addIncludeDecls resolves an included file and adds its top-level declarations
+// to sc, re-homed at the include site `at` so they are in scope from the include
+// line onward. Nested includes are followed (flattened here); cycles are guarded
+// by r.visited.
+func (r *resolver) addIncludeDecls(path string, at source.Pos, sc *scope) {
+	if path == "" || r.visited[path] {
+		return
+	}
+	src, name, ok := IncludeResolver(r.file.Name, path)
+	if !ok {
+		return
+	}
+
+	sf := source.NewFileSet().AddFileData(name, -1, src)
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
+	file, err := parser.NewParserWithOptions(sf, po, nil).ParseFile()
+	if err != nil {
+		return
+	}
+
+	// Collect the included file's top-level decls with a sub-resolver that shares
+	// the visited set (so a transitive cycle back to an active file is skipped).
+	sub := &resolver{file: sf, comments: file.Comments, visited: r.visited}
+	sub.root = &scope{start: file.Pos(), end: file.End() + 1}
+	r.visited[path] = true
+	for _, s := range file.Stmts {
+		sub.walk(s, sub.root)
+	}
+	delete(r.visited, path)
+
+	for i := range sub.root.decls {
+		d := &sub.root.decls[i]
+		doc := d.Doc
+		if doc == nil {
+			// A `name := …` decl carries no Doc node; its lead comment is associated
+			// by line against the INCLUDED file's comments — resolve it now (the
+			// includer's leadDoc could not, it has the wrong file/lines).
+			doc = sub.leadDoc(d.Pos)
+		}
+		sc.addDoc(d.Name, at, d.Node, doc)
+	}
 }
 
 // addTypedIdent adds a param/return identifier (TypedIdentExpr.Ident).

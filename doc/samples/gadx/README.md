@@ -16,6 +16,8 @@
 - [html](html.md)
 - [html_comments](html_comments.md)
 - [html_control_flow](html_control_flow.md)
+- [include](include.md)
+- [include_data](include_data.md)
 - [markdown](markdown.md)
 - [paragraphs](paragraphs.md)
 - [param](param.md)

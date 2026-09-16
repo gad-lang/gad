@@ -1,0 +1,50 @@
+# main
+
+main.gad — the `include` statement.
+
+`include` compiles another source file INLINE into the current scope. Unlike
+`import` (which loads an isolated module and returns its exports), the included
+file's statements run in place and its bindings become the includer's own.
+
+Run from the repo root:  gad run samples/include/main.gad
+See doc/getting-started.md for detailed documentation.
+
+## Example — `main.gad`
+
+```gad
+// Include one file: config.gad's `appName`, `version` and `loadedFrom` are now
+// visible here, exactly as if they were typed at this line.
+include ("config.gad")
+
+println(#"{appName} v{version}")             // Gadapp v1.0
+// loadedFrom is config.gad's own @file — the source name of the file that was
+// running when it was read (the resolver decides its exact spelling: a bare
+// name for a registered module, or a file path/URL for a file on disk).
+println("config loaded from:", loadedFrom)
+
+/**
+Include several files at once — a parenthesized list, compiled in order. The
+group may span multiple lines.
+**/
+include (
+    "banner.gad",
+)
+
+println(banner(appName))                     // == Gadapp ==
+
+/**
+`@file` reports the source name of the code currently running. At the top level
+of main.gad (outside any include) it is the module's own file; inside an
+included file it is that file. `@files` is the whole source stack: the module at
+the base, then each active include (innermost last).
+**/
+println("main @file:", @file)                // (the module file)
+
+/**
+`@mod` is the current module object — the SAME module inside an included file,
+since `include` never creates a new module (use `import` for that).
+**/
+println("module is:", @mod)
+
+return appName
+```

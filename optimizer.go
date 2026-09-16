@@ -172,7 +172,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		OpTrue: true, OpFalse: true, OpYes: true, OpNo: true, OpJumpNil: true,
 		OpJumpNotNil: true, OpCallee: true, OpArgs: true, OpNamedArgs: true,
 		OpStdIn: true, OpStdOut: true, OpStdErr: true, OpTextWriter: true,
-		OpDotName: true, OpDotFile: true, OpIsMain: true, OpNotIsMain: true,
+		OpDotName: true, OpDotFile: false, OpIsMain: true, OpNotIsMain: true,
 		OpModule: true, OpNamedParamsVar: true, OpComputedValue: true,
 		OpExtendModule: true, OpSetReturnModule: true, OpToRawStr: true,
 		// OpAssign (obj :: type) is not constant-folded: a failing cast must throw
@@ -184,9 +184,12 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		// an object's keys) and must never be constant-folded. The explicit false
 		// on the highest one also sizes the array to include them all.
 		OpEnv: false, OpEnvGet: false, OpEnvSet: false, OpDelete: false,
-		// OpSelfAssignN mutates a target in place; not constant-foldable. Also
-		// sizes the array to include it.
+		// OpSelfAssignN mutates a target in place; not constant-foldable.
 		OpSelfAssignN: false,
+		// The source-name opcodes push/pop or read the VM source stack (mutable
+		// runtime state), so they are never constant-folded. OpFiles is the highest
+		// opcode, so the explicit false also sizes the array to include them all.
+		OpPushSource: false, OpPopSource: false, OpFiles: false,
 	}
 
 	allowedBuiltins := [...]bool{

@@ -217,3 +217,31 @@ func TestMetaTypeBytecodeRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantRet, gotRet)
 }
+
+// TestIncludeBytecodeRoundtrip verifies bytecode built from an `include`
+// (inlined statements wrapped in OpPushSource/OpPopSource, whose
+// source name is a Str constant) survives an encode/decode round-trip: `@file`
+// still reports the included source after decode.
+func TestIncludeBytecodeRoundtrip(t *testing.T) {
+	mm := gad.NewModuleMap()
+	mm.AddSourceModule("name.gad", []byte(`x := 40; got := @file`))
+
+	src := `include ("name.gad"); return [x + 2, got]`
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{ModuleMap: mm})
+	require.NoError(t, err)
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, gad.Array{gad.Int(42), gad.Str("name.gad")}, wantRet)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}

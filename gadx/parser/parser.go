@@ -183,6 +183,8 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		return p.parseCode()
 	case gadxtoken.ImportModule:
 		return p.parseImportModule()
+	case gadxtoken.Include:
+		return p.parseInclude()
 	case gadxtoken.Global:
 		return p.parseGlobal()
 	case gadxtoken.Param:
@@ -1045,6 +1047,48 @@ func tokenValuePos(tok gadparser.PToken) (positions []source.Pos, ok bool) {
 		positions, ok = v.([]source.Pos)
 	}
 	return
+}
+
+// parseInclude lowers the `@include` directive to the Gad `include` statement,
+// compiling the named source file(s) inline (see the Gad `include` statement).
+//
+//	@include "path.gad"                 // include "path.gad"
+//	@include ("a.gad", "b.gad", …)      // include ("a.gad", "b.gad", …)
+func (p *Parser) parseInclude() *gadxnode.CodeStmt {
+	tok := p.Token
+	p.expect(gadxtoken.Include)
+
+	args := stringData(tok, "args", "")
+	argOff, _ := strconv.Atoi(stringData(tok, "argoff", "0"))
+
+	// Gad's `include` requires parentheses. The `@include (…)` form already has
+	// them; the `@include "x"` (single string) form does not, so wrap it. Either
+	// way the arguments are a verbatim slice of the .gadx source, so the fragment
+	// base is set to map every path back to its original offset (see parseGadAt):
+	// base + (arg's offset in gadSrc) == arg's absolute position in the file.
+	var prefix, suffix string
+	if strings.HasPrefix(args, "(") {
+		prefix = "include "
+	} else {
+		prefix, suffix = "include (", ")"
+	}
+	gadSrc := prefix + args + suffix
+	base := tok.Pos + source.Pos(argOff) - source.Pos(len(prefix))
+
+	stmts, err := parseGadAt(gadSrc, base, false)
+	s := &gadxnode.CodeStmt{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+	}
+	if err == nil && stmts != nil {
+		// Anchor the statement keyword at the directive's `@include` (the synthetic
+		// prefix would otherwise shift it by the wrap padding).
+		if inc, ok := stmts[0].(*gnode.IncludeStmt); ok {
+			inc.IncludePos = tok.Pos
+		}
+		s.Stmts = stmts
+	}
+	return s
 }
 
 func (p *Parser) parseImportModule() *gadxnode.CodeStmt {

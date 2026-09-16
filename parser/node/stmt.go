@@ -822,6 +822,63 @@ func (s *ThrowStmt) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
+// IncludeStmt is the `include` statement: it compiles one or more named source
+// files inline into the current scope.
+//
+//	include "path.gad"                 // one file
+//	include ("a.gad", "b.gad", …)      // several, in order
+//
+// Unlike `import`, no module is created and no params are passed; each file's
+// statements are emitted directly (wrapped so `@file`/`@files` report the source
+// name while its code runs).
+type IncludeStmt struct {
+	IncludePos source.Pos
+	LParen     source.Pos // valid for the parenthesized multi-file form
+	RParen     source.Pos
+	Paths      []*StrLit
+}
+
+func (s *IncludeStmt) StmtNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (s *IncludeStmt) Pos() source.Pos {
+	return s.IncludePos
+}
+
+// End returns the position of first character immediately after the node.
+func (s *IncludeStmt) End() source.Pos {
+	if s.RParen.IsValid() {
+		return s.RParen + 1
+	}
+	if n := len(s.Paths); n > 0 {
+		return s.Paths[n-1].End()
+	}
+	return s.IncludePos + source.Pos(len("include"))
+}
+
+func (s *IncludeStmt) String() string {
+	var b strings.Builder
+	b.WriteString("include")
+	b.WriteByte(' ')
+	if s.LParen.IsValid() {
+		b.WriteByte('(')
+	}
+	for i, p := range s.Paths {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(p.String())
+	}
+	if s.LParen.IsValid() {
+		b.WriteByte(')')
+	}
+	return b.String()
+}
+
+func (s *IncludeStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(s.String())
+}
+
 // DeleteStmt is the `delete` statement: it removes one or more keys from a
 // target object.
 //

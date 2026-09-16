@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -3320,6 +3321,123 @@ func (c *Compiler) CompileModule(nd *ModuleStmt) (err error) {
 	c.defineModule(nd.Module)
 	c.module = nd.Module
 	return c.compileFileStmts(nd.Stmts)
+}
+
+// compileIncludeStmt lowers an `include` statement. Unlike `import` (which loads
+// a module and passes params), `include` compiles each named source file inline
+// into the current scope: the file's statements are emitted directly, wrapped in
+// OpPushSource/OpPopSource so `@file`/`@files` report the included
+// source while its code runs. Includes may nest; a cycle is reported.
+func (c *Compiler) compileIncludeStmt(nd *node.IncludeStmt) (err error) {
+	for _, pth := range nd.Paths {
+		path := pth.Value()
+		if path == "" {
+			return c.Errorf(pth, "include: empty path")
+		}
+
+		src, url, kind, rerr := c.resolveIncludeSource(pth, path)
+		if rerr != nil {
+			return rerr
+		}
+
+		if c.includeActive == nil {
+			c.includeActive = map[string]bool{}
+		}
+		if c.includeActive[url] {
+			return c.Errorf(pth, "include cycle detected: %q", url)
+		}
+
+		file, perr := c.parseIncludeFile(url, src, kind)
+		if perr != nil {
+			return c.error(pth, perr)
+		}
+
+		c.emit(pth, OpPushSource, c.addConstant(Str(url)))
+		c.includeActive[url] = true
+		cerr := c.compileStmts(file.Stmts...)
+		delete(c.includeActive, url)
+		if cerr != nil {
+			return cerr
+		}
+		c.emit(pth, OpPopSource)
+	}
+	return nil
+}
+
+// resolveIncludeSource resolves an include path to its source bytes, canonical
+// URL and dialect, using the same module map / importer machinery as `import`
+// (so a registered source module or a file resolved by the ext importer both
+// work).
+func (c *Compiler) resolveIncludeSource(nd ast.Node, path string) (src []byte, url string, kind SourceKind, err error) {
+	importer := c.moduleMap.Get(path)
+	if importer == nil {
+		err = c.Errorf(nd, "include: '%s' not found", path)
+		return
+	}
+
+	name := path
+	if ext, ok := importer.(ExtImporter); ok {
+		var n string
+		if n, err = ext.Name(); err != nil {
+			err = c.Errorf(nd, "include: resolve name of '%s': %v", path, err.Error())
+			return
+		} else if n != "" {
+			name = n
+		}
+	}
+
+	spec := &ModuleSpec{ModuleInfo: ModuleInfo{Name: name}}
+	mod, uri, ierr := importer.Import(c.opts.Context, spec)
+	if ierr != nil {
+		err = c.error(nd, ierr)
+		return
+	}
+
+	switch v := mod.(type) {
+	case SourceCode:
+		src, kind = v.Data, v.Kind
+	case []byte:
+		src, kind = v, SourceKindGad
+	default:
+		err = c.Errorf(nd, "include: '%s' is not source code (%T)", path, v)
+		return
+	}
+
+	url = uri
+	if url == "" {
+		url = name
+	}
+	return
+}
+
+// parseIncludeFile parses an included file's source into a Gad *parser.File,
+// selecting the front-end by dialect (plain Gad / .gadt template / .gadx). The
+// file is added to the shared FileSet so the inlined statements keep source
+// positions pointing at the included file.
+func (c *Compiler) parseIncludeFile(url string, src []byte, kind SourceKind) (*parser.File, error) {
+	modFile := c.file.Set().AddFileData(url, -1, src)
+
+	var trace io.Writer
+	if c.opts.TraceParser {
+		trace = c.trace
+	}
+
+	switch kind {
+	case SourceKindGadx:
+		return parseGadxFile(modFile)
+	default:
+		parserOptions := &parser.ParserOptions{Trace: trace}
+		var scannerOptions *parser.ScannerOptions
+		if kind == SourceKindGadt {
+			parserOptions.Mode |= parser.ParseMixed
+			scannerOptions = &parser.ScannerOptions{
+				Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
+				MixedDelimiter: parser.DefaultMixedDelimiter,
+			}
+		}
+		p := parser.NewParserWithOptions(modFile, parserOptions, scannerOptions)
+		return p.ParseFile()
+	}
 }
 
 func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {

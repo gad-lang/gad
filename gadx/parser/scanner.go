@@ -232,6 +232,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanImportModule(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanInclude(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanSlot(); tok.Valid() {
 			return tok
 		}
@@ -900,6 +903,55 @@ func (s *scanner) scanImportModule() gadparser.PToken {
 		}
 	}
 	return gadparser.PToken{}
+}
+
+// scanInclude scans the `@include` directive, which compiles source file(s)
+// inline (lowered to the Gad `include` statement):
+//
+//	@include "path.gad"                 // one file
+//	@include ("a.gad", "b.gad", …)      // several (the group may span lines)
+//
+// The argument text (a quoted string, or a `(…)` group) is captured verbatim in
+// the token's "args" value and re-emitted as `include <args>`.
+func (s *scanner) scanInclude() gadparser.PToken {
+	const kw = "@include"
+	if !strings.HasPrefix(s.buffer, kw) {
+		return gadparser.PToken{}
+	}
+	rest := s.buffer[len(kw):]
+	// A boundary (space, tab or `(`) separates `@include` from an `@includexyz`.
+	if rest != "" && rest[0] != ' ' && rest[0] != '\t' && rest[0] != '(' {
+		return gadparser.PToken{}
+	}
+
+	i := len(kw)
+	for i < len(s.buffer) && (s.buffer[i] == ' ' || s.buffer[i] == '\t') {
+		i++
+	}
+	argOff := i // byte offset of the argument text within the token, for positions
+
+	var args string
+	if i < len(s.buffer) && s.buffer[i] == '(' {
+		bal, end, ok := s.readBalanced(i, '(', ')')
+		if !ok {
+			return gadparser.PToken{}
+		}
+		args = bal
+		i = end
+	} else {
+		args = strings.TrimRight(s.buffer[i:], " \t")
+		i = len(s.buffer)
+	}
+	if args == "" {
+		return gadparser.PToken{}
+	}
+
+	lit := s.buffer[:i]
+	s.consume(i)
+	pt := s.newToken(gadxtoken.Include, lit, args)
+	pt.Set("args", args)
+	pt.Set("argoff", strconv.Itoa(argOff))
+	return pt
 }
 
 func (s *scanner) readBalanced(start int, open, close byte) (string, int, bool) {

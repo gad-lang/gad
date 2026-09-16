@@ -428,7 +428,8 @@ func tokenStartsOperand(tok token.Token) bool {
 		token.Throw, token.Return, token.Match, token.Raw, token.InterpolatedString,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
-		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals:
+		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals,
+		token.Mod, token.Files:
 		return true
 	}
 	return false
@@ -1102,6 +1103,14 @@ func (p *Parser) ParsePrimitiveOperand() node.Expr {
 			x := &node.GlobalsLit{TokenPos: p.Token.Pos}
 			p.Next()
 			return x
+		case token.Mod:
+			x := &node.ModLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.Files:
+			x := &node.FilesLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
 		}
 	}
 
@@ -1180,6 +1189,14 @@ func (p *Parser) ParseOperand() node.Expr {
 			return x
 		case token.Globals:
 			x := &node.GlobalsLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.Mod:
+			x := &node.ModLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.Files:
+			x := &node.FilesLit{TokenPos: p.Token.Pos}
 			p.Next()
 			return x
 		case token.Callee:
@@ -2762,41 +2779,51 @@ func (p *Parser) ParseStmt() (stmt node.Stmt) {
 
 func (p *Parser) DefaultParseStmt() (stmt node.Stmt) {
 do:
-	// `test NAME { … }` / `bench NAME { … }` — contextual: `test`/`bench` are
-	// only these statements when followed by a NAME and `{` (see isTestStmtStart).
-	if p.Token.Token == token.Ident && p.isTestStmtStart() {
-		return p.ParseTestStmt()
-	}
-	// `delete Target[.field] [keys]` — `delete` is a contextual keyword only at
-	// statement start; as a member (`obj.delete(…)`) it stays an ordinary name.
-	if p.Token.Token == token.Ident && p.Token.Literal == "delete" && p.isDeleteStmtStart() {
-		return p.ParseDeleteStmt()
-	}
-	// `type NAME <T1|T2|…>` — a named type-union declaration, sugar for
-	// `const NAME = type <…>`. `type` is contextual (see isTypeUnionDeclStart).
-	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.isTypeUnionDeclStart() {
-		return p.parseTypeUnionDeclStmt()
-	}
-	// `class`/`mixin`/`interface`/`type [Name] { … }` — contextual declaration
-	// keywords. They introduce a declaration only in the `<kw> [Name] { … }` shape
-	// and are ordinary identifiers everywhere else (a parameter name, a variable,
-	// a value). (`type NAME <…>` — a union decl — is handled just above;
-	// `interface` also allows the array form `interface[] …`.)
+	// Contextual keywords: reserved-looking words that begin a statement only in a
+	// specific shape and are ordinary identifiers everywhere else (a parameter
+	// name, a variable, a value). Each guard checks the exact shape before
+	// committing; order matters where a word has two forms (see `type`).
 	if p.Token.Token == token.Ident {
 		switch p.Token.Literal {
+		case "test", "bench":
+			// `test NAME { … }` / `bench NAME { … }` (NAME then `{`).
+			if p.isTestStmtStart() {
+				return p.ParseTestStmt()
+			}
+		case "delete":
+			// `delete Target[.field] [keys]` — as a member (`obj.delete(…)`) it
+			// stays an ordinary name.
+			if p.isDeleteStmtStart() {
+				return p.ParseDeleteStmt()
+			}
+		case "include":
+			// `include ("a.gad", …)` — written like a call; a statement only when
+			// immediately followed by `(`.
+			if p.Peek().Token == token.LParen {
+				return p.ParseIncludeStmt()
+			}
+		case "type":
+			// `type NAME <T1|T2|…>` — a named type-union declaration (sugar for
+			// `const NAME = type <…>`); otherwise `type [Name] { … }` — a static
+			// type declaration.
+			if p.isTypeUnionDeclStart() {
+				return p.parseTypeUnionDeclStmt()
+			}
+			if p.isDeclBodyStart() {
+				return p.ParseStaticTypeStmt()
+			}
 		case "class":
+			// `class [Name] [extends …] { … }`.
 			if p.isDeclBodyStart() {
 				return p.ParseClassStmt()
 			}
 		case "mixin":
+			// `mixin [Name] { … }`.
 			if p.isDeclBodyStart() {
 				return p.ParseMixinStmt()
 			}
-		case "type":
-			if p.isDeclBodyStart() {
-				return p.ParseStaticTypeStmt()
-			}
 		case "interface":
+			// `interface [Name] { … }` (or the array form `interface[] …`).
 			if p.isInterfaceDeclStart() {
 				return p.ParseInterfaceStmt()
 			}
@@ -2857,7 +2884,7 @@ do:
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
 		token.Yes, token.No,
-		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals, token.InterpolatedString, token.Raw,
+		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals, token.Mod, token.Files, token.InterpolatedString, token.Raw,
 		token.Match:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()
@@ -3561,6 +3588,49 @@ func (p *Parser) ParseFinallyStmt() *node.FinallyStmt {
 		FinallyPos: pos,
 		Body:       body,
 	}
+}
+
+// ParseIncludeStmt parses the `include` statement. It is written like a call —
+// the parentheses are REQUIRED (a bare `include "x"` is not valid Gad) and the
+// argument list is parsed by ParseCall, so it reuses the call grammar (multiple
+// args, trailing comma, spanning lines). Every argument must be a string literal
+// (the source paths):
+//
+//	include ("path.gad")               // one file
+//	include ("a.gad", "b.gad", …)      // several, in order
+func (p *Parser) ParseIncludeStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "Include"))
+	}
+	pos := p.Token.Pos
+	ident := node.EIdent("include", pos)
+	p.Next()
+
+	if p.Token.Token != token.LParen {
+		p.ErrorExpected(p.Token.Pos, "'(' (include requires parentheses)")
+		p.advance(stmtStart)
+		return &node.BadStmt{From: pos, To: p.Token.Pos}
+	}
+
+	c := p.ParseCall(ident)
+	stmt := &node.IncludeStmt{
+		IncludePos: pos,
+		LParen:     c.LParen,
+		RParen:     c.RParen,
+	}
+	for _, a := range c.Args.Values {
+		if s, ok := a.(*node.StrLit); ok {
+			stmt.Paths = append(stmt.Paths, s)
+		} else {
+			p.Error(a.Pos(), "include path must be a string literal")
+		}
+	}
+
+	if len(stmt.Paths) == 0 {
+		p.ErrorExpected(pos, "include path")
+	}
+	p.ExpectSemi()
+	return stmt
 }
 
 func (p *Parser) ParseThrowStmt() node.Stmt {
@@ -4922,7 +4992,7 @@ func (p *Parser) ExpectSemi() {
 		p.Next()
 	default:
 		switch p.PrevToken.Token {
-		case token.Else, p.BlockEnd, token.DotName, token.DotFile, token.IsMain, token.Module,
+		case token.Else, p.BlockEnd, token.DotName, token.DotFile, token.IsMain, token.Module, token.Mod, token.Files,
 			// a closing `>` ends a func-header value `<…>`; it is the previous
 			// token at a statement boundary only in that case.
 			token.Greater:

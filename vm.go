@@ -25,18 +25,23 @@ const (
 
 // VM executes the instructions in Bytecode.
 type VM struct {
-	abort            int64
-	sp               int
-	ip               int
-	curInsts         []byte
-	constants        []Object
-	modules          []*ModuleSpec
-	stack            [stackSize]Object
-	frames           [frameSize]frame
-	curFrame         *frame
-	frameIndex       int
-	bytecode         *Bytecode
-	modulesCache     Modules
+	abort        int64
+	sp           int
+	ip           int
+	curInsts     []byte
+	constants    []Object
+	modules      []*ModuleSpec
+	stack        [stackSize]Object
+	frames       [frameSize]frame
+	curFrame     *frame
+	frameIndex   int
+	bytecode     *Bytecode
+	modulesCache Modules
+	// sourceStack is the source-name stack of active `include`s (innermost last).
+	// `include` wraps its inlined code in OpPushSource/OpPopSource so
+	// `@file` reports the included file and `@files` exposes the whole stack. It
+	// is empty outside includes, where `@file` falls back to the module URL.
+	sourceStack      []SourceStackEntry
 	globals          IndexGetSetter
 	iterPool         []*StateIteratorObject // free list of internal for-in iterators
 	arrayIterPool    []*arrayIterator       // free list of array for-in iterators
@@ -569,6 +574,32 @@ func (vm *VM) ModuleFromIndex(index int) *Module {
 
 func (vm *VM) CurrentModuleSpec() *ModuleSpec {
 	return vm.curFrame.fn.module
+}
+
+// currentSourceName reports the innermost active source name: the top `include`
+// entry if any, otherwise the current module's URL (the pre-include `@file`).
+func (vm *VM) currentSourceName() string {
+	if n := len(vm.sourceStack); n > 0 {
+		return vm.sourceStack[n-1].Name()
+	}
+	return vm.CurrentModuleSpec().URL
+}
+
+// sourceFiles returns the read-only source stack for `@files`: the current
+// module (as its own entry) at the base, followed by each active `include`
+// entry, innermost last.
+func (vm *VM) sourceFiles() Array {
+	arr := make(Array, 0, len(vm.sourceStack)+1)
+	spec := vm.CurrentModuleSpec()
+	base := spec.URL
+	if base == "" {
+		base = spec.Name
+	}
+	arr = append(arr, SourceName(base))
+	for _, e := range vm.sourceStack {
+		arr = append(arr, e)
+	}
+	return arr
 }
 
 func (vm *VM) CurrentModule() *Module {

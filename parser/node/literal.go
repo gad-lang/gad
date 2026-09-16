@@ -1108,6 +1108,60 @@ func (e *ModuleLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
+// ModLit is the `@mod` keyword: the current module object (an alias of
+// `@module`). Inside an included file it is still the including module, since
+// `include` compiles inline (no new module).
+type ModLit struct {
+	TokenPos source.Pos
+}
+
+func (e *ModLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *ModLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *ModLit) End() source.Pos {
+	return e.TokenPos + source.Pos(len(e.String()))
+}
+
+func (e *ModLit) String() string {
+	return token.Mod.String()
+}
+
+func (e *ModLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
+// FilesLit is the `@files` keyword: the read-only source-name stack (an Array
+// of SourceStackEntry) of the includes currently active, innermost last. When
+// no include is active it is empty.
+type FilesLit struct {
+	TokenPos source.Pos
+}
+
+func (e *FilesLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *FilesLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *FilesLit) End() source.Pos {
+	return e.TokenPos + source.Pos(len(e.String()))
+}
+
+func (e *FilesLit) String() string {
+	return token.Files.String()
+}
+
+func (e *FilesLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
 // GlobalsLit is the `@g` keyword: a short form of the `globals()` builtin call
 // that yields the host-provided globals object.
 type GlobalsLit struct {

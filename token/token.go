@@ -194,6 +194,14 @@ const (
 	// stays usable as an identifier elsewhere). Appended at the end of the keyword
 	// group so existing token values are not shifted.
 	Mixin
+	// Mod is the `@mod` literal: the current module object (same as `@module`).
+	// Appended at the end of the keyword group so existing token values are not
+	// shifted.
+	Mod
+	// Files is the `@files` literal: the read-only source-name stack (a slice of
+	// SourceStackEntry) of the includes currently active. Appended at the end of
+	// the keyword group so existing token values are not shifted.
+	Files
 	GroupKeywordEnd
 	// DoubleColon is the assign-to-type operator `obj :: Type` (a checked cast
 	// that returns obj when it is assignable to Type, else raises a type error;
@@ -372,6 +380,8 @@ var tokens = [...]string{
 	IsMain:              "@main",
 	Module:              "@module",
 	Globals:             "@g",
+	Mod:                 "@mod",
+	Files:               "@files",
 	Raw:                 "raw",
 	Match:               "match",
 	Defer:               "defer",
@@ -557,6 +567,8 @@ var tokenNames = [...]string{
 	Enum:                         "Enum",
 	Interface:                    "Interface",
 	Mixin:                        "Mixin",
+	Mod:                          "Mod",
+	Files:                        "Files",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 	DoubleColon:                  "DoubleColon",
 	TripleColon:                  "TripleColon",

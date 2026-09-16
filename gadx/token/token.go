@@ -45,6 +45,7 @@ const (
 	Test      // @test — test block (lowers to Gad `test NAME { … }`)
 	Call      // `! recv.method arg1 arg2` — fluent call statement
 	Repeat    // `(N)` right after a tag head — the tag is written N times
+	Include   // @include — compile source file(s) inline (Gad `include`)
 	tokMax
 )
 
@@ -89,6 +90,7 @@ var tokNames = [...]string{
 	Test:         "TEST",
 	Call:         "CALL",
 	Repeat:       "REPEAT",
+	Include:      "INCLUDE",
 }
 
 // String returns a human-readable name for a gadx token.
