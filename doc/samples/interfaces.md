@@ -86,7 +86,7 @@ This whole sample is a runnable tour (see the Example below).
 
 ## Example — `interfaces.gad`
 
-```gad
+````gad
 // A parent interface, spread into `Shape` with `*Base` below.
 interface Base { get kind }
 
@@ -158,6 +158,34 @@ Poly := interface { pts: []{ x int, y int } }
     sat({ pts: [{ x: 0, y: 0 }, { x: 1, y: 2 }] }, Poly), // slice: every element ok
     sat({ pts: [{ x: 0, y: 0 }, { x: 1 }] }, Poly),       // slice: 2nd missing y -> false
 ]
+
+/**
+## An enum as a field's type
+
+A field's type may be an `enum` declared RIGHT THERE, instead of one declared
+beside the interface:
+
+```gad
+interface { perm enum { Read, Write } }
+```
+
+Inline it is anonymous — a name would have nothing to name but the field it is
+already on — and it reads back as the enum it is, values and all. A `?` after
+the field name works as it does for any other type.
+**/
+enum Perm { Read, Write }
+
+// declared beside the interface, and named
+Named := interface { perm Perm }
+println("named:     ", {perm: Perm.Read} :: Named)     // {perm: 1}
+
+// declared inline, anonymous
+Acl := interface { perm enum { Read, Write } }
+println("inline:    ", Acl.fields[0].name, "=>", Acl.fields[0].types[0])
+
+// nullable: the field may be nil, or absent
+OptAcl := interface { perm? enum { Read, Write } }
+println("optional:  ", {} :: OptAcl)                   // {}
 
 // The anonymous expression form is a value like any other.
 Point := interface { x int; y int; get norm float }
@@ -292,4 +320,4 @@ conflict := interface { *HasRun; get run int }.@flat or "conflict rejected"
 println("conflict:    ", conflict)             // conflict rejected
 
 return ok
-```
+````

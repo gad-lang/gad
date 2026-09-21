@@ -94,6 +94,7 @@ type (
 		funcHeaderIndex      uint
 		methodInterfaceIndex uint
 		interfaceIndex       uint
+		enumIndex            uint
 		// warnings collects non-fatal compiler diagnostics. Forks funnel into the
 		// root compiler (see warnf), so the root holds every module's warnings.
 		warnings []*CompilerWarning
@@ -516,6 +517,13 @@ func (c *Compiler) newMethodInterfaceName() string {
 func (c *Compiler) newInterfaceName() string {
 	c.interfaceIndex++
 	return fmt.Sprintf("ifaces#%d", c.interfaceIndex)
+}
+
+// newEnumName returns an incremented name for an anonymous `enum` written where
+// a type goes, e.g. `enums#1`, mirroring newInterfaceName.
+func (c *Compiler) newEnumName() string {
+	c.enumIndex++
+	return fmt.Sprintf("enums#%d", c.enumIndex)
 }
 
 // Bytecode returns compiled Bytecode ready to run in VM.

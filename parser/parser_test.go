@@ -4358,6 +4358,18 @@ func TestParseInterface(t *testing.T) {
 	// `?` comes after the name (as in the space form `x? int`).
 	test.ExpectParseString(t, `x := interface { a?: { b int } }`,
 		`x := interface {a?: {b int; }; }`)
+
+	// A field's type may be an `enum` declared right there, instead of one
+	// declared beside the interface. Inline it is ANONYMOUS: a name would have
+	// nothing to name but the field it is already on.
+	test.ExpectParseString(t, `x := interface { perm enum { Read, Write } }`,
+		`x := interface {perm enum {Read, Write}; }`)
+	// the `?` after the name works as it does for any other type
+	test.ExpectParseString(t, `x := interface { perm? enum { Read, Write } }`,
+		`x := interface {perm? enum {Read, Write}; }`)
+	// and it sits among the other members like any field
+	test.ExpectParseString(t, `x := interface { a str; perm enum { Read }; b int }`,
+		`x := interface {a str; b int; perm enum {Read}; }`)
 	// the block-method form (no colon) is unchanged
 	test.ExpectParseString(t, `x := interface { a { (x), (y int) <bool> } }`,
 		`x := interface {a {(_ x); (y int) <bool>; }; }`)

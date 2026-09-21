@@ -4396,6 +4396,16 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 			return nil, err
 		}
 		obj, name = iface, iface.IName
+	// `perm enum { Read, Write }` — an enum declared where its type is used.
+	// It is a type like any other here: an *Enum answers CanAssign, so the
+	// field accepts exactly the values the enum names.
+	case *node.EnumExpr:
+		name = c.newEnumName()
+		enum, err := c.buildEnum(t, name)
+		if err != nil {
+			return nil, err
+		}
+		obj = enum
 	default:
 		return nil, c.Errorf(e, "unsupported structural type %T", e)
 	}

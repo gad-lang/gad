@@ -2608,6 +2608,10 @@ func (p *Parser) isTypeStart() bool {
 		return true
 	case token.Method:
 		return p.Peek().Token == token.Less
+	case token.Enum:
+		// `enum { … }` / `enum Name { … }` written where a type goes — an enum
+		// declared inline, as the type of the field it belongs to.
+		return p.Peek().Token == token.LBrace
 	}
 	return false
 }
@@ -2699,6 +2703,10 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 		return &node.TypeExpr{Expr: p.ParseMethodInterfaceExpr()}
 	case token.Method:
 		return &node.TypeExpr{Expr: p.parseMetShortcut()}
+	// `enum { … }` / `enum Name { … }` — an enum declared where its type is
+	// used, instead of beside it.
+	case token.Enum:
+		return &node.TypeExpr{Expr: p.ParseEnumExpr()}
 	case token.Ident:
 		switch {
 		// `type<X>` in a parameter-type position is a meta type matching the type

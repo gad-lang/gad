@@ -141,6 +141,36 @@ Poly := interface { pts: []{ x int, y int } }
 /**= [true, false, true, false] **/
 //endsnippet
 
+//snippet enum_field
+/**
+## An enum as a field's type
+
+A field's type may be an `enum` declared RIGHT THERE, instead of one declared
+beside the interface:
+
+```gad
+interface { perm enum { Read, Write } }
+```
+
+Inline it is anonymous — a name would have nothing to name but the field it is
+already on — and it reads back as the enum it is, values and all. A `?` after
+the field name works as it does for any other type.
+**/
+enum Perm { Read, Write }
+
+// declared beside the interface, and named
+Named := interface { perm Perm }
+println("named:     ", {perm: Perm.Read} :: Named)     // {perm: 1}
+
+// declared inline, anonymous
+Acl := interface { perm enum { Read, Write } }
+println("inline:    ", Acl.fields[0].name, "=>", Acl.fields[0].types[0])
+
+// nullable: the field may be nil, or absent
+OptAcl := interface { perm? enum { Read, Write } }
+println("optional:  ", {} :: OptAcl)                   // {}
+//endsnippet
+
 // The anonymous expression form is a value like any other.
 Point := interface { x int; y int; get norm float }
 println("anon:      ", typeName(Point), len(Point.fields), Point.fields[1].name)
