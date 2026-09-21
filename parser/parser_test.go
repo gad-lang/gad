@@ -4342,6 +4342,23 @@ func TestParseInterface(t *testing.T) {
 	// (`render` before `strings.upper`).
 	test.ExpectParseString(t, `x := interface { funcs { strings.upper <(@self)>; render { (@self), (@self, int) } } }`,
 		`x := interface {funcs {render {(_ @self); (_ @self, _ int); }; strings.upper <(_ @self)>; }; }`)
+
+	// A nested-interface field: `name: { … }` is the short form of
+	// `name interface { … }`, and both format to the short form. The colon
+	// distinguishes it from the block-method form `name { … }` (no colon).
+	test.ExpectParseString(t, `x := interface { a: { b int, c: { d int } } }`,
+		`x := interface {a: {b int; c: {d int; }; }; }`)
+	// the long form normalizes to the short form
+	test.ExpectParseString(t, `x := interface { a interface { b int } }`,
+		`x := interface {a: {b int; }; }`)
+	// a nested interface may carry methods too
+	test.ExpectParseString(t, `x := interface { a: { m(x int) <bool> } }`,
+		`x := interface {a: {m(x int) <bool>; }; }`)
+	// `name: Type` (colon, non-brace) is a plain typed field — formatted with a space
+	test.ExpectParseString(t, `x := interface { a: int }`, `x := interface {a int; }`)
+	// the block-method form (no colon) is unchanged
+	test.ExpectParseString(t, `x := interface { a { (x), (y int) <bool> } }`,
+		`x := interface {a {(_ x); (y int) <bool>; }; }`)
 }
 
 func TestParseFuncHeaderExpr(t *testing.T) {

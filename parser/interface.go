@@ -189,6 +189,24 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		return
 	}
 	switch p.Token.Token {
+	case token.Colon:
+		// `name: { … }` — shorthand for a nested-interface field
+		// (`name interface { … }`); `name: Type` is a colon-separated typed field.
+		// (The brace form without a colon, `name { … }`, stays a block method.)
+		p.Next()
+		p.SkipSpace()
+		var typ []*node.TypeExpr
+		if p.Token.Token == token.LBrace {
+			nested := p.parseInterfaceBody(PToken{}, nil)
+			typ = []*node.TypeExpr{{Expr: nested}}
+		} else {
+			typ = p.ParseTypes()
+		}
+		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
+			Kind: node.IfaceField,
+			Name: &node.TypedIdentExpr{Ident: name, Type: typ},
+			Doc:  doc,
+		})
 	case token.LParen:
 		h := p.parseInterfaceMethodHeader()
 		if h == nil {

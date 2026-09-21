@@ -58,11 +58,23 @@ interface Base { get kind }
 // untyped field defaults to `any`. `get`/`set`/`prop` declare accessors; a
 // method is `name(params) <return>`, and its block form `name { (…), … }`
 // groups several overload signatures (like `meti`, without the keyword).
+//
+// A field whose type is a nested interface has a SHORT form, `name: { … }`,
+// equal to `name interface { … }` — the colon distinguishes it from the block
+// method form `name { … }` (no colon). Nesting may go any depth. The formatter
+// always normalizes a nested-interface field to this short form.
 interface Shape {
 	*Base
 
 	id int
 	label str
+
+	// a nested-interface field (short form): `bounds` is typed by an inline
+	// interface with `w int` and `h int`. Long form: `bounds interface { … }`.
+	bounds: {
+		w int
+		h int
+	}
 
 	get area uint
 	set scale
@@ -84,6 +96,12 @@ println("field type:", Shape.fields[0].name, "=>", Shape.fields[0].types[0])
 println("props:     ", [p.name for p in Shape.props])
 println("methods:   ", [m.name for m in Shape.methods])
 println("from sigs: ", len(Shape.methods[2].headers))
+
+// A nested-interface field's type is itself an `Interface` value, so it can be
+// inspected further (its own fields, methods, …).
+bounds := [f for f in Shape.fields if f.name == "bounds"][0]
+println("nested:    ", bounds.name, "=>", typeName(bounds.types[0]),
+    "with fields", [f.name for f in bounds.types[0].fields])
 
 // The anonymous expression form is a value like any other.
 Point := interface { x int; y int; get norm float }
