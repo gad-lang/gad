@@ -509,34 +509,51 @@ func indexMember(vm *VM, obj Object, name string) (Object, bool) {
 }
 
 // ifaceFieldTypeOK reports whether v is assignable to the interface field's
-// declared type(s). An untyped field only requires presence.
+// declared type(s). An untyped field only requires presence. A nominal type
+// (class, int, …) is checked by assignability; a structural type (a nested
+// `interface { … }` or `meti`) is checked by satisfaction — so a nested-interface
+// field is validated RECURSIVELY.
 func ifaceFieldTypeOK(vm *VM, f *InterfaceField, v Object) (bool, error) {
-	// A nullable field (`name? T`) is also satisfied by nil.
+	// A nullable field (`name? T`, `name?: { … }`) is also satisfied by nil.
 	if (v == Nil || v == nil) && f.Nullable {
 		return true, nil
 	}
-	types := f.Types
-	if len(types) == 0 && vm != nil {
+
+	// Collect the declared type values: pre-resolved ObjectTypes plus any
+	// compile-time type symbols resolved against the VM. A named type resolves to
+	// an ObjectType; an interface/meti literal to a structural TypeAssigner.
+	var typeVals []Object
+	for _, t := range f.Types {
+		typeVals = append(typeVals, t)
+	}
+	if vm != nil {
 		for _, sym := range f.TypesSymbols {
 			tv, err := vm.GetSymbolValue(sym)
 			if err != nil {
 				return false, err
 			}
-			if ot, _ := tv.(ObjectType); ot != nil {
-				types = append(types, ot)
-			}
+			typeVals = append(typeVals, tv)
 		}
 	}
-	if len(types) == 0 {
-		return true, nil
+	if len(typeVals) == 0 {
+		return true, nil // untyped field: presence only
 	}
+
 	vt := v.Type()
 	if vm != nil {
 		vt = vm.ResolveType(vt)
 	}
-	for _, t := range types {
-		if t == TAny || IsTypeAssignableTo(vt, t) {
-			return true, nil
+	for _, tv := range typeVals {
+		switch t := tv.(type) {
+		case ObjectType:
+			if t == TAny || IsTypeAssignableTo(vt, t) {
+				return true, nil
+			}
+		case TypeAssigner:
+			// A structural type (nested interface / meti): check v satisfies it.
+			if _, err := t.AssignTo(vm, v, t); err == nil {
+				return true, nil
+			}
 		}
 	}
 	return false, nil

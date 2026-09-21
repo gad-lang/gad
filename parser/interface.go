@@ -188,23 +188,33 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 	if name == nil {
 		return
 	}
+
+	// A `?` right after the name marks a field nullable (may be nil): `x? int`,
+	// `a?: { … }`. It comes after the name and before the type / `:` (the current
+	// convention for the space form).
+	var nullable bool
+	if p.Token.Is(token.Question) {
+		nullable = true
+		p.Next()
+		p.SkipSpace()
+	}
+
 	switch p.Token.Token {
 	case token.Colon:
 		// `name: { … }` — shorthand for a nested-interface field
-		// (`name interface { … }`); `name: Type` is a colon-separated typed field.
-		// (The brace form without a colon, `name { … }`, stays a block method.)
+		// (`name interface { … }`). The colon form is ONLY for a nested interface:
+		// it must be followed by `{`. (The brace form without a colon,
+		// `name { … }`, stays a block method; a plain typed field is `name Type`.)
 		p.Next()
 		p.SkipSpace()
-		var typ []*node.TypeExpr
-		if p.Token.Token == token.LBrace {
-			nested := p.parseInterfaceBody(PToken{}, nil)
-			typ = []*node.TypeExpr{{Expr: nested}}
-		} else {
-			typ = p.ParseTypes()
+		if p.Token.Token != token.LBrace {
+			p.ErrorExpected(p.Token.Pos, "'{' (`name: { … }` is only for a nested interface)")
+			return
 		}
+		nested := p.parseInterfaceBody(PToken{}, nil)
 		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
 			Kind: node.IfaceField,
-			Name: &node.TypedIdentExpr{Ident: name, Type: typ},
+			Name: &node.TypedIdentExpr{Ident: name, Type: []*node.TypeExpr{{Expr: nested}}, Nullable: nullable},
 			Doc:  doc,
 		})
 	case token.LParen:
@@ -234,13 +244,6 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		m.RBrace = p.Expect(token.RBrace)
 		iface.Methods = append(iface.Methods, m)
 	default:
-		// A `?` right after the name marks the field nullable (`x? int`).
-		var nullable bool
-		if p.Token.Is(token.Question) {
-			nullable = true
-			p.Next()
-			p.SkipSpace()
-		}
 		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
 			Kind: node.IfaceField,
 			Name: &node.TypedIdentExpr{Ident: name, Type: p.ParseTypes(), Nullable: nullable},

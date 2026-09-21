@@ -63,8 +63,11 @@ interface Base { get kind }
 //
 // A field whose type is a nested interface has a SHORT form, `name: { … }`,
 // equal to `name interface { … }` — the colon distinguishes it from the block
-// method form `name { … }` (no colon). Nesting may go any depth. The formatter
-// always normalizes a nested-interface field to this short form.
+// method form `name { … }` (no colon). It is ONLY for a nested interface: `name:
+// { … }` must open a brace body (there is no `name: Type`). Nesting may go any
+// depth, and the value is checked RECURSIVELY on a `::` cast. `name?: { … }`
+// makes the nested field nullable (may be nil). The formatter always normalizes
+// a nested-interface field to this short form.
 interface Shape {
 	*Base
 
@@ -104,6 +107,16 @@ println("from sigs: ", len(Shape.methods[2].headers))
 bounds := [f for f in Shape.fields if f.name == "bounds"][0]
 println("nested:    ", bounds.name, "=>", typeName(bounds.types[0]),
     "with fields", [f.name for f in bounds.types[0].fields])
+
+// A `::` cast checks the nested field RECURSIVELY: the `bounds` value must
+// itself satisfy `{ w int; h int }`.
+Boxed := interface { bounds: { w int, h int } }
+fullBox := { bounds: { w: 10, h: 20 } }
+partBox := { bounds: { w: 10 } }             // missing h
+println("deep ok:    ", (fullBox :: Boxed) != nil)
+deepRejected := false
+try { partBox :: Boxed } catch { deepRejected = true }
+println("deep reject:", deepRejected)
 
 // The anonymous expression form is a value like any other.
 Point := interface { x int; y int; get norm float }

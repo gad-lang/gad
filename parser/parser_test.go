@@ -4354,11 +4354,15 @@ func TestParseInterface(t *testing.T) {
 	// a nested interface may carry methods too
 	test.ExpectParseString(t, `x := interface { a: { m(x int) <bool> } }`,
 		`x := interface {a: {m(x int) <bool>; }; }`)
-	// `name: Type` (colon, non-brace) is a plain typed field — formatted with a space
-	test.ExpectParseString(t, `x := interface { a: int }`, `x := interface {a int; }`)
+	// `name?: { … }` marks the nested-interface field nullable (may be nil); the
+	// `?` comes after the name (as in the space form `x? int`).
+	test.ExpectParseString(t, `x := interface { a?: { b int } }`,
+		`x := interface {a?: {b int; }; }`)
 	// the block-method form (no colon) is unchanged
 	test.ExpectParseString(t, `x := interface { a { (x), (y int) <bool> } }`,
 		`x := interface {a {(_ x); (y int) <bool>; }; }`)
+	// the colon form is ONLY for a nested interface: `name: Type` is an error
+	test.ExpectParseError(t, `x := interface { a: int }`)
 }
 
 func TestParseFuncHeaderExpr(t *testing.T) {
