@@ -2306,7 +2306,15 @@ func (p *Parser) ParseFuncHeaderExpr() node.Expr {
 		defer untracep(tracep(p, "FuncHeaderExpr"))
 	}
 
-	h := &node.FuncHeaderExpr{OpenPos: p.Expect(token.Less)}
+	return p.parseFuncHeaderBody(p.Expect(token.Less))
+}
+
+// parseFuncHeaderBody parses a function header whose opening `<` has already
+// been consumed — openPos is where it was. The slice-type parser needs this:
+// `[]<(x int) <ret any>>` is the short form of `[]<<(x int) <ret any>>>`, so the
+// `<` it took for the envelope turns out to be the header's.
+func (p *Parser) parseFuncHeaderBody(openPos source.Pos) node.Expr {
+	h := &node.FuncHeaderExpr{OpenPos: openPos}
 
 	if p.Token.Token == token.LBrack {
 		h.TypeParams = p.parseTypeParams()
@@ -2609,9 +2617,18 @@ func (p *Parser) isTypeStart() bool {
 	case token.Method:
 		return p.Peek().Token == token.Less
 	case token.Enum:
-		// `enum { … }` / `enum Name { … }` written where a type goes — an enum
-		// declared inline, as the type of the field it belongs to.
+		// `enum { … }` written where a type goes — an enum declared inline, as
+		// the type of the field it belongs to. Inline it is anonymous: the name
+		// would have nothing to name but the field it is already on.
 		return p.Peek().Token == token.LBrace
+	case token.Less, token.Shl:
+		// `<(x int) <ret any>>` — a function header as a type. A `<<` is a
+		// slice envelope plus the header's own `<`.
+		return true
+	case token.LBrack:
+		// `[]T` — a slice type.
+		return p.Peek().Token == token.RBrack
+
 	}
 	return false
 }
@@ -2703,10 +2720,17 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 		return &node.TypeExpr{Expr: p.ParseMethodInterfaceExpr()}
 	case token.Method:
 		return &node.TypeExpr{Expr: p.parseMetShortcut()}
-	// `enum { … }` / `enum Name { … }` — an enum declared where its type is
-	// used, instead of beside it.
+	// `enum { … }` — an enum declared where its type is used, instead of beside
+	// it.
 	case token.Enum:
 		return &node.TypeExpr{Expr: p.ParseEnumExpr()}
+	// `[]T`, `[][]T`, `[]<T1|T2>` — a slice type.
+	case token.LBrack:
+		return &node.TypeExpr{Expr: p.parseSliceType()}
+	// `<(x int) <ret any>>` — a function header as a type.
+	case token.Less:
+		return &node.TypeExpr{Expr: p.ParseFuncHeaderExpr()}
+
 	case token.Ident:
 		switch {
 		// `type<X>` in a parameter-type position is a meta type matching the type
@@ -2721,6 +2745,53 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 		}
 	}
 	return &node.TypeExpr{Expr: p.ParseSimpleSelectorExpr(p.ParseIdent())}
+}
+
+// parseSliceType parses a slice written where a type goes: the `[]` repeated is
+// the nesting depth, and the element is either ONE type (`[]int`) or several
+// enveloped in angle brackets (`[]<int|str>`). Inside the envelope the element
+// types are read by the same parser as anywhere else, so a slice of function
+// headers is `[]<<(x int) <ret any>>`.
+func (p *Parser) parseSliceType() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "SliceType"))
+	}
+
+	e := &node.SliceTypeExpr{LBrack: p.Token.Pos}
+	for p.Token.Token == token.LBrack && p.Peek().Token == token.RBrack {
+		p.Next()
+		p.Expect(token.RBrack)
+		e.Depth++
+	}
+	p.SkipSpace()
+
+	// `<` opens the envelope — and so does the first half of a `<<` the scanner
+	// made of the envelope plus a function header's own `<`.
+	if p.Token.Token == token.Less || p.Token.Token == token.Shl {
+		openPos := p.Token.Pos
+		e.Enveloped = true
+		p.consumeLess()
+		p.SkipSpace()
+
+		// What follows the `<` begins a function header's parameter list, so
+		// that `<` was the HEADER's own: this is the short form of a single
+		// header element, `[]<(x int) <ret any>>`, with no envelope of its own.
+		if p.Token.Token == token.LParen || p.Token.Token == token.LBrack {
+			e.Enveloped = false
+			e.Types = []*node.TypeExpr{{Expr: p.parseFuncHeaderBody(openPos)}}
+			return e
+		}
+
+		e.Types = p.ParseTypes()
+		p.SkipSpace()
+		e.RAngle = p.expectGreater()
+		return e
+	}
+
+	if t := p.parseType(); t != nil {
+		e.Types = append(e.Types, t)
+	}
+	return e
 }
 
 // parseMetaTypeExpr parses `type<X>`; the current token is the contextual `type`
@@ -4908,15 +4979,39 @@ func (p *Parser) Expect(token token.Token) source.Pos {
 	return p.ExpectToken(token).Pos
 }
 
+// consumeLess consumes an opening `<`. When the scanner produced a `<<` (Shl)
+// token from two adjacent opening brackets (the envelope of a slice plus a
+// function header's own `<`, `[]<<(x int) <ret any>>|str>`), it splits it: one
+// `<` is consumed here and the other is left as the current token. It is the
+// mirror of expectGreater.
+func (p *Parser) consumeLess() {
+	if p.Token.Token == token.Shl {
+		p.Token.Token = token.Less
+		p.Token.Pos++
+		p.Token.Literal = "<"
+		return
+	}
+	p.Expect(token.Less)
+}
+
 // expectGreater consumes a closing `>`. When the scanner produced a `>>` (Shr)
 // token from two adjacent closing brackets (e.g. `<(v) <int>>`), it splits it:
 // one `>` is consumed here and the other is left as the current token.
 func (p *Parser) expectGreater() source.Pos {
-	if p.Token.Token == token.Shr {
+	// `>>` and `>>>` are single tokens the scanner made of the closers of nested
+	// type brackets; peel one off and leave the rest.
+	switch p.Token.Token {
+	case token.Shr:
 		pos := p.Token.Pos
 		p.Token.Token = token.Greater
 		p.Token.Pos = pos + 1
 		p.Token.Literal = ">"
+		return pos
+	case token.TripleGreater:
+		pos := p.Token.Pos
+		p.Token.Token = token.Shr
+		p.Token.Pos = pos + 1
+		p.Token.Literal = ">>"
 		return pos
 	}
 	return p.Expect(token.Greater)

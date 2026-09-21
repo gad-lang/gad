@@ -187,6 +187,78 @@ println("inline:    ", Acl.fields[0].name, "=>", Acl.fields[0].types[0])
 OptAcl := interface { perm? enum { Read, Write } }
 println("optional:  ", {} :: OptAcl)                   // {}
 
+/**
+## A slice of a type (`[]T`)
+
+A field's type may be a **slice of a type**: `[]int` is an array whose every
+element is an `int`, and each further `[]` nests one array deeper
+(`[][][]int`). This is the VALUE form — the element is a plain type — next to
+the `name: []{ … }` form above, whose element is an interface body.
+
+### The envelope rule
+
+With **several element types, everything is enveloped** in `<…>` and separated
+by `|`; an element satisfies the slice when it matches any of them:
+
+```gad
+interface { xs []<int|str> }
+```
+
+With a **single element type the envelope is dropped**: `[]int` is just the
+short form of `[]<int>`, and that is how one type always reads back. The one
+exception is a **function header**, which must be enveloped even alone —
+its own syntax `<(x int) <ret any>>` IS the envelope:
+
+```gad
+interface { fs []<(x int) <ret any>> }   // a slice of callables
+interface { fs []<<(x int)>|str> }       // among several types, enveloped like any other
+```
+
+An empty array satisfies any slice type (there is no element to reject), and
+`?` after the field name makes the field itself nullable as usual.
+
+> **Where they are read:** a slice type and a function-header type are parsed
+> where an interface FIELD's type is written. A function's parameter list (a
+> method header's included), a class field and a `param` declaration still read
+> `[` as an index and `<` as a comparison, so these forms are not accepted there
+> yet.
+**/
+Ints := interface { xs []int }
+println("ints:      ", {xs: [1, 2, 3]} :: Ints or "rejected")   // {xs: [1, 2, 3]}
+println("mixed:     ", {xs: [1, "a"]} :: Ints or "rejected")    // rejected
+println("not array: ", {xs: 1} :: Ints or "rejected")           // rejected
+println("empty:     ", {xs: []} :: Ints or "rejected")          // {xs: []}
+
+// `[]<int>` is the same type, written long
+println("long form: ", str(interface { xs []<int> }.fields[0].types[0]))   // []int
+
+// nested: an array OF arrays of int
+Matrix := interface { xs [][]int }
+println("matrix:    ", {xs: [[1], [2, 3]]} :: Matrix or "rejected")  // {xs: [[1], [2, 3]]}
+println("flat:      ", {xs: [1, 2]} :: Matrix or "rejected")         // rejected
+
+// several element types, enveloped
+Mixed := interface { xs []<int|str> }
+println("int|str:   ", {xs: [1, "a"]} :: Mixed or "rejected")    // {xs: [1, "a"]}
+println("with bool: ", {xs: [1, true]} :: Mixed or "rejected")   // rejected
+
+/**
+A **function header is a type** wherever a type goes — a field of one requires a
+CALLABLE whose signature the header matches — and it is the single type that
+keeps its envelope inside a slice.
+**/
+Fn := interface { f <(x int) <ret any>> }
+println("callable:  ", {f: func(x int) => x} :: Fn or "rejected")  // {f: ‹compiledFunction…›}
+println("not fn:    ", {f: 1} :: Fn or "rejected")                 // rejected
+
+Fns := interface { fs []<(x int) <ret any>> }
+println("[]header:  ", {fs: [func(x int) => x]} :: Fns or "rejected")  // {fs: [‹compiledFunction…›]}
+println("[]not fn:  ", {fs: [1]} :: Fns or "rejected")                 // rejected
+
+// among several element types it is enveloped like the others
+FnOrStr := interface { fs []<<(x int)>|str> }
+println("header|str:", {fs: [func(x int) => x, "a"]} :: FnOrStr or "rejected") // {fs: [‹compiledFunction…›, "a"]}
+
 // The anonymous expression form is a value like any other.
 Point := interface { x int; y int; get norm float }
 println("anon:      ", typeName(Point), len(Point.fields), Point.fields[1].name)

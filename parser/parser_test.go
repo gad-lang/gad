@@ -4383,6 +4383,40 @@ func TestParseInterface(t *testing.T) {
 		`x := interface {a: [][]{b int; }; }`)
 	test.ExpectParseString(t, `x := interface { a?: []{ b int } }`,
 		`x := interface {a?: []{b int; }; }`)
+	// A field's type may be a SLICE of a type: `[]T` holds values of `T`, and
+	// each further `[]` nests one array deeper. This is the value form — the
+	// element is a plain type — as opposed to `a: []{ … }` above, whose element
+	// is an interface body.
+	test.ExpectParseString(t, `x := interface { xs []int }`,
+		`x := interface {xs []int; }`)
+	test.ExpectParseString(t, `x := interface { xs [][][]int }`,
+		`x := interface {xs [][][]int; }`)
+	// Several element types are enveloped in `<…>` and separated by `|`; the
+	// element satisfies the slice when it matches ANY of them.
+	test.ExpectParseString(t, `x := interface { xs []<int|str> }`,
+		`x := interface {xs []<int | str>; }`)
+	test.ExpectParseString(t, `x := interface { xs [][]<int|str|bool> }`,
+		`x := interface {xs [][]<int | str | bool>; }`)
+	// `[]int` is the SHORT FORM of the single-type envelope `[]<int>`, and one
+	// element type always formats back to it.
+	test.ExpectParseString(t, `x := interface { xs []<int> }`,
+		`x := interface {xs []int; }`)
+	// `?` after the name works here as it does for any other type
+	test.ExpectParseString(t, `x := interface { xs? []int }`,
+		`x := interface {xs? []int; }`)
+	// A FUNCTION HEADER is a type too, so a field may require a callable of a
+	// given signature.
+	test.ExpectParseString(t, `x := interface { f <(x int) <ret any>> }`,
+		`x := interface {f <(x int) <ret any>>; }`)
+	// It is the one single type that must be enveloped as a slice element —
+	// its own `<…>` IS the envelope, so `[]<(x int)>` is a slice of headers.
+	test.ExpectParseString(t, `x := interface { fs []<(x int) <ret any>> }`,
+		`x := interface {fs []<(x int) <ret any>>; }`)
+	// Among several element types it is enveloped like the others, which is
+	// why the `<<` of the envelope plus the header is split apart.
+	test.ExpectParseString(t, `x := interface { fs []<<(x int)>|str> }`,
+		`x := interface {fs []<<(x int)> | str>; }`)
+
 	// the colon form is ONLY for a nested interface: `name: Type` is an error
 	test.ExpectParseError(t, `x := interface { a: int }`)
 }

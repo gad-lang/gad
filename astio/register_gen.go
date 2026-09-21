@@ -126,6 +126,7 @@ func init() {
 		(*node.ReturnStmt)(nil),
 		(*node.SelectorExpr)(nil),
 		(*node.SliceExpr)(nil),
+		(*node.SliceTypeExpr)(nil),
 		(*node.StdErrLit)(nil),
 		(*node.StdInLit)(nil),
 		(*node.StdOutLit)(nil),

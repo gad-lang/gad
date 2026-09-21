@@ -4406,6 +4406,32 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 			return nil, err
 		}
 		obj = enum
+	// `<(x int) <ret any>>` — a function header written where a type goes: a
+	// value satisfies it by being a callable of that signature.
+	case *node.FuncHeaderExpr:
+		h, err := c.buildFuncHeaderObject(t)
+		if err != nil {
+			return nil, err
+		}
+		ft := &FuncType{Header: h}
+		obj, name = ft, ft.Name()
+	// `[]int`, `[][]str`, `[]<int|str>` — an array nested to the written depth
+	// whose leaves are of the element types. The element types are resolved the
+	// way a parameter's are, as symbols, so an element may be anything a
+	// parameter may be.
+	case *node.SliceTypeExpr:
+		st := &SliceType{Depth: t.Depth}
+		for _, et := range t.Types {
+			syms, err := c.typeExprSymbols(et)
+			if err != nil {
+				return nil, err
+			}
+			for _, sym := range syms {
+				st.Elem = append(st.Elem, sym)
+			}
+			st.ElemNames = append(st.ElemNames, et.String())
+		}
+		obj, name = st, st.Name()
 	default:
 		return nil, c.Errorf(e, "unsupported structural type %T", e)
 	}

@@ -3154,3 +3154,62 @@ func (e *OrExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(" or ")
 	e.Fallback.WriteCode(ctx)
 }
+
+// SliceTypeExpr is a slice written where a type goes: `[]int`, `[][]str` — the
+// `[]` repeated is the nesting depth — and `[]<int|str>`, where the angle
+// brackets envelope several types the element may be. `[]int` is the short form
+// of `[]<int>`: one type needs no envelope.
+//
+// Inside the envelope the element types are read by the same parser as a
+// parameter's, so a slice of function headers is `[]<<(x int) <ret any>>`.
+type SliceTypeExpr struct {
+	LBrack source.Pos
+	// Depth is how many `[]` were written: 1 for `[]int`, 3 for `[][][]int`.
+	Depth int
+	// Types are the types the element may be: one, or several when the envelope
+	// was used.
+	Types []*TypeExpr
+	// Enveloped says the element types were written inside `<…>`. `[]int` is the
+	// SHORT FORM of `[]<int>` — one type needs no envelope — and both print
+	// short.
+	Enveloped bool
+	RAngle    source.Pos
+}
+
+func (e *SliceTypeExpr) ExprNode() {}
+
+func (e *SliceTypeExpr) Pos() source.Pos { return e.LBrack }
+
+func (e *SliceTypeExpr) End() source.Pos {
+	if e.Enveloped && e.RAngle.IsValid() {
+		return e.RAngle + 1
+	}
+	if len(e.Types) > 0 {
+		return e.Types[len(e.Types)-1].End()
+	}
+	return e.LBrack + 2
+}
+
+func (e *SliceTypeExpr) String() string {
+	var b strings.Builder
+	for i := 0; i < e.Depth; i++ {
+		b.WriteString("[]")
+	}
+
+	names := make([]string, len(e.Types))
+	for i, t := range e.Types {
+		names[i] = t.String()
+	}
+
+	// one type needs no envelope: `[]<int>` is written `[]int`
+	if len(names) == 1 {
+		b.WriteString(names[0])
+	} else {
+		b.WriteString("<" + strings.Join(names, " | ") + ">")
+	}
+	return b.String()
+}
+
+func (e *SliceTypeExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
