@@ -901,6 +901,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileEnumExpr(nt)
 	case *node.FuncHeaderExpr:
 		return c.compileFuncHeaderExpr(nt)
+	case *node.SliceTypeExpr:
+		return c.compileSliceTypeExpr(nt)
 	case *node.TypeUnionExpr:
 		return c.compileTypeUnionExpr(nt)
 	case *node.MethodInterfaceStmt:

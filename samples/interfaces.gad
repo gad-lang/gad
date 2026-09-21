@@ -202,11 +202,13 @@ interface { fs []<<(x int)>|str> }       // among several types, enveloped like 
 An empty array satisfies any slice type (there is no element to reject), and
 `?` after the field name makes the field itself nullable as usual.
 
-> **Where they are read:** a slice type and a function-header type are parsed
-> where an interface FIELD's type is written. A function's parameter list (a
-> method header's included), a class field and a `param` declaration still read
-> `[` as an index and `<` as a comparison, so these forms are not accepted there
-> yet.
+> **Where they are read:** wherever a type is written — an interface field, a
+> function parameter (a method header's included, positional or named), a class
+> field, a `param` declaration. `[` still opens an index and `<` still is a
+> comparison everywhere else: a type is read only where the shape cannot be an
+> expression (`xs []int`, since an empty index is not one) or where the header's
+> closing `>` is followed by an item separator, so `f(a < (b) > c)` stays the
+> comparison it looks like.
 **/
 Ints := interface { xs []int }
 println("ints:      ", {xs: [1, 2, 3]} :: Ints or "rejected")   // {xs: [1, 2, 3]}
@@ -243,6 +245,24 @@ println("[]not fn:  ", {fs: [1]} :: Fns or "rejected")                 // reject
 // among several element types it is enveloped like the others
 FnOrStr := interface { fs []<<(x int)>|str> }
 println("header|str:", {fs: [func(x int) => x, "a"]} :: FnOrStr or "rejected") // {fs: [‹compiledFunction…›, "a"]}
+
+/**
+Both types are read wherever a type is written, not only on an interface field.
+**/
+func total(xs []int) {                       // a function parameter
+    sum := 0
+    for _, v in xs { sum += v }
+    return sum
+}
+println("param:     ", total([1, 2, 3]))                      // 6
+println("param bad: ", total(["a"]) or "rejected")            // rejected
+
+class Basket { items []str = [] }            // a class field
+println("class:     ", Basket(; items = ["pão"]).items)       // ["pão"]
+println("class bad: ", Basket(; items = [1]) or "rejected")   // rejected
+
+func apply(cb <(x int)>) => cb(2)            // a function-header parameter
+println("callback:  ", apply(func(x int) => x * 3))           // 6
 //endsnippet
 
 // The anonymous expression form is a value like any other.

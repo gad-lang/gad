@@ -4421,6 +4421,32 @@ func TestParseInterface(t *testing.T) {
 	test.ExpectParseError(t, `x := interface { a: int }`)
 }
 
+// A slice type and a function-header type are written where any other type is,
+// and each of these positions reaches the type through a different parser: the
+// expression parser must not read the `[` as an index nor the `<` as a
+// comparison first.
+func TestParseStructuralTypePositions(t *testing.T) {
+	// function parameters (positional and named)
+	test.ExpectParseString(t, `func f(xs []int) { return xs }`,
+		`func f(xs []int) { return xs }`)
+	test.ExpectParseString(t, `func f(cb <(x int)>) { return cb }`,
+		`func f(cb <(x int)>) { return cb }`)
+	test.ExpectParseString(t, `func f(; xs []int = []) { return xs }`,
+		`func f(; xs []int=[]) { return xs }`)
+	// a class field
+	test.ExpectParseString(t, `class C { xs []int }`, `class C {xs []int}`)
+	// a `param` declaration, single and parenthesized
+	test.ExpectParseString(t, `param xs []int`, `param xs []int`)
+	test.ExpectParseString(t, `param (xs []int, n int)`, `param (xs []int, n int)`)
+
+	// AMBIGUITY: `[` stays an index and `<` stays a comparison. A type is only
+	// read when the shape cannot be an expression (`[]`) or when the header's
+	// `>` is followed by an item separator.
+	test.ExpectParseString(t, `xs [1]`, `xs[1]`)
+	test.ExpectParseString(t, `f(a < (b))`, `f((a < (b)))`)
+	test.ExpectParseString(t, `f(a < (b) > c)`, `f(((a < (b)) > c))`)
+}
+
 func TestParseFuncHeaderExpr(t *testing.T) {
 	test.ExpectParseString(t, `x := <()>`, `x := <()>`)
 	test.ExpectParseString(t, `x := <(v int)>`, `x := <(v int)>`)

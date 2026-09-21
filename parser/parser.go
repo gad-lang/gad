@@ -1564,18 +1564,27 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 			p.SkipSpace()
 		}
 
-		p.ExprLevel++
-		expr = p.ParseExpr()
-		p.ExprLevel--
-		// Note: the space after the expression is intentionally NOT skipped, so
-		// a newline acts as an item separator and a typed param keeps its ident
-		// and type on the same line (`a int`, never `a\nint`).
+		// A structural type (`xs []int`, `cb <(x int)>`) must be recognized
+		// BEFORE the expression parser reads its `[` as an index or its `<` as
+		// a comparison; every other type is found after the ident, below.
+		if p.Token.Token == token.Ident && p.peekStructuralTypeAfterIdent() {
+			ident := p.ParseIdent()
+			p.SkipSpace()
+			expr = &node.TypedIdentExpr{Ident: ident, Type: p.ParseTypes()}
+		} else {
+			p.ExprLevel++
+			expr = p.ParseExpr()
+			p.ExprLevel--
+			// Note: the space after the expression is intentionally NOT skipped, so
+			// a newline acts as an item separator and a typed param keeps its ident
+			// and type on the same line (`a int`, never `a\nint`).
 
-		if ident, _ := expr.(*node.IdentExpr); ident != nil {
-			if p.isTypeStart() {
-				expr = &node.TypedIdentExpr{
-					Ident: ident,
-					Type:  p.ParseTypes(),
+			if ident, _ := expr.(*node.IdentExpr); ident != nil {
+				if p.isTypeStart() {
+					expr = &node.TypedIdentExpr{
+						Ident: ident,
+						Type:  p.ParseTypes(),
+					}
 				}
 			}
 		}
@@ -2472,6 +2481,111 @@ func (p *Parser) peekTypeParamsAfterLBrack() bool {
 	switch toks[1].Token {
 	case token.Ident, token.Meti, token.Interface, token.Method:
 		return true
+	}
+	return false
+}
+
+// structuralTypeHere reports whether the CURRENT token begins a structural type
+// the expression parser would otherwise read as an operator — `[]…` (an index)
+// or `<(…` (a comparison). Used where a name has just been read and its type may
+// follow, as in the named section of a parameter list (`; xs []int = []`).
+func (p *Parser) structuralTypeHere() bool {
+	switch p.Token.Token {
+	case token.LBrack:
+		return p.PeekNoSpace().Token == token.RBrack
+	case token.Less:
+		return p.PeekNoSpace().Token == token.LParen
+	}
+	return false
+}
+
+// peekStructuralTypeAfterIdent reports whether what follows the CURRENT ident is
+// that ident's type, for the two type forms the expression parser would
+// otherwise swallow: a slice type (`xs []int`, whose `[` reads as an index) and
+// a function-header type (`cb <(x int)>`, whose `<` reads as a comparison). A
+// type written with a name (`x int`) needs no lookahead — the expression parser
+// stops at it by itself. No tokens are consumed.
+//
+// `[` `]` is unambiguous: an empty index is not an expression. A `<` is not, so
+// it is taken as a header only when it opens a parameter list AND the matching
+// `>` is followed by an item separator — `a < (b) > c` keeps being the
+// comparison it looks like.
+func (p *Parser) peekStructuralTypeAfterIdent() bool {
+	var (
+		toks []PToken
+		// nlBefore[i] tells whether a newline separates toks[i] from what
+		// precedes it — a newline separates items, so it ends the ident's type.
+		nlBefore []bool
+		nl       bool
+	)
+	p.PeekCb(func(t PToken) bool {
+		if t.IsSpace() {
+			if strings.ContainsAny(t.Literal, "\r\n") {
+				nl = true
+			}
+			return true
+		}
+		toks = append(toks, t)
+		nlBefore = append(nlBefore, nl)
+		nl = false
+		if len(toks) == 1 {
+			// Only `[` and `<` are ambiguous, and neither may sit on the line
+			// below the name it types.
+			if nlBefore[0] || (t.Token != token.LBrack && t.Token != token.Less) {
+				return false
+			}
+		}
+		return len(toks) < 64 // enough to close a header; bail out on anything longer
+	})
+	if len(toks) == 0 || nlBefore[0] {
+		return false
+	}
+
+	switch toks[0].Token {
+	case token.LBrack:
+		return len(toks) > 1 && toks[1].Token == token.RBrack
+	case token.Less:
+		// `<(`: a header's parameter list. Walk to the matching `>` — angle
+		// tokens inside the parameter parens belong to the parameters' own
+		// types, so parens are counted first.
+		if len(toks) < 2 || toks[1].Token != token.LParen {
+			return false
+		}
+		var angle, paren int
+		for i, t := range toks {
+			switch t.Token {
+			case token.LParen:
+				paren++
+			case token.RParen:
+				paren--
+			case token.Less:
+				angle++
+			case token.Shl:
+				angle += 2
+			case token.Greater:
+				angle--
+			case token.Shr:
+				angle -= 2
+			case token.TripleGreater:
+				angle -= 3
+			}
+			if paren != 0 || angle > 0 || i == 0 {
+				continue
+			}
+			// What follows the header decides: an item separator, a newline or
+			// the end of the list means it WAS a type; anything else means the
+			// `<` was a comparison.
+			if i+1 == len(toks) || nlBefore[i+1] {
+				return true
+			}
+			switch toks[i+1].Token {
+			case token.Comma, token.Semicolon, token.RParen, token.RBrack,
+				token.RBrace, token.Assign, token.EOF:
+				return true
+			}
+			return false
+		}
+		return false
 	}
 	return false
 }
@@ -4508,15 +4622,15 @@ func (p *Parser) ParseKeyValueLit() *node.KeyValueLit {
 
 	p.SkipSpace()
 
-	switch p.Token.Token {
-	case token.Ident:
+	switch {
+	case p.Token.Token == token.Ident || p.structuralTypeHere():
 		if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
 			keyExpr = &node.TypedIdentExpr{
 				Ident: ident,
 				Type:  p.ParseTypes(),
 			}
 		}
-	case token.RParen:
+	case p.Token.Token == token.RParen:
 		// is func or closure
 		valueExpr = p.ParseFuncDefLit(token.Lambda)
 		goto done
@@ -4565,16 +4679,20 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 		var tok PToken
 		tok.Token = token.Func
 		valueExpr = p.ParseFuncExprT(tok)
-	case token.Ident:
-		if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
-			keyExpr = &node.TypedIdentExpr{
-				Ident: ident,
-				Type:  p.ParseTypes(),
+	// An ident is the key's type; `[]…` and `<(…` are it too (structuralTypeHere),
+	// where the expression parser would otherwise read an index or a comparison.
+	case token.Ident, token.LBrack, token.Less:
+		if p.Token.Token == token.Ident || p.structuralTypeHere() {
+			if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
+				keyExpr = &node.TypedIdentExpr{
+					Ident: ident,
+					Type:  p.ParseTypes(),
+				}
 			}
-		}
-		switch p.Token.Token {
-		case token.Comma, endToken:
-			goto done
+			switch p.Token.Token {
+			case token.Comma, endToken:
+				goto done
+			}
 		}
 		fallthrough
 	default:

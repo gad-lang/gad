@@ -562,13 +562,16 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 
 		p.Symbol = &symbol.SymbolInfo
 
-		symbols := make([]*SymbolInfo, len(spec.Ident.Type))
-		for i2, t := range spec.Ident.Type {
-			symbol, err := c.requireSymbol(t.Ident(), t.Ident().Name)
+		// Resolved the way every other declared type is (typeExprSymbols), so a
+		// param's type may be structural too — `param xs []int` — and not only
+		// a name.
+		symbols := make([]*SymbolInfo, 0, len(spec.Ident.Type))
+		for _, t := range spec.Ident.Type {
+			syms, err := c.typeExprSymbols(t)
 			if err != nil {
 				return err
 			}
-			symbols[i2] = &symbol.SymbolInfo
+			symbols = append(symbols, syms...)
 		}
 		p.TypesSymbols = symbols
 
@@ -611,13 +614,13 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 				spec.Value = node.Flag(false, spec.Pos())
 			}
 			np.Value = spec.Value.String()
-			np.TypesSymbols = make([]*SymbolInfo, len(spec.Ident.Type))
-			for i2, t := range spec.Ident.Type {
-				symbol, err := c.requireSymbol(t.Ident(), t.Ident().Name)
+			np.TypesSymbols = make(ParamType, 0, len(spec.Ident.Type))
+			for _, t := range spec.Ident.Type {
+				syms, err := c.typeExprSymbols(t)
 				if err != nil {
 					return err
 				}
-				np.TypesSymbols[i2] = &symbol.SymbolInfo
+				np.TypesSymbols = append(np.TypesSymbols, syms...)
 			}
 		}
 
@@ -2596,6 +2599,19 @@ func (c *Compiler) compileFuncHeaderExpr(nd *node.FuncHeaderExpr) error {
 		return err
 	}
 	c.emit(nd, OpConstant, c.addConstant(h))
+	return nil
+}
+
+// compileSliceTypeExpr compiles a slice type (`[]int`, `[]<int|str>`) written as
+// a VALUE — a class field's type, say, which the compiler emits as an argument
+// to the `typedIdent` builtin. It is the same constant the type position builds
+// (structuralTypeSymbol), pushed on the stack.
+func (c *Compiler) compileSliceTypeExpr(nd *node.SliceTypeExpr) error {
+	sym, err := c.structuralTypeSymbol(nd)
+	if err != nil {
+		return err
+	}
+	c.emit(nd, OpConstant, sym.Index)
 	return nil
 }
 
