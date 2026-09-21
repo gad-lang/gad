@@ -30,6 +30,40 @@ named by the interface into a dict bound to `name`.
 satisfying elements: `interface[] P` a flat array, `interface[][][] P` an array
 nested three deep (see [interface of arrays](interface_arrays_test.gad)).
 
+## Nested and slice fields (`name: { … }`)
+
+A field whose type is a nested interface has a **short form** `name: { … }`,
+equal to `name interface { … }`. The colon distinguishes it from the block-method
+form `name { … }` (no colon), and it is ONLY for a nested interface — `name: { … }`
+must open a brace body (there is no `name: Type`). Nesting may go any depth, and
+the value is checked **recursively** on a `::` cast.
+
+A leading `[]` is a **slice interface**: `name: []{ … }` == `name interface[] { … }`,
+an array whose elements each satisfy the body (`[][]…` nests deeper). `name?: { … }`
+(and `name?: []{ … }`) marks the nested field nullable — nil or absent satisfies
+it. The formatter always normalizes a nested-interface field to this short form.
+
+```gad
+// `sat` reports whether v satisfies interface T (a caught `::` cast).
+sat := func(v, T) {
+    try { v :: T; return true } catch { return false }
+}
+
+// A `::` cast checks a nested `name: { … }` field RECURSIVELY.
+Boxed := interface { bounds: { w int, h int } }
+
+// A slice field `name: []{ … }` checks every element of the array.
+Poly := interface { pts: []{ x int, y int } }
+
+[
+    sat({ bounds: { w: 10, h: 20 } }, Boxed),             // nested: both fields present
+    sat({ bounds: { w: 10 } }, Boxed),                    // nested: missing h -> false
+    sat({ pts: [{ x: 0, y: 0 }, { x: 1, y: 2 }] }, Poly), // slice: every element ok
+    sat({ pts: [{ x: 0, y: 0 }, { x: 1 }] }, Poly),       // slice: 2nd missing y -> false
+]
+// => [true, false, true, false]
+```
+
 ## Context-function members (`funcs { … }`)
 
 A `funcs { FnExpr <header>; … }` section requires, per entry, a **free function
@@ -60,14 +94,6 @@ interface Base { get kind }
 // untyped field defaults to `any`. `get`/`set`/`prop` declare accessors; a
 // method is `name(params) <return>`, and its block form `name { (…), … }`
 // groups several overload signatures (like `meti`, without the keyword).
-//
-// A field whose type is a nested interface has a SHORT form, `name: { … }`,
-// equal to `name interface { … }` — the colon distinguishes it from the block
-// method form `name { … }` (no colon). It is ONLY for a nested interface: `name:
-// { … }` must open a brace body (there is no `name: Type`). Nesting may go any
-// depth, and the value is checked RECURSIVELY on a `::` cast. `name?: { … }`
-// makes the nested field nullable (may be nil). The formatter always normalizes
-// a nested-interface field to this short form.
 interface Shape {
 	*Base
 
@@ -79,6 +105,13 @@ interface Shape {
 	bounds: {
 		w int
 		h int
+	}
+
+	// a SLICE-interface field (`[]{ … }`): `corners` must be an array whose
+	// elements each satisfy `{ x int; y int }`.
+	corners: []{
+		x int
+		y int
 	}
 
 	get area uint
@@ -108,15 +141,23 @@ bounds := [f for f in Shape.fields if f.name == "bounds"][0]
 println("nested:    ", bounds.name, "=>", typeName(bounds.types[0]),
     "with fields", [f.name for f in bounds.types[0].fields])
 
-// A `::` cast checks the nested field RECURSIVELY: the `bounds` value must
-// itself satisfy `{ w int; h int }`.
+// `sat` reports whether v satisfies interface T (a caught `::` cast).
+sat := func(v, T) {
+    try { v :: T; return true } catch { return false }
+}
+
+// A `::` cast checks a nested `name: { … }` field RECURSIVELY.
 Boxed := interface { bounds: { w int, h int } }
-fullBox := { bounds: { w: 10, h: 20 } }
-partBox := { bounds: { w: 10 } }             // missing h
-println("deep ok:    ", (fullBox :: Boxed) != nil)
-deepRejected := false
-try { partBox :: Boxed } catch { deepRejected = true }
-println("deep reject:", deepRejected)
+
+// A slice field `name: []{ … }` checks every element of the array.
+Poly := interface { pts: []{ x int, y int } }
+
+[
+    sat({ bounds: { w: 10, h: 20 } }, Boxed),             // nested: both fields present
+    sat({ bounds: { w: 10 } }, Boxed),                    // nested: missing h -> false
+    sat({ pts: [{ x: 0, y: 0 }, { x: 1, y: 2 }] }, Poly), // slice: every element ok
+    sat({ pts: [{ x: 0, y: 0 }, { x: 1 }] }, Poly),       // slice: 2nd missing y -> false
+]
 
 // The anonymous expression form is a value like any other.
 Point := interface { x int; y int; get norm float }

@@ -56,3 +56,40 @@ func TestInterfaceNestedShortForm(t *testing.T) {
 		try { ({ a: { b: { c: "x" } } }) :: Box; return "ok" } catch { return "no" }`,
 		nil, Str("no"))
 }
+
+// TestInterfaceSliceShortForm covers the `name: []{ … }` slice-interface field:
+// the value must be an array whose elements each satisfy the nested interface,
+// checked recursively; `[][]` nests deeper.
+func TestInterfaceSliceShortForm(t *testing.T) {
+	box := func(src string) string {
+		return `Box := interface { items: []{ w int, h int } }
+			` + src
+	}
+
+	// An array whose elements all satisfy the body is accepted.
+	testExpectRun(t, box(`
+		try { ({ items: [{ w: 1, h: 2 }, { w: 3, h: 4 }] }) :: Box; return "ok" } catch { return "no" }`),
+		nil, Str("ok"))
+	// One bad element is rejected.
+	testExpectRun(t, box(`
+		try { ({ items: [{ w: 1, h: 2 }, { w: 3 }] }) :: Box; return "ok" } catch { return "no" }`),
+		nil, Str("no"))
+	// A non-array value is rejected.
+	testExpectRun(t, box(`
+		try { ({ items: { w: 1, h: 2 } }) :: Box; return "ok" } catch { return "no" }`),
+		nil, Str("no"))
+	// An empty array vacuously satisfies it.
+	testExpectRun(t, box(`
+		try { ({ items: [] }) :: Box; return "ok" } catch { return "no" }`),
+		nil, Str("ok"))
+
+	// `[][]` — an array of arrays, checked to the leaf.
+	testExpectRun(t, `
+		Grid := interface { grid: [][]{ n int } }
+		try { ({ grid: [[{ n: 1 }], [{ n: 2 }]] }) :: Grid; return "ok" } catch { return "no" }`,
+		nil, Str("ok"))
+	testExpectRun(t, `
+		Grid := interface { grid: [][]{ n int } }
+		try { ({ grid: [[{ n: 1 }], [{ x: 2 }]] }) :: Grid; return "ok" } catch { return "no" }`,
+		nil, Str("no"))
+}

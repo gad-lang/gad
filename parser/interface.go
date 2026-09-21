@@ -202,16 +202,24 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 	switch p.Token.Token {
 	case token.Colon:
 		// `name: { … }` — shorthand for a nested-interface field
-		// (`name interface { … }`). The colon form is ONLY for a nested interface:
-		// it must be followed by `{`. (The brace form without a colon,
-		// `name { … }`, stays a block method; a plain typed field is `name Type`.)
+		// (`name interface { … }`). A leading `[]` makes it a slice interface,
+		// `name: []{ … }` == `name interface[] { … }` (each element must satisfy
+		// the body); `[][]` nests deeper. The colon form is ONLY for a nested
+		// interface: after the optional `[]`s it must be followed by `{`. (The
+		// brace form without a colon, `name { … }`, stays a block method; a plain
+		// typed field is `name Type`.)
 		p.Next()
 		p.SkipSpace()
+		depth := p.parseInterfaceArrayDepth()
+		p.SkipSpace()
 		if p.Token.Token != token.LBrace {
-			p.ErrorExpected(p.Token.Pos, "'{' (`name: { … }` is only for a nested interface)")
+			p.ErrorExpected(p.Token.Pos, "'{' (`name: []… { … }` is only for a nested interface)")
 			return
 		}
 		nested := p.parseInterfaceBody(PToken{}, nil)
+		if nested != nil {
+			nested.ArrayDepth = depth
+		}
 		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
 			Kind: node.IfaceField,
 			Name: &node.TypedIdentExpr{Ident: name, Type: []*node.TypeExpr{{Expr: nested}}, Nullable: nullable},

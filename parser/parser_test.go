@@ -4361,6 +4361,16 @@ func TestParseInterface(t *testing.T) {
 	// the block-method form (no colon) is unchanged
 	test.ExpectParseString(t, `x := interface { a { (x), (y int) <bool> } }`,
 		`x := interface {a {(_ x); (y int) <bool>; }; }`)
+	// slice-interface short form: `name: []{ … }` == `name interface[] { … }` (each
+	// element satisfies the body); `[][]` nests deeper; both render short.
+	test.ExpectParseString(t, `x := interface { a: []{ b int } }`,
+		`x := interface {a: []{b int; }; }`)
+	test.ExpectParseString(t, `x := interface { a interface[] { b int } }`,
+		`x := interface {a: []{b int; }; }`)
+	test.ExpectParseString(t, `x := interface { a: [][]{ b int } }`,
+		`x := interface {a: [][]{b int; }; }`)
+	test.ExpectParseString(t, `x := interface { a?: []{ b int } }`,
+		`x := interface {a?: []{b int; }; }`)
 	// the colon form is ONLY for a nested interface: `name: Type` is an error
 	test.ExpectParseError(t, `x := interface { a: int }`)
 }

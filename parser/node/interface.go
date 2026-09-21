@@ -125,12 +125,17 @@ func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(kw)
 		ctx.WriteString(" ")
 	}
-	// A field whose type is an anonymous nested interface prefers the short form
-	// `name: { … }` over `name interface { … }` — both parse to the same field.
+	// A field whose type is an anonymous nested interface always renders in the
+	// short form `name: { … }` (a slice interface as `name: []{ … }`, deeper as
+	// `[][]…`), never `name interface { … }` — both parse to the same field.
 	if e.Kind == IfaceField && e.Name != nil && len(e.Name.Type) == 1 {
 		if iface, ok := e.Name.Type[0].Expr.(*InterfaceExpr); ok && iface.NameExpr == nil {
 			ctx.WriteString(e.Name.nameCode())
-			ctx.WriteString(": {")
+			ctx.WriteString(": ")
+			for i := 0; i < iface.ArrayDepth; i++ {
+				ctx.WriteString("[]")
+			}
+			ctx.WriteString("{")
 			writeInterfaceBody(ctx, iface)
 			ctx.WriteString("}")
 			return
