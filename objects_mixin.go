@@ -37,6 +37,8 @@ type Mixin struct {
 	module  *ModuleSpec
 	class   *Class   // internal container for the mixin's own members (reflection)
 	parents []*Mixin // parent mixins (from `*A` spreads); may contain duplicates
+	// Meta is the mixin's `[k=v, …]` metadata (or nil); read as `Mixin.@meta`.
+	Meta KeyValueArray
 
 	// Raw define inputs, replayed onto a using class (see Class.useMixins).
 	rawFields  KeyValueArray
@@ -192,7 +194,14 @@ func (m *Mixin) define(c Call) (err error) {
 		}
 	)
 
-	return c.NamedArgs.GetDo(extends, thisArg, fields, initFields, properties, methods)
+	meta := &NamedArgVar{
+		Name: "meta", TypeAssertion: TypeAssertionFromTypes(TKeyValueArray),
+		Do: func(v Object) error {
+			m.Meta, _ = v.(KeyValueArray)
+			return nil
+		},
+	}
+	return c.NamedArgs.GetDo(meta, extends, thisArg, fields, initFields, properties, methods)
 }
 
 // lineage appends this mixin's parents (depth-first, parents before self) and
@@ -366,6 +375,8 @@ func (m *Mixin) IndexGet(vm *VM, index Object) (value Object, err error) {
 		return m.ClassInterface(), nil
 	case "@membersInterface":
 		return m.MembersInterface(), nil
+	case "@meta":
+		return metaObject(m.Meta), nil
 	default:
 		return nil, ErrInvalidIndex.NewError(index.ToString())
 	}

@@ -23,8 +23,9 @@ User.id.@meta   // (;db=(;primary_key, auto))
 ```
 
 Supported on **interfaces** (and their fields, accessors and methods), **enums**
-(and their items) and **functions**. `X.@meta` is an empty key-value array when
-the element has none, so it never errors.
+(and their items), **functions**, and **classes** / marker `type`s / **mixins**
+(and their fields, properties and methods). `X.@meta` is an empty key-value array
+when the element has none, so it never errors.
 
 ## Function reflection
 
@@ -97,6 +98,42 @@ func save(id uint, name str; dry_run=false) <bool> {
 // => ["(;route=\"/save\", method=\"POST\", auth)", "save", ["id", "name"], ["dry_run"], "<bool>"]
 ```
 
+```gad
+/// a persisted user
+[table="users", version=2]
+class Account {
+    /// primary key
+    [db=(;primary_key)]
+    id = 0
+
+    /// stored under a different column
+    [db=(;column="full_name")]
+    label = "anon"
+
+    props {
+        /// derived, not stored
+        [computed]
+        display => this.label
+    }
+
+    methods {
+        /// the persist endpoint
+        [route="/save", method="POST"]
+        save() { return this.id }
+    }
+}
+
+u := Account()
+[
+    str(Account.@meta),       // the class metadata
+    str(Account.id.@meta),    // a field's
+    str(Account.display.@meta), // a property's
+    str(Account.save.@meta),  // a method's
+    u.id, u.label,            // field defaults are preserved alongside metadata
+]
+// => ["(;table=\"users\", version=2)", "(;db=(;primary_key))", "(;computed)", "(;route=\"/save\", method=\"POST\")", 0, "anon"]
+```
+
 ## Example — `metadata.gad`
 
 ```gad
@@ -149,5 +186,38 @@ func save(id uint, name str; dry_run=false) <bool> {
     save.@args,        // positional param names
     save.@nargs,       // named param names
     save.@ret,         // return signature
+]
+
+/// a persisted user
+[table="users", version=2]
+class Account {
+    /// primary key
+    [db=(;primary_key)]
+    id = 0
+
+    /// stored under a different column
+    [db=(;column="full_name")]
+    label = "anon"
+
+    props {
+        /// derived, not stored
+        [computed]
+        display => this.label
+    }
+
+    methods {
+        /// the persist endpoint
+        [route="/save", method="POST"]
+        save() { return this.id }
+    }
+}
+
+u := Account()
+[
+    str(Account.@meta),       // the class metadata
+    str(Account.id.@meta),    // a field's
+    str(Account.display.@meta), // a property's
+    str(Account.save.@meta),  // a method's
+    u.id, u.label,            // field defaults are preserved alongside metadata
 ]
 ```

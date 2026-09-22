@@ -74,57 +74,11 @@ func (f *Func) Type() ObjectType {
 	return TFunc
 }
 
-// callerMethods returns the function's overload callers in declaration order,
-// the default (untyped) caller first when present.
-func (f *Func) callerMethods() (out Array) {
-	if f.defaul != nil {
-		out = append(out, f.defaul)
-	}
-	f.Methods.Walk(func(m *TypedCallerMethod) any {
-		out = append(out, m.Caller())
-		return nil
-	})
-	return
-}
-
-// IndexGet implements reflection index keys on a named/method-bearing function:
-//
-//	fn.@name     — the function's name (str)
-//	fn.@methods  — the overload callers, each itself indexable (`m.@meta`, …)
-//	fn.@meta     — the function's OWN `[k=v, …]` metadata (a key-value array,
-//	               empty when none). It is NOT the metadata of any single
-//	               overload: when the function has more than one method, iterate
-//	               `fn.@methods` and read each `m.@meta`. As a convenience, a
-//	               function with a single (default) overload and no own metadata
-//	               reports that overload's metadata here.
+// IndexGet implements the function reflection index keys (`@name`, `@methods`,
+// `@meta`, `@args`, `@nargs`, `@ret`) via the shared FuncSpec reflection.
 func (f *Func) IndexGet(vm *VM, index Object) (Object, error) {
-	switch index.ToString() {
-	case "@name":
-		return Str(f.name), nil
-	case "@methods":
-		return f.callerMethods(), nil
-	case "@meta":
-		if len(f.Meta) > 0 {
-			return f.Meta, nil
-		}
-		// A single-overload function has no ambiguity: report the sole caller's
-		// metadata. With several overloads, keep `@meta` the function's own and
-		// leave per-overload metadata to `@methods`.
-		if methods := f.callerMethods(); len(methods) == 1 {
-			if ig, ok := methods[0].(IndexGetter); ok {
-				return ig.IndexGet(vm, Str("@meta"))
-			}
-		}
-		return metaObject(f.Meta), nil
-	case "@args", "@nargs", "@ret":
-		// The signature reflection keys describe a single overload; delegate to the
-		// sole caller. With several overloads, read each via `@methods`.
-		if methods := f.callerMethods(); len(methods) == 1 {
-			if ig, ok := methods[0].(IndexGetter); ok {
-				return ig.IndexGet(vm, index)
-			}
-		}
-		return Array{}, nil
+	if v, ok, err := f.reflectIndex(vm, f.name, index); ok {
+		return v, err
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
@@ -155,6 +109,72 @@ func NewFuncSpec(this FuncWrapper, opt ...FuncSpecOption) *FuncSpec {
 
 func (s *FuncSpec) GetFuncSpec() *FuncSpec {
 	return s
+}
+
+// unwrapCaller peels CallerMethod wrappers off a caller, returning the innermost
+// CallerObject (e.g. the raw *CompiledFunction). A property's accessors are
+// registered wrapped in a CallerMethod (see Class.AddProperty), so its `@methods`
+// must unwrap to reach the callable's own reflection.
+func unwrapCaller(c CallerObject) CallerObject {
+	for {
+		cm, ok := c.(*CallerMethod)
+		if !ok || cm.CallerObject == nil {
+			return c
+		}
+		c = cm.CallerObject
+	}
+}
+
+// callerMethods returns the overload callers of a FuncSpec in declaration order,
+// the default (untyped) caller first when present.
+func (s *FuncSpec) callerMethods() (out Array) {
+	if s.defaul != nil {
+		out = append(out, unwrapCaller(s.defaul))
+	}
+	s.Methods.Walk(func(m *TypedCallerMethod) any {
+		out = append(out, unwrapCaller(m.Caller()))
+		return nil
+	})
+	return
+}
+
+// reflectIndex answers the function reflection index keys shared by Func,
+// ClassMethod and ClassProperty: `@name`, `@methods`, `@meta` and the signature
+// keys `@args`/`@nargs`/`@ret`. `@meta` is the spec's OWN metadata; when several
+// overloads exist it is NOT any single overload's (use `@methods`), but a single
+// overload reports that overload's `@meta`/`@args`/… as a convenience. ok is
+// false for a non-reflection index.
+func (s *FuncSpec) reflectIndex(vm *VM, name string, index Object) (_ Object, ok bool, err error) {
+	delegate := func(key Object) (Object, bool, error) {
+		if methods := s.callerMethods(); len(methods) == 1 {
+			if ig, isIG := methods[0].(IndexGetter); isIG {
+				if v, e := ig.IndexGet(vm, key); e == nil {
+					return v, true, nil
+				}
+			}
+		}
+		return nil, false, nil
+	}
+	switch index.ToString() {
+	case "@name":
+		return Str(name), true, nil
+	case "@methods":
+		return s.callerMethods(), true, nil
+	case "@meta":
+		if len(s.Meta) > 0 {
+			return s.Meta, true, nil
+		}
+		if v, got, _ := delegate(index); got {
+			return v, true, nil
+		}
+		return metaObject(s.Meta), true, nil
+	case "@args", "@nargs", "@ret":
+		if v, got, _ := delegate(index); got {
+			return v, true, nil
+		}
+		return Array{}, true, nil
+	}
+	return nil, false, nil
 }
 
 func (s *FuncSpec) IsFalsy() bool {

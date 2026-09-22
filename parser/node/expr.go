@@ -1912,6 +1912,9 @@ type FuncMethod struct {
 	// Override reports whether the method header was prefixed with `~`, so
 	// re-adding an existing signature replaces it instead of erroring.
 	Override bool
+	// Meta is the `[k=v, …]` metadata carried onto the compiled function (used by
+	// class properties, whose accessor overload carries the member's metadata).
+	Meta *KeyValueArrayLit
 }
 
 func (m *FuncMethod) Pos() source.Pos {
@@ -1974,6 +1977,7 @@ func (m *FuncMethod) Func() *FuncExpr {
 		BodyExpr:  m.BodyExpr,
 		LambdaPos: m.LambdaPos,
 		Override:  m.Override,
+		Meta:      m.Meta,
 	}
 }
 

@@ -43,6 +43,8 @@ type ClassField struct {
 	Value Object
 	// Nullable marks the field as also accepting nil, written `name? T` (`x? int`).
 	Nullable bool
+	// Meta is the field's `[k=v, …]` metadata (or nil); read as `Class.field.@meta`.
+	Meta KeyValueArray
 }
 
 func (f *ClassField) IsFalsy() bool {
@@ -51,6 +53,17 @@ func (f *ClassField) IsFalsy() bool {
 
 func (f *ClassField) Type() ObjectType {
 	return TClassField
+}
+
+// IndexGet implements the field reflection keys `@name` and `@meta`.
+func (f *ClassField) IndexGet(_ *VM, index Object) (Object, error) {
+	switch index.ToString() {
+	case "@name":
+		return Str(f.Name), nil
+	case "@meta":
+		return metaObject(f.Meta), nil
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
 
 func (f *ClassField) String() string {
@@ -230,6 +243,15 @@ func (p *ClassProperty) IsFalsy() bool {
 
 func (p *ClassProperty) Type() ObjectType {
 	return TClassProperty
+}
+
+// IndexGet implements the property reflection keys via its FuncSpec (`@name`,
+// `@meta`, `@methods`, `@args`, `@nargs`, `@ret`).
+func (p *ClassProperty) IndexGet(vm *VM, index Object) (Object, error) {
+	if v, ok, err := p.f.reflectIndex(vm, p.name, index); ok {
+		return v, err
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
 
 func (p *ClassProperty) Equal(right Object) bool {
@@ -443,6 +465,15 @@ func (m *ClassMethod) Type() ObjectType {
 	return TClassMethod
 }
 
+// IndexGet implements the method reflection keys via its FuncSpec (`@name`,
+// `@meta`, `@methods`, `@args`, `@nargs`, `@ret`).
+func (m *ClassMethod) IndexGet(vm *VM, index Object) (Object, error) {
+	if v, ok, err := m.f.reflectIndex(vm, m.name, index); ok {
+		return v, err
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
+
 func (m *ClassMethod) FuncSpecName() string {
 	return "class method " + ReprQuote(m.FullName())
 }
@@ -497,6 +528,8 @@ type Class struct {
 	// members are merged into the class and their initFields run at construction.
 	mixins     []*Mixin
 	mixinsFlat []*Mixin
+	// Meta is the class's `[k=v, …]` metadata (or nil); read as `Class.@meta`.
+	Meta KeyValueArray
 }
 
 // NewClass returns an empty Class with the given name and defining module, its
@@ -698,9 +731,19 @@ func (t *Class) Define(c Call) (err error) {
 				return t.useMixins(c.VM, value.(Array))
 			},
 		}
+
+		meta = &NamedArgVar{
+			Name:          "meta",
+			TypeAssertion: TypeAssertionFromTypes(TKeyValueArray),
+			// The class's `[k=v, …]` metadata, read as `Class.@meta`.
+			Do: func(value Object) error {
+				t.Meta, _ = value.(KeyValueArray)
+				return nil
+			},
+		}
 	)
 
-	if err = c.NamedArgs.GetDo(mixins, constructor, fields, methods, properties, extends, initFields); err != nil {
+	if err = c.NamedArgs.GetDo(meta, mixins, constructor, fields, methods, properties, extends, initFields); err != nil {
 		return
 	}
 	// With every member registered, validate the class against the contract each
@@ -815,6 +858,7 @@ func (t *Class) AddField(field ...*ClassField) error {
 			Value:    field.Value,
 			index:    len(t.fieldsMap),
 			Nullable: field.Nullable,
+			Meta:     field.Meta,
 		}
 	}
 	return nil
@@ -1289,10 +1333,23 @@ func (t *Class) CallAddFields(call Call) (err error) {
 			f.Name = value.K.ToString()
 		}
 
-		switch t := value.V.(type) {
+		switch tv := value.V.(type) {
 		case *NilType, Flag:
+		case KeyValueArray:
+			// The spec form `(; meta=<kva>, default=<value>)` — emitted for a field
+			// that carries `[k=v, …]` metadata (see classFieldsExpr).
+			for _, kv := range tv {
+				switch kv.K.ToString() {
+				case "meta":
+					f.Meta, _ = kv.V.(KeyValueArray)
+				case "default":
+					if _, isFlag := kv.V.(Flag); !isFlag && kv.V != Nil {
+						f.Value = kv.V
+					}
+				}
+			}
 		default:
-			f.Value = t
+			f.Value = tv
 		}
 		if err = t.AddField(f); err != nil {
 			return
@@ -1554,7 +1611,12 @@ func (t *Class) IndexGet(vm *VM, index Object) (value Object, err error) {
 		return Str(t.name), nil
 	case "@module":
 		return vm.ModuleFromIndex(t.module.Index), nil
+	case "@meta":
+		return metaObject(t.Meta), nil
 	default:
+		if v := t.fieldsMap[key]; v != nil {
+			return v, nil
+		}
 		if v := t.propertiesMap[key]; v != nil {
 			return v, nil
 		}

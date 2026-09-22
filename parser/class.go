@@ -134,6 +134,9 @@ func (p *Parser) ParseStaticTypeStmt() node.Stmt {
 // block), shared by the expression and statement forms.
 func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.TypeLitExpr {
 	cls := &node.TypeLitExpr{ClassToken: classTok.TokenLit, NameExpr: name, Mixin: classTok.Token == token.Mixin}
+	// The metadata was stashed before the class/mixin/type keyword; take it now,
+	// before the body, so a member does not steal it.
+	cls.Meta = p.takeMeta()
 
 	p.SkipSpace()
 	cls.LBrace = p.Expect(token.LBrace)
@@ -159,7 +162,24 @@ func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.TypeLitEx
 // (a parent class, optionally aliased `*Parent: Alias`), a `props {}` /
 // `methods {}` / `new` block, or a field.
 func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
+	p.parseMemberMeta()
 	doc := p.leadComment
+	// Attach a member's `[k=v, …]` metadata to whatever field/prop/method this
+	// item produces (nothing for a `*Parent`/`use`/`this` item, which add none).
+	if meta := p.takeMeta(); meta != nil {
+		fN, pN, mN := len(cls.Fields), len(cls.Props), len(cls.Methods)
+		defer func() {
+			for i := fN; i < len(cls.Fields); i++ {
+				cls.Fields[i].Meta = meta
+			}
+			for i := pN; i < len(cls.Props); i++ {
+				cls.Props[i].Meta = meta
+			}
+			for i := mN; i < len(cls.Methods); i++ {
+				cls.Methods[i].Meta = meta
+			}
+		}()
+	}
 
 	// `*Parent [: Alias]` — a parent class, written as a spread body item.
 	if p.Token.Token == token.Mul {
@@ -305,8 +325,9 @@ func (p *Parser) parseClassMemberBlock() (members []*node.ClassMemberExpr) {
 // `name { overloads }`, or the zero-arg accessor shortcuts `name = expr` and
 // `name => expr` (both a getter `() => expr`).
 func (p *Parser) parseClassMember() *node.ClassMemberExpr {
+	p.parseMemberMeta()
 	doc := p.leadComment
-	m := &node.ClassMemberExpr{NameExpr: p.ParseIdent(), Doc: doc}
+	m := &node.ClassMemberExpr{NameExpr: p.ParseIdent(), Doc: doc, Meta: p.takeMeta()}
 
 	switch p.Token.Token {
 	case token.LParen:

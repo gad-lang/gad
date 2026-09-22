@@ -28,3 +28,23 @@ func TestParseMetadata(t *testing.T) {
 	// a bare array before a NON-declaration is still an ordinary array statement.
 	test.ExpectParseString(t, "[1, 2, 3]\nx := 1", `[1, 2, 3]; x := 1`)
 }
+
+// TestParseMetadataClass verifies metadata parses on a class and its fields,
+// props and methods and round-trips through the formatter.
+func TestParseMetadataClass(t *testing.T) {
+	test.ExpectParseString(t,
+		"[a=1]\nclass C { [b=2]\n x = 0 }",
+		`[a=1] class C {[b=2] x = 0}`)
+
+	test.ExpectParseString(t,
+		"class C { methods { [route=\"/s\"]\n save() { return 1 } } }",
+		`class C {methods {[route="/s"] save() {return 1}}}`)
+
+	// marker type and mixin.
+	test.ExpectParseString(t,
+		"[kind=\"m\"]\ntype T { [n=1]\n x = 0 }",
+		`[kind="m"] type T {[n=1] x = 0}`)
+	test.ExpectParseString(t,
+		"[role=\"r\"]\nmixin M { x = 0 }",
+		`[role="r"] mixin M {x = 0}`)
+}

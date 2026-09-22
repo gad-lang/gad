@@ -47,6 +47,8 @@ type ClassFieldExpr struct {
 	Assign source.Pos
 	Value  Expr              // default value; nil when none
 	Doc    *ast.CommentGroup // doc comment preceding the field; or nil
+	// Meta is the field's `[k=v, …]` metadata (or nil); read as `Class.field.@meta`.
+	Meta *KeyValueArrayLit
 }
 
 func (e *ClassFieldExpr) ExprNode() {}
@@ -64,6 +66,7 @@ func (e *ClassFieldExpr) String() string { return Code(e) }
 
 func (e *ClassFieldExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	e.Name.WriteCode(ctx)
 	if e.Value != nil {
 		ctx.WriteString(" = ")
@@ -81,6 +84,8 @@ type ClassMemberExpr struct {
 	LBrace   source.Pos
 	RBrace   source.Pos
 	Doc      *ast.CommentGroup // doc comment preceding the member; or nil
+	// Meta is the member's `[k=v, …]` metadata (or nil).
+	Meta *KeyValueArrayLit
 }
 
 func (e *ClassMemberExpr) ExprNode() {}
@@ -109,6 +114,7 @@ func (e *ClassMemberExpr) String() string { return Code(e) }
 
 func (e *ClassMemberExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	if e.NameExpr != nil {
 		e.NameExpr.WriteCode(ctx)
 	}
@@ -162,12 +168,12 @@ type TypeLitExpr struct {
 	// This is a mixin's optional `this { … }` interface block: it declares the
 	// interface the `this` parameter of the mixin's props/methods must satisfy.
 	// Parsed as an anonymous interface body; mixin-only.
-	This       *InterfaceExpr
-	ThisDoc    *ast.CommentGroup
-	Props      []*ClassMemberExpr
-	PropsDoc   *ast.CommentGroup
-	New        []*FuncMethod
-	NewDoc     *ast.CommentGroup
+	This     *InterfaceExpr
+	ThisDoc  *ast.CommentGroup
+	Props    []*ClassMemberExpr
+	PropsDoc *ast.CommentGroup
+	New      []*FuncMethod
+	NewDoc   *ast.CommentGroup
 	// Call are a marker type's `call(…)` factory overloads (Static only); it is
 	// the analogue of `New` for a `type … { … }`, but the result is arbitrary (a
 	// factory), not an instance. Empty for classes and mixins.
@@ -178,6 +184,8 @@ type TypeLitExpr struct {
 	LBrace     source.Pos
 	RBrace     source.Pos
 	Doc        *ast.CommentGroup // doc comment preceding the class; or nil
+	// Meta is the optional `[k=v, …]` metadata block preceding the class.
+	Meta *KeyValueArrayLit
 }
 
 // keyword returns "mixin", "type" (marker) or "class" for formatting/diagnostics.
@@ -207,6 +215,7 @@ func (e *TypeLitExpr) String() string { return Code(e) }
 
 func (e *TypeLitExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	ctx.WriteString(e.keyword())
 	if e.NameExpr != nil {
 		ctx.WriteString(" ")

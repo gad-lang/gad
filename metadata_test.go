@@ -95,3 +95,58 @@ func TestMetadataFunc(t *testing.T) {
 	// An anonymous func with no metadata reports an empty key-value array.
 	testExpectRun(t, `f := func(x) => x; return str(f.@meta)`, nil, Str("(;)"))
 }
+
+// TestMetadataClass verifies metadata on a class and its fields, methods and
+// properties, plus a class field default is preserved alongside its metadata.
+func TestMetadataClass(t *testing.T) {
+	src := `
+		[table="users", version=2]
+		class User {
+			[db=(;primary_key)]
+			id = 0
+			[db=(;column="full_name")]
+			label = "anon"
+			props {
+				[computed]
+				display => this.label
+			}
+			methods {
+				[route="/save", method="POST"]
+				save() { return this.id }
+			}
+		}
+		u := User()
+		return [
+			str(User.@meta),
+			str(User.id.@meta),
+			str(User.label.@meta),
+			str(User.display.@meta),
+			str(User.save.@meta),
+			u.id, u.label,   // defaults preserved
+		]`
+	testExpectRun(t, src, nil, Array{
+		Str(`(;table="users", version=2)`),
+		Str(`(;db=(;primary_key))`),
+		Str(`(;db=(;column="full_name"))`),
+		Str(`(;computed)`),
+		Str(`(;route="/save", method="POST")`),
+		Int(0), Str("anon"),
+	})
+
+	// A class/member with no metadata reports an empty key-value array.
+	testExpectRun(t, `class C { x = 1 }; return str(C.@meta)`, nil, Str("(;)"))
+	testExpectRun(t, `class C { x = 1 }; return str(C.x.@meta)`, nil, Str("(;)"))
+}
+
+// TestMetadataMarkerAndMixin verifies metadata on a marker `type` and a `mixin`.
+func TestMetadataMarkerAndMixin(t *testing.T) {
+	testExpectRun(t, `
+		[kind="marker"]
+		type Color { call() { return "c" } }
+		return str(Color.@meta)`, nil, Str(`(;kind="marker")`))
+
+	testExpectRun(t, `
+		[role="mix"]
+		mixin Timestamped { created = 0 }
+		return str(Timestamped.@meta)`, nil, Str(`(;role="mix")`))
+}

@@ -230,7 +230,7 @@ func internalStmtEntry(stmt node.Stmt, doc string) (docEntry, bool) {
 			return docEntry{}, false
 		}
 		return docEntry{name: name, kind: docType, keyword: "class",
-			code: []string{"class " + name}, doc: doc, members: classMembers(&s.TypeLitExpr)}, true
+			code: []string{metaDoc(s.TypeLitExpr.Meta) + "class " + name}, doc: doc, members: classMembers(&s.TypeLitExpr)}, true
 	case *node.EnumStmt:
 		name := identName(s.NameExpr)
 		if name == "" {

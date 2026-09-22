@@ -22,6 +22,8 @@ type StaticType struct {
 	props   map[string]CallerObject // property accessors (get: this; set: this, value)
 	methods map[string]CallerObject // methods (this = the type)
 	call    CallerObject            // the `call(…)` factory, or nil
+	// Meta is the marker type's `[k=v, …]` metadata (or nil); read as `T.@meta`.
+	Meta KeyValueArray
 }
 
 var (
@@ -148,6 +150,9 @@ func (t *StaticType) Call(c Call) (Object, error) {
 // getter is invoked with `this`), or a method (returned bound to `this`).
 func (t *StaticType) IndexGet(vm *VM, index Object) (Object, error) {
 	name := index.ToString()
+	if name == "@meta" {
+		return metaObject(t.Meta), nil
+	}
 	if p := t.props[name]; p != nil {
 		return DoCall(p, Call{VM: vm, Args: Args{{t}}})
 	}
@@ -219,8 +224,15 @@ func (t *StaticType) Define(c Call) (err error) {
 				return nil
 			},
 		}
+		meta = &NamedArgVar{
+			Name: "meta", TypeAssertion: TypeAssertionFromTypes(TKeyValueArray),
+			Do: func(v Object) error {
+				t.Meta, _ = v.(KeyValueArray)
+				return nil
+			},
+		}
 	)
-	return c.NamedArgs.GetDo(fields, methods, properties, call)
+	return c.NamedArgs.GetDo(meta, fields, methods, properties, call)
 }
 
 // boundMethod wraps a method so calling it prepends `this` (the type).

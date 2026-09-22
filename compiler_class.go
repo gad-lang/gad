@@ -70,6 +70,9 @@ func (c *Compiler) classCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	defineIdent := node.EIdent("define", pos)
 
 	var inner node.CallExprNamedArgs
+	if m := metaArgExpr(nd.Meta); m != nil {
+		inner.AppendS("meta", m)
+	}
 	if len(nd.Parents) > 0 {
 		inner.AppendS("extends", classExtendsExpr(nd))
 	}
@@ -155,6 +158,9 @@ func (c *Compiler) staticTypeCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, err
 	defineIdent := node.EIdent("define", pos)
 
 	var inner node.CallExprNamedArgs
+	if m := metaArgExpr(nd.Meta); m != nil {
+		inner.AppendS("meta", m)
+	}
 	if len(nd.Fields) > 0 {
 		inner.AppendS("fields", staticFieldsExpr(nd))
 	}
@@ -201,6 +207,17 @@ func (c *Compiler) staticTypeCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, err
 			Args: node.CallExprPositionalArgs{Values: args},
 		},
 	}, nil
+}
+
+// metaArgExpr returns the `[k=v, …]` metadata block as the expression passed for
+// the `meta=` named arg of the class define handler (nil when there is none). The
+// KeyValueArrayLit node compiles to a real KeyValueArray at run time, so the
+// metadata may use real expressions.
+func metaArgExpr(meta *node.KeyValueArrayLit) node.Expr {
+	if meta == nil || len(meta.Elements) == 0 {
+		return nil
+	}
+	return meta
 }
 
 // staticFieldsExpr builds the `fields={…}` dict of a marker type's static field
@@ -276,6 +293,9 @@ func (c *Compiler) mixinCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	}
 
 	var inner node.CallExprNamedArgs
+	if m := metaArgExpr(nd.Meta); m != nil {
+		inner.AppendS("meta", m)
+	}
 	if len(nd.Parents) > 0 {
 		inner.AppendS("extends", classExtendsExpr(nd))
 	}
@@ -387,6 +407,19 @@ func classFieldsExpr(nd *node.TypeLitExpr) (fields node.Expr, initFields node.Ex
 			inits = append(inits, &node.KeyValueLit{Key: f.Name.Ident, Value: value})
 			value = nil // emit the field as a flag: no shared static default
 		}
+		// A field with metadata is emitted as a spec key-value array
+		// `(; meta=<kva>, default=<value>)`; CallAddFields unpacks it. Fields
+		// without metadata keep the plain `name=default` form.
+		if f.Meta != nil {
+			spec := []node.Expr{
+				&node.KeyValueLit{Key: node.EIdent("meta", f.Pos()), Value: f.Meta},
+			}
+			if value != nil {
+				spec = append(spec, &node.KeyValueLit{Key: node.EIdent("default", f.Pos()), Value: value})
+			}
+			elems[i] = &node.KeyValueLit{Key: key, Value: &node.KeyValueArrayLit{Elements: spec}}
+			continue
+		}
 		elems[i] = &node.KeyValueLit{Key: key, Value: value}
 	}
 	fields = &node.KeyValueArrayLit{Elements: elems}
@@ -426,7 +459,9 @@ func (c *Compiler) classMethodsExpr(nd *node.TypeLitExpr, typeIdent node.Expr) (
 			return nil, c.Errorf(m, "class method requires a name identifier")
 		}
 		for _, fm := range m.Methods {
-			elems = append(elems, classMemberFunc(name, fm, typeIdent))
+			fe := classMemberFunc(name, fm, typeIdent)
+			fe.Meta = m.Meta // the member's `[k=v, …]` metadata, read as `Class.method.@meta`
+			elems = append(elems, fe)
 		}
 	}
 	return &node.ArrayExpr{Elements: elems}, nil
@@ -442,7 +477,13 @@ func (c *Compiler) classPropertiesExpr(nd *node.TypeLitExpr, typeIdent node.Expr
 		if name == nil {
 			return nil, c.Errorf(p, "class property requires a name identifier")
 		}
-		fwm := &node.FuncWithMethodsExpr{Methods: classInjectThis(p.Methods, typeIdent)}
+		methods := classInjectThis(p.Methods, typeIdent)
+		// Carry the property member's `[k=v, …]` metadata onto its first accessor
+		// overload's compiled function, so `Class.prop.@meta` reports it.
+		if p.Meta != nil && len(methods) > 0 {
+			methods[0].Meta = p.Meta
+		}
+		fwm := &node.FuncWithMethodsExpr{Methods: methods}
 		elems = append(elems, node.EDictElementStr(name.Name, name.Pos(), name.Pos(), fwm))
 	}
 	return &node.DictExpr{Elements: elems}, nil
