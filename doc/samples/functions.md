@@ -142,6 +142,24 @@ blockCleanup()
 // => body b2 b1 after
 ```
 
+## Reflection
+
+A function answers `@`-prefixed reflection index keys (see also
+[metadata](metadata.gad)): `fn.@name`, `fn.@args` (positional parameter names),
+`fn.@nargs` (named parameter names), `fn.@ret` (the return-type signature) and
+`fn.@meta` (the `[k=v, …]` metadata, empty when none). A method-bearing function
+also exposes `fn.@methods` — its overload callers, each itself indexable.
+
+```gad
+[route="/hello"]
+func hello(name str; loud=false) <str> {
+    return "hi " + name
+}
+
+[hello.@name, hello.@args, hello.@nargs, hello.@ret, str(hello.@meta)]
+// => ["hello", ["name"], ["loud"], "<str>", "(;route=\"/hello\")"]
+```
+
 ## Example — `functions.gad`
 
 ```gad
@@ -207,4 +225,11 @@ blockCleanup := func() {
 blockCleanup()
 
 return total(1, 2, 3, 4)
+
+[route="/hello"]
+func hello(name str; loud=false) <str> {
+    return "hi " + name
+}
+
+[hello.@name, hello.@args, hello.@nargs, hello.@ret, str(hello.@meta)]
 ```

@@ -2307,6 +2307,9 @@ type FuncExpr struct {
 	// Override reports whether a `met` declaration was written `met ~name(…)`,
 	// so re-adding an existing method signature replaces it instead of erroring.
 	Override bool
+	// Meta is the optional `[k=v, …]` metadata block preceding the func; it
+	// compiles to a KeyValueArray on the function, read as `fn.@meta`.
+	Meta *KeyValueArrayLit
 }
 
 func (e *FuncExpr) ExprNode() {}

@@ -301,6 +301,23 @@ func init() {
 		return DecodeDict(ctx)
 	}
 
+	KeyValueV1.Decode = func(ctx *ReadContext) (_ any, err error) {
+		kv := &gad.KeyValue{}
+		if kv.K, err = DecodeT[gad.Object](ctx); err != nil {
+			return
+		}
+		kv.V, err = DecodeT[gad.Object](ctx)
+		return kv, err
+	}
+
+	KeyValueArrayV1.Decode = func(ctx *ReadContext) (_ any, err error) {
+		var arr []*gad.KeyValue
+		if arr, err = DecodeArray[*gad.KeyValue](ctx); err != nil {
+			return
+		}
+		return gad.KeyValueArray(arr), nil
+	}
+
 	SyncDictV1.Decode = func(ctx *ReadContext) (_ any, err error) {
 		var d gad.Dict
 		if d, err = DecodeDict(ctx); err != nil {
@@ -440,6 +457,8 @@ func init() {
 						return
 					},
 				)
+			case 10:
+				o.Meta, err = DecodeT[gad.KeyValueArray](ctx)
 			}
 			return
 		})

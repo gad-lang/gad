@@ -1789,7 +1789,13 @@ func (p *Parser) ParseFuncStmt() (stmt node.Stmt) {
 	}
 
 	doc := p.leadComment
+	meta := p.takeMeta()
 	e := p.ParseFuncExprT(p.ExpectToken(p.Token.Token))
+	if meta != nil {
+		if t, ok := e.(*node.FuncExpr); ok {
+			t.Meta = meta
+		}
+	}
 	if doc != nil {
 		switch t := e.(type) {
 		case *node.FuncExpr:

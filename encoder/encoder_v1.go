@@ -43,6 +43,8 @@ var (
 	InterfaceMethodV1 EncDec
 	InterfaceContextFuncV1 EncDec
 	MetaTypeV1             EncDec
+	KeyValueV1             EncDec
+	KeyValueArrayV1        EncDec
 )
 
 const (
@@ -83,6 +85,8 @@ const (
 	typeInterfaceMethod
 	typeInterfaceContextFunc
 	typeMetaType
+	typeKeyValue
+	typeKeyValueArray
 )
 
 const versionV1 byte = 1
@@ -125,4 +129,6 @@ func init() {
 	Register[gad.InterfaceMethod](typeInterfaceMethod, versionV1, &InterfaceMethodV1)
 	Register[gad.InterfaceContextFunc](typeInterfaceContextFunc, versionV1, &InterfaceContextFuncV1)
 	Register[gad.MetaType](typeMetaType, versionV1, &MetaTypeV1)
+	Register[gad.KeyValue](typeKeyValue, versionV1, &KeyValueV1)
+	Register[gad.KeyValueArray](typeKeyValueArray, versionV1, &KeyValueArrayV1)
 }

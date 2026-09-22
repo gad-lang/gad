@@ -74,6 +74,61 @@ func (f *Func) Type() ObjectType {
 	return TFunc
 }
 
+// callerMethods returns the function's overload callers in declaration order,
+// the default (untyped) caller first when present.
+func (f *Func) callerMethods() (out Array) {
+	if f.defaul != nil {
+		out = append(out, f.defaul)
+	}
+	f.Methods.Walk(func(m *TypedCallerMethod) any {
+		out = append(out, m.Caller())
+		return nil
+	})
+	return
+}
+
+// IndexGet implements reflection index keys on a named/method-bearing function:
+//
+//	fn.@name     — the function's name (str)
+//	fn.@methods  — the overload callers, each itself indexable (`m.@meta`, …)
+//	fn.@meta     — the function's OWN `[k=v, …]` metadata (a key-value array,
+//	               empty when none). It is NOT the metadata of any single
+//	               overload: when the function has more than one method, iterate
+//	               `fn.@methods` and read each `m.@meta`. As a convenience, a
+//	               function with a single (default) overload and no own metadata
+//	               reports that overload's metadata here.
+func (f *Func) IndexGet(vm *VM, index Object) (Object, error) {
+	switch index.ToString() {
+	case "@name":
+		return Str(f.name), nil
+	case "@methods":
+		return f.callerMethods(), nil
+	case "@meta":
+		if len(f.Meta) > 0 {
+			return f.Meta, nil
+		}
+		// A single-overload function has no ambiguity: report the sole caller's
+		// metadata. With several overloads, keep `@meta` the function's own and
+		// leave per-overload metadata to `@methods`.
+		if methods := f.callerMethods(); len(methods) == 1 {
+			if ig, ok := methods[0].(IndexGetter); ok {
+				return ig.IndexGet(vm, Str("@meta"))
+			}
+		}
+		return metaObject(f.Meta), nil
+	case "@args", "@nargs", "@ret":
+		// The signature reflection keys describe a single overload; delegate to the
+		// sole caller. With several overloads, read each via `@methods`.
+		if methods := f.callerMethods(); len(methods) == 1 {
+			if ig, ok := methods[0].(IndexGetter); ok {
+				return ig.IndexGet(vm, index)
+			}
+		}
+		return Array{}, nil
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
+
 type FuncSpecOption func(spec *FuncSpec)
 
 func FuncSpectWithDefault(co CallerObject) FuncSpecOption {
@@ -86,6 +141,8 @@ type FuncSpec struct {
 	defaul  CallerObject
 	Methods MethodArgType
 	this    FuncWrapper
+	// Meta is the function's `[k=v, …]` metadata (or nil); read as `fn.@meta`.
+	Meta KeyValueArray
 }
 
 func NewFuncSpec(this FuncWrapper, opt ...FuncSpecOption) *FuncSpec {

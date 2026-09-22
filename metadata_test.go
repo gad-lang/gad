@@ -75,3 +75,23 @@ func TestMetadataRealExpressions(t *testing.T) {
 	testExpectRun(t, `[shape={w: 1, h: 2}] interface T { x int }; return len(T.@meta[0].v)`,
 		nil, Int(2))
 }
+
+// TestMetadataFunc verifies function metadata and the function reflection keys.
+func TestMetadataFunc(t *testing.T) {
+	// Named func: @meta plus @name/@args/@nargs/@ret reflection.
+	testExpectRun(t, `
+		[route="/save", auth]
+		func save(a, b; opt=1) <int> { return a }
+		return [str(save.@meta), save.@name, save.@args, save.@nargs, save.@ret, len(save.@methods)]`,
+		nil, Array{
+			Str(`(;route="/save", auth)`),
+			Str("save"),
+			Array{Str("a"), Str("b")},
+			Array{Str("opt")},
+			Str("<int>"),
+			Int(1),
+		})
+
+	// An anonymous func with no metadata reports an empty key-value array.
+	testExpectRun(t, `f := func(x) => x; return str(f.@meta)`, nil, Str("(;)"))
+}

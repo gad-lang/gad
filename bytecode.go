@@ -107,6 +107,40 @@ type CompiledFunction struct {
 	// per shared function instance and read via atomics (accessed concurrently
 	// when the same function constant is registered from multiple VMs).
 	structuralParams int32
+
+	// Meta is the function's `[k=v, …]` metadata (or nil); read as `fn.@meta`.
+	Meta KeyValueArray
+}
+
+// IndexGet implements the function reflection keys:
+//
+//	fn.@name   — the function name (str)
+//	fn.@args   — the positional parameter names (array of str)
+//	fn.@nargs  — the named parameter names (array of str)
+//	fn.@ret    — the return-type signature (str, e.g. "<int, str>"; "" when none)
+//	fn.@meta   — the `[k=v, …]` metadata (a key-value array, empty when none)
+func (o *CompiledFunction) IndexGet(_ *VM, index Object) (Object, error) {
+	switch index.ToString() {
+	case "@name":
+		return Str(o.FuncName), nil
+	case "@args":
+		out := make(Array, 0, o.Params.Len())
+		for _, p := range o.Params.Items {
+			out = append(out, Str(p.Name))
+		}
+		return out, nil
+	case "@nargs":
+		out := make(Array, 0, o.NamedParams.Len())
+		for _, p := range o.NamedParams.Items {
+			out = append(out, Str(p.Name))
+		}
+		return out, nil
+	case "@ret":
+		return Str(o.ReturnVars.String()), nil
+	case "@meta":
+		return metaObject(o.Meta), nil
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
 
 func (o *CompiledFunction) SetModule(m *ModuleSpec) {
@@ -191,6 +225,7 @@ func (o *CompiledFunction) Copy() Object {
 		NamedParams:  o.NamedParams,
 		ReturnVars:   o.ReturnVars,
 		LocalNames:   o.LocalNames,
+		Meta:         o.Meta,
 	}
 }
 

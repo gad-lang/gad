@@ -245,3 +245,27 @@ func TestIncludeBytecodeRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantRet, gotRet)
 }
+
+// TestFuncMetadataBytecodeRoundtrip verifies a function's `[k=v, …]` metadata
+// (CompiledFunction.Meta) survives an encode/decode round-trip: `fn.@meta` still
+// reports it after decode.
+func TestFuncMetadataBytecodeRoundtrip(t *testing.T) {
+	src := "[route=\"/save\", auth]\nfunc save(x) { return x }\nreturn str(save.@meta)"
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{})
+	require.NoError(t, err)
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, gad.Str(`(;route="/save", auth)`), wantRet)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}

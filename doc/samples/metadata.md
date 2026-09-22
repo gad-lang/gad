@@ -22,9 +22,20 @@ User.@meta      // (;table="users")
 User.id.@meta   // (;db=(;primary_key, auto))
 ```
 
-Supported today on **interfaces** (and their fields, accessors and methods) and
-**enums** (and their items). `X.@meta` is an empty key-value array when the
-element has none, so it never errors.
+Supported on **interfaces** (and their fields, accessors and methods), **enums**
+(and their items) and **functions**. `X.@meta` is an empty key-value array when
+the element has none, so it never errors.
+
+## Function reflection
+
+A function also answers reflection index keys, all `@`-prefixed so they never
+clash with a member name:
+
+- `fn.@name` — the name (str)
+- `fn.@args` — positional parameter names; `fn.@nargs` — named parameter names
+- `fn.@ret` — the return-type signature (str)
+- `fn.@meta` — the metadata; `fn.@methods` — the overload callers, each itself
+  indexable (`m.@meta`, `m.@args`, …) for a multi-overload function
 
 ```gad
 /// a user record
@@ -69,6 +80,23 @@ enum Perm {
 // => ["(;category=\"acl\")", "(;bit_pos=0)", "(;bit_pos=1)"]
 ```
 
+```gad
+/// persist a record
+[route="/save", method="POST", auth]
+func save(id uint, name str; dry_run=false) <bool> {
+    return true
+}
+
+[
+    str(save.@meta),   // the metadata block
+    save.@name,        // "save"
+    save.@args,        // positional param names
+    save.@nargs,       // named param names
+    save.@ret,         // return signature
+]
+// => ["(;route=\"/save\", method=\"POST\", auth)", "save", ["id", "name"], ["dry_run"], "<bool>"]
+```
+
 ## Example — `metadata.gad`
 
 ```gad
@@ -108,4 +136,18 @@ enum Perm {
 }
 
 [str(Perm.@meta), str(Perm.Read.@meta), str(Perm.Write.@meta)]
+
+/// persist a record
+[route="/save", method="POST", auth]
+func save(id uint, name str; dry_run=false) <bool> {
+    return true
+}
+
+[
+    str(save.@meta),   // the metadata block
+    save.@name,        // "save"
+    save.@args,        // positional param names
+    save.@nargs,       // named param names
+    save.@ret,         // return signature
+]
 ```

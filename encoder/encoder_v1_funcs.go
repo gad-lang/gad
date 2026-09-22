@@ -250,6 +250,18 @@ func init() {
 		return EncodeDict(ctx, o.(*gad.SyncDict).Value)
 	}
 
+	KeyValueV1.Encode = func(ctx *WriteContext, o any) (err error) {
+		kv := o.(*gad.KeyValue)
+		if err = EncodeObject(ctx, kv.K); err != nil {
+			return
+		}
+		return EncodeObject(ctx, kv.V)
+	}
+
+	KeyValueArrayV1.Encode = func(ctx *WriteContext, o any) (err error) {
+		return EncodeArray(ctx, []*gad.KeyValue(o.(gad.KeyValueArray)))
+	}
+
 	CompiledFunctionV1.Encode = func(ctx *WriteContext, o any) (err error) {
 		cf := o.(*gad.CompiledFunction)
 
@@ -402,6 +414,15 @@ func init() {
 				if err = writeString(ctx, n); err != nil {
 					return
 				}
+			}
+		}
+
+		if len(cf.Meta) > 0 {
+			if err = ctx.WriteByte(10); err != nil {
+				return
+			}
+			if err = EncodeObject(ctx, cf.Meta); err != nil {
+				return
 			}
 		}
 

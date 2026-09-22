@@ -922,6 +922,8 @@ type Function struct {
 	Header *FunctionHeader
 	// pt caches the Header's parameter types for dispatch.
 	pt ParamsTypes
+	// Meta is the function's `[k=v, …]` metadata (or nil); read as `fn.@meta`.
+	Meta KeyValueArray
 	// Module qualifies the function's name (e.g. mod.greet) and scopes it to a
 	// builtin namespace; set with WithModule.
 	Module *ModuleSpec
@@ -1040,6 +1042,52 @@ func (f *Function) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (*Function) IsFalsy() bool { return false }
 
+// funcHeaderReflect answers the `@args`/`@nargs`/`@ret` reflection keys from a
+// function header (shared by Function and BuiltinFunction, which carry a
+// *FunctionHeader). h may be nil (no declared signature).
+func funcHeaderReflect(h *FunctionHeader, key string) (Object, bool) {
+	switch key {
+	case "@args":
+		out := Array{}
+		if h != nil {
+			for _, p := range h.Params.Items {
+				out = append(out, Str(p.Name))
+			}
+		}
+		return out, true
+	case "@nargs":
+		out := Array{}
+		if h != nil {
+			for _, p := range h.NamedParams.Items {
+				out = append(out, Str(p.Name))
+			}
+		}
+		return out, true
+	case "@ret":
+		if h == nil {
+			return Str(""), true
+		}
+		return Str(h.ReturnVars.String()), true
+	}
+	return nil, false
+}
+
+// IndexGet implements the function reflection keys `@name`, `@args`, `@nargs`,
+// `@ret` and `@meta` (the metadata as a key-value array, empty when none).
+func (f *Function) IndexGet(_ *VM, index Object) (Object, error) {
+	key := index.ToString()
+	switch key {
+	case "@name":
+		return Str(f.FuncName), nil
+	case "@meta":
+		return metaObject(f.Meta), nil
+	}
+	if v, ok := funcHeaderReflect(f.Header, key); ok {
+		return v, nil
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
+
 func (f *Function) Call(call Call) (Object, error) {
 	return f.Value(call)
 }
@@ -1090,6 +1138,24 @@ type BuiltinFunction struct {
 	AcceptMethodsDisabled bool
 	// Usage is optional Markdown documentation shown by Doc().
 	Usage string
+	// Meta is the function's `[k=v, …]` metadata (or nil); read as `fn.@meta`.
+	Meta KeyValueArray
+}
+
+// IndexGet implements the function reflection keys `@name`, `@args`, `@nargs`,
+// `@ret` and `@meta` for a builtin function.
+func (f *BuiltinFunction) IndexGet(_ *VM, index Object) (Object, error) {
+	key := index.ToString()
+	switch key {
+	case "@name":
+		return Str(f.FuncName), nil
+	case "@meta":
+		return metaObject(f.Meta), nil
+	}
+	if v, ok := funcHeaderReflect(f.Header, key); ok {
+		return v, nil
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
 
 func NewBuiltinFunction(name string, value func(Call) (Object, error), opt ...BuiltinFunctionOption) *BuiltinFunction {

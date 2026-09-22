@@ -2150,6 +2150,14 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		}
 	}
 
+	// A `[k=v, …]` metadata block on the func declaration compiles to a
+	// KeyValueArray attached to the CompiledFunction, read as `fn.@meta`.
+	if fe, ok := nd.(*node.FuncExpr); ok && fe.Meta != nil {
+		if bc.Main.Meta, err = c.evalMeta(fe, fe.Meta); err != nil {
+			return err
+		}
+	}
+
 	if bc.Main.NumLocals > 256 {
 		return c.error(nd, ErrSymbolLimit)
 	}
