@@ -22,6 +22,7 @@
 - [interfaces](interfaces.md)
 - [key_value_array](key_value_array.md)
 - [meta_types_test](meta_types_test.md)
+- [metadata](metadata.md)
 - [metaprogramming](metaprogramming.md)
 - [method_interfaces](method_interfaces.md)
 - [method_resolution](method_resolution.md)

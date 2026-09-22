@@ -184,6 +184,25 @@ func testDisplayName(ts *node.TestStmt) string {
 	return ts.Name
 }
 
+// metaDoc renders a declaration's `[k=v, …]` metadata as a `[…] ` prefix for
+// its documented code signature (empty when there is none). Members already
+// carry their own metadata via their String().
+func metaDoc(meta *node.KeyValueArrayLit) string {
+	if meta == nil || len(meta.Elements) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("[")
+	for i, el := range meta.Elements {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(el.String())
+	}
+	b.WriteString("] ")
+	return b.String()
+}
+
 // internalStmtEntry builds a doc entry for a single documented internal
 // statement (everything except const/var blocks, handled separately). The
 // boolean is false for statement forms that do not introduce a named, documented
@@ -218,14 +237,14 @@ func internalStmtEntry(stmt node.Stmt, doc string) (docEntry, bool) {
 			return docEntry{}, false
 		}
 		return docEntry{name: name, kind: docType, keyword: "enum",
-			code: []string{"enum " + name}, doc: doc, members: enumMembers(&s.EnumExpr)}, true
+			code: []string{metaDoc(s.EnumExpr.Meta) + "enum " + name}, doc: doc, members: enumMembers(&s.EnumExpr)}, true
 	case *node.InterfaceStmt:
 		name := identName(s.NameExpr)
 		if name == "" {
 			return docEntry{}, false
 		}
 		return docEntry{name: name, kind: docType, keyword: "interface",
-			code: []string{"interface " + name}, doc: doc, members: interfaceMembers(&s.InterfaceExpr)}, true
+			code: []string{metaDoc(s.InterfaceExpr.Meta) + "interface " + name}, doc: doc, members: interfaceMembers(&s.InterfaceExpr)}, true
 	case *node.PropStmt:
 		name := identName(s.NameExpr)
 		if name == "" {

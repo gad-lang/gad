@@ -65,6 +65,10 @@ func (n enumNum) object() Object {
 // reference earlier fields and use integer operators (`All = Read | Write`).
 func (c *Compiler) buildEnum(nd *node.EnumExpr, name string) (*Enum, error) {
 	enum := NewEnum(name, c.module)
+	var err error
+	if enum.Meta, err = c.evalMeta(nd, nd.Meta); err != nil {
+		return nil, err
+	}
 
 	var (
 		hasPrev      bool
@@ -128,6 +132,11 @@ func (c *Compiler) buildEnum(nd *node.EnumExpr, name string) (*Enum, error) {
 		}
 		vals[f.Name.Name] = n
 		enum.AddValue(f.Name.Name, n.object())
+		if fmeta, ferr := c.evalMeta(nd, f.Meta); ferr != nil {
+			return nil, ferr
+		} else if fmeta != nil {
+			enum.Values[f.Name.Name].Meta = fmeta
+		}
 	}
 
 	return enum, nil

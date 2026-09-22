@@ -18,6 +18,8 @@ type EnumFieldExpr struct {
 	Assign  source.Pos
 	Value   Expr              // explicit value; nil when defaulted
 	Doc     *ast.CommentGroup // doc comment preceding the field; or nil
+	// Meta is the field's `[k=v, …]` metadata (or nil); read as `Enum.Item.@meta`.
+	Meta *KeyValueArrayLit
 }
 
 func (e *EnumFieldExpr) ExprNode() {}
@@ -40,6 +42,7 @@ func (e *EnumFieldExpr) String() string { return Code(e) }
 
 func (e *EnumFieldExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	if e.Bit {
 		ctx.WriteString("bit ")
 	}
@@ -64,6 +67,8 @@ type EnumExpr struct {
 	LBrace    source.Pos
 	RBrace    source.Pos
 	Doc       *ast.CommentGroup // doc comment preceding the enum; or nil
+	// Meta is the optional `[k=v, …]` metadata block preceding the enum.
+	Meta *KeyValueArrayLit
 }
 
 func (e *EnumExpr) ExprNode() {}
@@ -81,6 +86,7 @@ func (e *EnumExpr) String() string { return Code(e) }
 
 func (e *EnumExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	ctx.WriteString("enum")
 	if e.NameExpr != nil {
 		ctx.WriteString(" ")

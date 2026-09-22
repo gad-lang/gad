@@ -145,6 +145,10 @@ type Interface struct {
 	// expressed as Gad members. nil for interfaces compiled from source.
 	Native func(vm *VM, obj Object) (bool, error)
 
+	// Meta is the `[k=v, …]` metadata attached to the interface (or nil); read
+	// as `Iface.@meta`.
+	Meta KeyValueArray
+
 	// Cached `@flat` result (see Flatten): the flattened interface, or the
 	// collision error, computed once.
 	flat      *Interface
@@ -171,6 +175,8 @@ type InterfaceField struct {
 	Types        ObjectTypes // resolved types (when built at run time)
 	// Nullable marks the field as also satisfied by nil (`name? T`, `x? int`).
 	Nullable bool
+	// Meta is the field's `[k=v, …]` metadata (or nil); read as `Iface.name.@meta`.
+	Meta KeyValueArray
 }
 
 // InterfaceProp is a getter and/or setter property of an interface.
@@ -179,6 +185,8 @@ type InterfaceProp struct {
 	Name    string
 	Getter  *FuncHeaderObject   // the getter signature, or nil
 	Setters []*FuncHeaderObject // the setter signatures
+	// Meta is the property's `[k=v, …]` metadata (or nil).
+	Meta KeyValueArray
 }
 
 // InterfaceMethod is a required method of an interface: a name and its overload
@@ -187,6 +195,8 @@ type InterfaceMethod struct {
 	Iface   *Interface
 	Name    string
 	Headers []*FuncHeaderObject
+	// Meta is the method's `[k=v, …]` metadata (or nil).
+	Meta KeyValueArray
 }
 
 // --- Interface ---
@@ -824,6 +834,15 @@ func objectArray[T Object](s []T) Array {
 	return arr
 }
 
+// metaObject returns m as the value for a `@meta` index — a KeyValueArray,
+// substituting an empty one for nil so `.@meta` never errors.
+func metaObject(m KeyValueArray) Object {
+	if m == nil {
+		return KeyValueArray{}
+	}
+	return m
+}
+
 func (i *Interface) IndexGet(vm *VM, index Object) (Object, error) {
 	switch index.ToString() {
 	case "name":
@@ -836,8 +855,35 @@ func (i *Interface) IndexGet(vm *VM, index Object) (Object, error) {
 		return objectArray(i.Methods), nil
 	case "@flat":
 		return i.Flatten(vm)
+	case "@meta":
+		return metaObject(i.Meta), nil
+	}
+	// A bare name indexes the member (field/prop/method) it declares, so
+	// `Iface.name.@meta` reaches a member's metadata.
+	if member := i.member(index.ToString()); member != nil {
+		return member, nil
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
+
+// member returns the field, property or method named name, or nil.
+func (i *Interface) member(name string) Object {
+	for _, f := range i.Fields {
+		if f.Name == name {
+			return f
+		}
+	}
+	for _, p := range i.Props {
+		if p.Name == name {
+			return p
+		}
+	}
+	for _, m := range i.Methods {
+		if m.Name == name {
+			return m
+		}
+	}
+	return nil
 }
 
 // ErrInterfaceMemberConflict is raised when Flatten (`@flat`) finds one
@@ -1183,6 +1229,8 @@ func (f *InterfaceField) IndexGet(vm *VM, index Object) (Object, error) {
 			out[i] = v
 		}
 		return out, nil
+	case "@meta":
+		return metaObject(f.Meta), nil
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
@@ -1293,6 +1341,8 @@ func (p *InterfaceProp) IndexGet(_ *VM, index Object) (Object, error) {
 		return p.Getter, nil
 	case "setters":
 		return objectArray(p.Setters), nil
+	case "@meta":
+		return metaObject(p.Meta), nil
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
@@ -1322,6 +1372,8 @@ func (m *InterfaceMethod) IndexGet(_ *VM, index Object) (Object, error) {
 		return Str(m.Name), nil
 	case "headers":
 		return objectArray(m.Headers), nil
+	case "@meta":
+		return metaObject(m.Meta), nil
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }

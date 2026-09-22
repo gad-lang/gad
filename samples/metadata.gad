@@ -1,0 +1,75 @@
+/**
+# Metadata (`[k=v, …]`)
+
+A doc-commentable declaration — and each of its members — may carry a **metadata
+block**: a key-value array written `[ … ]` (no leading `;`), declared between the
+doc comment and the element. It **accompanies the element in memory** and is read
+back with the `@meta` member.
+
+Metadata is a real key-value array, so a value is any constant expression:
+strings, numbers, flags (a bare `key` is `key=true`), nested `[ … ]` / `(; … )`,
+arrays and dicts.
+
+```gad
+/// a user record
+[table="users"]
+interface User {
+    /// the primary key
+    [db=(;primary_key, auto)]
+    id uint
+}
+User.@meta      // (;table="users")
+User.id.@meta   // (;db=(;primary_key, auto))
+```
+
+Supported today on **interfaces** (and their fields, accessors and methods) and
+**enums** (and their items). `X.@meta` is an empty key-value array when the
+element has none, so it never errors.
+
+@snippet interface_meta
+
+@snippet enum_meta
+**/
+
+//snippet interface_meta
+/// a user record
+[table="users", version=2]
+interface User {
+    /// the primary key
+    [db=(;primary_key, auto)]
+    id uint
+
+    /// the display name
+    [db=(;column="full_name"), max_len=120]
+    title str
+
+    /// computed, not stored
+    [db=(;ignore)]
+    get label str
+}
+
+// The interface's own metadata, and each member's.
+[
+    str(User.@meta),
+    str(User.id.@meta),
+    str(User.title.@meta),
+    str(User.label.@meta),
+]
+/**= ["(;table=\"users\", version=2)", "(;db=(;primary_key, auto))", "(;db=(;column=\"full_name\"), max_len=120)", "(;db=(;ignore))"] **/
+//endsnippet
+
+//snippet enum_meta
+/// permission bits
+[category="acl"]
+enum Perm {
+    /// may read
+    [bit_pos=0]
+    Read
+    /// may write
+    [bit_pos=1]
+    Write
+}
+
+[str(Perm.@meta), str(Perm.Read.@meta), str(Perm.Write.@meta)]
+/**= ["(;category=\"acl\")", "(;bit_pos=0)", "(;bit_pos=1)"] **/
+//endsnippet

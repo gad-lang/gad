@@ -12,6 +12,7 @@ func (p *Parser) ParseInterfaceExpr() node.Expr {
 		defer untracep(tracep(p, "InterfaceExpr"))
 	}
 	doc := p.leadComment
+	meta := p.takeMeta() // before the body: a member must not steal the iface's meta
 	tok := p.expectContextualKeyword(token.Interface)
 	depth := p.parseInterfaceArrayDepth()
 	var name node.Expr
@@ -22,6 +23,7 @@ func (p *Parser) ParseInterfaceExpr() node.Expr {
 	if iface != nil {
 		iface.ArrayDepth = depth
 		iface.Doc = doc
+		iface.Meta = meta
 	}
 	return iface
 }
@@ -46,6 +48,7 @@ func (p *Parser) ParseInterfaceStmt() node.Stmt {
 		defer untracep(tracep(p, "InterfaceStmt"))
 	}
 	doc := p.leadComment
+	meta := p.takeMeta() // before the body: a member must not steal the iface's meta
 	tok := p.expectContextualKeyword(token.Interface)
 	depth := p.parseInterfaceArrayDepth()
 
@@ -60,6 +63,7 @@ func (p *Parser) ParseInterfaceStmt() node.Stmt {
 	}
 	iface.ArrayDepth = depth
 	iface.Doc = doc
+	iface.Meta = meta
 
 	if name == nil {
 		return &node.ExprStmt{Expr: iface}
@@ -96,7 +100,9 @@ func (p *Parser) parseInterfaceBody(tok PToken, name node.Expr) *node.InterfaceE
 // (a parent interface), a `get`/`set`/`prop` accessor, a method (`name(params)
 // <return>`) or a typed field (`name [Type]`).
 func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
+	p.parseMemberMeta()
 	doc := p.leadComment
+	meta := p.takeMeta()
 
 	// `funcs { FnExpr <header>; … }` — the context-function section: each entry is
 	// a free function (captured by value where the interface is declared) that must
@@ -158,7 +164,7 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		p.Next()
 		p.SkipSpace()
 		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
-			Kind: node.IfaceProp, KwPos: kw, Name: p.ParseTypedIdent(), Doc: doc,
+			Kind: node.IfaceProp, KwPos: kw, Name: p.ParseTypedIdent(), Doc: doc, Meta: meta,
 		})
 		return
 	}
@@ -175,7 +181,7 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 				p.Next()
 				p.SkipSpace()
 				iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
-					Kind: kind, KwPos: kw, Name: p.ParseTypedIdent(), Doc: doc,
+					Kind: kind, KwPos: kw, Name: p.ParseTypedIdent(), Doc: doc, Meta: meta,
 				})
 				return
 			}
@@ -224,6 +230,7 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 			Kind: node.IfaceField,
 			Name: &node.TypedIdentExpr{Ident: name, Type: []*node.TypeExpr{{Expr: nested}}, Nullable: nullable},
 			Doc:  doc,
+			Meta: meta,
 		})
 	case token.LParen:
 		h := p.parseInterfaceMethodHeader()
@@ -231,10 +238,10 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 			return
 		}
 		iface.Methods = append(iface.Methods, &node.InterfaceMethodExpr{
-			NameExpr: name, Headers: []*node.FuncHeaderExpr{h}, Doc: doc,
+			NameExpr: name, Headers: []*node.FuncHeaderExpr{h}, Doc: doc, Meta: meta,
 		})
 	case token.LBrace:
-		m := &node.InterfaceMethodExpr{NameExpr: name, Block: true, Doc: doc}
+		m := &node.InterfaceMethodExpr{NameExpr: name, Block: true, Doc: doc, Meta: meta}
 		m.LBrace = p.Expect(token.LBrace)
 		p.ExprLevel++
 		for {
@@ -256,6 +263,7 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 			Kind: node.IfaceField,
 			Name: &node.TypedIdentExpr{Ident: name, Type: p.ParseTypes(), Nullable: nullable},
 			Doc:  doc,
+			Meta: meta,
 		})
 	}
 }

@@ -23,6 +23,8 @@ type Enum struct {
 	EnumName string
 	Values   map[string]*EnumValue
 	Module   *ModuleSpec
+	// Meta is the enum's `[k=v, …]` metadata (or nil); read as `Enum.@meta`.
+	Meta KeyValueArray
 }
 
 // NewEnum returns an empty Enum; members are added in order with AddValue.
@@ -133,6 +135,8 @@ func (e *Enum) IndexGet(_ *VM, index Object) (value Object, err error) {
 			ret[i] = &KeyValue{K: Str(name), V: e.Values[name].Value}
 		}
 		return ret, nil
+	case "@meta":
+		return metaObject(e.Meta), nil
 	}
 	return nil, ErrInvalidIndex.NewError(key)
 }
@@ -239,6 +243,8 @@ type EnumValue struct {
 	Enum  *Enum
 	Name  string
 	Value Object
+	// Meta is the item's `[k=v, …]` metadata (or nil); read as `Enum.Item.@meta`.
+	Meta KeyValueArray
 }
 
 func (e *EnumValue) IsFalsy() bool {
@@ -296,6 +302,8 @@ func (e *EnumValue) IndexGet(_ *VM, index Object) (Object, error) {
 		return Int(e.Index), nil
 	case "enum":
 		return e.Enum, nil
+	case "@meta":
+		return metaObject(e.Meta), nil
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }

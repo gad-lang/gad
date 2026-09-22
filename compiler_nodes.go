@@ -2400,6 +2400,10 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 	if nd.Rest != nil {
 		iface.Rest = nd.Rest.Name
 	}
+	var err error
+	if iface.Meta, err = c.evalMeta(nd, nd.Meta); err != nil {
+		return nil, err
+	}
 
 	for _, parent := range nd.Parents {
 		id := node.EType(parent).Ident()
@@ -2425,24 +2429,32 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 		if err != nil {
 			return nil, err
 		}
+		meta, err := c.evalMeta(nd, m.Meta)
+		if err != nil {
+			return nil, err
+		}
 		switch m.Kind {
 		case node.IfaceField:
-			iface.Fields = append(iface.Fields, &InterfaceField{Iface: iface, Name: mname, TypesSymbols: syms, Nullable: m.Name.Nullable})
+			iface.Fields = append(iface.Fields, &InterfaceField{Iface: iface, Name: mname, TypesSymbols: syms, Nullable: m.Name.Nullable, Meta: meta})
 		case node.IfaceGet:
-			iface.Props = append(iface.Props, &InterfaceProp{Iface: iface, Name: mname, Getter: getter(mname, syms)})
+			iface.Props = append(iface.Props, &InterfaceProp{Iface: iface, Name: mname, Getter: getter(mname, syms), Meta: meta})
 		case node.IfaceSet:
-			iface.Props = append(iface.Props, &InterfaceProp{Iface: iface, Name: mname, Setters: []*FuncHeaderObject{setter(mname, syms)}})
+			iface.Props = append(iface.Props, &InterfaceProp{Iface: iface, Name: mname, Setters: []*FuncHeaderObject{setter(mname, syms)}, Meta: meta})
 		case node.IfaceProp:
 			iface.Props = append(iface.Props, &InterfaceProp{
 				Iface: iface, Name: mname,
 				Getter:  getter(mname, syms),
 				Setters: []*FuncHeaderObject{setter(mname, syms)},
+				Meta:    meta,
 			})
 		}
 	}
 
 	for _, m := range nd.Methods {
 		im := &InterfaceMethod{Iface: iface, Name: m.NameExpr.Name}
+		if im.Meta, err = c.evalMeta(nd, m.Meta); err != nil {
+			return nil, err
+		}
 		for _, h := range m.Headers {
 			fh, err := c.buildFuncHeaderObject(h)
 			if err != nil {

@@ -12,10 +12,12 @@ func (p *Parser) ParseEnumExpr() node.Expr {
 		defer untracep(tracep(p, "EnumExpr"))
 	}
 	doc := p.leadComment
+	meta := p.takeMeta()
 	enumTok := p.ExpectToken(token.Enum)
 	e := p.parseEnumBody(enumTok, nil)
 	if e != nil {
 		e.Doc = doc
+		e.Meta = meta
 	}
 	return e
 }
@@ -28,6 +30,7 @@ func (p *Parser) ParseEnumStmt() node.Stmt {
 		defer untracep(tracep(p, "EnumStmt"))
 	}
 	doc := p.leadComment
+	meta := p.takeMeta()
 	enumTok := p.ExpectToken(token.Enum)
 
 	var name node.Expr
@@ -40,6 +43,7 @@ func (p *Parser) ParseEnumStmt() node.Stmt {
 		return &node.BadStmt{From: enumTok.Pos, To: p.Token.Pos}
 	}
 	e.Doc = doc
+	e.Meta = meta
 
 	if name == nil {
 		return &node.ExprStmt{Expr: e}
@@ -75,7 +79,8 @@ func (p *Parser) parseEnumBody(enumTok PToken, name node.Expr) *node.EnumExpr {
 
 // parseEnumField parses one field: `[bit] [+|-] IDENT [= Expr]`.
 func (p *Parser) parseEnumField() *node.EnumFieldExpr {
-	f := &node.EnumFieldExpr{Doc: p.leadComment}
+	p.parseMemberMeta()
+	f := &node.EnumFieldExpr{Doc: p.leadComment, Meta: p.takeMeta()}
 
 	// `bit` prefix: only when followed by another field token (sign or ident),
 	// so a field may still be named `bit`.

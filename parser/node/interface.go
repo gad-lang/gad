@@ -104,6 +104,10 @@ type InterfaceMemberExpr struct {
 	KwPos source.Pos // position of get/set/prop keyword; NoPos for a field
 	Name  *TypedIdentExpr
 	Doc   *ast.CommentGroup
+	// Meta is the optional `[k=v, …]` metadata block declared between the doc
+	// comment and the member; it compiles to a KeyValueArray reachable as
+	// `Iface.member.@meta`.
+	Meta *KeyValueArrayLit
 }
 
 func (e *InterfaceMemberExpr) ExprNode() {}
@@ -121,6 +125,7 @@ func (e *InterfaceMemberExpr) String() string { return Code(e) }
 
 func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	if kw := e.Kind.String(); kw != "" {
 		ctx.WriteString(kw)
 		ctx.WriteString(" ")
@@ -174,6 +179,8 @@ type InterfaceExpr struct {
 	LBrace  source.Pos
 	RBrace  source.Pos
 	Doc     *ast.CommentGroup // doc comment preceding the interface; or nil
+	// Meta is the optional `[k=v, …]` metadata block preceding the interface.
+	Meta *KeyValueArrayLit
 }
 
 // InterfaceContextFuncExpr is one entry of an interface's `funcs { … }` section:
@@ -241,6 +248,8 @@ type InterfaceMethodExpr struct {
 	LBrace   source.Pos
 	RBrace   source.Pos
 	Doc      *ast.CommentGroup
+	// Meta is the optional `[k=v, …]` metadata block for this method.
+	Meta *KeyValueArrayLit
 }
 
 func (e *InterfaceMethodExpr) ExprNode() {}
@@ -261,6 +270,7 @@ func (e *InterfaceMethodExpr) String() string { return Code(e) }
 
 func (e *InterfaceMethodExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	e.NameExpr.WriteCode(ctx)
 	if e.Block {
 		ctx.WriteString(" {")
@@ -297,8 +307,25 @@ func (e *InterfaceExpr) NameIdent() *IdentExpr {
 	return id
 }
 
+// writeMeta emits a `[k=v, …]` metadata block on its own line before a
+// doc-commentable element (declared between the doc comment and the element).
+func writeMeta(ctx *CodeWriteContext, meta *KeyValueArrayLit) {
+	if meta == nil || len(meta.Elements) == 0 {
+		return
+	}
+	ctx.WriteString("[")
+	for i, el := range meta.Elements {
+		if i > 0 {
+			ctx.WriteString(", ")
+		}
+		ctx.WriteString(el.String())
+	}
+	ctx.WriteString("] ")
+}
+
 func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	ctx.WriteString("interface")
 	for i := 0; i < e.ArrayDepth; i++ {
 		ctx.WriteString("[]")

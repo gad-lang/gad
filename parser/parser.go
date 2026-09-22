@@ -85,6 +85,11 @@ type Parser struct {
 	// regular `//` and `/* */` comments flow only into p.comments.
 	leadComment *ast.CommentGroup
 	lineComment *ast.CommentGroup
+
+	// pendingMeta holds a `[k=v, …]` metadata block parsed just before a
+	// doc-commentable declaration or member; the element parser consumes it via
+	// takeMeta and attaches it to the node's Meta field.
+	pendingMeta *node.KeyValueArrayLit
 }
 
 // NewParser creates a Parser.
@@ -2972,6 +2977,10 @@ func (p *Parser) ParseStmt() (stmt node.Stmt) {
 
 func (p *Parser) DefaultParseStmt() (stmt node.Stmt) {
 do:
+	// An optional `[k=v, …]` metadata block before a declaration (interface,
+	// class, enum, func, …). Stashed in pendingMeta and attached by the
+	// declaration parser; recognized as metadata only when a declaration follows.
+	p.parseStmtMeta()
 	// Contextual keywords: reserved-looking words that begin a statement only in a
 	// specific shape and are ordinary identifiers everywhere else (a parameter
 	// name, a variable, a value). Each guard checks the exact shape before
