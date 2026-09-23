@@ -270,7 +270,7 @@ func TestFuncMetadataBytecodeRoundtrip(t *testing.T) {
 	require.Equal(t, wantRet, gotRet)
 }
 
-// TestInterfaceSliceBytecodeRoundtrip verifies a slice interface survives an
+// TestInterfaceSliceBytecodeRoundtrip verifies an array interface survives an
 // encode/decode round-trip: its depth, leaf element types, `**rest`, metadata and
 // field nullability/metadata (all encoded with the interface constant).
 func TestInterfaceSliceBytecodeRoundtrip(t *testing.T) {

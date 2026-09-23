@@ -15,7 +15,7 @@ In Gad, everything is a value and every value has a type. Use `typeof` (or
 | `flag`          | `yes` / `no` (prints `on`/`off`)  | `bool`              |
 | `char`          | a single unicode code point (`'A'`)| `rune`             |
 | `str` / `rawStr`| unicode / raw (un-escaped) string | `string`            |
-| `bytes`         | byte slice (`b"…"`, `h"…"`)        | `[]byte`            |
+| `bytes`         | byte array (`b"…"`, `h"…"`)        | `[]byte`            |
 | `array` / `dict`| ordered list / string-keyed map   | `[]Object` / map    |
 | `keyValue` / `keyValueArray` | `k=v` pair / ordered pairs | —              |
 | `error` / `nil` | error value / absence of a value  | —                   |

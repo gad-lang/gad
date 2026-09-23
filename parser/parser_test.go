@@ -4373,7 +4373,7 @@ func TestParseInterface(t *testing.T) {
 	// the block-method form (no colon) is unchanged
 	test.ExpectParseString(t, `x := interface { a { (x), (y int) <bool> } }`,
 		`x := interface {a {(_ x); (y int) <bool>; }; }`)
-	// slice-interface short form: `name: []{ … }` == `name interface [] { … }` (each
+	// array-interface short form: `name: []{ … }` == `name interface [] { … }` (each
 	// element satisfies the body); `[][]` nests deeper; both render short.
 	test.ExpectParseString(t, `x := interface { a: []{ b int } }`,
 		`x := interface {a: []{b int; }; }`)
@@ -4383,7 +4383,7 @@ func TestParseInterface(t *testing.T) {
 		`x := interface {a: [][]{b int; }; }`)
 	test.ExpectParseString(t, `x := interface { a?: []{ b int } }`,
 		`x := interface {a?: []{b int; }; }`)
-	// A field's type may be a SLICE of a type: `[]T` holds values of `T`, and
+	// A field's type may be an ARRAY of a type: `[]T` holds values of `T`, and
 	// each further `[]` nests one array deeper. This is the value form — the
 	// element is a plain type — as opposed to `a: []{ … }` above, whose element
 	// is an interface body.
@@ -4392,7 +4392,7 @@ func TestParseInterface(t *testing.T) {
 	test.ExpectParseString(t, `x := interface { xs [][][]int }`,
 		`x := interface {xs [][][]int; }`)
 	// Several element types are enveloped in `<…>` and separated by `|`; the
-	// element satisfies the slice when it matches ANY of them.
+	// element satisfies the array type when it matches ANY of them.
 	test.ExpectParseString(t, `x := interface { xs []<int|str> }`,
 		`x := interface {xs []<int | str>; }`)
 	test.ExpectParseString(t, `x := interface { xs [][]<int|str|bool> }`,
@@ -4408,8 +4408,8 @@ func TestParseInterface(t *testing.T) {
 	// given signature.
 	test.ExpectParseString(t, `x := interface { f <(x int) <ret any>> }`,
 		`x := interface {f <(x int) <ret any>>; }`)
-	// It is the one single type that must be enveloped as a slice element —
-	// its own `<…>` IS the envelope, so `[]<(x int)>` is a slice of headers.
+	// It is the one single type that must be enveloped as an array element —
+	// its own `<…>` IS the envelope, so `[]<(x int)>` is an array of headers.
 	test.ExpectParseString(t, `x := interface { fs []<(x int) <ret any>> }`,
 		`x := interface {fs []<(x int) <ret any>>; }`)
 	// Among several element types it is enveloped like the others, which is
@@ -4421,7 +4421,7 @@ func TestParseInterface(t *testing.T) {
 	test.ExpectParseError(t, `x := interface { a: int }`)
 }
 
-// A slice type and a function-header type are written where any other type is,
+// An array type and a function-header type are written where any other type is,
 // and each of these positions reaches the type through a different parser: the
 // expression parser must not read the `[` as an index nor the `<` as a
 // comparison first.
@@ -5457,9 +5457,9 @@ func TestParseTypeUnion(t *testing.T) {
 	test.New(t, "return x.type").Code("return x.type")
 }
 
-// TestParseSliceInterface covers the slice interface forms — the `[]` follows the
+// TestParseSliceInterface covers the array interface forms — the `[]` follows the
 // name: `interface P [] { … }`, the long form `interface P [] interface { … }`,
-// the slice-of-types `interface P []<int|uint>` / `interface P []int`, and the
+// the array-of-types `interface P []<int|uint>` / `interface P []int`, and the
 // anonymous `interface [] { … }` — plus the rejected former `interface[] P { … }`.
 func TestParseSliceInterface(t *testing.T) {
 	test.ExpectParseString(t, `interface points [] { x int, y int }`, `interface points []{x int; y int; }`)
@@ -5473,7 +5473,7 @@ func TestParseSliceInterface(t *testing.T) {
 	test.ExpectParseString(t, "[k=1]\ninterface P []<int>", `[k=1] interface P []int`)
 
 	test.ExpectParseError(t, `interface[] old { x int }`,
-		[2]string{"%v", "Parse Error: the `[]` of a named slice interface follows its name: write `interface old [] { … }`\n\tat test:1:13"})
+		[2]string{"%v", "Parse Error: the `[]` of a named array interface follows its name: write `interface old [] { … }`\n\tat test:1:13"})
 }
 
 // TestParseTypedArrayType covers `type NAME []…` typed array type declarations:

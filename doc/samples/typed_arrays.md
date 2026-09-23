@@ -58,9 +58,9 @@ A typed array type is **nominal**, like a class: `v :: numerics` and a
 converts, checking every item, in both directions:
 
 - `array ::: numerics` — an array (or another typed array, or a
-  [slice interface](interface_arrays_test.gad) value) into a typed array;
+  [array interface](interface_arrays_test.gad) value) into a typed array;
 - `typed ::: array` — back to a plain array (a copy of the items);
-- `typed ::: iface` — into a slice interface value.
+- `typed ::: iface` — into an array interface value.
 
 ```gad
 type reals []<int|float>
@@ -69,7 +69,7 @@ interface realsIface []<int|float>
 sat := func(v, T) { try { v :: T; return true } catch { return false } }
 r := [1, 2.5] ::: reals         // array -> typed array (items checked)
 plain := r ::: array            // typed array -> array
-asIface := r ::: realsIface     // typed array -> slice interface value
+asIface := r ::: realsIface     // typed array -> array interface value
 back := asIface ::: reals       // and back
 
 avg := func(xs reals) => (xs[0] + xs[1]) / 2
@@ -213,7 +213,7 @@ interface realsIface []<int|float>
 sat := func(v, T) { try { v :: T; return true } catch { return false } }
 r := [1, 2.5] ::: reals         // array -> typed array (items checked)
 plain := r ::: array            // typed array -> array
-asIface := r ::: realsIface     // typed array -> slice interface value
+asIface := r ::: realsIface     // typed array -> array interface value
 back := asIface ::: reals       // and back
 
 avg := func(xs reals) => (xs[0] + xs[1]) / 2

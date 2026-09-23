@@ -8,7 +8,7 @@ import (
 // `type NAME []…` declaration reports).
 var TTypedArrayType = NewType("typedArrayType", TBase)
 
-// TypedArrayType is a named slice type declared by `type NAME []…`:
+// TypedArrayType is a named array type declared by `type NAME []…`:
 //
 //	type numerics []<int|uint|float|decimal>   // elements of a type union
 //	type users []{ name; id }                  // elements satisfying an interface
@@ -138,7 +138,7 @@ func (t *TypedArrayType) FullName() string {
 	return t.TypeName
 }
 
-// Signature renders the slice shape: `[]<int|uint>`, `[][]int`, `[]interface {…}`.
+// Signature renders the array shape: `[]<int|uint>`, `[][]int`, `[]interface {…}`.
 func (t *TypedArrayType) Signature() string {
 	var b strings.Builder
 	for i := 0; i < t.Depth; i++ {

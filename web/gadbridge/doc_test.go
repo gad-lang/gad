@@ -113,7 +113,7 @@ func TestExtractDocModuleProseBlank(t *testing.T) {
 
 // TestDocMetadataAndMembers verifies exported declarations carry their `[k=v, …]`
 // metadata tag and their members (each with its own tag and doc) — a typed array
-// type, a slice interface, a class and an enum — and that the Markdown renders
+// type, an array interface, a class and an enum — and that the Markdown renders
 // them.
 func TestDocMetadataAndMembers(t *testing.T) {
 	src := `

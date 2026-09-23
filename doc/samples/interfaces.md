@@ -26,13 +26,13 @@ A `**name` member is a **rest capture** used with the transforming cast
 class/interface-typed fields into their declared shape and gathers the keys not
 named by the interface into a dict bound to `name`.
 
-`[]` written after the interface's name makes it a **slice interface**, matching
+`[]` written after the interface's name makes it a **array interface**, matching
 an **array** of satisfying elements: `interface P [] { … }` a flat array,
 `interface P [][][] { … }` an array nested three deep, and `interface P []<int|uint>`
-an array of the given element types (see [slice interfaces](interface_arrays_test.gad);
+an array of the given element types (see [array interfaces](interface_arrays_test.gad);
 for a nominal, constructible array type see [typed arrays](typed_arrays.gad)).
 
-## Nested and slice fields (`name: { … }`)
+## Nested and array fields (`name: { … }`)
 
 A field whose type is a nested interface has a **short form** `name: { … }`,
 equal to `name interface { … }`. The colon distinguishes it from the block-method
@@ -40,7 +40,7 @@ form `name { … }` (no colon), and it is ONLY for a nested interface — `name:
 must open a brace body (there is no `name: Type`). Nesting may go any depth, and
 the value is checked **recursively** on a `::` cast.
 
-A leading `[]` is a **slice interface**: `name: []{ … }` == `name interface [] { … }`,
+A leading `[]` is a **array interface**: `name: []{ … }` == `name interface [] { … }`,
 an array whose elements each satisfy the body (`[][]…` nests deeper). `name?: { … }`
 (and `name?: []{ … }`) marks the nested field nullable — nil or absent satisfies
 it. The formatter always normalizes a nested-interface field to this short form.
@@ -54,14 +54,14 @@ sat := func(v, T) {
 // A `::` cast checks a nested `name: { … }` field RECURSIVELY.
 Boxed := interface { bounds: { w int, h int } }
 
-// A slice field `name: []{ … }` checks every element of the array.
+// An array field `name: []{ … }` checks every element of the array.
 Poly := interface { pts: []{ x int, y int } }
 
 [
     sat({ bounds: { w: 10, h: 20 } }, Boxed),             // nested: both fields present
     sat({ bounds: { w: 10 } }, Boxed),                    // nested: missing h -> false
-    sat({ pts: [{ x: 0, y: 0 }, { x: 1, y: 2 }] }, Poly), // slice: every element ok
-    sat({ pts: [{ x: 0, y: 0 }, { x: 1 }] }, Poly),       // slice: 2nd missing y -> false
+    sat({ pts: [{ x: 0, y: 0 }, { x: 1, y: 2 }] }, Poly), // array: every element ok
+    sat({ pts: [{ x: 0, y: 0 }, { x: 1 }] }, Poly),       // array: 2nd missing y -> false
 ]
 // => [true, false, true, false]
 ```
@@ -109,7 +109,7 @@ interface Shape {
 		h int
 	}
 
-	// a SLICE-interface field (`[]{ … }`): `corners` must be an array whose
+	// an ARRAY-interface field (`[]{ … }`): `corners` must be an array whose
 	// elements each satisfy `{ x int; y int }`.
 	corners: []{
 		x int
@@ -151,14 +151,14 @@ sat := func(v, T) {
 // A `::` cast checks a nested `name: { … }` field RECURSIVELY.
 Boxed := interface { bounds: { w int, h int } }
 
-// A slice field `name: []{ … }` checks every element of the array.
+// An array field `name: []{ … }` checks every element of the array.
 Poly := interface { pts: []{ x int, y int } }
 
 [
     sat({ bounds: { w: 10, h: 20 } }, Boxed),             // nested: both fields present
     sat({ bounds: { w: 10 } }, Boxed),                    // nested: missing h -> false
-    sat({ pts: [{ x: 0, y: 0 }, { x: 1, y: 2 }] }, Poly), // slice: every element ok
-    sat({ pts: [{ x: 0, y: 0 }, { x: 1 }] }, Poly),       // slice: 2nd missing y -> false
+    sat({ pts: [{ x: 0, y: 0 }, { x: 1, y: 2 }] }, Poly), // array: every element ok
+    sat({ pts: [{ x: 0, y: 0 }, { x: 1 }] }, Poly),       // array: 2nd missing y -> false
 ]
 
 /**
@@ -190,9 +190,9 @@ OptAcl := interface { perm? enum { Read, Write } }
 println("optional:  ", {} :: OptAcl)                   // {}
 
 /**
-## A slice of a type (`[]T`)
+## An array of a type (`[]T`)
 
-A field's type may be a **slice of a type**: `[]int` is an array whose every
+A field's type may be a **array of a type**: `[]int` is an array whose every
 element is an `int`, and each further `[]` nests one array deeper
 (`[][][]int`). This is the VALUE form — the element is a plain type — next to
 the `name: []{ … }` form above, whose element is an interface body.
@@ -200,7 +200,7 @@ the `name: []{ … }` form above, whose element is an interface body.
 ### The envelope rule
 
 With **several element types, everything is enveloped** in `<…>` and separated
-by `|`; an element satisfies the slice when it matches any of them:
+by `|`; an element satisfies the array type when it matches any of them:
 
 ```gad
 interface { xs []<int|str> }
@@ -212,11 +212,11 @@ exception is a **function header**, which must be enveloped even alone —
 its own syntax `<(x int) <ret any>>` IS the envelope:
 
 ```gad
-interface { fs []<(x int) <ret any>> }   // a slice of callables
+interface { fs []<(x int) <ret any>> }   // an array of callables
 interface { fs []<<(x int)>|str> }       // among several types, enveloped like any other
 ```
 
-An empty array satisfies any slice type (there is no element to reject), and
+An empty array satisfies any array type (there is no element to reject), and
 `?` after the field name makes the field itself nullable as usual.
 
 > **Where they are read:** wherever a type is written — an interface field, a
@@ -249,7 +249,7 @@ println("with bool: ", {xs: [1, true]} :: Mixed or "rejected")   // rejected
 /**
 A **function header is a type** wherever a type goes — a field of one requires a
 CALLABLE whose signature the header matches — and it is the single type that
-keeps its envelope inside a slice.
+keeps its envelope inside an array type.
 **/
 Fn := interface { f <(x int) <ret any>> }
 println("callable:  ", {f: func(x int) => x} :: Fn or "rejected")  // {f: ‹compiledFunction…›}

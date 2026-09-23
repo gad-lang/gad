@@ -2412,7 +2412,7 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 	if iface.Meta, err = c.evalMeta(nd, nd.Meta); err != nil {
 		return nil, err
 	}
-	// `interface P []<int|uint>` — a slice-of-types interface: its leaf element
+	// `interface P []<int|uint>` — an array-of-types interface: its leaf element
 	// types compile to the symbols of a pseudo-field named `[]`.
 	if len(nd.ElemTypes) > 0 {
 		_, syms, err := c.nameSymbolsOfTypedIdent(nd, &node.TypedIdentExpr{
@@ -2634,11 +2634,11 @@ func (c *Compiler) compileFuncHeaderExpr(nd *node.FuncHeaderExpr) error {
 	return nil
 }
 
-// compileSliceTypeExpr compiles a slice type (`[]int`, `[]<int|str>`) written as
+// compileArrayTypeExpr compiles an array type (`[]int`, `[]<int|str>`) written as
 // a VALUE — a class field's type, say, which the compiler emits as an argument
 // to the `typedIdent` builtin. It is the same constant the type position builds
 // (structuralTypeSymbol), pushed on the stack.
-func (c *Compiler) compileSliceTypeExpr(nd *node.SliceTypeExpr) error {
+func (c *Compiler) compileArrayTypeExpr(nd *node.ArrayTypeExpr) error {
 	sym, err := c.structuralTypeSymbol(nd)
 	if err != nil {
 		return err
@@ -4467,8 +4467,8 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 	// whose leaves are of the element types. The element types are resolved the
 	// way a parameter's are, as symbols, so an element may be anything a
 	// parameter may be.
-	case *node.SliceTypeExpr:
-		st := &SliceType{Depth: t.Depth}
+	case *node.ArrayTypeExpr:
+		st := &ArrayType{Depth: t.Depth}
 		for _, et := range t.Types {
 			syms, err := c.typeExprSymbols(et)
 			if err != nil {

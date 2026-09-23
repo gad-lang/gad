@@ -132,7 +132,7 @@ func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(" ")
 	}
 	// A field whose type is an anonymous nested interface always renders in the
-	// short form `name: { … }` (a slice interface as `name: []{ … }`, deeper as
+	// short form `name: { … }` (an array interface as `name: []{ … }`, deeper as
 	// `[][]…`), never `name interface { … }` — both parse to the same field.
 	if e.Kind == IfaceField && e.Name != nil && len(e.Name.Type) == 1 {
 		if iface, ok := e.Name.Type[0].Expr.(*InterfaceExpr); ok && iface.NameExpr == nil {
@@ -167,9 +167,9 @@ type InterfaceExpr struct {
 	// depth whose leaf elements each satisfy the body (or ElemTypes). 0 for a
 	// plain interface.
 	ArrayDepth int
-	// ElemTypes are the leaf element types of a slice-of-types interface,
+	// ElemTypes are the leaf element types of an array-of-types interface,
 	// `interface P []<int|uint>` (or `interface P []int`): the named analogue of
-	// an anonymous `[]<int|uint>` slice type. Such an interface has no body; nil
+	// an anonymous `[]<int|uint>` array type. Such an interface has no body; nil
 	// otherwise. RAngle is the envelope's closing `>` (NoPos for a bare type).
 	ElemTypes    []*TypeExpr
 	RAngle       source.Pos
@@ -315,9 +315,9 @@ func (e *InterfaceExpr) End() source.Pos {
 	return e.RBrace + 1
 }
 
-// elemTypesCode renders the ElemTypes of a slice-of-types interface: one type
+// elemTypesCode renders the ElemTypes of an array-of-types interface: one type
 // bare (`int`), several in the `<…>` envelope (`<int | uint>`), like a
-// SliceTypeExpr element.
+// ArrayTypeExpr element.
 func (e *InterfaceExpr) elemTypesCode() string {
 	if len(e.ElemTypes) == 1 {
 		return e.ElemTypes[0].String()
@@ -380,7 +380,7 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(" ")
 		e.NameExpr.WriteCode(ctx)
 	}
-	// A slice interface: `interface P []{ … }` / `interface P []<int | uint>`
+	// An array interface: `interface P []{ … }` / `interface P []<int | uint>`
 	// (anonymous `interface []{ … }`); the `[]`s follow the name.
 	if e.ArrayDepth > 0 {
 		ctx.WriteString(" ")

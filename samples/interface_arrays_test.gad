@@ -1,14 +1,14 @@
 /**
-# Slice interfaces (`interface P [] { … }`)
+# Array interfaces (`interface P [] { … }`)
 
 Writing one or more `[]` after the interface's name makes the
-[interface](interfaces.gad) match an **array** — a *slice interface*:
+[interface](interfaces.gad) match an **array** — a *array interface*:
 
 - `interface P [] { … }` matches a flat array whose elements each satisfy the
   body; `interface P [][][] { … }` an array nested three deep (the number of `[]`
   is the required depth). `interface P [] interface { … }` is the long form of
   the same.
-- `interface P []<int|uint>` (or `interface P []int`) is a **slice of types**:
+- `interface P []<int|uint>` (or `interface P []int`) is a **array of types**:
   the leaves must match one of the element types. It is the named analogue of
   the anonymous `[]<int|uint>` type written in a field or parameter
   (`interface form { field []int }`).
@@ -20,10 +20,10 @@ With the checked cast [`::`](user_operators.gad) the (nested) array must already
 hold satisfying elements and is returned unchanged. With the transforming cast
 [`:::`](transform_cast_test.gad) each leaf is coerced into the declared shape (its
 class-typed fields are built), at any depth; a [typed array](typed_arrays.gad)
-converts too. A slice interface is also a parameter type, carries
+converts too. An array interface is also a parameter type, carries
 [metadata](metadata.gad) and answers the reflection keys `@depth` (the number of
-`[]`), `@elem` (the element types of a slice of types, else nil) and `@meta`.
-An empty array satisfies any slice interface vacuously.
+`[]`), `@elem` (the element types of an array of types, else nil) and `@meta`.
+An empty array satisfies any array interface vacuously.
 
 Run it: `gad test samples/interface_arrays_test.gad`
 **/
@@ -35,7 +35,7 @@ class Point { x int; y int }
 body. `::` checks and returns the array unchanged; a non-array, a missing field
 or a wrong nesting depth is rejected.
 **/
-test "flat slice interface" {
+test "flat array interface" {
     interface points [] { x int, y int }
 
     ps := [{x: 1, y: 2}, {x: 3, y: 4}] :: points
@@ -58,7 +58,7 @@ test "flat slice interface" {
 Each extra `[]` adds one level of array nesting: `interface P [][][] { … }`
 matches an array of arrays of arrays whose leaves satisfy the body.
 **/
-test "nested slice interface" {
+test "nested array interface" {
     interface nestedPoints [][][] { x int, y int }
 
     r := [[[{x: 1, y: 2}, {x: 3, y: 4}]]] :: nestedPoints
@@ -79,10 +79,10 @@ test "long form" {
 }
 
 /**
-`interface P []<T1|T2>` is a slice of **types**: every leaf must match one of the
+`interface P []<T1|T2>` is an array of **types**: every leaf must match one of the
 element types (one type needs no envelope: `interface P []int`).
 **/
-test "slice of types" {
+test "array of types" {
     interface numerics []<int|uint|float>
     interface grid [][]int
 
@@ -94,7 +94,7 @@ test "slice of types" {
 }
 
 /**
-A slice interface is a type like any other, so it works as a parameter type: the
+An array interface is a type like any other, so it works as a parameter type: the
 argument must be an array of satisfying elements.
 **/
 test "as a parameter type" {
@@ -114,7 +114,7 @@ test "as a parameter type" {
 /**
 The transforming cast `:::` coerces each leaf element into the interface's shape —
 here every element's `p` dict becomes a real `Point` — recursively through nested
-arrays. A typed array converts to a slice interface (and back) the same way.
+arrays. A typed array converts to an array interface (and back) the same way.
 **/
 test "transforming an array" {
     // Depth 1: each element's `p` is built into a Point.
@@ -127,7 +127,7 @@ test "transforming an array" {
     t.equal("Point", typeName(deep[0][0][0].p))
     t.equal(9, deep[0][0][0].p.x)
 
-    // A typed array converts to a slice interface value (a plain array), each
+    // A typed array converts to an array interface value (a plain array), each
     // leaf checked; and back.
     type nums []int
     interface ints []int
@@ -137,7 +137,7 @@ test "transforming an array" {
 }
 
 /**
-Reflection: `@depth` is the number of `[]`, `@elem` the element types of a slice
+Reflection: `@depth` is the number of `[]`, `@elem` the element types of an array
 of types (nil for a member body) and `@meta` the declaration's metadata.
 **/
 test "reflection and metadata" {

@@ -6,9 +6,9 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
-// TestSliceTypeInterfaceField covers `[]T` as an interface field's type: an
+// TestArrayTypeInterfaceField covers `[]T` as an interface field's type: an
 // array nested to the written depth whose leaves are of the element types.
-func TestSliceTypeInterfaceField(t *testing.T) {
+func TestArrayTypeInterfaceField(t *testing.T) {
 	cast := func(decl, value string) string {
 		return `T := interface { xs ` + decl + ` }
 			try { ({ xs: ` + value + ` }) :: T; return "ok" } catch { return "no" }`
@@ -67,11 +67,11 @@ func TestFuncHeaderType(t *testing.T) {
 		nil, Str("ok"))
 }
 
-// TestSliceTypeOtherPositions covers the positions besides an interface field
+// TestArrayTypeOtherPositions covers the positions besides an interface field
 // where a type is written: a function parameter, a class field and a `param`
 // declaration. The expression parser reads `[` as an index and `<` as a
 // comparison, so each of these needs the type to be recognized first.
-func TestSliceTypeOtherPositions(t *testing.T) {
+func TestArrayTypeOtherPositions(t *testing.T) {
 	// A function parameter: the argument is checked on the call.
 	testExpectRun(t, `
 		func f(xs []int) => xs[0]
@@ -102,9 +102,9 @@ func TestSliceTypeOtherPositions(t *testing.T) {
 		return xs[0] + n`, newOpts().Args(Array{Int(4)}, Int(1)), Int(5))
 }
 
-// TestSliceTypeAmbiguity pins the expressions a structural type must NOT steal:
+// TestArrayTypeAmbiguity pins the expressions a structural type must NOT steal:
 // `[` stays an index and `<` stays a comparison.
-func TestSliceTypeAmbiguity(t *testing.T) {
+func TestArrayTypeAmbiguity(t *testing.T) {
 	// an index written with a space before `[`
 	testExpectRun(t, `xs := [10, 20]; return xs [1]`, nil, Int(20))
 	// a comparison whose right side is parenthesized, and a chained one

@@ -31,6 +31,10 @@ type Decl struct {
 	Pos  source.Pos
 	Node node.Node
 	Doc  *ast.CommentGroup
+	// Kind is the completion kind of a named type declaration — "class",
+	// "mixin", "type" (a marker or typed array type), "interface" or "enum" —
+	// and "" for a plain variable/constant.
+	Kind string
 }
 
 // scope is one lexical scope: its declarations (in source order) and its span,
@@ -48,8 +52,12 @@ func (s *scope) add(name string, pos source.Pos, n node.Node) {
 }
 
 func (s *scope) addDoc(name string, pos source.Pos, n node.Node, doc *ast.CommentGroup) {
+	s.addKind(name, pos, n, doc, "")
+}
+
+func (s *scope) addKind(name string, pos source.Pos, n node.Node, doc *ast.CommentGroup, kind string) {
 	if name != "" && name != "_" {
-		s.decls = append(s.decls, Decl{Name: name, Pos: pos, Node: n, Doc: doc})
+		s.decls = append(s.decls, Decl{Name: name, Pos: pos, Node: n, Doc: doc, Kind: kind})
 	}
 }
 
@@ -69,6 +77,34 @@ func newResolver(f *parser.File, sf *source.File) *resolver {
 		r.walk(s, r.root)
 	}
 	return r
+}
+
+// typeDeclName returns the name, doc and completion kind of a named type
+// declaration statement: `class`/`mixin`/`type NAME { … }`, `interface NAME …`,
+// `enum NAME { … }` and a typed array type `type NAME []…`. id is nil for any
+// other node (or an anonymous declaration).
+func typeDeclName(n ast.Node) (id *node.IdentExpr, doc *ast.CommentGroup, kind string) {
+	switch x := n.(type) {
+	case *node.TypeDeclStmt:
+		id, _ = x.NameExpr.(*node.IdentExpr)
+		kind = "class"
+		switch {
+		case x.Mixin:
+			kind = "mixin"
+		case x.Static:
+			kind = "type"
+		}
+		return id, x.Doc, kind
+	case *node.InterfaceStmt:
+		id, _ = x.NameExpr.(*node.IdentExpr)
+		return id, x.Doc, "interface"
+	case *node.EnumStmt:
+		id, _ = x.NameExpr.(*node.IdentExpr)
+		return id, x.Doc, "enum"
+	case *node.TypedArrayTypeStmt:
+		return x.NameExpr, x.Doc, "type"
+	}
+	return nil, nil, ""
 }
 
 // leadDoc returns the free-floating comment group immediately preceding the
@@ -115,6 +151,11 @@ func (r *resolver) scopeAt(p source.Pos) *scope {
 
 // walk records declarations and scopes for n under sc.
 func (r *resolver) walk(n ast.Node, sc *scope) {
+	// A named type declaration binds its name (a const) in the enclosing scope;
+	// its body is then walked as usual (method bodies open their own scopes).
+	if id, doc, kind := typeDeclName(n); id != nil {
+		sc.addKind(id.Name, id.Pos(), id, doc, kind)
+	}
 	switch x := n.(type) {
 	case *node.AssignStmt:
 		if x.Token == token.Define {

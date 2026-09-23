@@ -78,3 +78,55 @@ func TestMemberCompletionGadxComplexIterable(t *testing.T) {
 	require.Contains(t, labels, "name")
 	require.Contains(t, labels, "admin")
 }
+
+// TestMemberCompletionTypedArray checks member completion on a typed array value
+// and on its type: the body members (fields, properties, methods) with their
+// source docs; an int index reaches the items, so `u.` lists only members.
+func TestMemberCompletionTypedArray(t *testing.T) {
+	decl := "type nums []int {\n" +
+		"  /// the label\n" +
+		"  label = \"x\"\n" +
+		"  props { total => 1 }\n" +
+		"  methods {\n" +
+		"    /// sums the items\n" +
+		"    sum() => 0\n" +
+		"  }\n" +
+		"}\n"
+	check := func(src string) {
+		caret := strings.Index(src, "u.") + len("u.")
+		items, ok := memberCompletions("t.gad", src, caret)
+		require.True(t, ok)
+		got := map[string][2]string{}
+		for _, it := range items {
+			got[it.Label] = [2]string{it.Kind, it.Doc}
+		}
+		require.Equal(t, map[string][2]string{
+			"label": {"field", "the label"},
+			"total": {"property", ""},
+			"sum":   {"method", "sums the items"},
+		}, got)
+	}
+	check(decl + "u := nums(1, 2)\nx := u.\n") // a value
+	check(decl + "u := nums\nx := u.\n")       // the type
+
+	// Without a body a typed array has no members (its items are reached by index).
+	src := "type nums []int\nu := nums(1, 2)\nx := u.\n"
+	caret := strings.Index(src, "u.") + len("u.")
+	items, ok := memberCompletions("t.gad", src, caret)
+	require.True(t, ok)
+	require.Empty(t, items)
+}
+
+// TestMemberCompletionTypedArrayThis checks `this.` inside a typed array type's
+// method lists the body members, like inside a class.
+func TestMemberCompletionTypedArrayThis(t *testing.T) {
+	src := "type nums []int {\n  label = \"x\"\n  methods {\n    sum() {\n      this.\n    }\n  }\n}\n"
+	caret := strings.Index(src, "this.") + len("this.")
+	items, ok := memberCompletions("t.gad", src, caret)
+	require.True(t, ok)
+	var labels []string
+	for _, it := range items {
+		labels = append(labels, it.Label)
+	}
+	require.ElementsMatch(t, []string{"label", "sum"}, labels)
+}

@@ -3162,14 +3162,14 @@ func (e *OrExpr) WriteCode(ctx *CodeWriteContext) {
 	e.Fallback.WriteCode(ctx)
 }
 
-// SliceTypeExpr is a slice written where a type goes: `[]int`, `[][]str` — the
+// ArrayTypeExpr is a slice written where a type goes: `[]int`, `[][]str` — the
 // `[]` repeated is the nesting depth — and `[]<int|str>`, where the angle
 // brackets envelope several types the element may be. `[]int` is the short form
 // of `[]<int>`: one type needs no envelope.
 //
 // Inside the envelope the element types are read by the same parser as a
 // parameter's, so a slice of function headers is `[]<<(x int) <ret any>>`.
-type SliceTypeExpr struct {
+type ArrayTypeExpr struct {
 	LBrack source.Pos
 	// Depth is how many `[]` were written: 1 for `[]int`, 3 for `[][][]int`.
 	Depth int
@@ -3183,11 +3183,11 @@ type SliceTypeExpr struct {
 	RAngle    source.Pos
 }
 
-func (e *SliceTypeExpr) ExprNode() {}
+func (e *ArrayTypeExpr) ExprNode() {}
 
-func (e *SliceTypeExpr) Pos() source.Pos { return e.LBrack }
+func (e *ArrayTypeExpr) Pos() source.Pos { return e.LBrack }
 
-func (e *SliceTypeExpr) End() source.Pos {
+func (e *ArrayTypeExpr) End() source.Pos {
 	if e.Enveloped && e.RAngle.IsValid() {
 		return e.RAngle + 1
 	}
@@ -3197,7 +3197,7 @@ func (e *SliceTypeExpr) End() source.Pos {
 	return e.LBrack + 2
 }
 
-func (e *SliceTypeExpr) String() string {
+func (e *ArrayTypeExpr) String() string {
 	var b strings.Builder
 	for i := 0; i < e.Depth; i++ {
 		b.WriteString("[]")
@@ -3217,6 +3217,6 @@ func (e *SliceTypeExpr) String() string {
 	return b.String()
 }
 
-func (e *SliceTypeExpr) WriteCode(ctx *CodeWriteContext) {
+func (e *ArrayTypeExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }

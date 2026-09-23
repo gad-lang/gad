@@ -142,7 +142,7 @@ func init() {
 		if err = EncodeArray(ctx, i.ContextFuncs); err != nil {
 			return
 		}
-		// Slice interface (depth + optional leaf element types), `**rest` and
+		// Array interface (depth + optional leaf element types), `**rest` and
 		// metadata.
 		if err = writeInt(ctx, i.ArrayDepth); err != nil {
 			return

@@ -1142,7 +1142,7 @@ func (p *Parser) ParseOperand() node.Expr {
 	// for interface's array form) makes them a literal; otherwise the bare word is
 	// an ordinary identifier value.
 	if p.Token.Token == token.Ident {
-		// interface may be named/slice as a value (`interface Shape { … }`,
+		// interface may be named/array as a value (`interface Shape { … }`,
 		// `interface P [] { … }`), so it uses the fuller start check.
 		if p.Token.Literal == "interface" {
 			if p.isInterfaceDeclStart() {
@@ -2330,7 +2330,7 @@ func (p *Parser) ParseFuncHeaderExpr() node.Expr {
 }
 
 // parseFuncHeaderBody parses a function header whose opening `<` has already
-// been consumed — openPos is where it was. The slice-type parser needs this:
+// been consumed — openPos is where it was. The array-type parser needs this:
 // `[]<(x int) <ret any>>` is the short form of `[]<<(x int) <ret any>>>`, so the
 // `<` it took for the envelope turns out to be the header's.
 func (p *Parser) parseFuncHeaderBody(openPos source.Pos) node.Expr {
@@ -2512,7 +2512,7 @@ func (p *Parser) structuralTypeHere() bool {
 
 // peekStructuralTypeAfterIdent reports whether what follows the CURRENT ident is
 // that ident's type, for the two type forms the expression parser would
-// otherwise swallow: a slice type (`xs []int`, whose `[` reads as an index) and
+// otherwise swallow: an array type (`xs []int`, whose `[` reads as an index) and
 // a function-header type (`cb <(x int)>`, whose `<` reads as a comparison). A
 // type written with a name (`x int`) needs no lookahead — the expression parser
 // stops at it by itself. No tokens are consumed.
@@ -2748,10 +2748,10 @@ func (p *Parser) isTypeStart() bool {
 		return p.Peek().Token == token.LBrace
 	case token.Less, token.Shl:
 		// `<(x int) <ret any>>` — a function header as a type. A `<<` is a
-		// slice envelope plus the header's own `<`.
+		// array envelope plus the header's own `<`.
 		return true
 	case token.LBrack:
-		// `[]T` — a slice type.
+		// `[]T` — an array type.
 		return p.Peek().Token == token.RBrack
 
 	}
@@ -2786,7 +2786,7 @@ func (p *Parser) isTypeUnionDeclStart() bool {
 }
 
 // isInterfaceDeclStart reports whether the current `interface` identifier begins
-// an interface literal — `interface { … }`, `interface NAME { … }`, or a slice
+// an interface literal — `interface { … }`, `interface NAME { … }`, or an array
 // interface `interface [NAME] []… …` — as opposed to a plain `interface`
 // identifier.
 func (p *Parser) isInterfaceDeclStart() bool {
@@ -2917,9 +2917,9 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 	// it.
 	case token.Enum:
 		return &node.TypeExpr{Expr: p.ParseEnumExpr()}
-	// `[]T`, `[][]T`, `[]<T1|T2>` — a slice type.
+	// `[]T`, `[][]T`, `[]<T1|T2>` — an array type.
 	case token.LBrack:
-		return &node.TypeExpr{Expr: p.parseSliceType()}
+		return &node.TypeExpr{Expr: p.parseArrayType()}
 	// `<(x int) <ret any>>` — a function header as a type.
 	case token.Less:
 		return &node.TypeExpr{Expr: p.ParseFuncHeaderExpr()}
@@ -2940,17 +2940,17 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 	return &node.TypeExpr{Expr: p.ParseSimpleSelectorExpr(p.ParseIdent())}
 }
 
-// parseSliceType parses a slice written where a type goes: the `[]` repeated is
+// parseArrayType parses an array type written where a type goes: the `[]` repeated is
 // the nesting depth, and the element is either ONE type (`[]int`) or several
 // enveloped in angle brackets (`[]<int|str>`). Inside the envelope the element
-// types are read by the same parser as anywhere else, so a slice of function
+// types are read by the same parser as anywhere else, so an array of function
 // headers is `[]<<(x int) <ret any>>`.
-func (p *Parser) parseSliceType() node.Expr {
+func (p *Parser) parseArrayType() node.Expr {
 	if p.Trace {
-		defer untracep(tracep(p, "SliceType"))
+		defer untracep(tracep(p, "ArrayType"))
 	}
 
-	e := &node.SliceTypeExpr{LBrack: p.Token.Pos}
+	e := &node.ArrayTypeExpr{LBrack: p.Token.Pos}
 	for p.Token.Token == token.LBrack && p.Peek().Token == token.RBrack {
 		p.Next()
 		p.Expect(token.RBrack)
@@ -3102,7 +3102,7 @@ do:
 				return p.ParseMixinStmt()
 			}
 		case "interface":
-			// `interface [Name] { … }` (or a slice interface `interface [Name] [] …`).
+			// `interface [Name] { … }` (or an array interface `interface [Name] [] …`).
 			if p.isInterfaceDeclStart() {
 				return p.ParseInterfaceStmt()
 			}
@@ -5197,7 +5197,7 @@ func (p *Parser) Expect(token token.Token) source.Pos {
 }
 
 // consumeLess consumes an opening `<`. When the scanner produced a `<<` (Shl)
-// token from two adjacent opening brackets (the envelope of a slice plus a
+// token from two adjacent opening brackets (the envelope of an array type plus a
 // function header's own `<`, `[]<<(x int) <ret any>>|str>`), it splits it: one
 // `<` is consumed here and the other is left as the current token. It is the
 // mirror of expectGreater.

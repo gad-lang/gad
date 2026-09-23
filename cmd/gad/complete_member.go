@@ -277,7 +277,8 @@ func astReceiverPrelude(name, src string, caret int, recv string) (string, bool)
 }
 
 // classMemberDocs returns the source doc comments for the members of val, when
-// val is a class or class instance whose class is declared in src.
+// val is a class or class instance whose class is declared in src — or a typed
+// array value / typed array type whose `type NAME []… { … }` body is.
 func classMemberDocs(src string, val gad.Object) map[string]string {
 	var name string
 	switch v := val.(type) {
@@ -286,6 +287,10 @@ func classMemberDocs(src string, val gad.Object) map[string]string {
 			name = c.Name()
 		}
 	case *gad.Class:
+		name = v.Name()
+	case *gad.TypedArray:
+		name = v.ArrayType.Name()
+	case *gad.TypedArrayType:
 		name = v.Name()
 	default:
 		return nil

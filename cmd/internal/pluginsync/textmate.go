@@ -186,14 +186,42 @@ func TextMateGrammar() ([]byte, error) {
 		"keywords": {Patterns: []tmRule{
 			{Name: "keyword.control.gad", Match: wordRegex(plainKeywords)},
 			// Contextual declaration keywords: `class`/`mixin` before `{` or a
-			// `NAME {` body, `interface` also before `[` (a slice interface,
+			// `NAME {` body, `interface` also before `[` (an array interface,
 			// `interface [] { … }` / `interface NAME [] …`).
 			{Name: "keyword.control.gad", Match: `\b(?:class|mixin)\b(?=\s*\{|\s+[A-Za-z_]\w*\s*\{)`},
 			{Name: "keyword.control.gad", Match: `\binterface\b(?=\s*[\{\[]|\s+[A-Za-z_]\w*\s*[\{\[])`},
+			// `type` is contextual too: a keyword only in its declaration/expression
+			// forms — a type union `type <T1|T2>` / `type NAME <…>`, a marker type
+			// `type [NAME] { … }` and a typed array type `type NAME []…` — and an
+			// ordinary identifier elsewhere (`x.type`, `type := 1`, `{type: 1}`).
+			{Name: "keyword.control.gad", Match: `\btype\b(?=\s*[<{]|\s+[A-Za-z_]\w*\s*(?:[{<]|\[\s*\]))`},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Atoms)},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Constants)},
 			{Name: "support.function.gad", Match: wordRegex(lang.Builtins)},
 		}},
+		// A `[k=v, …]` metadata block: a key-value array written between a doc
+		// comment and the declaration or member it annotates (`[db=(;primary_key)]`
+		// above a field). It is recognized on its own at the start of a line, when
+		// the bracket opens with a key followed by `=`, `,` or `]` (a flag) — an
+		// array literal statement (`[f(x), 2]`) does not look like that. The keys
+		// are attribute names; values are ordinary Gad (strings, numbers, nested
+		// `(;…)`/`[…]`, which balance so an inner `]` does not close the block).
+		"metadata": {
+			Name:          "meta.annotation.metadata.gad",
+			Begin:         `^\s*(\[)(?=\s*[A-Za-z_]\w*\s*(?:=(?!=)|,|\]))`,
+			End:           `\]`,
+			BeginCaptures: map[string]tmCap{"1": {Name: "punctuation.definition.annotation.begin.gad"}},
+			EndCaptures:   map[string]tmCap{"0": {Name: "punctuation.definition.annotation.end.gad"}},
+			Patterns: []tmRule{
+				{
+					Match:    `(?:(?<=\[)|(?<=,))\s*([A-Za-z_]\w*)(?=\s*(?:=(?!=)|,|\]))`,
+					Captures: map[string]tmCap{"1": {Name: "entity.other.attribute-name.gad"}},
+				},
+				{Begin: `\[`, End: `\]`, Patterns: []tmRule{{Include: "$self"}}},
+				{Begin: `\(`, End: `\)`, Patterns: []tmRule{{Include: "$self"}}},
+				{Include: "$self"},
+			},
+		},
 		"specials": {Patterns: []tmRule{
 			// @-prefixed specials (@args, @module, @main, …).
 			{Name: "variable.language.gad", Match: `@[A-Za-z_$][\w$]*`},
@@ -212,6 +240,7 @@ func TextMateGrammar() ([]byte, error) {
 		ScopeName: "source.gad",
 		Patterns: []tmRule{
 			{Include: "#comments"},
+			{Include: "#metadata"},
 			{Include: "#strings"},
 			{Include: "#numbers"},
 			{Include: "#keywords"},

@@ -65,7 +65,7 @@ would exceed it — and `fence` (default 3) — the heredoc start/end delimiter 
 
 ## Bytes
 
-`bytes` is a mutable byte slice. A single-letter prefix glued to a string literal
+`bytes` is a mutable byte array. A single-letter prefix glued to a string literal
 is a **bytes literal**: `b"…"` are the UTF-8 bytes of the content, `h"…"` the
 bytes decoded from hex (whitespace ignored; invalid hex is a compile error). The
 prefix must touch the quote — `b "x"` is the variable `b` then a string.

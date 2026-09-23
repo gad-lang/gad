@@ -6,7 +6,7 @@ import (
 )
 
 // ParseInterfaceExpr parses an anonymous interface expression `interface { … }`
-// (or a slice interface `interface []{ … }` / `interface []<int|uint>`). The
+// (or an array interface `interface []{ … }` / `interface []<int|uint>`). The
 // statement form with a name is parsed by ParseInterfaceStmt.
 func (p *Parser) ParseInterfaceExpr() node.Expr {
 	if p.Trace {
@@ -23,8 +23,8 @@ func (p *Parser) ParseInterfaceExpr() node.Expr {
 	return iface
 }
 
-// parseInterfaceArrayDepth consumes a run of `[]` pairs (the slice depth of a
-// slice interface, `interface P [][] { … }`) and returns their count, 0 when
+// parseInterfaceArrayDepth consumes a run of `[]` pairs (the array depth of an
+// array interface, `interface P [][] { … }`) and returns their count, 0 when
 // there is none.
 func (p *Parser) parseInterfaceArrayDepth() (depth int) {
 	for p.Token.Token == token.LBrack {
@@ -38,13 +38,13 @@ func (p *Parser) parseInterfaceArrayDepth() (depth int) {
 // parseInterfaceDecl parses what follows the `interface` keyword:
 //
 //	interface [NAME] { … }                 // a plain interface
-//	interface [NAME] [][]… { … }           // a slice interface (array of the body)
+//	interface [NAME] [][]… { … }           // an array interface (array of the body)
 //	interface [NAME] [] interface { … }    // the same, long form
-//	interface [NAME] []<int|uint>          // a slice-of-types interface (no body)
+//	interface [NAME] []<int|uint>          // an array-of-types interface (no body)
 //	interface [NAME] []int                 // the same, one bare element type
 //
 // The `[]`s follow the name (`interface NAME [] { … }`); the former
-// `interface NAME [] { … }` order is rejected with a hint.
+// `interface[] NAME { … }` order is rejected with a hint.
 func (p *Parser) parseInterfaceDecl(tok PToken) *node.InterfaceExpr {
 	var name node.Expr
 	if p.Token.Token == token.Ident {
@@ -68,7 +68,7 @@ func (p *Parser) parseInterfaceDecl(tok PToken) *node.InterfaceExpr {
 		}
 		return iface
 	case name == nil && p.Token.Token == token.Ident && p.Peek().Token == token.LBrace:
-		p.Error(p.Token.Pos, "the `[]` of a named slice interface follows its name: "+
+		p.Error(p.Token.Pos, "the `[]` of a named array interface follows its name: "+
 			"write `interface "+p.Token.Literal+" [] { … }`")
 		return nil
 	case p.Token.Token == token.Less || p.Token.Token == token.Shl:
@@ -97,7 +97,7 @@ func (p *Parser) parseInterfaceDecl(tok PToken) *node.InterfaceExpr {
 }
 
 // ParseInterfaceStmt parses the statement form. `interface Name { … }` (or a
-// slice interface `interface Name [] { … }` / `interface Name []<int|uint>`)
+// array interface `interface Name [] { … }` / `interface Name []<int|uint>`)
 // becomes `const Name = <interface expression>`; an anonymous `interface { … }`
 // used as a statement is parsed as an expression statement.
 func (p *Parser) ParseInterfaceStmt() node.Stmt {
@@ -258,7 +258,7 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 	switch p.Token.Token {
 	case token.Colon:
 		// `name: { … }` — shorthand for a nested-interface field
-		// (`name interface { … }`). A leading `[]` makes it a slice interface,
+		// (`name interface { … }`). A leading `[]` makes it an array interface,
 		// `name: []{ … }` == `name interface [] { … }` (each element must satisfy
 		// the body); `[][]` nests deeper. The colon form is ONLY for a nested
 		// interface: after the optional `[]`s it must be followed by `{`. (The

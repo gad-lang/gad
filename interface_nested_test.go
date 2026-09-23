@@ -57,10 +57,10 @@ func TestInterfaceNestedShortForm(t *testing.T) {
 		nil, Str("no"))
 }
 
-// TestInterfaceSliceShortForm covers the `name: []{ … }` slice-interface field:
+// TestInterfaceArrayShortForm covers the `name: []{ … }` array-interface field:
 // the value must be an array whose elements each satisfy the nested interface,
 // checked recursively; `[][]` nests deeper.
-func TestInterfaceSliceShortForm(t *testing.T) {
+func TestInterfaceArrayShortForm(t *testing.T) {
 	box := func(src string) string {
 		return `Box := interface { items: []{ w int, h int } }
 			` + src

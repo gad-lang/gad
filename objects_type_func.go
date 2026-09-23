@@ -16,7 +16,7 @@ var (
 	_ vmCanAssigner = (*FuncType)(nil)
 )
 
-// Like SliceType, a func type is STRUCTURAL, not an ObjectType: it answers about
+// Like ArrayType, a func type is STRUCTURAL, not an ObjectType: it answers about
 // the shape of a value, and there is no type chain to walk to it.
 func (t *FuncType) Type() ObjectType { return TFunctionHeader }
 

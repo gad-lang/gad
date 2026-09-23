@@ -139,3 +139,45 @@ func TestDefinitionInInterpolation(t *testing.T) {
 	_, ok = langsym.Definition(f, sf, nth(src, "abc", 0))
 	require.False(t, ok)
 }
+
+// TestCompletionsTypeDeclarations verifies named type declarations are in scope
+// with their kind and lead doc: class, mixin, marker type, interface (including an
+// array interface), enum and a typed array type (`type NAME []…`, also exported),
+// and that go-to-definition reaches a typed array type's name.
+func TestCompletionsTypeDeclarations(t *testing.T) {
+	src := "" +
+		"/// a class\n" + "class Kls { x = 1 }\n" +
+		"/// a mixin\n" + "mixin Mix { y = 1 }\n" +
+		"/// a marker\n" + "type Mark { call() { return 1 } }\n" +
+		"/// an iface\n" + "interface Ifc { x int }\n" +
+		"/// an array iface\n" + "interface Pts [] { x int }\n" +
+		"/// an enum\n" + "enum Enm { A }\n" +
+		"/// numbers\n" + "[unit=\"m\"]\n" + "type numerics []<int|float> { label = \"n\" }\n" +
+		"/// exported\n" + "export type ints []int\n" +
+		"x := numerics(1)\n"
+	f, sf := parse(t, src)
+
+	syms := langsym.Completions(f, sf, nth(src, "numerics(1)", 0))
+	byName := map[string]langsym.Symbol{}
+	for _, s := range syms {
+		byName[s.Label] = s
+	}
+	for name, want := range map[string][2]string{
+		"Kls":      {"class", "a class"},
+		"Mix":      {"mixin", "a mixin"},
+		"Mark":     {"type", "a marker"},
+		"Ifc":      {"interface", "an iface"},
+		"Pts":      {"interface", "an array iface"},
+		"Enm":      {"enum", "an enum"},
+		"numerics": {"type", "numbers"},
+		"ints":     {"type", "exported"},
+	} {
+		require.Contains(t, byName, name)
+		require.Equal(t, want[0], byName[name].Kind, name)
+		require.Equal(t, want[1], byName[name].Doc, name)
+	}
+
+	decl, ok := langsym.Definition(f, sf, nth(src, "numerics(1)", 0))
+	require.True(t, ok)
+	require.Equal(t, nth(src, "numerics []", 0), decl)
+}

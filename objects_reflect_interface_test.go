@@ -78,7 +78,7 @@ func TestReflectStructStructuralContract(t *testing.T) {
 		`interface HasZ { Z str }; try { v :: HasZ; return "ok" } catch { return "rejected" }`))
 }
 
-// TestReflectSliceStructuralContract checks a named-slice type's Go method
+// TestReflectSliceStructuralContract checks a named-array type's Go method
 // satisfies a Gad method-interface.
 func TestReflectSliceStructuralContract(t *testing.T) {
 	tags := rfTags{"a", "b", "c"}

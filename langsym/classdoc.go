@@ -34,7 +34,8 @@ func ClassMemberDocs(src []byte, className string) map[string]string {
 }
 
 // findClass locates the class expression declared under className: a `class Name`
-// statement, or a `Name := class { … }` / `const Name = class { … }` binding.
+// statement, a `Name := class { … }` / `const Name = class { … }` binding, or the
+// member body of a typed array type `type Name []… { … }`.
 func findClass(f *parser.File, className string) *node.TypeLitExpr {
 	var target *node.TypeLitExpr
 	node.Walk(f, func(n ast.Node) bool {
@@ -46,6 +47,10 @@ func findClass(f *parser.File, className string) *node.TypeLitExpr {
 		case *node.TypeLitExpr:
 			if identName(x.NameExpr) == className {
 				target = x
+			}
+		case *node.TypedArrayTypeStmt:
+			if x.Body != nil && identName(x.NameExpr) == className {
+				target = x.Body
 			}
 		case *node.AssignStmt:
 			if x.Token == token.Define {

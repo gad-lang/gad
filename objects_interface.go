@@ -139,7 +139,7 @@ type Interface struct {
 	// an array nested to this depth whose leaf elements each satisfy the members
 	// (or Elem). 0 for a plain interface.
 	ArrayDepth int
-	// Elem is the leaf element type of a slice-of-types interface
+	// Elem is the leaf element type of an array-of-types interface
 	// (`interface P []<int|uint>`): a pseudo-field named `[]` whose types each
 	// leaf element must match. nil for a member (body) interface.
 	Elem *InterfaceField
@@ -280,7 +280,7 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 
 // satisfiesArrayDepth reports whether obj is an array nested to depth whose leaf
 // elements each satisfy the interface's members (`interface P [] { … }` is depth
-// 1) or, for a slice-of-types interface, match its Elem types. At depth 0 it is
+// 1) or, for an array-of-types interface, match its Elem types. At depth 0 it is
 // the plain leaf check; deeper, obj must be an Array and every element must
 // satisfy depth-1.
 func (i *Interface) satisfiesArrayDepth(vm *VM, obj Object, depth int) (bool, error) {
@@ -652,7 +652,7 @@ func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Obj
 // field when one is declared. A missing non-nullable field is an error.
 // coerceArray implements `array ::: interface P [] { … }`: it returns a NEW array
 // nested to depth whose leaf elements are each transformed by coerceDict (so
-// their class/interface-typed fields are built) — or, for a slice-of-types
+// their class/interface-typed fields are built) — or, for an array-of-types
 // interface, checked/coerced against its Elem types. A non-array at a non-zero
 // depth, or a leaf that cannot be coerced, is an error.
 func (i *Interface) coerceArray(vm *VM, obj Object, depth int) (Object, error) {
@@ -769,7 +769,7 @@ func (i *Interface) String() string {
 		b.WriteString(n)
 		b.WriteString(" ")
 	}
-	// A slice interface: `interface P []{ … }` / `interface P []<int|uint>`.
+	// An array interface: `interface P []{ … }` / `interface P []<int|uint>`.
 	for d := 0; d < i.ArrayDepth; d++ {
 		b.WriteString("[]")
 	}
@@ -878,10 +878,10 @@ func (i *Interface) IndexGet(vm *VM, index Object) (Object, error) {
 	case "@meta":
 		return metaObject(i.Meta), nil
 	case "@depth":
-		// The slice depth: 0 for a plain interface, N for `interface P [] … []`.
+		// The array depth: 0 for a plain interface, N for `interface P [] … []`.
 		return Int(i.ArrayDepth), nil
 	case "@elem":
-		// The leaf element types of a slice-of-types interface (an array of type
+		// The leaf element types of an array-of-types interface (an array of type
 		// values); nil for a member interface.
 		if i.Elem == nil {
 			return Nil, nil
@@ -1215,7 +1215,7 @@ func (f *InterfaceField) ToString() string {
 	return f.Name
 }
 
-// typesString renders the field's types as a slice element: one type bare
+// typesString renders the field's types as an array element: one type bare
 // (`int`), several in the `<…>` envelope (`<int|uint>`).
 func (f *InterfaceField) typesString() string {
 	names := f.typeNames()

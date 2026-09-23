@@ -22,7 +22,7 @@ User.@meta      // (;table="users")
 User.id.@meta   // (;db=(;primary_key, auto))
 ```
 
-Supported on **interfaces** — slice interfaces included — (and their fields,
+Supported on **interfaces** — array interfaces included — (and their fields,
 accessors and methods), **enums** (and their items), **functions**, **classes** /
 marker `type`s / **mixins** and [typed array types](typed_arrays.gad) (and their
 fields, properties and methods). `X.@meta` is an empty key-value array when the

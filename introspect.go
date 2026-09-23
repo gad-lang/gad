@@ -24,6 +24,10 @@ func Members(obj Object) []Member {
 		return instanceMembers(v)
 	case *Class:
 		return classMembers(v)
+	case *TypedArray:
+		return typedArrayMembers(v.ArrayType, v.Fields)
+	case *TypedArrayType:
+		return typedArrayMembers(v, nil)
 	case *Module:
 		if v.Data != nil {
 			return dictMembers(v.Data.ToDict(), "export")
@@ -101,6 +105,28 @@ func classMembers(t *Class) []Member {
 	}
 	for name := range t.Methods() {
 		out = append(out, Member{Name: name, Kind: "method"})
+	}
+	sortMembers(out)
+	return out
+}
+
+// typedArrayMembers lists the body members of a typed array type (fields,
+// properties, methods) — what `x.` reaches on a typed array value (an int index
+// reaches the items instead) and `T.` on the type. fields are an instance's own
+// field values (nil for the type). A type without a body has no members.
+func typedArrayMembers(t *TypedArrayType, fields Dict) []Member {
+	seen := map[string]bool{}
+	var out []Member
+	for name := range fields {
+		seen[name] = true
+		out = append(out, Member{Name: name, Kind: "field"})
+	}
+	if t != nil && t.members != nil {
+		for _, m := range classMembers(t.members) {
+			if !seen[m.Name] {
+				out = append(out, m)
+			}
+		}
 	}
 	sortMembers(out)
 	return out

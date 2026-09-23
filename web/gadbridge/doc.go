@@ -389,7 +389,7 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 		sym.Members = classDocMembers(&d.TypeLitExpr)
 	case *gnode.InterfaceStmt:
 		sym.Signature = " interface"
-		// A slice interface shows its shape: `interface []{…}` for a member body,
+		// An array interface shows its shape: `interface []{…}` for a member body,
 		// `interface []<int | str>` for element types.
 		if d.ArrayDepth > 0 {
 			if len(d.ElemTypes) > 0 {

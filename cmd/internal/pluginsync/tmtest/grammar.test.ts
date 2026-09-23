@@ -256,8 +256,12 @@ test("class/mixin/interface are contextual: keywords only in declaration positio
   expect(isKeyword("mixin M {}", "mixin")).toBe(true);
   expect(isKeyword("interface {}", "interface")).toBe(true);
   expect(isKeyword("I := interface Shape {}", "interface")).toBe(true);
-  // `interface[]` array form also counts as a declaration.
-  expect(isKeyword("interface[] Points {}", "interface")).toBe(true);
+  // array interfaces: the `[]` follows the name (`interface P [] …`), anonymous
+  // `interface [] …`, the long form `[] interface { … }` and element types.
+  expect(isKeyword("interface Points [] {}", "interface")).toBe(true);
+  expect(isKeyword("x := interface [] { a }", "interface")).toBe(true);
+  expect(isKeyword("interface nums []<int|uint>", "interface")).toBe(true);
+  expect(isKeyword("interface users [] interface { name }", "interface")).toBe(true);
 
   // Identifier position (parameter, selector, dict key, variable) → NOT a keyword.
   expect(isKeyword("f(class)", "class")).toBe(false);
@@ -266,4 +270,55 @@ test("class/mixin/interface are contextual: keywords only in declaration positio
   expect(isKeyword("class := 1", "class")).toBe(false);
   // A bare reference with no following `{` is just an identifier.
   expect(isKeyword("return class", "class")).toBe(false);
+});
+
+test("`type` is contextual: a keyword only in its declaration/expression forms", () => {
+  // type union, marker type, typed array type (all shapes), and export.
+  expect(isKeyword("type num <int|uint>", "type")).toBe(true);
+  expect(isKeyword("x := type <int|str>", "type")).toBe(true);
+  expect(isKeyword("type Marker { call() { return 1 } }", "type")).toBe(true);
+  expect(isKeyword("type numerics []<int|float>", "type")).toBe(true);
+  expect(isKeyword("type ints []int", "type")).toBe(true);
+  expect(isKeyword("type users []{ name; id }", "type")).toBe(true);
+  expect(isKeyword("type users [] interface { name; id }", "type")).toBe(true);
+  expect(isKeyword("export type ints []int", "type")).toBe(true);
+
+  // an ordinary identifier elsewhere.
+  expect(isKeyword("x.type", "type")).toBe(false);
+  expect(isKeyword("type := 1", "type")).toBe(false);
+  expect(isKeyword("d := {type: 1}", "type")).toBe(false);
+  expect(isKeyword("f(type)", "type")).toBe(false);
+});
+
+test("a `[k=v, …]` metadata block is an annotation with attribute-name keys", () => {
+  const line = '[db=(;primary_key), tags=["a", "b"], ro]';
+  const toks = tokenize(line);
+  // the whole block is annotated, delimited by annotation punctuation
+  expect(toks.every((t) => t.scopes.includes("meta.annotation.metadata.gad"))).toBe(true);
+  expect(toks[0].scopes).toContain("punctuation.definition.annotation.begin.gad");
+  expect(toks[toks.length - 1].scopes).toContain("punctuation.definition.annotation.end.gad");
+  // keys (and a bare flag) are attribute names; values keep their own scopes
+  for (const k of ["db", "tags", "ro"]) {
+    expect(scopesOf(line, k)).toContain("entity.other.attribute-name.gad");
+  }
+  expect(scopesOf(line, "a")).toContain("string.quoted.double.gad");
+  // the inner `]` of `["a", "b"]` does not close the block early
+  expect(tokenize(line).filter((t) => t.scopes.includes("punctuation.definition.annotation.end.gad")).length).toBe(1);
+
+  // indented (a member's metadata) and followed by code on the next line
+  const lines = ["  [route=\"/sum\"]", "  sum() => 0"];
+  let stack: any = null;
+  const scoped = lines.map((ln) => {
+    const r = grammar.tokenizeLine(ln, stack);
+    stack = r.ruleStack;
+    return r.tokens.map((t) => ({ text: ln.slice(t.startIndex, t.endIndex), scopes: t.scopes }));
+  });
+  expect(scoped[0].find((t) => t.text === "route")!.scopes).toContain("entity.other.attribute-name.gad");
+  expect(scoped[1].some((t) => t.scopes.includes("meta.annotation.metadata.gad"))).toBe(false);
+});
+
+test("an array literal is not mistaken for a metadata block", () => {
+  for (const line of ["[1, 2]", "[f(x), y]", "x := [a, b]", "return [a=1]"]) {
+    expect(tokenize(line).some((t) => t.scopes.includes("meta.annotation.metadata.gad"))).toBe(false);
+  }
 });

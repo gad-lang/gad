@@ -79,7 +79,7 @@ func TestInterfaceArrayTransform(t *testing.T) {
 		nil, Array{Str("Point"), Int(9)})
 }
 
-// TestInterfaceSliceElemTypes covers the slice-of-types interface — the named
+// TestInterfaceSliceElemTypes covers the array-of-types interface — the named
 // analogue of an anonymous `[]<int|uint>` type: `interface P []<int|uint>` (or a
 // bare `interface P []int`) matches an array whose leaves match the element types.
 func TestInterfaceSliceElemTypes(t *testing.T) {

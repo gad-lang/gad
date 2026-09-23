@@ -11,7 +11,7 @@ import (
 // Symbol is a completion candidate.
 type Symbol struct {
 	Label string `json:"label"`
-	Kind  string `json:"kind"`          // variable | function | keyword | constant | field | module
+	Kind  string `json:"kind"`          // variable | function | keyword | constant | field | module | class | mixin | interface | enum | type
 	Doc   string `json:"doc,omitempty"` // documentation, if any
 }
 
@@ -34,7 +34,11 @@ func Completions(f *parser.File, sf *source.File, offset int) []Symbol {
 			if doc == nil {
 				doc = r.leadDoc(d.Pos) // `:=` lead comment, associated by line
 			}
-			out = append(out, Symbol{Label: d.Name, Kind: "variable", Doc: docText(doc)})
+			kind := d.Kind
+			if kind == "" {
+				kind = "variable"
+			}
+			out = append(out, Symbol{Label: d.Name, Kind: kind, Doc: docText(doc)})
 		}
 	}
 	return out
