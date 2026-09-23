@@ -285,7 +285,13 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		}
 	}
 
-	return s.newToken(token.Illegal, "", "")
+	// Nothing matched (e.g. an attribute `[` never closed before EOF, as while
+	// typing `script[t`): consume the pending text into the Illegal token so the
+	// parser — which reports it and calls Next — always makes progress instead of
+	// re-scanning the same buffer forever.
+	lit := s.buffer
+	s.consume(len(lit))
+	return s.newToken(token.Illegal, lit, "")
 }
 
 func (s *scanner) Mode() gadparser.ScanMode     { return s.mode }
