@@ -915,6 +915,19 @@ func (vm *VM) throw(err *RuntimeError, noTrace bool) error {
 		return vm.handleThrownError(vm.curFrame, err)
 	}
 
+	// A boundary frame (a same-VM sub-run started from Go by VM.Call, e.g. a
+	// ComputedValue or an iterator callback) is the bottom of the nested loop:
+	// the frames below it belong to the OUTER loop, suspended in the Go call that
+	// started the sub-run. The error must not be caught there from inside the
+	// nested loop — that would resume the outer frame's catch in the wrong loop
+	// and desynchronise the Go call stack (an extra loop iteration, then a nil
+	// dereference on return). Stop here: the nested loop exits with the error,
+	// VM.Call restores the outer loop state and returns it to its Go caller, and
+	// the outer loop throws it again from the right frame.
+	if vm.curFrame.boundary {
+		return err
+	}
+
 	// find previous frames having error handler
 	var frame *frame
 	index := vm.frameIndex - 2
@@ -925,6 +938,10 @@ func (vm *VM) throw(err *RuntimeError, noTrace bool) error {
 		if f.errHandlers.hasHandler() {
 			frame = f
 			break
+		}
+		if f.boundary {
+			// the sub-run's boundary frame, without a handler: stop (see above).
+			return err
 		}
 		f.freeVars = nil
 		f.fn = nil
