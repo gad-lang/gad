@@ -5,8 +5,9 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-// ParseInterfaceExpr parses an anonymous interface expression `interface { … }`.
-// The statement form with a name is parsed by ParseInterfaceStmt.
+// ParseInterfaceExpr parses an anonymous interface expression `interface { … }`
+// (or a slice interface `interface []{ … }` / `interface []<int|uint>`). The
+// statement form with a name is parsed by ParseInterfaceStmt.
 func (p *Parser) ParseInterfaceExpr() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "InterfaceExpr"))
@@ -14,23 +15,17 @@ func (p *Parser) ParseInterfaceExpr() node.Expr {
 	doc := p.leadComment
 	meta := p.takeMeta() // before the body: a member must not steal the iface's meta
 	tok := p.expectContextualKeyword(token.Interface)
-	depth := p.parseInterfaceArrayDepth()
-	var name node.Expr
-	if p.Token.Token == token.Ident {
-		name = p.ParseIdent()
-	}
-	iface := p.parseInterfaceBody(tok, name)
+	iface := p.parseInterfaceDecl(tok)
 	if iface != nil {
-		iface.ArrayDepth = depth
 		iface.Doc = doc
 		iface.Meta = meta
 	}
 	return iface
 }
 
-// parseInterfaceArrayDepth consumes the `[]` pairs written right after the
-// `interface` keyword (`interface[][] P`) and returns their count (the array
-// nesting depth), 0 when there is none.
+// parseInterfaceArrayDepth consumes a run of `[]` pairs (the slice depth of a
+// slice interface, `interface P [][] { … }`) and returns their count, 0 when
+// there is none.
 func (p *Parser) parseInterfaceArrayDepth() (depth int) {
 	for p.Token.Token == token.LBrack {
 		p.Next()
@@ -40,9 +35,71 @@ func (p *Parser) parseInterfaceArrayDepth() (depth int) {
 	return
 }
 
-// ParseInterfaceStmt parses the statement form. `interface Name { … }` becomes
-// `const Name = <interface expression>`; an anonymous `interface { … }` used as
-// a statement is parsed as an expression statement.
+// parseInterfaceDecl parses what follows the `interface` keyword:
+//
+//	interface [NAME] { … }                 // a plain interface
+//	interface [NAME] [][]… { … }           // a slice interface (array of the body)
+//	interface [NAME] [] interface { … }    // the same, long form
+//	interface [NAME] []<int|uint>          // a slice-of-types interface (no body)
+//	interface [NAME] []int                 // the same, one bare element type
+//
+// The `[]`s follow the name (`interface NAME [] { … }`); the former
+// `interface NAME [] { … }` order is rejected with a hint.
+func (p *Parser) parseInterfaceDecl(tok PToken) *node.InterfaceExpr {
+	var name node.Expr
+	if p.Token.Token == token.Ident {
+		name = p.ParseIdent()
+	}
+	depth := p.parseInterfaceArrayDepth()
+
+	if depth == 0 {
+		return p.parseInterfaceBody(tok, name)
+	}
+
+	switch {
+	case p.Token.Token == token.Ident && p.Token.Literal == "interface" && p.Peek().Token == token.LBrace:
+		// `[] interface { … }` — the long form of `[] { … }`.
+		p.Next()
+		fallthrough
+	case p.Token.Token == token.LBrace:
+		iface := p.parseInterfaceBody(tok, name)
+		if iface != nil {
+			iface.ArrayDepth = depth
+		}
+		return iface
+	case name == nil && p.Token.Token == token.Ident && p.Peek().Token == token.LBrace:
+		p.Error(p.Token.Pos, "the `[]` of a named slice interface follows its name: "+
+			"write `interface "+p.Token.Literal+" [] { … }`")
+		return nil
+	case p.Token.Token == token.Less || p.Token.Token == token.Shl:
+		// `[]<T1|T2>` — the element types in the angle envelope.
+		iface := &node.InterfaceExpr{InterfaceToken: tok.TokenLit, NameExpr: name, ArrayDepth: depth}
+		p.consumeLess()
+		p.SkipSpace()
+		iface.ElemTypes = p.ParseTypes()
+		if len(iface.ElemTypes) == 0 {
+			p.ErrorExpected(p.Token.Pos, "element type")
+			return nil
+		}
+		p.SkipSpace()
+		iface.RAngle = p.expectGreater()
+		return iface
+	case p.isTypeStart():
+		// `[]int` — one bare element type.
+		iface := &node.InterfaceExpr{InterfaceToken: tok.TokenLit, NameExpr: name, ArrayDepth: depth}
+		if t := p.parseType(); t != nil {
+			iface.ElemTypes = []*node.TypeExpr{t}
+		}
+		return iface
+	}
+	p.ErrorExpected(p.Token.Pos, "'{', 'interface { … }' or an element type after `[]`")
+	return nil
+}
+
+// ParseInterfaceStmt parses the statement form. `interface Name { … }` (or a
+// slice interface `interface Name [] { … }` / `interface Name []<int|uint>`)
+// becomes `const Name = <interface expression>`; an anonymous `interface { … }`
+// used as a statement is parsed as an expression statement.
 func (p *Parser) ParseInterfaceStmt() node.Stmt {
 	if p.Trace {
 		defer untracep(tracep(p, "InterfaceStmt"))
@@ -50,22 +107,15 @@ func (p *Parser) ParseInterfaceStmt() node.Stmt {
 	doc := p.leadComment
 	meta := p.takeMeta() // before the body: a member must not steal the iface's meta
 	tok := p.expectContextualKeyword(token.Interface)
-	depth := p.parseInterfaceArrayDepth()
 
-	var name node.Expr
-	if p.Token.Token == token.Ident {
-		name = p.ParseIdent()
-	}
-
-	iface := p.parseInterfaceBody(tok, name)
+	iface := p.parseInterfaceDecl(tok)
 	if iface == nil {
 		return &node.BadStmt{From: tok.Pos, To: p.Token.Pos}
 	}
-	iface.ArrayDepth = depth
 	iface.Doc = doc
 	iface.Meta = meta
 
-	if name == nil {
+	if iface.NameExpr == nil {
 		return &node.ExprStmt{Expr: iface}
 	}
 	return &node.InterfaceStmt{InterfaceExpr: *iface}
@@ -209,7 +259,7 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 	case token.Colon:
 		// `name: { … }` — shorthand for a nested-interface field
 		// (`name interface { … }`). A leading `[]` makes it a slice interface,
-		// `name: []{ … }` == `name interface[] { … }` (each element must satisfy
+		// `name: []{ … }` == `name interface [] { … }` (each element must satisfy
 		// the body); `[][]` nests deeper. The colon form is ONLY for a nested
 		// interface: after the optional `[]`s it must be followed by `{`. (The
 		// brace form without a colon, `name { … }`, stays a block method; a plain

@@ -39,6 +39,24 @@ Point class
 
 A 2D point.
 
+#### Fields
+
+```gad
+x = 0
+```
+
+```gad
+y = 0
+```
+
+#### Methods
+
+```gad
+len()
+```
+
+Manhattan length from the origin.
+
 ### Number
 
 ```gad

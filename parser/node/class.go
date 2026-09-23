@@ -222,7 +222,13 @@ func (e *TypeLitExpr) WriteCode(ctx *CodeWriteContext) {
 		e.NameExpr.WriteCode(ctx)
 	}
 	ctx.WriteString(" {")
+	writeTypeLitBody(ctx, e)
+}
 
+// writeTypeLitBody emits a class-like body's items and the closing `}` (the
+// caller wrote the opening `{`). Shared by class/mixin/type literals and the
+// member block of a typed array type (`type T []int { … }`).
+func writeTypeLitBody(ctx *CodeWriteContext, e *TypeLitExpr) {
 	// Body items in canonical order: the parent spreads (`*Parent`), the `use`
 	// clause (class), fields, the `this` interface block (mixin), then the `props`,
 	// `new` and `methods` groups.

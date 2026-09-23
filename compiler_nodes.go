@@ -2412,6 +2412,18 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 	if iface.Meta, err = c.evalMeta(nd, nd.Meta); err != nil {
 		return nil, err
 	}
+	// `interface P []<int|uint>` — a slice-of-types interface: its leaf element
+	// types compile to the symbols of a pseudo-field named `[]`.
+	if len(nd.ElemTypes) > 0 {
+		_, syms, err := c.nameSymbolsOfTypedIdent(nd, &node.TypedIdentExpr{
+			Ident: node.EIdent("[]", nd.Pos()),
+			Type:  nd.ElemTypes,
+		})
+		if err != nil {
+			return nil, err
+		}
+		iface.Elem = &InterfaceField{Iface: iface, Name: "[]", TypesSymbols: syms}
+	}
 
 	for _, parent := range nd.Parents {
 		id := node.EType(parent).Ident()

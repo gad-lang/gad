@@ -2,6 +2,7 @@ package node
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
@@ -160,11 +161,18 @@ func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 //	}
 type InterfaceExpr struct {
 	InterfaceToken TokenLit
-	// ArrayDepth is the number of `[]` written right after the `interface` keyword
-	// (`interface[] P`, `interface[][][] P`): the interface then matches an array
-	// nested to this depth whose leaf elements each satisfy the body. 0 for a plain
-	// interface.
-	ArrayDepth   int
+	// ArrayDepth is the number of `[]` written after the interface name
+	// (`interface P [] { … }`, `interface P [][][] { … }`; anonymous
+	// `interface [] { … }`): the interface then matches an array nested to this
+	// depth whose leaf elements each satisfy the body (or ElemTypes). 0 for a
+	// plain interface.
+	ArrayDepth int
+	// ElemTypes are the leaf element types of a slice-of-types interface,
+	// `interface P []<int|uint>` (or `interface P []int`): the named analogue of
+	// an anonymous `[]<int|uint>` slice type. Such an interface has no body; nil
+	// otherwise. RAngle is the envelope's closing `>` (NoPos for a bare type).
+	ElemTypes    []*TypeExpr
+	RAngle       source.Pos
 	NameExpr     Expr   // *IdentExpr or nil (anonymous)
 	Parents      []Expr // *Parent spreads — no alias
 	ExtendsDoc   *ast.CommentGroup
@@ -297,7 +305,29 @@ func (e *InterfaceExpr) Pos() source.Pos {
 	return e.LBrace
 }
 
-func (e *InterfaceExpr) End() source.Pos { return e.RBrace + 1 }
+func (e *InterfaceExpr) End() source.Pos {
+	if len(e.ElemTypes) > 0 {
+		if e.RAngle.IsValid() {
+			return e.RAngle + 1
+		}
+		return e.ElemTypes[len(e.ElemTypes)-1].End()
+	}
+	return e.RBrace + 1
+}
+
+// elemTypesCode renders the ElemTypes of a slice-of-types interface: one type
+// bare (`int`), several in the `<…>` envelope (`<int | uint>`), like a
+// SliceTypeExpr element.
+func (e *InterfaceExpr) elemTypesCode() string {
+	if len(e.ElemTypes) == 1 {
+		return e.ElemTypes[0].String()
+	}
+	names := make([]string, len(e.ElemTypes))
+	for i, t := range e.ElemTypes {
+		names[i] = t.String()
+	}
+	return "<" + strings.Join(names, " | ") + ">"
+}
 
 func (e *InterfaceExpr) String() string { return Code(e) }
 
@@ -305,6 +335,19 @@ func (e *InterfaceExpr) String() string { return Code(e) }
 func (e *InterfaceExpr) NameIdent() *IdentExpr {
 	id, _ := e.NameExpr.(*IdentExpr)
 	return id
+}
+
+// MetaCode renders a `[k=v, …]` metadata block as source (`[a=1, b]`), or ""
+// when meta is nil/empty — for documentation and tooling.
+func MetaCode(meta *KeyValueArrayLit) string {
+	if meta == nil || len(meta.Elements) == 0 {
+		return ""
+	}
+	parts := make([]string, len(meta.Elements))
+	for i, el := range meta.Elements {
+		parts[i] = el.String()
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 // writeMeta emits a `[k=v, …]` metadata block on its own line before a
@@ -320,6 +363,12 @@ func writeMeta(ctx *CodeWriteContext, meta *KeyValueArrayLit) {
 		}
 		ctx.WriteString(el.String())
 	}
+	// Formatting: the block sits on its own line, between the doc comment and
+	// the element; compact output keeps it inline.
+	if ctx.HasPrefix() {
+		ctx.WriteString("]\n", ctx.CurrentPrefix())
+		return
+	}
 	ctx.WriteString("] ")
 }
 
@@ -327,14 +376,25 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
 	writeMeta(ctx, e.Meta)
 	ctx.WriteString("interface")
-	for i := 0; i < e.ArrayDepth; i++ {
-		ctx.WriteString("[]")
-	}
 	if e.NameExpr != nil {
 		ctx.WriteString(" ")
 		e.NameExpr.WriteCode(ctx)
 	}
-	ctx.WriteString(" {")
+	// A slice interface: `interface P []{ … }` / `interface P []<int | uint>`
+	// (anonymous `interface []{ … }`); the `[]`s follow the name.
+	if e.ArrayDepth > 0 {
+		ctx.WriteString(" ")
+		for i := 0; i < e.ArrayDepth; i++ {
+			ctx.WriteString("[]")
+		}
+		if len(e.ElemTypes) > 0 {
+			ctx.WriteString(e.elemTypesCode())
+			return
+		}
+		ctx.WriteString("{")
+	} else {
+		ctx.WriteString(" {")
+	}
 	writeInterfaceBody(ctx, e)
 	ctx.WriteString("}")
 }
@@ -343,6 +403,10 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 // methods, `**rest`, `funcs {}`) between the enclosing braces — shared by the
 // `interface { … }` form and a mixin's `this { … }` block.
 func writeInterfaceBody(ctx *CodeWriteContext, e *InterfaceExpr) {
+	if ctx.HasPrefix() {
+		writeInterfaceBodyLines(ctx, e)
+		return
+	}
 	ctx.Depth++
 	for i, p := range e.Parents {
 		if i == 0 {
@@ -378,6 +442,47 @@ func writeInterfaceBody(ctx *CodeWriteContext, e *InterfaceExpr) {
 		ctx.WriteSemi()
 	}
 	ctx.Depth--
+}
+
+// writeInterfaceBodyLines is the multi-line (formatting with a prefix) layout of
+// writeInterfaceBody: one member per indented line and the closing brace back at
+// the interface's own indentation, like a class body (see writeBraceItems).
+func writeInterfaceBodyLines(ctx *CodeWriteContext, e *InterfaceExpr) {
+	var items []func()
+	for i, p := range e.Parents {
+		i, p := i, p
+		items = append(items, func() {
+			if i == 0 {
+				ctx.WriteLeadDoc(e.ExtendsDoc)
+			}
+			ctx.WriteString("*")
+			ctx.WriteString(p.String())
+		})
+	}
+	for _, m := range sortedInterfaceMembers(e.Members) {
+		m := m
+		items = append(items, func() { m.WriteCode(ctx) })
+	}
+	for _, m := range sortedInterfaceMethods(e.Methods) {
+		m := m
+		items = append(items, func() { m.WriteCode(ctx) })
+	}
+	if e.Rest != nil {
+		items = append(items, func() {
+			ctx.WriteLeadDoc(e.RestDoc)
+			ctx.WriteString("**")
+			e.Rest.WriteCode(ctx)
+		})
+	}
+	if len(e.ContextFuncs) > 0 {
+		funcs := sortedInterfaceContextFuncs(e.ContextFuncs)
+		items = append(items, func() {
+			ctx.WriteString("funcs {")
+			writeBraceItems(ctx, len(funcs), func(i int) { funcs[i].WriteCode(ctx) })
+			ctx.WriteString("}")
+		})
+	}
+	writeBraceItems(ctx, len(items), func(i int) { items[i]() })
 }
 
 // InterfaceStmt is the statement form `interface Name { … }`, which binds a

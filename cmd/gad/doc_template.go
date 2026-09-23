@@ -213,7 +213,7 @@ func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType st
 	return d, nil
 }
 
-// addDocHTML renders the module prose and every symbol/overload doc from Markdown
+// addDocHTML renders the module prose and every symbol/overload/member doc from Markdown
 // to an HTML fragment and stores it alongside the Markdown (`proseHTML`,
 // `docHTML`). A RawStr is written verbatim by a plain `{…}` interpolation. Rendering is
 // best-effort: a field is left absent when its Markdown is empty or fails.
@@ -231,10 +231,12 @@ func addDocHTML(d gad.Dict, prose string) {
 				continue
 			}
 			setDocHTML(md)
-			overloads, _ := md["overloads"].(gad.Array)
-			for _, ov := range overloads {
-				if od, ok := ov.(gad.Dict); ok {
-					setDocHTML(od)
+			for _, key := range []string{"overloads", "members"} {
+				items, _ := md[key].(gad.Array)
+				for _, it := range items {
+					if od, ok := it.(gad.Dict); ok {
+						setDocHTML(od)
+					}
 				}
 			}
 		}

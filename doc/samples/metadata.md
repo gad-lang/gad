@@ -22,10 +22,11 @@ User.@meta      // (;table="users")
 User.id.@meta   // (;db=(;primary_key, auto))
 ```
 
-Supported on **interfaces** (and their fields, accessors and methods), **enums**
-(and their items), **functions**, and **classes** / marker `type`s / **mixins**
-(and their fields, properties and methods). `X.@meta` is an empty key-value array
-when the element has none, so it never errors.
+Supported on **interfaces** — slice interfaces included — (and their fields,
+accessors and methods), **enums** (and their items), **functions**, **classes** /
+marker `type`s / **mixins** and [typed array types](typed_arrays.gad) (and their
+fields, properties and methods). `X.@meta` is an empty key-value array when the
+element has none, so it never errors.
 
 ## Function reflection
 

@@ -126,7 +126,9 @@ func internalEntries(file *parser.File, f *source.File) (entries []docEntry) {
 			}
 			continue
 		}
-		startLine := source.MustFileLine(f, stmt.Pos())
+		// A `[k=v, …]` metadata block sits between the doc and the declaration,
+		// so the doc ends on the line above the block, not the keyword.
+		startLine := source.MustFileLine(f, declStartPos(stmt))
 		doc := docContent(docByEnd[startLine-1])
 		if doc == "" {
 			continue // only documented internals are listed
@@ -184,6 +186,30 @@ func testDisplayName(ts *node.TestStmt) string {
 	return ts.Name
 }
 
+// declStartPos returns where a declaration begins for doc lookup: its metadata
+// block (`[k=v, …]`) when it has one, else the statement itself.
+func declStartPos(stmt node.Stmt) source.Pos {
+	var meta *node.KeyValueArrayLit
+	switch s := stmt.(type) {
+	case *node.InterfaceStmt:
+		meta = s.Meta
+	case *node.EnumStmt:
+		meta = s.Meta
+	case *node.TypeDeclStmt:
+		meta = s.Meta
+	case *node.TypedArrayTypeStmt:
+		meta = s.Meta
+	case *node.FuncStmt:
+		if s.Func != nil {
+			meta = s.Func.Meta
+		}
+	}
+	if meta != nil && meta.LParen.IsValid() && meta.LParen < stmt.Pos() {
+		return meta.LParen
+	}
+	return stmt.Pos()
+}
+
 // metaDoc renders a declaration's `[k=v, …]` metadata as a `[…] ` prefix for
 // its documented code signature (empty when there is none). Members already
 // carry their own metadata via their String().
@@ -231,6 +257,8 @@ func internalStmtEntry(stmt node.Stmt, doc string) (docEntry, bool) {
 		}
 		return docEntry{name: name, kind: docType, keyword: "class",
 			code: []string{metaDoc(s.TypeLitExpr.Meta) + "class " + name}, doc: doc, members: classMembers(&s.TypeLitExpr)}, true
+	case *node.TypedArrayTypeStmt:
+		return typedArrayEntry(s, doc), true
 	case *node.EnumStmt:
 		name := identName(s.NameExpr)
 		if name == "" {
@@ -479,7 +507,7 @@ func methodSig(name string, m *node.FuncMethod) string {
 func classMembers(e *node.TypeLitExpr) []docMember {
 	var ms []docMember
 	for _, f := range e.Fields {
-		sig := f.Name.String()
+		sig := metaDoc(f.Meta) + f.Name.String()
 		if f.Value != nil {
 			sig += " = " + f.Value.String()
 		}
@@ -491,6 +519,20 @@ func classMembers(e *node.TypeLitExpr) []docMember {
 	ms = append(ms, memberExprs("Properties", e.Props)...)
 	ms = append(ms, memberExprs("Methods", e.Methods)...)
 	return ms
+}
+
+// typedArrayEntry documents a `type NAME []…` typed array type: its signature
+// (with the metadata tag) and, when it declares a member body, the fields,
+// constructors, properties and methods like a class.
+func typedArrayEntry(s *node.TypedArrayTypeStmt, doc string) docEntry {
+	sig := *s
+	sig.Doc, sig.Meta, sig.Body = nil, nil, nil
+	e := docEntry{name: s.NameExpr.Name, kind: docType, keyword: "type",
+		code: []string{metaDoc(s.Meta) + sig.String()}, doc: doc}
+	if s.Body != nil {
+		e.members = classMembers(s.Body)
+	}
+	return e
 }
 
 // memberExprs flattens class property/method members into one docMember per
@@ -505,7 +547,7 @@ func memberExprs(group string, members []*node.ClassMemberExpr) []docMember {
 			if doc == "" {
 				doc = memberDoc
 			}
-			ms = append(ms, docMember{group: group, sig: methodSig(name, fm), doc: doc})
+			ms = append(ms, docMember{group: group, sig: metaDoc(mem.Meta) + methodSig(name, fm), doc: doc})
 		}
 	}
 	return ms

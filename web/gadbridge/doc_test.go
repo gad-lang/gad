@@ -3,6 +3,8 @@ package gadbridge
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestDocGad documents a .gad file: module heading, /*** root block, and the
@@ -106,5 +108,66 @@ func TestExtractDocModuleProseBlank(t *testing.T) {
 				t.Fatalf("prose = %q, want %q", d.Prose, c.want)
 			}
 		})
+	}
+}
+
+// TestDocMetadataAndMembers verifies exported declarations carry their `[k=v, …]`
+// metadata tag and their members (each with its own tag and doc) — a typed array
+// type, a slice interface, a class and an enum — and that the Markdown renders
+// them.
+func TestDocMetadataAndMembers(t *testing.T) {
+	src := `
+/// Numbers.
+[unit="m"]
+export type numerics []<int|float> {
+	/// a label
+	[db=(;col="lbl")]
+	label = "none"
+	methods {
+		/// sums
+		[route="/sum"]
+		sum() => 0
+	}
+}
+
+/// Points.
+[k=1]
+export interface points [] {
+	/// x coord
+	[pk]
+	x int
+}
+
+/// Colors.
+[c=1]
+export enum Color {
+	/// red
+	[hex="f00"]
+	Red
+}
+`
+	d, err := ExtractDoc(src, "gad")
+	require.NoError(t, err)
+	require.Len(t, d.Sections, 1)
+	syms := d.Sections[0].Symbols
+	require.Len(t, syms, 3)
+
+	require.Equal(t, `[unit="m"]`, syms[0].Meta)
+	require.Equal(t, " []<int | float>", syms[0].Signature)
+	require.Equal(t, []DocMember{
+		{Group: "Fields", Signature: `label = "none"`, Meta: `[db=(;col="lbl")]`, Doc: "a label"},
+		{Group: "Methods", Signature: "sum()", Meta: `[route="/sum"]`, Doc: "sums"},
+	}, syms[0].Members)
+
+	require.Equal(t, `[k=1]`, syms[1].Meta)
+	require.Equal(t, " interface []{…}", syms[1].Signature)
+	require.Equal(t, []DocMember{{Group: "Required", Signature: "x int", Meta: "[pk]", Doc: "x coord"}}, syms[1].Members)
+
+	require.Equal(t, `[c=1]`, syms[2].Meta)
+	require.Equal(t, []DocMember{{Group: "Variants", Signature: "Red", Meta: `[hex="f00"]`, Doc: "red"}}, syms[2].Members)
+
+	md := RenderMarkdown(d)
+	for _, want := range []string{"[unit=\"m\"]", "#### Fields", "[db=(;col=\"lbl\")]\nlabel = \"none\"", "[route=\"/sum\"]\nsum()", "[hex=\"f00\"]\nRed"} {
+		require.Contains(t, md, want)
 	}
 }

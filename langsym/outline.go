@@ -51,6 +51,14 @@ func outlineStmt(sf *source.File, stmt node.Stmt) (OutlineSym, bool) {
 		return outlineInterface(sf, &s.InterfaceExpr), true
 	case *node.EnumStmt:
 		return outlineEnum(sf, &s.EnumExpr), true
+	case *node.TypedArrayTypeStmt:
+		// `type NAME []…` — a typed array type; its optional member body lists
+		// like a class's.
+		sym := leaf(sf, s.NameExpr.Name, "type", s.Pos())
+		if s.Body != nil {
+			sym.Children = outlineClass(sf, s.Body).Children
+		}
+		return sym, true
 	case *node.ExprStmt:
 		return outlineExpr(sf, s.Expr)
 	}

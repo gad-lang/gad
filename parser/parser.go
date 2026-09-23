@@ -1142,8 +1142,8 @@ func (p *Parser) ParseOperand() node.Expr {
 	// for interface's array form) makes them a literal; otherwise the bare word is
 	// an ordinary identifier value.
 	if p.Token.Token == token.Ident {
-		// interface may be named/array as a value (`interface Shape { … }`,
-		// `interface[] P`), so it uses the fuller start check.
+		// interface may be named/slice as a value (`interface Shape { … }`,
+		// `interface P [] { … }`), so it uses the fuller start check.
 		if p.Token.Literal == "interface" {
 			if p.isInterfaceDeclStart() {
 				return p.ParseInterfaceExpr()
@@ -2786,14 +2786,18 @@ func (p *Parser) isTypeUnionDeclStart() bool {
 }
 
 // isInterfaceDeclStart reports whether the current `interface` identifier begins
-// an interface literal — `interface { … }`, `interface NAME { … }`, or the
-// array form `interface[]… …` — as opposed to a plain `interface` identifier.
+// an interface literal — `interface { … }`, `interface NAME { … }`, or a slice
+// interface `interface [NAME] []… …` — as opposed to a plain `interface`
+// identifier.
 func (p *Parser) isInterfaceDeclStart() bool {
 	switch next := p.Peek(); next.Token {
-	case token.LBrace, token.LBrack: // interface { … } / interface[]…
+	case token.LBrace, token.LBrack: // interface { … } / interface []…
 		return true
 	case token.Ident:
-		return p.PeekC(2)[1].Token == token.LBrace
+		switch p.PeekC(2)[1].Token {
+		case token.LBrace, token.LBrack: // interface NAME { … } / interface NAME []…
+			return true
+		}
 	}
 	return false
 }
@@ -2810,6 +2814,70 @@ func (p *Parser) isDeclBodyStart() bool {
 		return p.PeekC(2)[1].Token == token.LBrace
 	}
 	return false
+}
+
+// isTypedArrayDeclStart reports whether the current `type` identifier begins a
+// `type NAME []…` typed-array type declaration (`type` + a name + `[]`).
+func (p *Parser) isTypedArrayDeclStart() bool {
+	if p.Peek().Token != token.Ident {
+		return false
+	}
+	c := p.PeekC(3)
+	return c[1].Token == token.LBrack && c[2].Token == token.RBrack
+}
+
+// parseTypedArrayTypeStmt parses a typed-array type declaration:
+//
+//	type numerics []<int|uint|float>     // element types in an envelope
+//	type ints []int                      // one bare element type
+//	type users []{ name; id }            // an inline interface element
+//	type users [] interface { name; id } // the same, long form
+//	type grid [][]int                    // deeper nesting
+//	type nums []int { new(…) {…}; props {…}; methods {…} } // with members
+func (p *Parser) parseTypedArrayTypeStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "TypedArrayTypeStmt"))
+	}
+	s := &node.TypedArrayTypeStmt{TypePos: p.Token.Pos, Doc: p.leadComment, Meta: p.takeMeta()}
+	p.Next() // consume `type`
+	s.NameExpr = p.ParseIdent()
+	s.Depth = p.parseInterfaceArrayDepth()
+
+	switch {
+	case p.Token.Token == token.Ident && p.Token.Literal == "interface" && p.Peek().Token == token.LBrace:
+		p.Next() // the long form `[] interface { … }`
+		fallthrough
+	case p.Token.Token == token.LBrace:
+		s.ElemIface = p.parseInterfaceBody(PToken{}, nil)
+	case p.Token.Token == token.Less || p.Token.Token == token.Shl:
+		p.consumeLess()
+		p.SkipSpace()
+		if s.ElemTypes = p.ParseTypes(); len(s.ElemTypes) == 0 {
+			p.ErrorExpected(p.Token.Pos, "element type")
+		}
+		p.SkipSpace()
+		s.RAngle = p.expectGreater()
+	case p.isTypeStart():
+		if t := p.parseType(); t != nil {
+			s.ElemTypes = []*node.TypeExpr{t}
+		}
+	default:
+		p.ErrorExpected(p.Token.Pos, "'{', 'interface { … }' or an element type after `[]`")
+		return s
+	}
+
+	// An optional class-like member block on the same line:
+	// `type T []int { field; new(…) {…}; props {…}; methods {…} }`.
+	if !p.Failed() && p.Token.Token == token.LBrace {
+		body := p.parseClassBody(PToken{}, nil)
+		if body != nil {
+			if len(body.Parents) > 0 || len(body.Use) > 0 || body.This != nil || len(body.Call) > 0 {
+				p.Error(body.LBrace, "a typed array type body allows only fields, `new`, `props` and `methods`")
+			}
+			s.Body = body
+		}
+	}
+	return s
 }
 
 // parseTypeUnionDeclStmt parses `type NAME <T1|T2|…>`, sugar for
@@ -2863,7 +2931,7 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 		// TypeUnion instead; here only the meta form is valid.
 		case p.Token.Literal == "type" && p.Peek().Token == token.Less:
 			return &node.TypeExpr{Expr: p.parseMetaTypeExpr()}
-		// `interface { … }` / `interface[] P` — an interface type literal
+		// `interface { … }` / `interface P []` — an interface type literal
 		// (`interface` is a contextual keyword; only `{`/`[` after it opens one).
 		case p.Token.Literal == "interface" && (p.Peek().Token == token.LBrace || p.Peek().Token == token.LBrack):
 			return &node.TypeExpr{Expr: p.ParseInterfaceExpr()}
@@ -3017,6 +3085,9 @@ do:
 			if p.isTypeUnionDeclStart() {
 				return p.parseTypeUnionDeclStmt()
 			}
+			if p.isTypedArrayDeclStart() {
+				return p.parseTypedArrayTypeStmt()
+			}
 			if p.isDeclBodyStart() {
 				return p.ParseStaticTypeStmt()
 			}
@@ -3031,7 +3102,7 @@ do:
 				return p.ParseMixinStmt()
 			}
 		case "interface":
-			// `interface [Name] { … }` (or the array form `interface[] …`).
+			// `interface [Name] { … }` (or a slice interface `interface [Name] [] …`).
 			if p.isInterfaceDeclStart() {
 				return p.ParseInterfaceStmt()
 			}
@@ -4850,18 +4921,29 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			}
 			p.declExport(stmt, name, &node.TypeDeclStmt{TypeLitExpr: *cls})
 			return
-		case p.Token.Literal == "interface" && p.isInterfaceDeclStart():
-			ifaceTok := p.expectContextualKeyword(token.Interface)
-			depth := p.parseInterfaceArrayDepth()
-			name := p.parseDeclExportName("interface")
-			if name == nil {
+		case p.Token.Literal == "type" && p.isTypedArrayDeclStart():
+			// export type NAME []… — a typed array type.
+			ta, _ := p.parseTypedArrayTypeStmt().(*node.TypedArrayTypeStmt)
+			if ta == nil || p.Failed() {
 				return
 			}
-			iface := p.parseInterfaceBody(ifaceTok, name)
-			if iface != nil {
-				iface.ArrayDepth = depth
-				iface.Doc = doc
+			ta.Doc = doc
+			p.declExport(stmt, ta.NameExpr, ta)
+			return
+		case p.Token.Literal == "interface" && p.isInterfaceDeclStart():
+			meta := p.takeMeta() // before the body: a member must not steal it
+			ifaceTok := p.expectContextualKeyword(token.Interface)
+			if p.Token.Token != token.Ident {
+				p.ErrorExpected(p.Token.Pos, "interface name")
+				return
 			}
+			iface := p.parseInterfaceDecl(ifaceTok)
+			if iface == nil {
+				return
+			}
+			iface.Doc = doc
+			iface.Meta = meta
+			name, _ := iface.NameExpr.(*node.IdentExpr)
 			p.declExport(stmt, name, &node.InterfaceStmt{InterfaceExpr: *iface})
 			return
 		}
@@ -4917,6 +4999,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 		return
 	case token.Enum:
 		// export enum Name { … } — like `enum Name { … }; export Name`.
+		meta := p.takeMeta() // before the body: an item must not steal it
 		enumTok := p.ExpectToken(token.Enum)
 		if p.Token.Token != token.Ident {
 			p.Error(p.Token.Pos, "export enum requires a name")
@@ -4928,6 +5011,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			return
 		}
 		e.Doc = doc
+		e.Meta = meta
 		p.declExport(stmt, name, &node.EnumStmt{EnumExpr: *e})
 		return
 	case token.Prop:

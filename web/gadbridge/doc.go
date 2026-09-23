@@ -42,10 +42,29 @@ type DocSymbol struct {
 	// Overloads holds the per-signature entries of a multi-signature function
 	// (an `export func NAME { (sig) => … … }`); empty for a plain symbol.
 	Overloads []DocOverload `json:"overloads,omitempty"`
+	// Meta is the declaration's `[k=v, …]` metadata tag as source, or "".
+	Meta string `json:"meta,omitempty"`
+	// Members are the documented members of a type declaration (class fields,
+	// properties, constructors and methods; interface requirements; enum
+	// variants; a typed array type's body), each with its own metadata tag.
+	Members []DocMember `json:"members,omitempty"`
 	// Line/Column locate the declaration in the source (1-based; 0 when unknown),
 	// for editor navigation (e.g. data-source-pos).
 	Line   int `json:"line,omitempty"`
 	Column int `json:"column,omitempty"`
+}
+
+// DocMember is one member of a documented type declaration.
+type DocMember struct {
+	// Group is the member kind: "Fields", "Properties", "Constructors",
+	// "Methods", "Required" (an interface requirement) or "Variants".
+	Group string `json:"group"`
+	// Signature is the member as source, e.g. `x int = 0`, `sum() <int>`.
+	Signature string `json:"signature"`
+	// Meta is the member's `[k=v, …]` metadata tag as source, or "".
+	Meta string `json:"meta,omitempty"`
+	// Doc is the member's doc comment, or "".
+	Doc string `json:"doc,omitempty"`
 }
 
 // DocOverload is one signature of a multi-signature function.
@@ -79,7 +98,8 @@ func Doc(src, sourceType string) (string, error) {
 // GadDict converts the structured documentation into a Gad dict, the shape a
 // `.gaddoc.gadx` / `.gaddoc-md.gadx` template consumes via `param (doc dict)`.
 // Layout: { prose: str, sections: [ { title: str, symbols: [ { name, signature,
-// doc: str, line, column: int } ] } ] }.
+// doc, meta: str, overloads: [ {signature, doc} ], members: [ {group,
+// signature, meta, doc} ], line, column: int } ] } ] }.
 func (d *DocData) GadDict() gad.Dict {
 	secs := make(gad.Array, 0, len(d.Sections))
 	for _, sec := range d.Sections {
@@ -92,11 +112,22 @@ func (d *DocData) GadDict() gad.Dict {
 					"doc":       gad.Str(o.Doc),
 				})
 			}
+			members := make(gad.Array, 0, len(s.Members))
+			for _, m := range s.Members {
+				members = append(members, gad.Dict{
+					"group":     gad.Str(m.Group),
+					"signature": gad.Str(m.Signature),
+					"meta":      gad.Str(m.Meta),
+					"doc":       gad.Str(m.Doc),
+				})
+			}
 			syms = append(syms, gad.Dict{
 				"name":      gad.Str(s.Name),
 				"signature": gad.Str(s.Signature),
 				"doc":       gad.Str(s.Doc),
+				"meta":      gad.Str(s.Meta),
 				"overloads": overloads,
+				"members":   members,
 				"line":      gad.Int(s.Line),
 				"column":    gad.Int(s.Column),
 			})
@@ -130,9 +161,13 @@ func RenderMarkdown(d *DocData) string {
 			} else {
 				fmt.Fprintf(&b, "\n### %s%s\n", s.Name, s.Signature)
 			}
+			if s.Meta != "" {
+				fmt.Fprintf(&b, "\n```gad\n%s\n```\n", s.Meta)
+			}
 			if s.Doc != "" {
 				b.WriteString("\n" + s.Doc + "\n")
 			}
+			writeDocMembers(&b, s.Members)
 			for _, o := range s.Overloads {
 				fmt.Fprintf(&b, "\n```gad\n%s%s\n```\n", s.Name, o.Signature)
 				if o.Doc != "" {
@@ -142,6 +177,27 @@ func RenderMarkdown(d *DocData) string {
 		}
 	}
 	return b.String()
+}
+
+// writeDocMembers renders a type's members grouped by kind: a `#### Group`
+// heading, then per member a fenced block (its metadata tag above the signature)
+// and its doc.
+func writeDocMembers(b *strings.Builder, members []DocMember) {
+	group := ""
+	for _, m := range members {
+		if m.Group != group {
+			group = m.Group
+			fmt.Fprintf(b, "\n#### %s\n", group)
+		}
+		code := m.Signature
+		if m.Meta != "" {
+			code = m.Meta + "\n" + code
+		}
+		fmt.Fprintf(b, "\n```gad\n%s\n```\n", code)
+		if m.Doc != "" {
+			b.WriteString("\n" + m.Doc + "\n")
+		}
+	}
 }
 
 // --- Gad ---
@@ -309,6 +365,7 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 	case *gnode.FuncStmt:
 		if d.Func != nil && d.Func.Type != nil {
 			sym.Signature = d.Func.Type.Params.String() + gnode.FormatFuncReturn(d.Func.Type.Return)
+			sym.Meta = gnode.MetaCode(d.Func.Meta)
 		}
 	case *gnode.FuncWithMethodsStmt:
 		if d.Doc != nil && sym.Doc == "" {
@@ -328,8 +385,42 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 			kw = "type"
 		}
 		sym.Signature = " " + kw
+		sym.Meta = gnode.MetaCode(d.Meta)
+		sym.Members = classDocMembers(&d.TypeLitExpr)
 	case *gnode.InterfaceStmt:
 		sym.Signature = " interface"
+		// A slice interface shows its shape: `interface []{…}` for a member body,
+		// `interface []<int | str>` for element types.
+		if d.ArrayDepth > 0 {
+			if len(d.ElemTypes) > 0 {
+				sig := gnode.InterfaceExpr{ArrayDepth: d.ArrayDepth, ElemTypes: d.ElemTypes}
+				sym.Signature = " " + sig.String()
+			} else {
+				sym.Signature += " " + strings.Repeat("[]", d.ArrayDepth) + "{…}"
+			}
+		}
+		sym.Meta = gnode.MetaCode(d.Meta)
+		sym.Members = interfaceDocMembers(&d.InterfaceExpr)
+	case *gnode.EnumStmt:
+		sym.Signature = " enum"
+		sym.Meta = gnode.MetaCode(d.Meta)
+		for _, f := range d.Fields {
+			if f.Name == nil || f.Name.Name == "_" {
+				continue
+			}
+			v := *f
+			v.Doc, v.Meta = nil, nil
+			sym.Members = append(sym.Members, DocMember{Group: "Variants", Signature: v.String(),
+				Meta: gnode.MetaCode(f.Meta), Doc: gadDocText(f.Doc)})
+		}
+	case *gnode.TypedArrayTypeStmt:
+		sig := *d
+		sig.Doc, sig.Meta, sig.Body, sig.NameExpr = nil, nil, nil, gnode.EIdent("", d.NameExpr.Pos())
+		sym.Signature = " " + strings.TrimSpace(strings.TrimPrefix(sig.String(), "type "))
+		sym.Meta = gnode.MetaCode(d.Meta)
+		if d.Body != nil {
+			sym.Members = classDocMembers(d.Body)
+		}
 	case *gnode.DeclStmt:
 		if _, val := declPreludeValue(d); val != nil {
 			if u, ok := val.(*gnode.TypeUnionExpr); ok {
@@ -339,6 +430,58 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 			}
 		}
 	}
+}
+
+// classDocMembers lists a class-like body's members (fields, properties,
+// constructors, methods) with their metadata tags and docs.
+func classDocMembers(e *gnode.TypeLitExpr) (ms []DocMember) {
+	for _, f := range e.Fields {
+		sig := f.Name.String()
+		if f.Value != nil {
+			sig += " = " + f.Value.String()
+		}
+		ms = append(ms, DocMember{Group: "Fields", Signature: sig, Meta: gnode.MetaCode(f.Meta), Doc: gadDocText(f.Doc)})
+	}
+	add := func(group string, members []*gnode.ClassMemberExpr) {
+		for _, m := range members {
+			name := ""
+			if id, _ := m.NameExpr.(*gnode.IdentExpr); id != nil {
+				name = id.Name
+			}
+			for _, fm := range m.Methods {
+				doc := gadDocText(fm.Doc)
+				if doc == "" {
+					doc = gadDocText(m.Doc)
+				}
+				ms = append(ms, DocMember{Group: group,
+					Signature: name + fm.Params.String() + gnode.FormatFuncReturn(fm.Return),
+					Meta:      gnode.MetaCode(m.Meta), Doc: doc})
+			}
+		}
+	}
+	add("Properties", e.Props)
+	for _, fm := range e.New {
+		ms = append(ms, DocMember{Group: "Constructors",
+			Signature: "new" + fm.Params.String(), Doc: gadDocText(fm.Doc)})
+	}
+	add("Methods", e.Methods)
+	return
+}
+
+// interfaceDocMembers lists an interface's requirements (fields, accessors,
+// methods) with their metadata tags and docs.
+func interfaceDocMembers(e *gnode.InterfaceExpr) (ms []DocMember) {
+	for _, m := range e.Members {
+		v := *m
+		v.Doc, v.Meta = nil, nil
+		ms = append(ms, DocMember{Group: "Required", Signature: v.String(), Meta: gnode.MetaCode(m.Meta), Doc: gadDocText(m.Doc)})
+	}
+	for _, m := range e.Methods {
+		v := *m
+		v.Doc, v.Meta = nil, nil
+		ms = append(ms, DocMember{Group: "Required", Signature: v.String(), Meta: gnode.MetaCode(m.Meta), Doc: gadDocText(m.Doc)})
+	}
+	return
 }
 
 // declPreludeValue returns the name and value of a const/var prelude declaration.

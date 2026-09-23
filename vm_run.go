@@ -24,6 +24,12 @@ const (
 	// cache, so the cost is a lookup after the first check. Set this flag to skip
 	// even that on a hot path, when the receiver's shape is already trusted.
 	RunFlagSkipReceiverTypeCheck RunFlags = 1 << iota
+	// RunFlagSkipTypedArrayItemCheck disables the element-type check of typed
+	// arrays (`type NAME []…`): items written by the constructor, an index set,
+	// an append/`+=`/`+`/`++`, or converted by `arr ::: T`, are then trusted and
+	// stored unchecked. Validation is on by default; set this flag on a hot path
+	// whose data is already known to be well-typed.
+	RunFlagSkipTypedArrayItemCheck
 )
 
 // Has reports whether every bit in f is set.

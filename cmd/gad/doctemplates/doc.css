@@ -111,3 +111,10 @@ mark { background: var(--sel); color: inherit; border-radius: 3px; }
   .sidebar { display: none; }
   .content { padding: 16px; }
 }
+
+/* `[k=v, …]` metadata tags and type members (fields, props, methods, …). */
+.gad-doc .meta { margin: .25rem 0 0; opacity: .8; }
+.gad-doc .meta code { font-size: .9em; }
+.gad-doc .members { margin: .5rem 0 0 1rem; }
+.gad-doc .member { margin: .5rem 0; }
+.gad-doc .member-group { display: inline-block; min-width: 6.5em; font-size: .75em; text-transform: uppercase; opacity: .6; }

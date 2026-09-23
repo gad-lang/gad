@@ -6,7 +6,9 @@ renders it. `doc` is:
 
     { name: str, file: str, lang: str, source: str, prose: str,
       sections: [ { title: str,
-        symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
+        symbols: [ { name, signature, doc, meta: str, line, column: int,
+                     overloads: [ { signature, doc } ],
+                     members: [ { group, signature, meta, doc } ] } ] } ] }
 
 Each symbol carries data-line / data-column attributes so an editor can jump to
 the source position. The full example source is rendered as a preformatted code
@@ -40,12 +42,29 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
                         h3
                             code {=s.name}
 
+                        @if s.meta
+                            p.meta
+                                code {=s.meta}
+
                         @if s.signature
                             p.signature
                                 code {=s.name + s.signature}
 
                         @if s.doc
                             div.doc {=s.docHTML}
+
+                        @if s.members
+                            div.members
+                                @for m in s.members
+                                    div.member[data-group=m.group]
+                                        @if m.meta
+                                            p.meta
+                                                code {=m.meta}
+                                        p.signature
+                                            span.member-group {=m.group}
+                                            code {=m.signature}
+                                        @if m.doc
+                                            div.doc {=m.docHTML}
 
                         @for o in s.overloads
                             p.signature

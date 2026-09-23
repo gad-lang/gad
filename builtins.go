@@ -129,6 +129,7 @@ const (
 	BuiltinNewClass
 	BuiltinNewMixin
 	BuiltinNewStaticType
+	BuiltinNewTypedArrayType
 	BuiltinTypeOf
 	BuiltinAddMethod
 	BuiltinRawCaller
@@ -349,6 +350,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"wrap":                BuiltinWrap,
 	"Class":               BuiltinNewClass,
 	"StaticType":          BuiltinNewStaticType,
+	"TypedArrayType":      BuiltinNewTypedArrayType,
 	"Mixin":               BuiltinNewMixin,
 	"typeof":              BuiltinTypeOf,
 	"addMethod":           BuiltinAddMethod,
@@ -914,6 +916,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinNewStaticType: &BuiltinFunction{
 		FuncName:              "StaticType",
 		Value:                 NewStaticTypeFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinNewTypedArrayType: &BuiltinFunction{
+		FuncName:              "TypedArrayType",
+		Value:                 NewTypedArrayTypeFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinTypeOf: &BuiltinFunction{

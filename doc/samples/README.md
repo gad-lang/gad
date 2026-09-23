@@ -39,6 +39,7 @@
 - [transform_mapped_test](transform_mapped_test.md)
 - [type_parameters](type_parameters.md)
 - [type_unions](type_unions.md)
+- [typed_arrays](typed_arrays.md)
 - [types](types.md)
 - [unary_operators](unary_operators.md)
 - [user_operators](user_operators.md)

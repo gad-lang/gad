@@ -4373,7 +4373,7 @@ func TestParseInterface(t *testing.T) {
 	// the block-method form (no colon) is unchanged
 	test.ExpectParseString(t, `x := interface { a { (x), (y int) <bool> } }`,
 		`x := interface {a {(_ x); (y int) <bool>; }; }`)
-	// slice-interface short form: `name: []{ … }` == `name interface[] { … }` (each
+	// slice-interface short form: `name: []{ … }` == `name interface [] { … }` (each
 	// element satisfies the body); `[][]` nests deeper; both render short.
 	test.ExpectParseString(t, `x := interface { a: []{ b int } }`,
 		`x := interface {a: []{b int; }; }`)
@@ -5455,4 +5455,44 @@ func TestParseTypeUnion(t *testing.T) {
 	// `type` stays an ordinary identifier when not followed by `<`
 	test.New(t, "type := 5").Code("type := 5")
 	test.New(t, "return x.type").Code("return x.type")
+}
+
+// TestParseSliceInterface covers the slice interface forms — the `[]` follows the
+// name: `interface P [] { … }`, the long form `interface P [] interface { … }`,
+// the slice-of-types `interface P []<int|uint>` / `interface P []int`, and the
+// anonymous `interface [] { … }` — plus the rejected former `interface[] P { … }`.
+func TestParseSliceInterface(t *testing.T) {
+	test.ExpectParseString(t, `interface points [] { x int, y int }`, `interface points []{x int; y int; }`)
+	test.ExpectParseString(t, `interface nested [][][] { x int }`, `interface nested [][][]{x int; }`)
+	test.ExpectParseString(t, `interface users [] interface { name; id }`, `interface users []{id; name; }`)
+	test.ExpectParseString(t, `interface numerics []<int|uint|float>`, `interface numerics []<int | uint | float>`)
+	test.ExpectParseString(t, `interface ints []int`, `interface ints []int`)
+	test.ExpectParseString(t, `x := interface [] { a }`, `x := interface []{a; }`)
+	test.ExpectParseString(t, `x := interface []<int|str>`, `x := interface []<int | str>`)
+	test.ExpectParseString(t, `export interface P [] { x int }`, `export interface P []{x int; }`)
+	test.ExpectParseString(t, "[k=1]\ninterface P []<int>", `[k=1] interface P []int`)
+
+	test.ExpectParseError(t, `interface[] old { x int }`,
+		[2]string{"%v", "Parse Error: the `[]` of a named slice interface follows its name: write `interface old [] { … }`\n\tat test:1:13"})
+}
+
+// TestParseTypedArrayType covers `type NAME []…` typed array type declarations:
+// element types (envelope or bare), an inline interface (short and long forms),
+// deeper nesting, metadata, `export`, and the optional class-like member body.
+func TestParseTypedArrayType(t *testing.T) {
+	test.ExpectParseString(t, `type numerics []<int|uint|float|decimal>`, `type numerics []<int | uint | float | decimal>`)
+	test.ExpectParseString(t, `type ints []int`, `type ints []int`)
+	test.ExpectParseString(t, `type grid [][]int`, `type grid [][]int`)
+	test.ExpectParseString(t, `type users []{ name; id }`, `type users []{id; name; }`)
+	test.ExpectParseString(t, `type users [] interface { name; id }`, `type users []{id; name; }`)
+	test.ExpectParseString(t, "[unit=\"m\"]\ntype n []int", `[unit="m"] type n []int`)
+	test.ExpectParseString(t, `export type nums []int`, `export type nums []int`)
+	test.ExpectParseString(t,
+		`type nums []int { label = "x"; props { total => 1 }; methods { sum() => 0 } }`,
+		`type nums []int {label = "x"; props {total() => 1}; methods {sum() => 0}}`)
+
+	// the body allows only fields, `new`, `props` and `methods`.
+	test.ExpectParseError(t, `type nums []int { *Base }`)
+	// `type NAME <…>` (a union) and `type NAME { … }` (a marker) are unaffected.
+	test.ExpectParseString(t, `type num <int|uint>`, `const num = type <int|uint>`)
 }

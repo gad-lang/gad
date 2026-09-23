@@ -186,9 +186,10 @@ func TextMateGrammar() ([]byte, error) {
 		"keywords": {Patterns: []tmRule{
 			{Name: "keyword.control.gad", Match: wordRegex(plainKeywords)},
 			// Contextual declaration keywords: `class`/`mixin` before `{` or a
-			// `NAME {` body, `interface` also before `[` (the `interface[]` form).
+			// `NAME {` body, `interface` also before `[` (a slice interface,
+			// `interface [] { … }` / `interface NAME [] …`).
 			{Name: "keyword.control.gad", Match: `\b(?:class|mixin)\b(?=\s*\{|\s+[A-Za-z_]\w*\s*\{)`},
-			{Name: "keyword.control.gad", Match: `\binterface\b(?=\s*[\{\[]|\s+[A-Za-z_]\w*\s*\{)`},
+			{Name: "keyword.control.gad", Match: `\binterface\b(?=\s*[\{\[]|\s+[A-Za-z_]\w*\s*[\{\[])`},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Atoms)},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Constants)},
 			{Name: "support.function.gad", Match: wordRegex(lang.Builtins)},

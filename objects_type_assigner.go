@@ -115,7 +115,17 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 	if bt, ok := to.(*BuiltinObjType); ok && bt.TypeKey() == TBool {
 		return Bool(!obj.IsFalsy()), nil
 	}
+	// `typedArray ::: array` converts back to a plain array (a copy of the items).
+	if bt, ok := to.(*BuiltinObjType); ok && bt.TypeKey() == TArray {
+		if ta, ok := obj.(*TypedArray); ok {
+			return ta.Items.Copy(), nil
+		}
+	}
 	switch t := to.(type) {
+	case *TypedArrayType:
+		// `arr ::: T` converts an array into a TypedArray of T (each leaf
+		// transformed by the element type's own `:::`).
+		return t.From(vm, obj)
 	case *Interface:
 		if t.ArrayDepth > 0 {
 			return t.coerceArray(vm, obj, t.ArrayDepth)
@@ -178,6 +188,18 @@ func transformCallee(to Object) (CallerObject, bool) {
 		return t, true
 	}
 	return nil, false
+}
+
+// typedArrayToArray reports whether `obj ::: to` converts a TypedArray back to a
+// plain array (`ta ::: array`): that cast unwraps the items (handled by
+// AssignToTypeTransform) instead of calling the `array` constructor, which would
+// wrap the typed array as one element.
+func typedArrayToArray(obj, to Object) bool {
+	if _, ok := obj.(*TypedArray); !ok {
+		return false
+	}
+	bt, ok := to.(*BuiltinObjType)
+	return ok && bt.TypeKey() == TArray
 }
 
 // asTransformDict materialises obj as a Dict for the `:::` transform. Besides a

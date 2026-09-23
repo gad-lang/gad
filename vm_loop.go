@@ -78,7 +78,7 @@ VMLoop:
 		case OpAssignTransform:
 			// `obj ::: type` -> coerced obj when assignable, else throw.
 			obj, typ := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
-			if callee, ok := transformCallee(typ); ok {
+			if callee, ok := transformCallee(typ); ok && !typedArrayToArray(obj, typ) {
 				// `obj ::: typ` == typ(obj), dispatched through the stack-based call
 				// path so no argument array is allocated — the cost equals a direct
 				// call. A compiled transformer goes through xOpCallCompiled: rearrange

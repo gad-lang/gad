@@ -269,3 +269,62 @@ func TestFuncMetadataBytecodeRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantRet, gotRet)
 }
+
+// TestInterfaceSliceBytecodeRoundtrip verifies a slice interface survives an
+// encode/decode round-trip: its depth, leaf element types, `**rest`, metadata and
+// field nullability/metadata (all encoded with the interface constant).
+func TestInterfaceSliceBytecodeRoundtrip(t *testing.T) {
+	src := `
+		sat := func(v, T) { try { v :: T; return true } catch { return false } }
+		[kind="nums"]
+		interface numerics []<int|float>
+		interface pts [] { [db=(;pk)]
+			x int
+			y? int }
+		return [sat([1, 2.5], numerics), sat([1, "x"], numerics), sat([{x: 1}], pts),
+			sat([{x: "a"}], pts), numerics.@depth, str(numerics.@meta), str(pts.x.@meta)]`
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{})
+	require.NoError(t, err)
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, gad.Array{gad.True, gad.False, gad.True, gad.False, gad.Int(1),
+		gad.Str(`(;kind="nums")`), gad.Str(`(;db=(;pk))`)}, wantRet)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}
+
+// TestTypedArrayBytecodeRoundtrip verifies a typed array type declaration (with
+// metadata and a member body) runs the same after an encode/decode round-trip.
+func TestTypedArrayBytecodeRoundtrip(t *testing.T) {
+	src := `
+		[unit="m"]
+		type nums []int {
+			label = "x"
+			methods { sum() { s := 0; for v in this { s += v }; return s } }
+		}
+		n := nums(1, 2, 3)
+		return [str(n), n.sum(), str(nums.@meta)]`
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{})
+	require.NoError(t, err)
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, gad.Array{gad.Str(`nums[1, 2, 3]{label: "x"}`), gad.Int(6), gad.Str(`(;unit="m")`)}, wantRet)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}

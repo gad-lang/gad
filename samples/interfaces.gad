@@ -26,9 +26,11 @@ A `**name` member is a **rest capture** used with the transforming cast
 class/interface-typed fields into their declared shape and gathers the keys not
 named by the interface into a dict bound to `name`.
 
-`[]` written after the `interface` keyword makes it match an **array** of
-satisfying elements: `interface[] P` a flat array, `interface[][][] P` an array
-nested three deep (see [interface of arrays](interface_arrays_test.gad)).
+`[]` written after the interface's name makes it a **slice interface**, matching
+an **array** of satisfying elements: `interface P [] { … }` a flat array,
+`interface P [][][] { … }` an array nested three deep, and `interface P []<int|uint>`
+an array of the given element types (see [slice interfaces](interface_arrays_test.gad);
+for a nominal, constructible array type see [typed arrays](typed_arrays.gad)).
 
 ## Nested and slice fields (`name: { … }`)
 
@@ -38,7 +40,7 @@ form `name { … }` (no colon), and it is ONLY for a nested interface — `name:
 must open a brace body (there is no `name: Type`). Nesting may go any depth, and
 the value is checked **recursively** on a `::` cast.
 
-A leading `[]` is a **slice interface**: `name: []{ … }` == `name interface[] { … }`,
+A leading `[]` is a **slice interface**: `name: []{ … }` == `name interface [] { … }`,
 an array whose elements each satisfy the body (`[][]…` nests deeper). `name?: { … }`
 (and `name?: []{ … }`) marks the nested field nullable — nil or absent satisfies
 it. The formatter always normalizes a nested-interface field to this short form.

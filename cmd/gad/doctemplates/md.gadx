@@ -6,7 +6,12 @@ Markdown to STDOUT. `doc` is:
 
     { name: str, file: str, lang: str, source: str, prose: str,
       sections: [ { title: str,
-        symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
+        symbols: [ { name, signature, doc, meta: str, line, column: int,
+                     overloads: [ { signature, doc } ],
+                     members: [ { group, signature, meta, doc } ] } ] } ] }
+
+`meta` is a declaration's `[k=v, …]` metadata tag (shown above its signature);
+`members` are a type's fields/properties/constructors/methods/requirements.
 
 `name`/`file`/`lang`/`source` are added by the CLI (the module base name, the
 source file name, its fence language and the full source). The rendered page
@@ -36,12 +41,33 @@ for sec in doc.sections {
     for s in sec.symbols {
         write("\n### " + s.name + "\n")
         // The typed signature (function params + return, or a const's `= value`)
-        // goes right below the heading, in a fenced code block so it highlights.
-        if s.signature {
-            write("\n```" + doc.lang + "\n" + s.name + s.signature + "\n```\n")
+        // goes right below the heading, in a fenced code block so it highlights;
+        // the `[k=v, …]` metadata tag, when present, sits on the line above it.
+        if s.signature || s.meta {
+            code := s.name + s.signature
+            if s.meta {
+                code = s.meta + "\n" + code
+            }
+            write("\n```" + doc.lang + "\n" + code + "\n```\n")
         }
         if s.doc {
             write("\n" + s.doc + "\n")
+        }
+        // A type's members, grouped by kind, each with its metadata tag and doc.
+        group := ""
+        for m in s.members {
+            if m.group != group {
+                group = m.group
+                write("\n#### " + group + "\n")
+            }
+            code := m.signature
+            if m.meta {
+                code = m.meta + "\n" + code
+            }
+            write("\n```" + doc.lang + "\n" + code + "\n```\n")
+            if m.doc {
+                write("\n" + m.doc + "\n")
+            }
         }
         // A multi-signature function renders one fenced block + doc per overload.
         for o in s.overloads {

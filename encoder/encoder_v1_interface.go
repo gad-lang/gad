@@ -13,7 +13,13 @@ func init() {
 		if err = writeString(ctx, f.Name); err != nil {
 			return
 		}
-		return EncodeArray(ctx, f.TypesSymbols)
+		if err = EncodeArray(ctx, f.TypesSymbols); err != nil {
+			return
+		}
+		if err = writeBool(ctx, f.Nullable); err != nil {
+			return
+		}
+		return encodeMeta(ctx, f.Meta)
 	}
 	InterfaceFieldV1.Decode = func(ctx *ReadContext) (_ any, err error) {
 		f := new(gad.InterfaceField)
@@ -21,6 +27,12 @@ func init() {
 			return
 		}
 		if f.TypesSymbols, err = DecodeArray[*gad.SymbolInfo](ctx); err != nil {
+			return
+		}
+		if f.Nullable, err = readBool(ctx); err != nil {
+			return
+		}
+		if f.Meta, err = decodeMeta(ctx); err != nil {
 			return
 		}
 		return f, nil
@@ -127,7 +139,26 @@ func init() {
 		if err = EncodeArray(ctx, i.Methods); err != nil {
 			return
 		}
-		return EncodeArray(ctx, i.ContextFuncs)
+		if err = EncodeArray(ctx, i.ContextFuncs); err != nil {
+			return
+		}
+		// Slice interface (depth + optional leaf element types), `**rest` and
+		// metadata.
+		if err = writeInt(ctx, i.ArrayDepth); err != nil {
+			return
+		}
+		if err = writeBool(ctx, i.Elem != nil); err != nil {
+			return
+		}
+		if i.Elem != nil {
+			if err = EncodeObject(ctx, i.Elem); err != nil {
+				return
+			}
+		}
+		if err = writeString(ctx, i.Rest); err != nil {
+			return
+		}
+		return encodeMeta(ctx, i.Meta)
 	}
 	InterfaceV1.Decode = func(ctx *ReadContext) (_ any, err error) {
 		i := new(gad.Interface)
@@ -156,6 +187,25 @@ func init() {
 		if i.ContextFuncs, err = DecodeArray[*gad.InterfaceContextFunc](ctx); err != nil {
 			return
 		}
+		if i.ArrayDepth, err = readInt(ctx); err != nil {
+			return
+		}
+		var hasElem bool
+		if hasElem, err = readBool(ctx); err != nil {
+			return
+		}
+		if hasElem {
+			if i.Elem, err = DecodeT[*gad.InterfaceField](ctx); err != nil {
+				return
+			}
+			i.Elem.Iface = i
+		}
+		if i.Rest, err = readString(ctx); err != nil {
+			return
+		}
+		if i.Meta, err = decodeMeta(ctx); err != nil {
+			return
+		}
 		// Restore member back-references.
 		for _, f := range i.Fields {
 			f.Iface = i
@@ -168,4 +218,22 @@ func init() {
 		}
 		return i, nil
 	}
+}
+
+// encodeMeta writes an optional `[k=v, …]` metadata KeyValueArray (a presence
+// flag, then the array).
+func encodeMeta(ctx *WriteContext, meta gad.KeyValueArray) (err error) {
+	if err = writeBool(ctx, len(meta) > 0); err != nil || len(meta) == 0 {
+		return
+	}
+	return EncodeObject(ctx, meta)
+}
+
+// decodeMeta reads what encodeMeta wrote (nil when absent).
+func decodeMeta(ctx *ReadContext) (meta gad.KeyValueArray, err error) {
+	var has bool
+	if has, err = readBool(ctx); err != nil || !has {
+		return
+	}
+	return DecodeT[gad.KeyValueArray](ctx)
 }

@@ -1500,6 +1500,8 @@ func (s *ExportStmt) String() string {
 		return "export " + d.String()
 	case *InterfaceStmt:
 		return "export " + d.String()
+	case *TypedArrayTypeStmt:
+		return "export " + d.String()
 	case *EnumStmt:
 		return "export " + d.String()
 	case *FuncStmt:
@@ -1550,6 +1552,10 @@ func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
 		d.WriteCode(ctx)
 		return
 	case *InterfaceStmt:
+		ctx.WriteString("export ")
+		d.WriteCode(ctx)
+		return
+	case *TypedArrayTypeStmt:
 		ctx.WriteString("export ")
 		d.WriteCode(ctx)
 		return

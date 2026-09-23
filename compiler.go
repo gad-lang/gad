@@ -903,6 +903,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileFuncHeaderExpr(nt)
 	case *node.SliceTypeExpr:
 		return c.compileSliceTypeExpr(nt)
+	case *node.TypedArrayTypeStmt:
+		return c.compileTypedArrayTypeStmt(nt)
 	case *node.TypeUnionExpr:
 		return c.compileTypeUnionExpr(nt)
 	case *node.MethodInterfaceStmt:

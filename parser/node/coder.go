@@ -356,6 +356,17 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 		case *EnumStmt:
 			ctx.claimLeadDoc(t.Doc, &t.EnumExpr)
 			ctx.claimEnumBodyDocs(&t.EnumExpr)
+		case *InterfaceStmt:
+			ctx.claimLeadDoc(t.Doc, &t.InterfaceExpr)
+			ctx.claimInterfaceBodyDocs(&t.InterfaceExpr)
+		case *TypedArrayTypeStmt:
+			ctx.claimLeadDoc(t.Doc, t)
+			if t.ElemIface != nil {
+				ctx.claimInterfaceBodyDocs(t.ElemIface)
+			}
+			if t.Body != nil {
+				ctx.claimClassBodyDocs(t.Body)
+			}
 		case *AssignStmt:
 			// expression-form class/enum, e.g. `X := class { … }`: its lead doc
 			// stays with the statement (position machinery), but its body docs
@@ -419,6 +430,31 @@ func (ctx *CodeWriteContext) claimClassBodyDocs(e *TypeLitExpr) {
 
 // claimEnumBodyDocs claims the doc comments of an enum's fields so each is
 // emitted in place by its own field node instead of being flushed at the end.
+// claimInterfaceBodyDocs claims the member docs of an interface body — fields,
+// accessors, methods, context funcs, the `*Parent` and `**rest` docs — and,
+// recursively, those of a nested interface field (`name: { … }`), so they are
+// emitted with their members rather than by the position machinery.
+func (ctx *CodeWriteContext) claimInterfaceBodyDocs(e *InterfaceExpr) {
+	ctx.claimDoc(e.ExtendsDoc)
+	ctx.claimDoc(e.RestDoc)
+	for _, m := range e.Members {
+		ctx.claimDoc(m.Doc)
+		if m.Name != nil {
+			for _, t := range m.Name.Type {
+				if nested, ok := t.Expr.(*InterfaceExpr); ok {
+					ctx.claimInterfaceBodyDocs(nested)
+				}
+			}
+		}
+	}
+	for _, m := range e.Methods {
+		ctx.claimDoc(m.Doc)
+	}
+	for _, cf := range e.ContextFuncs {
+		ctx.claimDoc(cf.Doc)
+	}
+}
+
 func (ctx *CodeWriteContext) claimEnumBodyDocs(e *EnumExpr) {
 	for _, f := range e.Fields {
 		ctx.claimDoc(f.Doc)
