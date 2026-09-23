@@ -8,7 +8,9 @@ back with the `@meta` member.
 
 Metadata is a real key-value array, so a value is any constant expression:
 strings, numbers, flags (a bare `key` is `key=true`), nested `[ … ]` / `(; … )`,
-arrays and dicts.
+arrays and dicts. A **symbol** is one too — `#label` is the string `"label"`, the
+constant it compiles to anywhere else — which is how a block names members
+without quoting them: `[columns=[#label, #href]]`.
 
 ```gad
 /// a user record

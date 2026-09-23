@@ -21,6 +21,7 @@ type ArrayType struct {
 }
 
 var (
+	_ IndexGetter   = (*ArrayType)(nil)
 	_ Object        = (*ArrayType)(nil)
 	_ TypeAssigner  = (*ArrayType)(nil)
 	_ vmCanAssigner = (*ArrayType)(nil)
@@ -104,4 +105,31 @@ func (t *ArrayType) nested(obj Object, depth int, vm *VM) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// IndexGet reflects the array type, with the same keys an array-of-types
+// interface answers to:
+//
+//   - `@depth` — how many `[]` were written;
+//   - `@elem`  — the types an element may be, resolved in vm (the element types
+//     are symbols, so without a VM there is nothing to resolve them to).
+func (t *ArrayType) IndexGet(vm *VM, index Object) (Object, error) {
+	switch index.ToString() {
+	case "@depth":
+		return Int(t.Depth), nil
+	case "@elem":
+		out := make(Array, 0, len(t.Elem))
+		for _, s := range t.Elem {
+			if vm == nil {
+				return nil, ErrInvalidIndex.NewError("@elem (no VM to resolve the element types)")
+			}
+			v, err := vm.GetSymbolValue(s)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, v)
+		}
+		return out, nil
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
 }

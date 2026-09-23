@@ -90,6 +90,10 @@ func (c *Compiler) metaValue(nd ast.Node, e node.Expr) (Object, error) {
 		return Decimal(v.Value), nil
 	case *node.CharLit:
 		return Char(v.Value), nil
+	// `#label` — a symbol is the string it names, the same constant it compiles
+	// to anywhere else, so it is as constant here as a string literal is.
+	case *node.SymbolLit:
+		return Str(v.Value()), nil
 	case *node.BoolLit:
 		return Bool(v.Value), nil
 	case *node.FlagLit:

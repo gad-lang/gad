@@ -172,3 +172,14 @@ func TestTypedArraySkipItemCheck(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, Str(`nums[1, "x"]`), got)
 }
+
+// An array type reflects itself with the keys an array-of-types interface
+// answers to: `@depth` (how many `[]`) and `@elem` (the element types, resolved).
+func TestArrayTypeReflection(t *testing.T) {
+	testExpectRun(t, `
+		interface Form { tags [][]<int|str>; names []str }
+		a := Form.tags.types[0]
+		b := Form.names.types[0]
+		return [a.@depth, len(a.@elem), b.@depth, b.@elem[0] == str]`, nil,
+		Array{Int(2), Int(2), Int(1), True})
+}

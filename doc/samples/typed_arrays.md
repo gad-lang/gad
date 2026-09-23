@@ -148,6 +148,10 @@ A typed array type — and each of its members — carries [metadata](metadata.g
 | `T.@new` | the constructor overloads (nil without any) |
 | `T.NAME` | a body member, e.g. `T.total.@meta` |
 
+An anonymous array type written as a member's type — `tags [][]<int|str>` —
+answers the same two structural keys: `@depth` (2) and `@elem` (`[int, str]`, the
+element types resolved).
+
 ```gad
 /// sensor readings
 [unit="celsius", version=2]

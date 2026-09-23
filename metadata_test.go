@@ -150,3 +150,14 @@ func TestMetadataMarkerAndMixin(t *testing.T) {
 		mixin Timestamped { created = 0 }
 		return str(Timestamped.@meta)`, nil, Str(`(;role="mix")`))
 }
+
+// A symbol (`#label`) is the string it names — the constant it compiles to
+// everywhere else — so a metadata value may be one, alone or inside an array:
+// `columns=[#label, #href]` names fields without quoting them.
+func TestMetadataSymbolValue(t *testing.T) {
+	testExpectRun(t, `
+		[layout=#table, columns=[#label, #href]]
+		interface Form { label str; href }
+		return str(Form.@meta)`, nil,
+		Str(`(;layout="table", columns=["label", "href"])`))
+}
