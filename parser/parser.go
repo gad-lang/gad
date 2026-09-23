@@ -2812,93 +2812,6 @@ func (p *Parser) isDeclBodyStart() bool {
 	return false
 }
 
-// isSliceTypeDeclStart reports whether the current `type` identifier begins a
-// `type NAME []…` declaration (contextual: `type` followed by a name and `[]`).
-func (p *Parser) isSliceTypeDeclStart() bool {
-	if name := p.Peek(); name.Token != token.Ident {
-		return false
-	}
-	c := p.PeekC(3)
-	return c[1].Token == token.LBrack && c[2].Token == token.RBrack
-}
-
-// parseSliceTypeDeclStmt parses a named slice type:
-//
-//	type numerics []<int|uint|float>   // slice of types, sugar for `const numerics = <slice type>`
-//	type users []{ name; id }          // slice interface, sugar for `const users = interface[] { … }`
-//	type grid [][]{ n int }            // deeper nesting
-//
-// The `[]` run distinguishes it from `type NAME <…>` (a type union) and
-// `type NAME { … }` (a marker type). When a `{` follows the `[]`s the element is
-// an inline interface body (an array whose elements each satisfy it); otherwise
-// the element is a plain type or a `<…>` type envelope.
-func (p *Parser) parseSliceTypeDeclStmt() node.Stmt {
-	if p.Trace {
-		defer untracep(tracep(p, "SliceTypeDeclStmt"))
-	}
-	tokPos := p.Token.Pos
-	p.Next() // consume `type`
-	name := p.ParseIdent()
-
-	var value node.Expr
-	if p.sliceElemIsInterface() {
-		// `[]…{ … }` — a slice interface: an anonymous interface body with the
-		// array depth of the leading `[]`s. `interface[] { … }` is itself a valid
-		// operand, so the const round-trips.
-		depth := p.parseInterfaceArrayDepth()
-		p.SkipSpace()
-		iface := p.parseInterfaceBody(PToken{}, nil)
-		if iface != nil {
-			iface.ArrayDepth = depth
-		}
-		value = iface
-	} else {
-		// `[]<…>` / `[]T` — a slice of types. A bare `[]…` is not an expression
-		// operand, so it is wrapped in a `type <…>` envelope (which is), yielding a
-		// single-member type union over the slice type. It behaves as the slice
-		// type for casts and parameter checks, and the const round-trips as
-		// `const NAME = type <[]…>`.
-		slice := p.parseSliceType()
-		value = &node.TypeUnionExpr{TypePos: tokPos, Types: []*node.TypeExpr{{Expr: slice}}}
-	}
-
-	return &node.DeclStmt{Decl: &node.GenDecl{
-		TokPos: tokPos,
-		Tok:    token.Const,
-		Specs: []node.Spec{&node.ValueSpec{
-			Idents: []*node.IdentExpr{name},
-			Values: []node.Expr{value},
-		}},
-	}}
-}
-
-// sliceElemIsInterface reports whether the `[]…` slice type at the current token
-// (the first `[`) has an inline interface element (`[]{ … }` / `[][]{ … }`): its
-// first significant token after the run of `[]`s is `{`. PeekCb scans from the
-// token AFTER the current one, so the first `[` is already consumed (inPair).
-func (p *Parser) sliceElemIsInterface() bool {
-	inPair := true // inside the first `[` … expecting its `]`
-	result := false
-	p.PeekCb(func(t PToken) bool {
-		if t.Token == token.Semicolon || t.Token == token.EOF {
-			return false // a newline/`;` detaches: not a `[]…{ … }` run
-		}
-		if inPair {
-			// expect the `]` that closes the current pair.
-			inPair = false
-			return t.Token == token.RBrack
-		}
-		// between pairs: another `[` continues the `[]` run, `{` is an interface.
-		if t.Token == token.LBrack {
-			inPair = true
-			return true
-		}
-		result = t.Token == token.LBrace
-		return false
-	})
-	return result
-}
-
 // parseTypeUnionDeclStmt parses `type NAME <T1|T2|…>`, sugar for
 // `const NAME = type <T1|T2|…>`.
 func (p *Parser) parseTypeUnionDeclStmt() node.Stmt {
@@ -3099,14 +3012,10 @@ do:
 			}
 		case "type":
 			// `type NAME <T1|T2|…>` — a named type-union declaration (sugar for
-			// `const NAME = type <…>`); `type NAME []…` — a named slice type
-			// (`[]<int|str>`) or slice interface (`[]{ … }`); otherwise
-			// `type [Name] { … }` — a static type declaration.
+			// `const NAME = type <…>`); otherwise `type [Name] { … }` — a static
+			// type declaration.
 			if p.isTypeUnionDeclStart() {
 				return p.parseTypeUnionDeclStmt()
-			}
-			if p.isSliceTypeDeclStart() {
-				return p.parseSliceTypeDeclStmt()
 			}
 			if p.isDeclBodyStart() {
 				return p.ParseStaticTypeStmt()
