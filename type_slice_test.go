@@ -116,3 +116,37 @@ func TestSliceTypeAmbiguity(t *testing.T) {
 		a := 5; b := 2; c := 1
 		return [f(a < (b)), f(a < (b) > c)]`, nil, Array{False, False})
 }
+
+// TestNamedSliceType covers the named slice-type declarations:
+//
+//	type numerics []<int|uint|float>   // a named slice of types
+//	type users []{ name; id }          // a named slice interface
+func TestNamedSliceType(t *testing.T) {
+	// A named slice of types: usable as a cast target and a parameter type.
+	testExpectRun(t, `
+		type numerics []<int|uint|float>
+		try { [1, 2.5, 3] :: numerics; return "ok" } catch { return "no" }`,
+		nil, Str("ok"))
+	testExpectRun(t, `
+		type numerics []<int|uint|float>
+		try { [1, "x"] :: numerics; return "ok" } catch { return "no" }`,
+		nil, Str("no"))
+	testExpectRun(t, `
+		type numerics []<int|uint|float>
+		func f(xs numerics) => len(xs)
+		return f([1, 2, 3])`, nil, Int(3))
+
+	// A named slice interface: each element must satisfy the inline interface.
+	testExpectRun(t, `
+		type users []{ name; id }
+		try { [{name: "a", id: 1}, {name: "b", id: 2}] :: users; return "ok" } catch { return "no" }`,
+		nil, Str("ok"))
+	testExpectRun(t, `
+		type users []{ name; id }
+		try { [{name: "a"}] :: users; return "ok" } catch { return "no" }`,
+		nil, Str("no"))
+	testExpectRun(t, `
+		type users []{ name; id }
+		func g(us users) => len(us)
+		return g([{name: "a", id: 1}])`, nil, Int(1))
+}

@@ -5456,3 +5456,28 @@ func TestParseTypeUnion(t *testing.T) {
 	test.New(t, "type := 5").Code("type := 5")
 	test.New(t, "return x.type").Code("return x.type")
 }
+
+func TestParseNamedSliceType(t *testing.T) {
+	// `type NAME []<…>` / `type NAME []T` — a named slice of types. It lowers to a
+	// `type <[]…>` envelope (a valid operand, so it round-trips).
+	test.New(t, "type numerics []<int|uint|float|decimal>").
+		Code("const numerics = type <[]<int | uint | float | decimal>>")
+	test.New(t, "type ints []int").
+		Code("const ints = type <[]int>")
+	test.New(t, "type m [][]int").
+		Code("const m = type <[][]int>")
+
+	// `type NAME []{ … }` — a named slice interface (an anonymous interface body
+	// with array depth); it lowers to `interface[]… { … }`.
+	test.New(t, "type users []{ name; id }").
+		Code("const users = interface[] {id; name; }")
+	test.New(t, "type grid [][]{ n int }").
+		Code("const grid = interface[][] {n int; }")
+
+	// the lowered forms are themselves valid operands, so `gad fmt` is idempotent:
+	// re-parsing each formatted output produces the same code.
+	test.New(t, "const numerics = type <[]<int|uint>>").
+		Code("const numerics = type <[]<int | uint>>")
+	test.New(t, "const users = interface[] {id; name; }").
+		Code("const users = interface[] {id; name; }")
+}
