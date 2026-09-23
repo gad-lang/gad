@@ -10,6 +10,7 @@
 | `raw` prefix            | `raw "x"`          | `rawStr` | n/a      | no      |
 | interpolated string     | `#"hi {name}"`     | `str`    | yes      | `{…}`   |
 | interpolated raw string | `` #`hi {name}` `` | `rawStr` | no       | `{…}`   |
+| symbol                  | `#name`, `#(a b)`  | `str`    | `\)`     | no      |
 
 `str` and `rawStr` interoperate; mixing them in `+` yields a string. `raw EXPR`
 produces a `rawStr` from any expression (folded at compile time for a string
@@ -60,6 +61,30 @@ The `#` prefix works on the heredoc forms too.
 name := "Gad"
 [#"Hello {name}!", #"sum = {2 + 3}", #`raw {name}`]
 // => ["Hello Gad!", "sum = 5", raw Gad]
+```
+
+## Symbols
+
+A **symbol** is a string literal written with a leading `#` and no quotes —
+handy for names and keys. It has two forms:
+
+- `#name` — `#` followed by an identifier (letters, digits, `_`);
+- `#( … )` — any text up to the closing `)`, spaces and newlines included; a `)`
+  inside it is written `\)` (the only escape).
+
+A symbol is compiled to an ordinary `str` constant — there is no separate symbol
+type: `typeName(#name)` is `"str"`, `#name == "name"`, and `{#name: 1}` is the
+dict `{name: 1}`. Mind the quotes: `#"…"` / `` #`…` `` are *interpolated strings*,
+not symbols.
+
+```gad
+sym := #name              // # + identifier
+spaced := #(with spaces)  // #( … ): any text up to the closing ")"
+paren := #(a\)b)          // a ")" inside is written \)
+keyed := {#name: 1}       // a symbol is a plain string — here a dict key
+tmpl := #"hi {sym}"       // NOT a symbol: `#` + quotes is an interpolated string
+[sym, spaced, paren, typeName(sym), sym == "name", keyed.name, tmpl]
+// => ["name", "with spaces", "a)b", "str", true, 1, "hi name"]
 ```
 
 ## Escaping the delimiters
@@ -169,6 +194,13 @@ tmpl := #`path C:\{name}`    // template raw str: \ stays literal, {name} interp
 
 name := "Gad"
 [#"Hello {name}!", #"sum = {2 + 3}", #`raw {name}`]
+
+sym := #name              // # + identifier
+spaced := #(with spaces)  // #( … ): any text up to the closing ")"
+paren := #(a\)b)          // a ")" inside is written \)
+keyed := {#name: 1}       // a symbol is a plain string — here a dict key
+tmpl := #"hi {sym}"       // NOT a symbol: `#` + quotes is an interpolated string
+[sym, spaced, paren, typeName(sym), sym == "name", keyed.name, tmpl]
 
 name := "Gad"
 lit := #"literal \{ and \}"          // escaped braces -> literal text

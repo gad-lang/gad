@@ -151,6 +151,26 @@ func TextMateGrammar() ([]byte, error) {
 			{Name: "string.quoted.raw.interpolated.gad", Begin: "#`", End: "`", Patterns: []tmRule{
 				{Include: "#interpolation"},
 			}},
+			// Symbols — string literals with a leading `#` and no quotes: `#name`
+			// (`#` + identifier) and `#( … )` (any text up to `)`, with `\)` as the
+			// only escape). They follow the `#"`/`#`+backtick interpolated forms above so
+			// those keep winning, and skip a `#gad:` config line. The conventional
+			// `constant.other.symbol` scope makes themes color them as symbols.
+			{
+				Name:          "constant.other.symbol.delimited.gad",
+				Begin:         `#\(`,
+				End:           `\)`,
+				BeginCaptures: map[string]tmCap{"0": {Name: "punctuation.definition.symbol.begin.gad"}},
+				EndCaptures:   map[string]tmCap{"0": {Name: "punctuation.definition.symbol.end.gad"}},
+				Patterns:      []tmRule{{Name: "constant.character.escape.gad", Match: `\\\)`}},
+			},
+			{
+				Match: `(#)(?!gad\s?:)([A-Za-z_]\w*)`,
+				Name:  "constant.other.symbol.gad",
+				Captures: map[string]tmCap{
+					"1": {Name: "punctuation.definition.symbol.gad"},
+				},
+			},
 			// Plain (non-interpolated) strings.
 			{Name: "string.quoted.triple.gad", Begin: `"""`, End: `"""`},
 			{Name: "string.quoted.raw.gad", Begin: "```", End: "```"},

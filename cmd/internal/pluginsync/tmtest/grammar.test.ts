@@ -322,3 +322,25 @@ test("an array literal is not mistaken for a metadata block", () => {
     expect(tokenize(line).some((t) => t.scopes.includes("meta.annotation.metadata.gad"))).toBe(false);
   }
 });
+
+test("symbols `#name` / `#( … )` are symbol constants", () => {
+  // `#` + identifier
+  const a = "x := #primary_key";
+  expect(scopesOf(a, "primary_key")).toContain("constant.other.symbol.gad");
+  expect(scopesOf(a, "#")).toContain("punctuation.definition.symbol.gad");
+  // `#( … )`: any text up to `)`, `\)` escaped, delimiters punctuated
+  const b = "y := #(with spaces \\) here)";
+  const toks = tokenize(b);
+  expect(toks.find((t) => t.text === "#(")!.scopes).toContain("punctuation.definition.symbol.begin.gad");
+  expect(toks.find((t) => t.text === "\\)")!.scopes).toContain("constant.character.escape.gad");
+  expect(toks.filter((t) => t.scopes.includes("punctuation.definition.symbol.end.gad")).length).toBe(1);
+  expect(toks.find((t) => t.text.includes("with spaces"))!.scopes).toContain("constant.other.symbol.delimited.gad");
+  // a symbol as a dict key
+  expect(scopesOf("d := {#name: 1}", "name")).toContain("constant.other.symbol.gad");
+});
+
+test("`#` + quotes stays an interpolated string, not a symbol", () => {
+  for (const line of ['s := #"hi {x}"', "s := #`hi {x}`", 's := #"""hi {x}"""']) {
+    expect(tokenize(line).some((t) => t.scopes.some((s) => s.startsWith("constant.other.symbol")))).toBe(false);
+  }
+});
