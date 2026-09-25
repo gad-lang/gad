@@ -42,12 +42,12 @@ escape, so there is no `\{` escape (write `` #"…" `` when you need one). A raw
 template is handy for paths and regex-like text: `` #`C:\Users\{name}` ``.
 
 ```gad
-name := "Gad"
+user := "Gad"
 verbatim := `C:\tmp\{x}`     // rawStr: \ and {…} are literal (no escapes/interp)
 lines := `first
 second`                      // backtick literals span lines verbatim
-tmpl := #`path C:\{name}`    // template raw str: \ stays literal, {name} interpolates
-[verbatim, lines, tmpl, typeName(verbatim), typeName(tmpl)]
+tpath := #`path C:\{user}`    // template raw str: \ stays literal, {user} interpolates
+[verbatim, lines, tpath, typeName(verbatim), typeName(tpath)]
 // => [C:\tmp\{x}, first
 second, path C:\Gad, "rawstr", "rawstr"]
 ```
@@ -58,8 +58,8 @@ second, path C:\Gad, "rawstr", "rawstr"]
 The `#` prefix works on the heredoc forms too.
 
 ```gad
-name := "Gad"
-[#"Hello {name}!", #"sum = {2 + 3}", #`raw {name}`]
+lang := "Gad"
+[#"Hello {lang}!", #"sum = {2 + 3}", #`raw {lang}`]
 // => ["Hello Gad!", "sum = 5", raw Gad]
 ```
 
@@ -97,9 +97,9 @@ and `#"""…"""`, ordinary `"…"` strings (where it collapses to a literal brac
 `.gadt` templates (`\{%`) and gadx `@text` / `@md` blocks.
 
 ```gad
-name := "Gad"
+app := "Gad"
 lit := #"literal \{ and \}"          // escaped braces -> literal text
-mix := #"{name} in \{ braces }"      // escape + real interpolation
+mix := #"{app} in \{ braces }"      // escape + real interpolation
 js := #"json: \{ {str({a: 1})} }"    // braces in the expr's own literal are fine
 plain := "regular \{ ok"             // works in ordinary strings too
 [lit, mix, js, plain]
@@ -185,15 +185,15 @@ d := #"hi {name}"   // interpolated string -> str "hi Gad"
 e := #`hi {name}`   // interpolated raw string -> rawStr "hi Gad" (\ verbatim)
 [a, b, c, d, e, typeName(b), typeName(e)]
 
-name := "Gad"
+user := "Gad"
 verbatim := `C:\tmp\{x}`     // rawStr: \ and {…} are literal (no escapes/interp)
 lines := `first
 second`                      // backtick literals span lines verbatim
-tmpl := #`path C:\{name}`    // template raw str: \ stays literal, {name} interpolates
-[verbatim, lines, tmpl, typeName(verbatim), typeName(tmpl)]
+tpath := #`path C:\{user}`    // template raw str: \ stays literal, {user} interpolates
+[verbatim, lines, tpath, typeName(verbatim), typeName(tpath)]
 
-name := "Gad"
-[#"Hello {name}!", #"sum = {2 + 3}", #`raw {name}`]
+lang := "Gad"
+[#"Hello {lang}!", #"sum = {2 + 3}", #`raw {lang}`]
 
 sym := #name              // # + identifier
 spaced := #(with spaces)  // #( … ): any text up to the closing ")"
@@ -202,9 +202,9 @@ keyed := {#name: 1}       // a symbol is a plain string — here a dict key
 tmpl := #"hi {sym}"       // NOT a symbol: `#` + quotes is an interpolated string
 [sym, spaced, paren, typeName(sym), sym == "name", keyed.name, tmpl]
 
-name := "Gad"
+app := "Gad"
 lit := #"literal \{ and \}"          // escaped braces -> literal text
-mix := #"{name} in \{ braces }"      // escape + real interpolation
+mix := #"{app} in \{ braces }"      // escape + real interpolation
 js := #"json: \{ {str({a: 1})} }"    // braces in the expr's own literal are fine
 plain := "regular \{ ok"             // works in ordinary strings too
 [lit, mix, js, plain]

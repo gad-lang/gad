@@ -20,7 +20,8 @@ sum := func(a, b) {
 double := (x) => x * 2       // arrow closure
 adder := func(base) => (x) => base + x // closure capturing `base`
 add5 := adder(5)
-println(sum(2, 3), double(21), add5(4)) // 5 42 9
+[sum(2, 3), double(21), add5(4)]
+// => [5, 42, 9]
 ```
 
 ## Variadic parameters
@@ -37,7 +38,8 @@ total := func(*nums) {
     }
     return acc
 }
-println(total(1, 2, 3, 4)) // 10
+total(1, 2, 3, 4)
+// => 10
 ```
 
 ## Spreading arguments
@@ -49,8 +51,8 @@ named keys merge left to right (a later source overrides an earlier key).
 
 ```gad
 collect := func(*args; **kw) => [args, dict(kw)]
-println(str(collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)))
-// -> [[1, 2, 3, 4, 5, 6], {b: 1, c: 2, x: 10}]
+collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)
+// => [[1, 2, 3, 4, 5, 6], {b: 1, c: 2, x: 10}]
 ```
 
 ## Named arguments
@@ -169,7 +171,7 @@ sum := func(a, b) {
 double := (x) => x * 2       // arrow closure
 adder := func(base) => (x) => base + x // closure capturing `base`
 add5 := adder(5)
-println(sum(2, 3), double(21), add5(4)) // 5 42 9
+[sum(2, 3), double(21), add5(4)]
 
 total := func(*nums) {
     acc := 0
@@ -178,11 +180,10 @@ total := func(*nums) {
     }
     return acc
 }
-println(total(1, 2, 3, 4)) // 10
+total(1, 2, 3, 4)
 
 collect := func(*args; **kw) => [args, dict(kw)]
-println(str(collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)))
-// -> [[1, 2, 3, 4, 5, 6], {b: 1, c: 2, x: 10}]
+collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)
 
 greet := func(name; greeting = "Hello", **rest) => greeting + ", " + name
 [greet("Gad"), greet("Gad"; greeting = "Hi"), greet("Gad"; **{greeting: "Hey"})]

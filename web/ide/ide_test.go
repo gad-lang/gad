@@ -723,9 +723,20 @@ func TestDebugModulePathsAreRelative(t *testing.T) {
 	}
 	h := s.Handler()
 
-	// Stop after the import (line 9) so mathx is bound.
+	// Stop on the line after the import so mathx is bound (found in the source,
+	// so the sample's layout can change).
+	line := 0
+	for i, ln := range strings.Split(string(src), "\n") {
+		if strings.HasPrefix(ln, "mathx := import(") {
+			line = i + 2 // 1-based, the next line
+			break
+		}
+	}
+	if line == 0 {
+		t.Fatal("mathx import not found in samples/modules/main.gad")
+	}
 	resp := decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/start",
-		StartRequest{Path: "main.gad", Source: string(src), Breakpoints: []int{9}}))
+		StartRequest{Path: "main.gad", Source: string(src), Breakpoints: []int{line}}))
 	if resp.State != "stopped" {
 		t.Fatalf("expected stopped, got %+v", resp)
 	}

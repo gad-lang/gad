@@ -104,6 +104,16 @@ n %%= 5
 println(n)                        // 12
 ```
 
+Output:
+
+```text
+12345
+[12, 345]
+10 0 7
+1002
+12
+```
+
 ## Membership, assign-to-type, precedence
 
 `A in B` tests membership (value/key/substring; also the for-in separator —

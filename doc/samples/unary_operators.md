@@ -7,52 +7,97 @@ its new value). Every unary operator is dispatched through its
 `gad.unOp{Op}(operand)` builtin (e.g. `gad.unOpSub`); a type can override it with
 `met gad.unOp{Op}(v T)`. Part of the [Operators](user_operators.gad) chapter.
 
-## Example — `unary_operators.gad`
+## Numbers, chars and truthiness
+
+A `char` operand promotes to `int`. `!` on a flag stays a flag (`!yes` is `no`);
+on anything else it is a bool of the operand's falsiness.
 
 ```gad
-// Numeric / char operators.
-println(-5, +5, ^5, !5)           // -5 5 -6 false
-println(-'A', ^'A')               // -65 -66  (char promotes to int)
-println(!0, !"", ![], !nil)       // true true true true
+[
+    [-5, +5, ^5, !5],
+    [-'A', ^'A'],               // char promotes to int
+    [!0, !"", ![], !nil],       // falsy values
+    [!yes, !no],                // a flag stays a flag
+]
+// => [[-5, 5, -6, false], [-65, -66], [true, true, true, true], [off, on]]
+```
 
-/**
-Prefix ++ / -- mutate the variable and yield the new value.
-**/
+## Prefix `++` / `--`
+
+They mutate the variable and yield the new value — on ints, floats, decimals
+and chars alike.
+
+```gad
 x := 5
-println(++x, x)                   // 6 6
 f := 2.5
-println(--f, f)                   // 1.5 1.5
 c := 'A'
-println(++c)                      // B
 d := 2.5d
-println(++d)                      // 3.5  (decimal)
+[[++x, x], [--f, f], ++c, ++d]
+// => [[6, 6], [1.5, 1.5], 'B', 3.5]
+```
 
-// `!` on a flag stays a flag (yes/no); on anything else it is a bool.
-println(!yes, !no)                // off on
+## Temporal values
 
-/**
-On the temporal types, ++ increases / -- decreases by the least-significant
+On the temporal types, `++` increases / `--` decreases by the least-significant
 non-zero unit: a plain date by a day, a clock value by its smallest non-zero
 component.
-**/
-day := 2026-01-31D
-println(++day)                    // 2026-02-01           (one day)
-t := time.CalendarTime("2026-01-31 08:05:00")
-println(++t)                      // 2026-01-31 08:06:00  (a minute; seconds 0)
-t2 := time.CalendarTime("2026-01-31 08:05:30")
-println(++t2)                     // 2026-01-31 08:05:31  (a second)
 
-/**
-A type customises a unary operator with met gad.unOpX(…).
-**/
+```gad
+day := 2026-01-31D
+t := time.CalendarTime("2026-01-31 08:05:00")
+t2 := time.CalendarTime("2026-01-31 08:05:30")
+[
+    str(++day),     // one day
+    str(++t),       // a minute (the seconds are 0)
+    str(++t2),      // a second
+]
+// => ["2026-02-01", "2026-01-31 08:06:00", "2026-01-31 08:05:31"]
+```
+
+## Custom operators
+
+A type customises a unary operator with `met gad.unOpX(…)`; the `gad.unOp…`
+builtins are also callable directly.
+
+```gad
 Vec := Class("Vec", (cls, define) => define(; fields = (; x = (= 0), y = (= 0))))
 met gad.unOpSub(v Vec) {
     return Vec(; x = -v.x, y = -v.y)
 }
-v := Vec(; x = 3, y = -4)
-neg := -v
-println(neg.x, neg.y)             // -3 4
+neg := -Vec(; x = 3, y = -4)
+[neg.x, neg.y, gad.unOpInc(41)]
+// => [-3, 4, 42]
+```
 
-// gad.unOp is also callable directly.
-println(gad.unOpInc(41))   // 42
+## Example — `unary_operators.gad`
+
+```gad
+[
+    [-5, +5, ^5, !5],
+    [-'A', ^'A'],               // char promotes to int
+    [!0, !"", ![], !nil],       // falsy values
+    [!yes, !no],                // a flag stays a flag
+]
+
+x := 5
+f := 2.5
+c := 'A'
+d := 2.5d
+[[++x, x], [--f, f], ++c, ++d]
+
+day := 2026-01-31D
+t := time.CalendarTime("2026-01-31 08:05:00")
+t2 := time.CalendarTime("2026-01-31 08:05:30")
+[
+    str(++day),     // one day
+    str(++t),       // a minute (the seconds are 0)
+    str(++t2),      // a second
+]
+
+Vec := Class("Vec", (cls, define) => define(; fields = (; x = (= 0), y = (= 0))))
+met gad.unOpSub(v Vec) {
+    return Vec(; x = -v.x, y = -v.y)
+}
+neg := -Vec(; x = 3, y = -4)
+[neg.x, neg.y, gad.unOpInc(41)]
 ```

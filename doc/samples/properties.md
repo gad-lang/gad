@@ -35,6 +35,15 @@ prop tau <float> => 6.28318          // typed read-only getter
 println("tau():     ", tau())        // 6.28318
 ```
 
+Output:
+
+```text
+value (str): hello
+value (int): int: 42
+pi():       3.14159
+tau():      6.28318
+```
+
 `prop => expr` is a read-only property whose getter is `expr`. It reads **live**
 (re-evaluated on each access) and has no setter, so writing it is an error. It
 works anonymously or named (`prop y => _x`), and may declare a return type
@@ -45,6 +54,12 @@ var _live = 1
 ro := prop => _live                  // anonymous, read-only, live
 _live = 42
 println("ro.v:      ", ro.v)         // 42 (live)
+```
+
+Output:
+
+```text
+ro.v:       42
 ```
 
 ## The virtual `.v` field
@@ -58,7 +73,8 @@ clearer. `x.v = n` runs only the setter — it does not read the getter first.
 
 ```gad
 value.v = 3                          // setter via .v (preferred over value(3))
-println("value.v:   ", value.v)      // int: 3 (getter via .v)
+value.v                              // getter via .v
+// => int: 3
 ```
 
 ## Properties as container members (computed properties)
@@ -82,6 +98,14 @@ temp.f = 212                         // setter converts back
 println("c =", temp.c)               // 100
 ```
 
+Output:
+
+```text
+c = 20
+f = 86
+c = 100
+```
+
 A `prop` declared with `prop` is a plain value: storing it at a key shares the
 **same** prop (both see one backing var). Delegation works on any container
 (dict, module, custom index getters) **except `array` and class instances**,
@@ -102,6 +126,13 @@ p := prop { () => 99 }
 println("array holds prop:", typeName([p][0])) // Prop
 ```
 
+Output:
+
+```text
+d.x = 8 counter() = 8
+array holds prop: Prop
+```
+
 ## Raw access with `reflect`
 
 The [`reflect`](reflect.md) module reads and writes a key **without** delegating
@@ -109,9 +140,10 @@ to a stored prop — the functional analog of JavaScript `Reflect.get` /
 `Reflect.set`.
 
 ```gad
-println("raw get:", typeName(reflect.get(temp, "c"))) // Prop (getter not run)
-reflect.set(temp, "c", 5)                             // replaces the prop
-println("after raw set:", temp.c)                     // 5 (plain value now)
+rawC := typeName(reflect.get(temp, "c"))  // Prop (the getter is not run)
+reflect.set(temp, "c", 5)                // replaces the prop
+[rawC, temp.c]                           // a plain value now
+// => ["Prop", 5]
 ```
 
 ## Exporting properties (module live bindings)
@@ -154,7 +186,7 @@ _live = 42
 println("ro.v:      ", ro.v)         // 42 (live)
 
 value.v = 3                          // setter via .v (preferred over value(3))
-println("value.v:   ", value.v)      // int: 3 (getter via .v)
+value.v                              // getter via .v
 
 var (
     celsius = 20,
@@ -181,9 +213,9 @@ Arrays never delegate: a stored prop is the value itself.
 p := prop { () => 99 }
 println("array holds prop:", typeName([p][0])) // Prop
 
-println("raw get:", typeName(reflect.get(temp, "c"))) // Prop (getter not run)
-reflect.set(temp, "c", 5)                             // replaces the prop
-println("after raw set:", temp.c)                     // 5 (plain value now)
+rawC := typeName(reflect.get(temp, "c"))  // Prop (the getter is not run)
+reflect.set(temp, "c", 5)                // replaces the prop
+[rawC, temp.c]                           // a plain value now
 
 return value()
 ```

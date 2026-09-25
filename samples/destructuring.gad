@@ -11,82 +11,93 @@ destructuring shapes:
 Forms 2 and 3 are the same feature with different brackets — both key-on-the-
 left. They work on any named data — dicts, modules, key-value arrays, named
 args — because the source is run through the default `dict()` constructor first.
-Part of the [Collections](collections.gad) chapter. This whole sample is a
-runnable tour; the full listing is in the Example below.
+Part of the [Collections](collections.gad) chapter.
+
+## 1. Arrays
+
+`x, y := [1, 2]` — a missing element binds `nil`. The bracket form `[a, b]`
+works too (even with one element), a trailing `*rest` (the last target) collects
+the remaining elements, and several values on the right need no brackets.
+`const` / `var` accept any pattern (immutable / mutable bindings).
+
+@snippet destructure_arrays
+
+## 2. Named, `(; … )` form — key on the left
+
+`key: target` renames, `key = default` fills an absent key, and `**rest`
+collects the remaining keys.
+
+@snippet destructure_named
+
+## 3. Named, `{ … }` form — TypeScript order, key on the left
+
+The same feature with braces; `**rest` is collected as a dict. `=` instead of
+`:=` assigns to variables that already exist.
+
+@snippet destructure_braces
+
+## Any named data
+
+The source is run through the default `dict()` constructor, so modules,
+key-value arrays (`ToDictConverter`) and named args all destructure.
+
+@snippet destructure_any
+
+## Mixed positional + named
+
+A MixedParams value (`(values… ; name=value…)`) carries BOTH positional and
+named parts, so it uses the full `( positional ; named )` pattern — the
+positional side takes a trailing `*rest` (a single star, like a variadic
+parameter `func(a, *rest)`) and the named side a trailing `**rest`:
+
+```gad
+mp := (1, 2, *[3]; user = "ann", role = "admin")
+(a, b, *rest_pos; user, role:r, **rest_named) := mp
+```
+
+For just the named side of any value, use `(; … )` or `{ … }` on it.
 **/
 
-// ── 1. Arrays ────────────────────────────────────────────────────────────────
+
+//snippet destructure_arrays
 x, y := [10, 20]
-println("array:", x, y)                 // 10 20
-a, b, c := [1, 2]                        // missing element -> nil
-println("array short:", a, b, c)        // 1 2 nil
-
-// `[a, b]` bracket form works too (even one element):
-[first, second] := [100, 200]
-println("bracket:", first, second)      // 100 200
-
-// a trailing `*rest` (last target) collects the remaining elements:
-head, next, *rest := [1, 2, 3, 4, 5]
-println("rest:", head, next, str(rest)) // 1 2 [3, 4, 5]
-
-// parallel multi-value assignment: several values on the right, no brackets:
-p, q, *tail := 1, 2, 3, 4
-println("parallel:", p, q, str(tail)) // 1 2 [3, 4]
-
-// `const` / `var` accept any pattern (immutable / mutable bindings):
+a, b, c := [1, 2]                   // missing element -> nil
+[first, second] := [100, 200]       // bracket form
+head, next, *rest := [1, 2, 3, 4, 5] // trailing *rest
+p, q, *tail := 1, 2, 3, 4           // parallel: no brackets on the right
 const {tls} = {host: "h", tls: true}
 const [lo, hi, *more] = [1, 9, 10, 11]
-println("const:", tls, lo, hi, str(more)) // true 1 9 [10, 11]
+[[x, y], [a, b, c], [first, second], [head, next, rest], [p, q, tail], [tls, lo, hi, more]]
+/**= [[10, 20], [1, 2, nil], [100, 200], [1, 2, [3, 4, 5]], [1, 2, [3, 4]], [true, 1, 9, [10, 11]]] **/
+//endsnippet
 
-// ── 2. Named, `(; … )` form — key on the LEFT ────────────────────────────────
+//snippet destructure_named
 d := {host: "localhost", port: 8080, tls: true}
-(; host, port:p, timeout = 30, **extra) := d
-// host    <- key "host"    ("localhost")
-// p       <- key "port"    (8080)      — rename, `key: target`
-// timeout <- key "timeout" (30)        — default; key absent
-// extra   <- remaining keys ({tls: true})
-println("(;):", host, p, timeout, str(extra))
+(; host, port:pn, timeout = 30, **extra) := d
+// host    <- key "host"
+// pn      <- key "port"    — rename, `key: target`
+// timeout <- key "timeout" — default; the key is absent
+// extra   <- the remaining keys
+[host, pn, timeout, extra]
+/**= ["localhost", 8080, 30, {tls: true}] **/
+//endsnippet
 
-// ── 3. Named, `{ … }` form — TypeScript order, key on the LEFT ────────────────
-{ host, port: pt, timeout = 30, **rest } := d
-// host <- key "host"; pt <- key "port"; timeout default; rest = the remainder
-println("{}:", host, pt, timeout, str(rest))
-
-// `{ … }` collects **rest as a dict:
-{ host, **others } := d
-println("rest is a", typeName(others), str(others))
-
-// `=` assigns to variables that already exist (instead of declaring):
+//snippet destructure_braces
+cfg := {host: "localhost", port: 8080, tls: true}
+{ host, port: pt, timeout = 30, **others } := cfg
 var (h, po)
-{ host: h, port: po } = d
-println("assign:", h, po)
+{ host: h, port: po } = cfg         // `=` assigns existing variables
+[host, pt, timeout, typeName(others), others, [h, po]]
+/**= ["localhost", 8080, 30, "dict", {tls: true}, ["localhost", 8080]] **/
+//endsnippet
 
-// ── Any named data works (via the default dict() constructor) ─────────────────
-
-// a module
-strings := import("strings")
-{ toUpper, hasPrefix } := strings
-println("module:", toUpper("hi"), hasPrefix("hello", "he"))
-
-// a key-value array (implements ToDictConverter)
-kva := (; a = 1, b = 2, c = 3)
-{ a, b: second, **krest } := kva
-println("kva:", a, second, str(krest))
-
-// named args inside a function
-connect := func(; **opts) {
-	{ host, port = 80 } := opts
-	return host + ":" + str(port)
+//snippet destructure_any
+{ toUpper, hasPrefix } := import("strings")   // a module
+{ a: ka, b: kb, **krest } := (; a = 1, b = 2, c = 3) // a key-value array
+connect := func(; **opts) {                   // named args
+    { host, port = 80 } := opts
+    return host + ":" + str(port)
 }
-println("named args:", connect(; host = "example.com"))
-
-// ── Mixed positional + named ──────────────────────────────────────────────────
-// A MixedParams value (`(values… ; name=value…)`) carries BOTH positional and
-// named parts, so it uses the full `( positional ; named )` pattern — the
-// positional side takes a trailing `*rest` (a single star, like a variadic
-// parameter `func(a, *rest)`) and the named side a trailing `**rest`, e.g.
-//
-//     mp := (1, 2, *[3]; user = "ann", role = "admin")
-//     (a, b, *rest_pos; user, role:r, **rest_named) := mp
-//
-// For just the named side of any value, use `(; … )` or `{ … }` on it.
+[toUpper("hi"), hasPrefix("hello", "he"), [ka, kb, krest], connect(; host = "example.com")]
+/**= ["HI", true, [1, 2, {c: 3}], "example.com:80"] **/
+//endsnippet

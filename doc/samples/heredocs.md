@@ -66,94 +66,172 @@ least-indented line. There is also a single-line form `code <body> end`. A bare
 `code` identifier (no matching `end`) is unaffected, so `code := 1` still
 declares a variable.
 
-The Example below is a runnable tour of every form.
+## Examples
 
-## Example — `heredocs.gad`
+A `"…"` or `` `…` `` may span lines directly; each source line break is a real
+newline and the text is kept verbatim (no indentation stripping — that is
+heredoc-only). In a backtick string `\t` stays literal.
+
+```gad
+println("first
+second")
+println(`raw \t here
+next`)
+```
+
+Output:
+
+```text
+first
+second
+raw \t here
+next
+```
+
+A single-line heredoc: the fence is three quotes, so a doubled quote inside is
+literal text; escape sequences are interpreted, like a normal `"…"` string.
+
+```gad
+["""abc""", """abc""de""", """tab\tend""", """quote: \"x\""""]
+// => ["abc", "abc\"\"de", "tab\tend", "quote: \"x\""]
+```
+
+A wider odd fence closes only on a run of exactly its width, so the body may
+hold shorter runs of the delimiter.
 
 ``````gad
-// --- multiline single-delimiter strings (verbatim, indentation kept) ---
-// A "…" or `…` may span lines directly; each source line break is a real newline
-// and the text is kept verbatim (no indentation stripping — that is heredoc-only).
-println("first
-second")                    // first<newline>second
-// backtick: \t stays literal, but the line break is still a newline.
-println(`raw \t here
-next`)                      // raw \t here<newline>next
+[
+    """say "hi" now""",                 // a single " is text
+    """"" a triple """ inside """"",    // fence of 5: """ is text
+    str(`````raw ``` fence`````),       // fence of 5 backticks (a rawStr)
+]
+// => ["say \"hi\" now", " a triple \"\"\" inside ", "raw ``` fence"]
+``````
 
-// --- heredoc: single line ---
-// The fence is three quotes, so a doubled quote inside is literal text.
-println("""abc""")          // abc
-println("""abc""de""")      // abc""de
+A multi-line heredoc strips the common indentation; the raw form keeps
+backslashes and braces verbatim (it is not a template).
 
-// escape sequences are interpreted, like a normal "..." string.
-println("""tab\tend""")     // tab<TAB>end
-println("""quote: \"x\"""") // quote: "x"
-
-// --- heredoc: wider odd fence (embed shorter delimiter runs) ---
-// The fence is an odd count of 3+; a wider one closes only on a run of exactly
-// its width, so the body may hold shorter runs of the delimiter.
-println("""say "hi" now""")                  // say "hi" now
-println(""""" a triple """ inside """"")     // a triple """ inside  (fence of 5)
-println(`````raw ``` fence`````)             // raw ``` fence         (fence of 5)
-
-// --- heredoc: multi line (common indentation stripped) ---
+````gad
 poem := """
     roses are red
     violets are blue
     """
-println(poem)               // roses are red\nviolets are blue
-
-// --- raw heredoc: verbatim (no escapes, no interpolation) ---
-// Braces are literal text here (this is not a template), so {x} need not exist.
-println(```a {x} b```)      // a {x} b
-
 verbatim := ```
-    C:\tmp\file
+    C:\tmp\file {x}
     line two
     ```
-println(verbatim)           // C:\tmp\file<newline>line two
+println(poem)
+println(verbatim)
+````
 
-// --- template heredoc: #""" ... """ (interpolated, escapes interpreted) ---
+Output:
+
+```text
+roses are red
+violets are blue
+C:\tmp\file {x}
+line two
+```
+
+Template heredocs interpolate `{expr}`. A literal brace inside `#"""…"""` is
+escaped with `\{` / `\}`, exactly as in an `#"…"` string; the raw template forms
+(`` #`…` `` and `` #```…``` ``) keep backslashes verbatim.
+
+````gad
 name := "Gad"
 n := 3
 println(#"""
     hello {name}
     {n} + 1 = {n + 1}
-    """)                    // hello Gad\n3 + 1 = 4
-
-// A literal brace inside a template heredoc is escaped with \{ / \}, exactly as
-// in an #"…" interpolated string.
-println(#"""set \{ {name} }""")  // set { Gad }
-
-// --- template raw string: #`...` (single line, interpolated, escapes verbatim) ---
-println(#`user home: C:\Users\{name}`)  // user home: C:\Users\Gad
-
-// --- template raw heredoc: #``` ... ``` (interpolated, escapes verbatim) ---
-println(#```path: C:\tmp\{name}```)  // path: C:\tmp\Gad
-
-// multi-line template raw heredoc: interpolated, backslashes verbatim, and the
-// common leading indentation stripped.
+    """)
+println(#"""set \{ {name} }""")          // escaped braces
+println(#`user home: C:\Users\{name}`)   // raw template: backslashes verbatim
 println(#```
     dir: C:\Users\{name}
     n+1 = {n + 1}
-    ```)                    // dir: C:\Users\Gad<newline>n+1 = 4
+    ```)
+````
 
-// --- multi-line interpolated heredoc with common indentation removed ---
-// The 4-space body indent is stripped, and {name} is interpolated.
-greeting := #"""
-    Hello, {name}.
-    Welcome aboard.
-    """
-println(greeting)           // Hello, Gad.<newline>Welcome aboard.
+Output:
 
-// --- code string: verbatim Gad source captured as a str ---
+```text
+hello Gad
+3 + 1 = 4
+set { Gad }
+user home: C:\Users\Gad
+dir: C:\Users\Gad
+n+1 = 4
+```
+
+A `code … end` literal captures Gad source verbatim, in block or single-line
+form.
+
+```gad
 src := code
     for x in [1, 2] {
         println(x)
     }
 end
-println(src)                // the two-line for-loop, verbatim
-println(code a + b end)     // single-line form -> "a + b"
+println(src)
+println(code a + b end)                   // single-line form
+```
+
+Output:
+
+```text
+for x in [1, 2] {
+    println(x)
+}
+a + b
+```
+
+## Example — `heredocs.gad`
+
+``````gad
+println("first
+second")
+println(`raw \t here
+next`)
+
+["""abc""", """abc""de""", """tab\tend""", """quote: \"x\""""]
+
+[
+    """say "hi" now""",                 // a single " is text
+    """"" a triple """ inside """"",    // fence of 5: """ is text
+    str(`````raw ``` fence`````),       // fence of 5 backticks (a rawStr)
+]
+
+poem := """
+    roses are red
+    violets are blue
+    """
+verbatim := ```
+    C:\tmp\file {x}
+    line two
+    ```
+println(poem)
+println(verbatim)
+
+name := "Gad"
+n := 3
+println(#"""
+    hello {name}
+    {n} + 1 = {n + 1}
+    """)
+println(#"""set \{ {name} }""")          // escaped braces
+println(#`user home: C:\Users\{name}`)   // raw template: backslashes verbatim
+println(#```
+    dir: C:\Users\{name}
+    n+1 = {n + 1}
+    ```)
+
+src := code
+    for x in [1, 2] {
+        println(x)
+    }
+end
+println(src)
+println(code a + b end)                   // single-line form
 
 return poem
 ``````

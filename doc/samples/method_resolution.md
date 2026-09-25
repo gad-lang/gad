@@ -8,78 +8,57 @@ method whose parameter types match the arguments, Julia-style: every argument
 narrows the choice, and the most specific matching method wins. This file walks
 through arity, type specificity, subtype hierarchies, catch-all fallbacks,
 unions, variadics, `met` extension/override, and structural (`met<…>`) params
-that dispatch by value.
-See doc/method-interfaces.md for detailed documentation.
+that dispatch by value. See doc/method-interfaces.md for detailed documentation.
 
-## Example — `method_resolution.gad`
+## Arity and multiple dispatch
+
+The same name resolves by how many arguments are passed, and every parameter's
+type participates — not just the first.
 
 ```gad
-// --- Overloads by arity -----------------------------------------------------
-/**
-The same name resolves by how many arguments are passed.
-**/
 func area {
     (r float)          => 3.14159 * r * r        // circle
     (w float, h float) => w * h                   // rectangle
 }
-println("area(2.0)       =", area(2.0))          // 12.56636  (1 arg -> circle)
-println("area(2.0, 3.0)  =", area(2.0, 3.0))     // 6         (2 args -> rectangle)
-
-// --- Multiple dispatch (all arguments participate) --------------------------
-/**
-Resolution considers every parameter's type, not just the first.
-**/
 func combine {
     (a int, b int) => "int+int"
     (a int, b str) => "int+str"
     (a str, b str) => "str+str"
 }
-println("combine(1, 2)   =", combine(1, 2))      // int+int
-println("combine(1, \"x\") =", combine(1, "x"))  // int+str
-println("combine(\"a\",\"b\")=", combine("a", "b")) // str+str
+[area(2.0), area(2.0, 3.0), combine(1, 2), combine(1, "x"), combine("a", "b")]
+// => [12.56636, 6, "int+int", "int+str", "str+str"]
+```
 
-// --- Type specificity (most specific wins) ----------------------------------
-/**
-A subclass argument prefers the method typed for the subclass over the one
-typed for its parent.
-**/
+## Specificity and fallbacks
+
+A subclass argument prefers the method typed for the subclass over the one typed
+for its parent. An untyped parameter matches anything and is the fallback,
+chosen only when no typed method matches.
+
+```gad
 class Animal {}
 class Dog { *Animal }
-
 func speak {
     (a Animal) => "some animal"
-    (d Dog)    => "woof"
+    (d Dog)    => "woof"               // Dog is more specific
 }
-println("speak(Animal()) =", speak(Animal()))    // some animal
-println("speak(Dog())    =", speak(Dog()))       // woof (Dog is more specific)
-
-// --- Catch-all fallback -----------------------------------------------------
-/**
-An untyped parameter matches anything and acts as the fallback, chosen only
-when no typed method matches.
-**/
 func kind {
     (x int) => "integer"
     (x str) => "text"
-    (x)     => "other"
+    (x)     => "other"                 // the fallback
 }
-println("kind(5)         =", kind(5))            // integer
-println("kind(\"hi\")      =", kind("hi"))       // text
-println("kind(true)      =", kind(true))         // other (fallback)
+[speak(Animal()), speak(Dog()), kind(5), kind("hi"), kind(true)]
+// => ["some animal", "woof", "integer", "text", "other"]
+```
 
-// --- Union parameter types --------------------------------------------------
-/**
-`int|str` accepts either type in a single method.
-**/
+## Unions and variadics
+
+`int|str` accepts either type in a single method. `*xs int` collects any number
+of trailing int arguments; the no-arg method is a distinct, more specific
+overload.
+
+```gad
 func label(x int|str) => "label:" + str(x)
-println("label(7)        =", label(7))           // label:7
-println("label(\"q\")      =", label("q"))       // label:q
-
-// --- Variadic typed methods -------------------------------------------------
-/**
-`*xs int` collects any number of trailing int arguments; the no-arg method
-is a distinct, more specific overload.
-**/
 func sum {
     ()        => 0
     (*xs int) {
@@ -88,94 +67,131 @@ func sum {
         return total
     }
 }
-println("sum()           =", sum())              // 0
-println("sum(1, 2, 3)    =", sum(1, 2, 3))       // 6
+[label(7), label("q"), sum(), sum(1, 2, 3)]
+// => ["label:7", "label:q", 0, 6]
+```
 
-// --- Extending with `met` ---------------------------------------------------
-/**
-`met` adds a method to an existing callable after the fact.
-**/
-met area(side int) => side * side                // square (int)
-println("area(4)         =", area(4))            // 16 (new int method)
+## Extending and overriding (`met`, `met ~`, `$old`)
 
-/**
-`met ~name` overrides an existing signature instead of erroring; the last
-definition wins.
-**/
+`met` adds a method to an existing callable after the fact; `met ~name`
+overrides an existing signature instead of erroring (the last definition wins).
+A `$old` first parameter on an override captures the method being replaced, so
+the new method can wrap it (super / around advice). It is dropped from the real
+signature; `$old` is resolved from the remaining parameter types and is nil when
+there was no previous method. `gad.methodFromArgs(fn, …)` — what `$old` uses
+under the hood — returns the method a call would dispatch to, chosen by example
+value or by type name.
+
+```gad
+met area(side int) => side * side          // a new (int) method: a square
+
 func greet(name str) => "hi " + name
-println("greet(\"a\") pre  =", greet("a"))       // hi a
-met ~greet(name str) => "HELLO " + name
-println("greet(\"a\") post =", greet("a"))       // HELLO a (overridden)
+pre := greet("a")
+met ~greet(name str) => "HELLO " + name   // override
 
-// --- Calling the overridden method (`$old`) ---------------------------------
-/**
-A `$old` first parameter on an override captures the method being replaced,
-so the new method can wrap the previous implementation (super / around
-advice). It is dropped from the real signature; `$old` is resolved from the
-remaining parameter types and is nil when there was no previous method.
-**/
 func step(n int) => n * 10
-met ~step($old, n int) => $old(n) + 1              // wraps the previous `step`
-println("step(3)         =", step(3))            // 31 (30 + 1)
+met ~step($old, n int) => $old(n) + 1     // wraps the previous `step`
 
-/**
-`gad.methodFromArgs(fn, …)` — what `$old` uses under the hood — returns the
-method a call would dispatch to, chosen by example value or by type name.
-**/
-println("methodFromArgs  =", gad.methodFromArgs(step, int)(4))  // 41
+[area(4), pre, greet("a"), step(3), gad.methodFromArgs(step, int)(4)]
+// => [16, "hi a", "HELLO a", 31, 41]
+```
 
-// --- Structural parameter types (dispatch by value) -------------------------
-/**
-A `met<…>` (method-interface) parameter type is checked structurally, by
-value: the argument must be a callable whose signature satisfies the header.
-A non-callable — or a callable with the wrong shape — is rejected.
-**/
+## Structural parameter types (dispatch by value)
+
+A `met<…>` (method-interface) parameter type is checked structurally, by value:
+the argument must be a callable whose signature satisfies the header. A
+function-with-methods is accepted when one of its methods fits; a non-callable —
+or a callable with the wrong shape — is rejected at the call.
+
+```gad
 func apply(cb met<(int) <int>>, v int) => cb(v)
-println("apply(sq, 6)    =", apply(func(n int) => n * n, 6))  // 36
-
-/**
-A function-with-methods is accepted when one of its methods fits the header.
-**/
 func poly() => "s"
-met poly(n int) => n + 1
-println("apply(poly, 10) =", apply(poly, 10))    // 11 (poly's (int) method fits)
+met poly(n int) => n + 1                  // poly's (int) method fits the header
+rejected := func() { try { apply(42, 1); return false } catch { return true } }
+[apply(func(n int) => n * n, 6), apply(poly, 10), rejected()]
+// => [36, 11, true]
+```
 
-/**
-Passing a value that does not implement the header is rejected at the call.
-**/
-ok := true
-try {
-    apply(42, 1)                                  // 42 is not a (int)<int> callable
-    ok = false
-} catch e {
-    println("apply(42, 1)    = rejected (not a (int)<int> callable)")
-}
+## The assign-to-type operator `::`
 
-// --- The assign-to-type operator `::` --------------------------------------
-/**
 `obj :: Type` checks assignability by the same rules the dispatcher uses and
-returns obj unchanged (else it raises a type error). It uses the type kinds
-above — plain types, subclasses and structural `met<…>` — and chains
-left-to-right (`obj::T1::T2`).
-**/
-println("5 :: int        =", 5 :: int)           // 5
-println("5 :: int :: any =", 5 :: int :: any)    // 5 (chained)
-println("2 + 3 :: int    =", 2 + 3 :: int)       // 5 (binds tighter than +)
+returns obj unchanged (else it raises a catchable type error). It uses the type
+kinds above — plain types, subclasses and structural `met<…>` — chains
+left-to-right (`obj::T1::T2`) and binds tighter than `+`.
 
-/**
-A callable checked against a method interface passes when it fits the shape.
-**/
-println("fn :: met<…>    =", (func(n int) => n) :: met<(int) <int>> != nil) // true
+```gad
+bad := func() { try { "hi" :: int; return false } catch { return true } }
+[
+    5 :: int,
+    5 :: int :: any,                                   // chained
+    2 + 3 :: int,                                      // binds tighter than +
+    (func(n int) => n) :: met<(int) <int>> != nil,     // a structural fit
+    bad(),                                             // a failing cast raises
+]
+// => [5, 5, 5, true, true]
+```
 
-/**
-A failing cast raises a catchable error.
-**/
-try {
-    x := "hi" :: int
-    ok = false
-} catch e {
-    println("\"hi\" :: int     = rejected")
+## Example — `method_resolution.gad`
+
+```gad
+func area {
+    (r float)          => 3.14159 * r * r        // circle
+    (w float, h float) => w * h                   // rectangle
 }
+func combine {
+    (a int, b int) => "int+int"
+    (a int, b str) => "int+str"
+    (a str, b str) => "str+str"
+}
+[area(2.0), area(2.0, 3.0), combine(1, 2), combine(1, "x"), combine("a", "b")]
 
-return ok
+class Animal {}
+class Dog { *Animal }
+func speak {
+    (a Animal) => "some animal"
+    (d Dog)    => "woof"               // Dog is more specific
+}
+func kind {
+    (x int) => "integer"
+    (x str) => "text"
+    (x)     => "other"                 // the fallback
+}
+[speak(Animal()), speak(Dog()), kind(5), kind("hi"), kind(true)]
+
+func label(x int|str) => "label:" + str(x)
+func sum {
+    ()        => 0
+    (*xs int) {
+        total := 0
+        for _, x in xs { total += x }
+        return total
+    }
+}
+[label(7), label("q"), sum(), sum(1, 2, 3)]
+
+met area(side int) => side * side          // a new (int) method: a square
+
+func greet(name str) => "hi " + name
+pre := greet("a")
+met ~greet(name str) => "HELLO " + name   // override
+
+func step(n int) => n * 10
+met ~step($old, n int) => $old(n) + 1     // wraps the previous `step`
+
+[area(4), pre, greet("a"), step(3), gad.methodFromArgs(step, int)(4)]
+
+func apply(cb met<(int) <int>>, v int) => cb(v)
+func poly() => "s"
+met poly(n int) => n + 1                  // poly's (int) method fits the header
+rejected := func() { try { apply(42, 1); return false } catch { return true } }
+[apply(func(n int) => n * n, 6), apply(poly, 10), rejected()]
+
+bad := func() { try { "hi" :: int; return false } catch { return true } }
+[
+    5 :: int,
+    5 :: int :: any,                                   // chained
+    2 + 3 :: int,                                      // binds tighter than +
+    (func(n int) => n) :: met<(int) <int>> != nil,     // a structural fit
+    bad(),                                             // a failing cast raises
+]
 ```

@@ -218,14 +218,28 @@ func runExample(code string) error {
 // discarding its standard output, and returns the last value on the stack.
 func evalGadExample(src string) (gad.Object, error) {
 	builtins := gad.NewBuiltins().Build()
-	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
-		ModuleMap: DefaultModuleMap(".", &sourcePath),
-	}}
+	opts := exampleCompileOptions()
 	eval := gad.NewEval(builtins, defaultSymbolTable(builtins.Builtins().NameSet), opts,
 		&gad.RunOpts{StdOut: io.Discard, StdErr: io.Discard})
 	eval.VM.Builtins = builtins
 	ret, _, err := eval.RunScript(context.Background(), []byte(src))
 	return ret, err
+}
+
+// exampleWorkDir is the directory examples and snippets resolve relative
+// `import("./…")` and `embed("…")` paths against: the documented source file's
+// directory while `gad doc` verifies its snippets (see buildDocDict), "."
+// otherwise. Documentation is generated one file at a time, so a package
+// variable is enough.
+var exampleWorkDir = "."
+
+// exampleCompileOptions returns the compile options an example or snippet runs
+// with: the default module map and an embed map, both rooted at exampleWorkDir.
+func exampleCompileOptions() gad.CompileOptions {
+	return gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
+		ModuleMap:   DefaultModuleMap(exampleWorkDir, &sourcePath),
+		EmbededdMap: DefaultEmbedMap(exampleWorkDir),
+	}}
 }
 
 // objectsEqual reports whether two result objects are equal, treating nil as a

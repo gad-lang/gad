@@ -39,51 +39,39 @@ g := import("./greet.gad"; lang = "br")
 compile time**, evaluating to an `Embedded` value: `.name`, `.path`, `.size`,
 `.data` (bytes), `.isDir`, and (for a directory) name-indexed entries plus an
 iterable `.fs`. Paths resolve against the running script's directory;
-`sources=[…]` lists directories to look the name up in. The Example below is a
-runnable tour.
+`sources=[…]` lists directories to look the name up in.
+
+@snippet embed_file
+
+Embedding a directory gives a node indexed by entry name; each entry is itself
+an Embedded (a file or a nested directory). `sources=[...]` lists directories to
+look the name up in, so the reference need not spell out the full path.
+
+@snippet embed_dir
+
+A directory's `.fs` is iterable: `for name, entry in dir.fs` yields each child
+(`iterator(dir.fs; sorted)` orders them by name), and `.isDir` tells a
+sub-directory from a file — recurse with it to walk the whole tree (`var f; f =
+func …` binds the name for the recursive call).
+
+@snippet embed_walk
 **/
 
-// --- embed a single file ---------------------------------------------------
-/**
-`embed("path")` yields an Embedded value for the file.
-**/
+//snippet embed_file
 greeting := embed("embed/greeting.txt")
-println("name:   ", greeting.name)              // embed/greeting.txt
-println("size:   ", greeting.size)              // byte count
-println("data:   ", str(greeting.data))         // the file contents (bytes -> str)
+[greeting.name, greeting.size, str(greeting.data)]
+/**= ["embed/greeting.txt", 29, "Hello from an embedded file!\n"] **/
+//endsnippet
 
-// --- embed a directory -----------------------------------------------------
-/**
-Embedding a directory gives a node indexed by entry name; each entry is
-itself an Embedded (a file or a nested directory).
-**/
+//snippet embed_dir
 dir := embed("embed")
-println("dir:    ", dir.name)                   // embed
-println("entry:  ", str(dir["config.json"].data))
+cfg := embed("config.json"; sources = ["embed"])   // found via the search path
+[dir.name, dir.isDir, str(dir["config.json"].data), str(cfg.data) == str(dir["config.json"].data)]
+/**= ["embed", true, "{\"name\": \"gad\", \"stars\": 3}\n", true] **/
+//endsnippet
 
-// --- the `sources` search path ---------------------------------------------
-/**
-`sources=[...]` lists directories to look the name up in, so the embed
-reference need not spell out the full path.
-**/
-cfg := embed("config.json"; sources = ["embed"])
-println("sources:", str(cfg.data))
-
-// --- iterating and walking a directory -------------------------------------
-/**
-A directory's `.fs` is iterable: `for name, entry in dir.fs` yields each
-child (`iterator(dir.fs; sorted)` orders them by name). Each entry is itself
-an Embedded — `.isDir` tells a sub-directory from a file.
-**/
-println("-- entries --")
-for name, e in iterator(dir.fs; sorted) {
-    println("  ", e.isDir ? "dir " : "file", name)
-}
-
-/**
-Recurse with `.isDir` to walk the whole tree (`var f; f = func …` binds the
-name for the recursive call).
-**/
+//snippet embed_walk
+root := embed("embed")
 var walk
 walk = func(node, indent) {
     for name, e in iterator(node.fs; sorted) {
@@ -95,7 +83,13 @@ walk = func(node, indent) {
         }
     }
 }
-println("-- walk --")
-walk(dir, "  ")
+walk(root, "")
+/**<
+config.json (28 bytes)
+greeting.txt (29 bytes)
+nested/
+  note.txt (14 bytes)
+**/
+//endsnippet
 
 return greeting.name

@@ -93,6 +93,12 @@ prop pi => 3.14159                   // read-only getter (no parens, no braces)
 println("pi():      ", pi())         // 3.14159
 prop tau <float> => 6.28318          // typed read-only getter
 println("tau():     ", tau())        // 6.28318
+/**<
+value (str): hello
+value (int): int: 42
+pi():       3.14159
+tau():      6.28318
+**/
 //endsnippet
 
 //snippet getter_only
@@ -100,11 +106,15 @@ var _live = 1
 ro := prop => _live                  // anonymous, read-only, live
 _live = 42
 println("ro.v:      ", ro.v)         // 42 (live)
+/**<
+ro.v:       42
+**/
 //endsnippet
 
-//snippet dot_v
+//snippet dot_v uses declare
 value.v = 3                          // setter via .v (preferred over value(3))
-println("value.v:   ", value.v)      // int: 3 (getter via .v)
+value.v                              // getter via .v
+/**= "int: 3" **/
 //endsnippet
 
 //snippet computed
@@ -120,6 +130,11 @@ temp.c = 30                          // setter runs
 println("f =", temp.f)               // 86 — computed from celsius
 temp.f = 212                         // setter converts back
 println("c =", temp.c)               // 100
+/**<
+c = 20
+f = 86
+c = 100
+**/
 //endsnippet
 
 //snippet byref
@@ -134,12 +149,17 @@ Arrays never delegate: a stored prop is the value itself.
 **/
 p := prop { () => 99 }
 println("array holds prop:", typeName([p][0])) // Prop
+/**<
+d.x = 8 counter() = 8
+array holds prop: Prop
+**/
 //endsnippet
 
-//snippet reflect
-println("raw get:", typeName(reflect.get(temp, "c"))) // Prop (getter not run)
-reflect.set(temp, "c", 5)                             // replaces the prop
-println("after raw set:", temp.c)                     // 5 (plain value now)
+//snippet reflect uses computed
+rawC := typeName(reflect.get(temp, "c"))  // Prop (the getter is not run)
+reflect.set(temp, "c", 5)                // replaces the prop
+[rawC, temp.c]                           // a plain value now
+/**= ["Prop", 5] **/
 //endsnippet
 
 return value()

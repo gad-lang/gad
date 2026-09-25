@@ -32,7 +32,7 @@ inspecting or forwarding named arguments generically).
 fact := func(n) {
     return n <= 1 ? 1 : n * @fn(n - 1)
 }
-println("5! =", fact(5)) // 120
+f5 := fact(5)                   // 120
 
 /**
 @args — the positional arguments as an array.
@@ -44,14 +44,15 @@ sum := func(*_) {
     }
     return total
 }
-println("sum =", sum(1, 2, 3, 4)) // 10
+s10 := sum(1, 2, 3, 4)          // 10
 
 /**
 @nargs — the named-argument set of the current call (extra names beyond the
 declared parameters).
 **/
 forward := func(; **extra) => @nargs
-println("nargs type =", typeName(forward(; a = 1)))
+[f5, s10, typeName(forward(; a = 1))]
+// => [120, 10, "namedArgs"]
 ```
 
 ## Module introspection
@@ -65,7 +66,8 @@ entry module (guard "run only when executed directly" code with it), and
 /**
 Module info: @name, @file, @main, @module.
 **/
-println("name =", @name, "| main =", @main)
+[typeName(@name), typeName(@main)]   // the module name (str) and whether it is main
+// => ["str", "bool"]
 ```
 
 ## Globals: `@g`
@@ -84,8 +86,8 @@ and [Operators](17_unary_operators.md).
 **/
 @g["hits"] = (@g["hits"] !? 0) + 1
 @g["hits"] = (@g["hits"] !? 0) + 1
-println("hits =", @g["hits"])      // 2
-println("has hits:", "hits" in @g) // true
+[@g["hits"], "hits" in @g]
+// => [2, true]
 ```
 
 ## Example — `special_keywords.gad`
@@ -97,7 +99,7 @@ println("has hits:", "hits" in @g) // true
 fact := func(n) {
     return n <= 1 ? 1 : n * @fn(n - 1)
 }
-println("5! =", fact(5)) // 120
+f5 := fact(5)                   // 120
 
 /**
 @args — the positional arguments as an array.
@@ -109,27 +111,26 @@ sum := func(*_) {
     }
     return total
 }
-println("sum =", sum(1, 2, 3, 4)) // 10
+s10 := sum(1, 2, 3, 4)          // 10
 
 /**
 @nargs — the named-argument set of the current call (extra names beyond the
 declared parameters).
 **/
 forward := func(; **extra) => @nargs
-println("nargs type =", typeName(forward(; a = 1)))
+[f5, s10, typeName(forward(; a = 1))]
 
 /**
 Module info: @name, @file, @main, @module.
 **/
-println("name =", @name, "| main =", @main)
+[typeName(@name), typeName(@main)]   // the module name (str) and whether it is main
 
 /**
 @g — the host globals object (short form of the old `globals()`).
 **/
 @g["hits"] = (@g["hits"] !? 0) + 1
 @g["hits"] = (@g["hits"] !? 0) + 1
-println("hits =", @g["hits"])      // 2
-println("has hits:", "hits" in @g) // true
+[@g["hits"], "hits" in @g]
 
 return @g["hits"]
 ```

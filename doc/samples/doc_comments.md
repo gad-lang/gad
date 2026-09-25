@@ -50,6 +50,9 @@ sum(2, 3)
 func sum(a, b) {
     return a + b
 }
+
+[ServerAddr, Greeting, Retries, sum(2, 3)]   // doc comments never change values
+// => [":8080", "hello", 3, 5]
 ````
 
 ## What can be documented
@@ -73,6 +76,9 @@ meti differ {
     /// difference of two ints
     (a int, b int) <int>
 }
+
+[calc(1, 2), calc(1.5, 2.0)]
+// => [3, 3.5]
 ```
 
 ## Attachment rules
@@ -125,6 +131,54 @@ tag the fence `` ```gad ignore `` (or `` ```gad no-run ``). It still highlights 
 Gad on the docs site, but the doctest runner skips it. A wider fence (`` ``````gad ``)
 is likewise never executed.
 
+## Verified snippets
+
+For longer examples a page pulls real code out of its own source: a region
+opened by a `//snippet NAME` line and closed by `//endsnippet` is inserted where
+a doc comment says `@snippet NAME`, and its result markers — `/**= EXPR **/` for
+a value, `/**< TEXT **/` for printed output — are verified by `gad doc`. The full
+guide, including the rules that are easy to miss, is in
+[Conventions](conventions.md) (Verified snippets). The examples below are
+snippets themselves.
+
+A snippet may verify several steps; each marker checks the code from the start
+of the snippet up to it. The terse `//= EXPR` form is handy between steps:
+
+```gad
+double := func(x) => x * 2
+double(2)
+// => 4
+double(1.25)    // a float doubles too
+// => 2.5
+```
+
+A multi-line `/**<` keeps its lines verbatim, so indented output matches:
+
+```gad
+for _, item in ["a", "b"] {
+    println("item:")
+    println("  ", item)
+}
+```
+
+Output:
+
+```text
+item:
+   a
+item:
+   b
+```
+
+Each snippet runs on its own. `uses` prepends another snippet's code (not
+rendered) so this one can reuse its definitions — here `double` from
+`snippet_steps`:
+
+```gad
+[double(21), double(0.5)]
+// => [42, 1]
+```
+
 ## Example — `doc_comments.gad`
 
 ````gad
@@ -152,6 +206,8 @@ func sum(a, b) {
     return a + b
 }
 
+[ServerAddr, Greeting, Retries, sum(2, 3)]   // doc comments never change values
+
 /// a tiny calculator dispatching on argument types
 func calc {
     /// add two ints
@@ -167,10 +223,21 @@ meti differ {
     (a int, b int) <int>
 }
 
-println(Greeting, ServerAddr, "retries:", Retries)
-println("sum:", sum(2, 3))            // sum: 5
-println("calc ints:", calc(2, 3))     // calc ints: 5
-println("calc floats:", calc(2.5, 0.5)) // calc floats: 3
+[calc(1, 2), calc(1.5, 2.0)]
+
+
+double := func(x) => x * 2
+double(2)
+//= 4
+double(1.25)    // a float doubles too
+//= 2.5
+
+for _, item in ["a", "b"] {
+    println("item:")
+    println("  ", item)
+}
+
+[double(21), double(0.5)]
 
 return sum(2, 3)
 ````

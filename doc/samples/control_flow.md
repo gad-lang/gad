@@ -28,6 +28,13 @@ println("grade(95) =", grade(95)) // A
 println("grade(83) =", grade(83)) // B
 ```
 
+Output:
+
+```text
+grade(95) = A
+grade(83) = B
+```
+
 ## For
 
 The three-clause (`for i := 0; i < 3; i++`), condition-only (`for x < 10`) and
@@ -52,22 +59,43 @@ n := 0
 println("prefix:", ++n, ++n, --n) // 1 2 1
 ```
 
+Output:
+
+```text
+5! = 120
+prefix: 1 2 1
+```
+
 ## For-In
 
 `for … in` iterates any iterable — arrays, dicts, strings, bytes and lazy
 iterators (e.g. the result of `map`/`filter`). Bind one variable for the value,
-or two for the key/index and value.
+or two for the key/index and value. A dict's iteration order is unspecified;
+`iterator(d; sorted)` iterates it ordered by key.
 
 ```gad
 for i, v in [10, 20, 30] {
     println(i, v) // 0 10, 1 20, 2 30
 }
-for k, v in {a: 1, b: 2} {
+// a dict's order is unspecified; iterator(…; sorted) orders it by key
+for k, v in iterator({a: 1, b: 2}; sorted) {
     println(k, v) // a 1, b 2
 }
 for i, c in "ab" {
     println(i, c) // 0 'a', 1 'b'
 }
+```
+
+Output:
+
+```text
+0 10
+1 20
+2 30
+a 1
+b 2
+0 a
+1 b
 ```
 
 ## Custom iterables (the iterator protocol)
@@ -124,6 +152,17 @@ met iterator(l Letters, i) => i+1 >= l.n ? nil : [i+1, [(i+1)=str('a' + i+1)]]
 for k, v in Letters(; n=3) {
     println("letter", k, "=", v) // letter 0 = a, 1 = b, 2 = c
 }
+```
+
+Output:
+
+```text
+isIterable: true
+collect: [0, 1, 2, 3]
+sum via param: 6
+letter 0 = a
+letter 1 = b
+letter 2 = c
 ```
 
 ## Match
@@ -207,6 +246,24 @@ first := func(xs) {
 }
 println("first([]) =", first([]))
 println("first([1,2]) =", first([1, 2]))
+```
+
+Output:
+
+```text
+-3 is negative
+0 is zero
+1 is one or two
+4 is small
+42 is large
+0 -> zero
+5 -> positive
+500 -> huge
+-2 -> negative
+letterGrade(83) = B
+sat is a weekend
+first([]) = empty
+first([1,2]) = has 2
 ```
 
 The formatter keeps a match inline while it fits and switches to one arm per line
@@ -302,7 +359,8 @@ println("prefix:", ++n, ++n, --n) // 1 2 1
 for i, v in [10, 20, 30] {
     println(i, v) // 0 10, 1 20, 2 30
 }
-for k, v in {a: 1, b: 2} {
+// a dict's order is unspecified; iterator(…; sorted) orders it by key
+for k, v in iterator({a: 1, b: 2}; sorted) {
     println(k, v) // a 1, b 2
 }
 for i, c in "ab" {

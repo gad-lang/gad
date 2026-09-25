@@ -192,8 +192,15 @@ func (d *PathList) Remove(count int) {
 // OsDirsNameResolverPtr is similar to `OsDirsNameResolver`, but receives ptr of `dirs`.
 func OsDirsNameResolverPtr(dirs *PathList) func(cwd, path string) (string, error) {
 	if len(*dirs) == 0 {
-		return func(_, path string) (string, error) {
-			return path, nil
+		// No search path: a relative name still resolves against the importing
+		// module's directory (cwd), as it does below — otherwise it would be read
+		// relative to the process's working directory, and `gad run dir/main.gad`
+		// from outside dir could not import "./sibling.gad".
+		return func(cwd, p string) (string, error) {
+			if cwd == "" || filepath.IsAbs(p) {
+				return p, nil
+			}
+			return filepath.Join(cwd, p), nil
 		}
 	}
 	return func(cwd string, p string) (name string, err error) {

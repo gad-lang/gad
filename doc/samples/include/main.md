@@ -9,42 +9,59 @@ file's statements run in place and its bindings become the includer's own.
 Run from the repo root:  gad run samples/include/main.gad
 See doc/getting-started.md for detailed documentation.
 
-## Example — `main.gad`
+## Including a file
+
+After `include ("config.gad")`, config.gad's `appName`, `version` and
+`loadedFrom` are visible here, exactly as if they were typed at that line.
+`loadedFrom` is config.gad's own `@file` — the source name of the file that was
+running when it was read (the resolver decides its exact spelling: a bare name
+for a registered module, or a file path/URL for a file on disk).
 
 ```gad
-// Include one file: config.gad's `appName`, `version` and `loadedFrom` are now
-// visible here, exactly as if they were typed at this line.
 include ("config.gad")
+[#"{appName} v{version}", import("strings").hasSuffix(loadedFrom, "config.gad")]
+// => ["Gadapp v1.0", true]
+```
 
-println(#"{appName} v{version}")             // Gadapp v1.0
-// loadedFrom is config.gad's own @file — the source name of the file that was
-// running when it was read (the resolver decides its exact spelling: a bare
-// name for a registered module, or a file path/URL for a file on disk).
-println("config loaded from:", loadedFrom)
+## Several files at once
 
-/**
-Include several files at once — a parenthesized list, compiled in order. The
-group may span multiple lines.
-**/
+A parenthesized list includes several files, compiled in order; the group may
+span multiple lines.
+
+```gad
 include (
     "banner.gad",
 )
+banner(appName)
+// => == Gadapp ==
+```
 
-println(banner(appName))                     // == Gadapp ==
+## `@file`, `@files` and `@mod`
 
-/**
-`@file` reports the source name of the code currently running. At the top level
-of main.gad (outside any include) it is the module's own file; inside an
-included file it is that file. `@files` is the whole source stack: the module at
-the base, then each active include (innermost last).
-**/
-println("main @file:", @file)                // (the module file)
+`@file` reports the source name of the code currently running: at the top level
+of main.gad (outside any include) it is the module's own file; inside an included
+file it is that file. `@files` is the whole source stack: the module at the
+base, then each active include (innermost last). `@mod` is the current module
+object — the SAME module inside an included file, since `include` never creates
+a new module (use `import` for that).
 
-/**
-`@mod` is the current module object — the SAME module inside an included file,
-since `include` never creates a new module (use `import` for that).
-**/
-println("module is:", @mod)
+```gad
+[loadedFrom == @file, typeName(@mod)]   // config.gad's @file differs from ours
+// => [false, "Module"]
+```
+
+## Example — `main.gad`
+
+```gad
+include ("config.gad")
+[#"{appName} v{version}", import("strings").hasSuffix(loadedFrom, "config.gad")]
+
+include (
+    "banner.gad",
+)
+banner(appName)
+
+[loadedFrom == @file, typeName(@mod)]   // config.gad's @file differs from ours
 
 return appName
 ```

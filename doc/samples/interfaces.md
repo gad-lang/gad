@@ -7,6 +7,66 @@ An `interface { … }` is a structural contract grouping typed fields,
 members are read by indexing; the statement form binds a const, the expression
 form is a value (compiled with an `ifaces#N` name).
 
+## Declaring and reflecting
+
+A bare field entry is typed (`id int`); an untyped field defaults to `any`.
+`get`/`set`/`prop` declare accessors; a method is `name(params) <return>`, and
+its block form `name { (…), … }` groups several overload signatures (like
+`meti`, without the keyword). The interface's members are read back by
+indexing (`.name`, `.fields`, `.props`, `.methods`); a nested-interface field's
+type is itself an `Interface` value, inspectable further.
+
+```gad
+// A parent interface, spread into `Shape` with `*Base` below.
+interface Base { get kind }
+
+interface Shape {
+	*Base
+
+	id int
+	label str
+
+	// a nested-interface field (short form): `bounds` is typed by an inline
+	// interface with `w int` and `h int`. Long form: `bounds interface { … }`.
+	bounds: {
+		w int
+		h int
+	}
+
+	// an ARRAY-interface field (`[]{ … }`): `corners` must be an array whose
+	// elements each satisfy `{ x int; y int }`.
+	corners: []{
+		x int
+		y int
+	}
+
+	get area uint
+	set scale
+	prop title
+
+	draw()
+	resize(int|uint) <bool>
+
+	// a method with several overload signatures
+	from {
+		(str)
+		(w int, h int)
+	}
+}
+
+bounds := [f for f in Shape.fields if f.name == "bounds"][0]
+[
+    Shape.name,
+    [f.name for f in Shape.fields],
+    Shape.fields[0].types[0] == int,
+    [p.name for p in Shape.props],
+    [m.name for m in Shape.methods],
+    len(Shape.methods[2].headers),                   // from's signatures
+    [typeName(bounds.types[0]), [f.name for f in bounds.types[0].fields]],
+]
+// => ["Shape", ["id", "label", "bounds", "corners"], true, ["area", "scale", "title"], ["draw", "resize", "from"], 2, ["Interface", ["w", "h"]]]
+```
+
 ## Structural satisfaction
 
 A value **satisfies** an interface when it has every required field (with an
@@ -15,11 +75,47 @@ interface. Check it with the [`::` operator](user_operators.gad) or use an
 interface as a parameter type — a non-satisfier is rejected. Satisfaction works
 against any member-bearing value: class instances, dicts/key-value arrays (fields
 match keys, methods match callable keys) and reflected Go values (fields matched
-structurally, methods optimistically / duck-typed).
+structurally, methods optimistically / duck-typed). An interface also works as
+a parameter type. Because a failed `::` raises an error, the `or` fallback
+operator turns it into a value: `obj::Type or fallback` yields the fallback
+when obj does not satisfy Type, without a `try`/`catch`.
+
+```gad
+interface Greeter { name str; greet() <str> }
+
+class Person {
+    name = ""
+    methods { greet() => "hi " + this.name }
+}
+class Anon { label = "?" }                      // no `name`, no greet()
+func welcome(g Greeter) => g.greet() + "!"      // an interface parameter
+
+p := Person(; name = "Ada")
+d := {name: "Bo", greet: func() => "hi Bo"}     // a dict satisfies it too
+bad := {name: "x"}                              // no callable `greet`
+[
+    (p::Greeter).greet(),
+    Anon()::Greeter or "rejected",
+    welcome(p),
+    (d::Greeter).greet(), welcome(d),
+    bad::Greeter or "is bad",                   // `or` turns the error into a value
+]
+// => ["hi Ada", "rejected", "hi Ada!", "hi Bo", "hi Bo!", "is bad"]
+```
 
 A required field marked with a `?` after its name (`x? int`) is **nullable**: a
 member that is `nil` — or absent — still satisfies it, so `?` marks an optional
 field (see [typed & nullable fields](class/field_types.gad)).
+
+```gad
+interface Tagged { name str; tag? int|str }
+[
+    ({name: "a", tag: 3} :: Tagged).tag,
+    ({name: "b", tag: nil} :: Tagged).name,     // a nil tag is fine
+    ({name: "c"} :: Tagged).name,               // an absent tag is fine
+]
+// => [3, "b", "c"]
+```
 
 A `**name` member is a **rest capture** used with the transforming cast
 [`:::`](transform_cast_test.gad): `d ::: interface { … }` coerces the source's
@@ -75,7 +171,25 @@ form `FnExpr { (…); … }` for several signatures). `FnExpr` is captured by va
 where the interface is declared; the special positional type **`@self`** marks
 where the object is passed (every header must contain at least one `@self`). Such
 an interface is a runtime value and can also be built directly in Go (set
-`Interface.ContextFuncs`).
+`Interface.ContextFuncs`). A function that does not take the object (no
+matching `@self` arity) fails the check.
+
+```gad
+render := func(indent int, obj) => "<" + str(indent) + ":" + str(obj.name) + ">"
+Renderable := interface {
+    name str
+    funcs {
+        render <(indent int, @self)>      // require render(int, <object>) in scope
+    }
+}
+
+noObj := func(indent int) => indent     // does not take the object
+NotRenderable := interface { funcs { noObj <(indent int, @self)> } }
+
+r := {name: "Ada"}
+[(r :: Renderable).name, r :: NotRenderable or "no renderer"]
+// => ["Ada", "no renderer"]
+```
 
 ## Caching (embedding)
 
@@ -116,7 +230,35 @@ fitsIface := func(v, T) { try { v :: T; return true } catch { return false } }
 // => [true, false, true, 2, 4]
 ```
 
-This whole sample is a runnable tour (see the Example below).
+## Flattening (`iface.@flat`)
+
+`iface.@flat` collapses an interface's whole extends graph — both the `*A`
+spreads and any runtime parents — into a single interface with no extends of
+its own, caching the result. Members of the **same name** are MERGED by
+signature rather than rejected: a getter, its setters (by value type) and a
+method's overloads combine, and an identical signature seen twice is
+deduplicated (so a diamond counts a shared parent once).
+
+A combined property renders compactly: a getter with one setter of the same type
+is `prop x T` (`prop x` when untyped); differing types or several setter
+overloads use the `prop x { get …; set … }` braces form. Only a genuine
+signature CONFLICT is rejected — a name used as two different kinds
+(field/property/method), a getter with two different return types, or a method
+overload with the same parameters but a different return type.
+
+```gad
+interface Reader { get pos int; read() <_ str> }
+interface Seeker { *Reader; set pos; seek(n int) }
+interface HasRun { run() }
+flat := Seeker.@flat
+[
+    [p.name for p in flat.props], [m.name for m in flat.methods],
+    str((interface { get x int; set x int }).@flat.props[0]),          // same type
+    str((interface { get x int; set x str; set x }).@flat.props[0]),   // mixed types
+    interface { *HasRun; get run int }.@flat or "conflict rejected",   // run(): method vs getter
+]
+// => [["pos"], ["seek", "read"], "prop x int", "prop x { get int; set str|any }", "conflict rejected"]
+```
 
 ## Example — `interfaces.gad`
 
@@ -124,10 +266,6 @@ This whole sample is a runnable tour (see the Example below).
 // A parent interface, spread into `Shape` with `*Base` below.
 interface Base { get kind }
 
-// The statement form binds a const. A bare field entry is typed (`id int`); an
-// untyped field defaults to `any`. `get`/`set`/`prop` declare accessors; a
-// method is `name(params) <return>`, and its block form `name { (…), … }`
-// groups several overload signatures (like `meti`, without the keyword).
 interface Shape {
 	*Base
 
@@ -162,18 +300,16 @@ interface Shape {
 	}
 }
 
-println("name:      ", Shape.name)
-println("fields:    ", [f.name for f in Shape.fields])
-println("field type:", Shape.fields[0].name, "=>", Shape.fields[0].types[0])
-println("props:     ", [p.name for p in Shape.props])
-println("methods:   ", [m.name for m in Shape.methods])
-println("from sigs: ", len(Shape.methods[2].headers))
-
-// A nested-interface field's type is itself an `Interface` value, so it can be
-// inspected further (its own fields, methods, …).
 bounds := [f for f in Shape.fields if f.name == "bounds"][0]
-println("nested:    ", bounds.name, "=>", typeName(bounds.types[0]),
-    "with fields", [f.name for f in bounds.types[0].fields])
+[
+    Shape.name,
+    [f.name for f in Shape.fields],
+    Shape.fields[0].types[0] == int,
+    [p.name for p in Shape.props],
+    [m.name for m in Shape.methods],
+    len(Shape.methods[2].headers),                   // from's signatures
+    [typeName(bounds.types[0]), [f.name for f in bounds.types[0].fields]],
+]
 
 // `sat` reports whether v satisfies interface T (a caught `::` cast).
 sat := func(v, T) {
@@ -209,17 +345,16 @@ the field name works as it does for any other type.
 **/
 enum Perm { Read, Write }
 
-// declared beside the interface, and named
-Named := interface { perm Perm }
-println("named:     ", {perm: Perm.Read} :: Named)     // {perm: 1}
+Named := interface { perm Perm }                    // declared beside, named
+Acl := interface { perm enum { Read, Write } }      // declared inline, anonymous
+OptAcl := interface { perm? enum { Read, Write } }  // nullable: nil or absent
 
-// declared inline, anonymous
-Acl := interface { perm enum { Read, Write } }
-println("inline:    ", Acl.fields[0].name, "=>", Acl.fields[0].types[0])
-
-// nullable: the field may be nil, or absent
-OptAcl := interface { perm? enum { Read, Write } }
-println("optional:  ", {} :: OptAcl)                   // {}
+inline := Acl.fields[0].types[0]
+[
+    ({perm: Perm.Read} :: Named).perm == Perm.Read,
+    [Acl.fields[0].name, typeName(inline), collect(keys(inline))],
+    {} :: OptAcl,
+]
 
 /**
 ## An array of a type (`[]T`)
@@ -260,40 +395,35 @@ An empty array satisfies any array type (there is no element to reject), and
 > comparison it looks like.
 **/
 Ints := interface { xs []int }
-println("ints:      ", {xs: [1, 2, 3]} :: Ints or "rejected")   // {xs: [1, 2, 3]}
-println("mixed:     ", {xs: [1, "a"]} :: Ints or "rejected")    // rejected
-println("not array: ", {xs: 1} :: Ints or "rejected")           // rejected
-println("empty:     ", {xs: []} :: Ints or "rejected")          // {xs: []}
-
-// `[]<int>` is the same type, written long
-println("long form: ", str(interface { xs []<int> }.fields[0].types[0]))   // []int
-
-// nested: an array OF arrays of int
-Matrix := interface { xs [][]int }
-println("matrix:    ", {xs: [[1], [2, 3]]} :: Matrix or "rejected")  // {xs: [[1], [2, 3]]}
-println("flat:      ", {xs: [1, 2]} :: Matrix or "rejected")         // rejected
-
-// several element types, enveloped
-Mixed := interface { xs []<int|str> }
-println("int|str:   ", {xs: [1, "a"]} :: Mixed or "rejected")    // {xs: [1, "a"]}
-println("with bool: ", {xs: [1, true]} :: Mixed or "rejected")   // rejected
+Matrix := interface { xs [][]int }                 // nested: an array OF arrays of int
+Mixed := interface { xs []<int|str> }              // several element types, enveloped
+[
+    {xs: [1, 2, 3]} :: Ints or "rejected",
+    {xs: [1, "a"]} :: Ints or "rejected",
+    {xs: 1} :: Ints or "rejected",                  // not an array
+    {xs: []} :: Ints or "rejected",                 // empty satisfies any array type
+    str(interface { xs []<int> }.fields[0].types[0]), // `[]<int>` is `[]int`, written long
+    {xs: [[1], [2, 3]]} :: Matrix or "rejected",
+    {xs: [1, 2]} :: Matrix or "rejected",
+    {xs: [1, "a"]} :: Mixed or "rejected",
+    {xs: [1, true]} :: Mixed or "rejected",
+]
 
 /**
 A **function header is a type** wherever a type goes — a field of one requires a
 CALLABLE whose signature the header matches — and it is the single type that
-keeps its envelope inside an array type.
+keeps its envelope inside an array type (among several element types it is
+enveloped like the others).
 **/
 Fn := interface { f <(x int) <ret any>> }
-println("callable:  ", {f: func(x int) => x} :: Fn or "rejected")  // {f: ‹compiledFunction…›}
-println("not fn:    ", {f: 1} :: Fn or "rejected")                 // rejected
-
 Fns := interface { fs []<(x int) <ret any>> }
-println("[]header:  ", {fs: [func(x int) => x]} :: Fns or "rejected")  // {fs: [‹compiledFunction…›]}
-println("[]not fn:  ", {fs: [1]} :: Fns or "rejected")                 // rejected
-
-// among several element types it is enveloped like the others
 FnOrStr := interface { fs []<<(x int)>|str> }
-println("header|str:", {fs: [func(x int) => x, "a"]} :: FnOrStr or "rejected") // {fs: [‹compiledFunction…›, "a"]}
+fits := func(v, T) => (v :: T or nil) != nil
+[
+    fits({f: func(x int) => x}, Fn), fits({f: 1}, Fn),
+    fits({fs: [func(x int) => x]}, Fns), fits({fs: [1]}, Fns),
+    fits({fs: [func(x int) => x, "a"]}, FnOrStr),
+]
 
 /**
 Both types are read wherever a type is written, not only on an interface field.
@@ -303,88 +433,39 @@ func total(xs []int) {                       // a function parameter
     for _, v in xs { sum += v }
     return sum
 }
-println("param:     ", total([1, 2, 3]))                      // 6
-println("param bad: ", total(["a"]) or "rejected")            // rejected
-
 class Basket { items []str = [] }            // a class field
-println("class:     ", Basket(; items = ["pão"]).items)       // ["pão"]
-println("class bad: ", Basket(; items = [1]) or "rejected")   // rejected
-
 func apply(cb <(x int)>) => cb(2)            // a function-header parameter
-println("callback:  ", apply(func(x int) => x * 3))           // 6
+[
+    total([1, 2, 3]), total(["a"]) or "rejected",
+    Basket(; items = ["pão"]).items, Basket(; items = [1]) or "rejected",
+    apply(func(x int) => x * 3),
+]
 
 // The anonymous expression form is a value like any other.
 Point := interface { x int; y int; get norm float }
 println("anon:      ", typeName(Point), len(Point.fields), Point.fields[1].name)
 
-// --- Structural satisfaction -----------------------------------------------
-/**
-A value *satisfies* an interface when it has every required field (with an
-assignable type) and method (whose signatures match). Check it with the `::`
-assign-to-type operator: it returns the value when it satisfies the
-interface, otherwise it raises a type error.
-**/
 interface Greeter { name str; greet() <str> }
 
 class Person {
     name = ""
     methods { greet() => "hi " + this.name }
 }
+class Anon { label = "?" }                      // no `name`, no greet()
+func welcome(g Greeter) => g.greet() + "!"      // an interface parameter
+
 p := Person(; name = "Ada")
-println("p::Greeter:  ", (p::Greeter).greet())     // hi Ada
+d := {name: "Bo", greet: func() => "hi Bo"}     // a dict satisfies it too
+bad := {name: "x"}                              // no callable `greet`
+[
+    (p::Greeter).greet(),
+    Anon()::Greeter or "rejected",
+    welcome(p),
+    (d::Greeter).greet(), welcome(d),
+    bad::Greeter or "is bad",                   // `or` turns the error into a value
+]
 
-/**
-A value missing a required member is rejected.
-**/
-class Anon { label = "?" }
-ok := true
-try {
-    Anon()::Greeter                                // no `name`, no greet()
-    ok = false
-} catch {
-    println("Anon reject: not a Greeter")
-}
-
-/**
-An interface also works as a parameter type — the argument must satisfy it.
-**/
-func welcome(g Greeter) => g.greet() + "!"
-println("welcome:     ", welcome(p))                 // hi Ada!
-
-/**
-Satisfaction is structural, so any member-bearing value qualifies — a `dict`
-too: a field matches a key, a method matches a callable key.
-**/
-d := {name: "Bo", greet: func() => "hi Bo"}
-println("dict::Greeter:", (d::Greeter).greet())    // hi Bo
-println("welcome(dict):", welcome(d))                // hi Bo!
-
-/**
-A dict without the required callable key is rejected.
-**/
-bad := {name: "x"}
-try {
-    bad::Greeter                                   // no greet()
-    ok = false
-} catch {
-    println("dict reject: not a Greeter")
-}
-
-/**
-Because a failed `::` raises an error, the `or` fallback operator turns it
-into a value: `obj::Type or fallback` yields the fallback when obj does not
-satisfy Type, without a `try`/`catch`.
-**/
-println("or fallback: ", bad::Greeter or "is bad") // is bad
-
-/**
-Context-function members live in a `funcs { … }` section: each entry is a free
-function in scope (not a method on the object) that must handle the interface's
-object. `@self` is the interface's object; the function is captured by value
-where the interface is declared.
-**/
 render := func(indent int, obj) => "<" + str(indent) + ":" + str(obj.name) + ">"
-
 Renderable := interface {
     name str
     funcs {
@@ -392,58 +473,29 @@ Renderable := interface {
     }
 }
 
-r := {name: "Ada"}
-println("renderable:  ", (r :: Renderable).name)   // Ada — render handles it
-
-/**
-A function that does not take the object (no matching @self arity) fails.
-**/
-noObj := func(indent int) => indent
+noObj := func(indent int) => indent     // does not take the object
 NotRenderable := interface { funcs { noObj <(indent int, @self)> } }
-println("ctx reject:  ", r :: NotRenderable or "no renderer")  // no renderer
 
-/**
-A `?` after a required field name makes it **nullable**: a member that is
-`nil` — or absent — still satisfies the interface, so `?` marks an optional
-field.
-**/
+r := {name: "Ada"}
+[(r :: Renderable).name, r :: NotRenderable or "no renderer"]
+
 interface Tagged { name str; tag? int|str }
+[
+    ({name: "a", tag: 3} :: Tagged).tag,
+    ({name: "b", tag: nil} :: Tagged).name,     // a nil tag is fine
+    ({name: "c"} :: Tagged).name,               // an absent tag is fine
+]
 
-println("tag present: ", ({name: "a", tag: 3} :: Tagged).tag)  // 3
-println("tag nil:     ", ({name: "b", tag: nil} :: Tagged).name) // b — nil tag is fine
-println("tag absent:  ", ({name: "c"} :: Tagged).name)          // c — absent tag is fine
-
-/**
-## Flattening (`iface.@flat`)
-
-`iface.@flat` collapses an interface's whole extends graph — both the `*A` spreads
-and any runtime parents — into a single interface with no extends of its own,
-caching the result. Members of the **same name** are MERGED by signature rather
-than rejected: a getter, its setters (by value type) and a method's overloads
-combine, and an identical signature seen twice is deduplicated (so a diamond
-counts a shared parent once).
-**/
 interface Reader { get pos int; read() <_ str> }
 interface Seeker { *Reader; set pos; seek(n int) }
-flat := Seeker.@flat
-println("flat:        ", flat)                 // {prop pos { get int; set any }; seek(); read()}
-
-/// A combined property renders compactly: a getter with one setter of the same
-/// type is `prop x T` (`prop x` when untyped); differing types or several setter
-/// overloads use the `prop x { get …; set … }` braces form.
-println("same type:   ", (interface { get x int; set x int }).@flat.props[0])   // prop x int
-println("mixed types: ", (interface { get x int; set x str; set x }).@flat.props[0])
-                                                                    // prop x { get int; set str|any }
-
-/**
-Only a genuine signature CONFLICT is rejected — a name used as two different kinds
-(field/property/method), a getter with two different return types, or a method
-overload with the same parameters but a different return type. Here a method name
-is reused as a getter.
-**/
 interface HasRun { run() }
-conflict := interface { *HasRun; get run int }.@flat or "conflict rejected"
-println("conflict:    ", conflict)             // conflict rejected
+flat := Seeker.@flat
+[
+    [p.name for p in flat.props], [m.name for m in flat.methods],
+    str((interface { get x int; set x int }).@flat.props[0]),          // same type
+    str((interface { get x int; set x str; set x }).@flat.props[0]),   // mixed types
+    interface { *HasRun; get run int }.@flat or "conflict rejected",   // run(): method vs getter
+]
 
 interface HasName { name str }
 interface HasAge  { age int }
@@ -465,5 +517,5 @@ fitsIface := func(v, T) { try { v :: T; return true } catch { return false } }
     len(Associate.@flat.fields),  // name, age, tags, id
 ]
 
-return ok
+return Shape.name
 ````

@@ -97,6 +97,9 @@ enum Perm {
     **/
     Delete
 }
+
+[Perm.Read.value, Perm.Write.value, Perm.Exec.value, Perm.Delete.value]
+/**= [1, 2, 10, 11] **/
 //endsnippet
 
 //snippet values

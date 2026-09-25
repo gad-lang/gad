@@ -19,6 +19,11 @@ var x
 with x = mk() { … }         // assign to an existing variable
 ```
 
+The examples use this resource — a class with `enter()` / `exit(err)` hooks
+that logs each call:
+
+@snippet resource
+
 @snippet forms
 
 ## Expression forms
@@ -52,6 +57,7 @@ whose `str(content)` is `"hello"`. It is the block-scoped, auto-closed form of t
 @snippet capture
 **/
 
+//snippet resource
 /**
 A resource: a class with enter()/exit(err) hooks (plus a little state).
 **/
@@ -62,8 +68,9 @@ Res := Class("Res", (cls, define) => define(; fields = (; name = (= ""), open = 
         read(this) => this.name + "-data"
         add(this, v) { this.items += v }
     ]))
+//endsnippet
 
-//snippet forms
+//snippet forms uses resource
 // `as` binds the resource to a block-local name.
 println("as:")
 with Res(; name = "a") as f {
@@ -84,15 +91,37 @@ try {
 } catch e {
     println("  caught:", e)
 }
+/**<
+as:
+  open  a
+  use   a open = true
+  close a err = nil
+define:
+  open  b
+  use   b
+  close b err = nil
+  after, open = false
+error+nested:
+  open  outer
+  open  inner
+  close inner err = error: boom
+  close outer err = error: boom
+  caught: error: boom
+**/
 //endsnippet
 
-//snippet expr_colon
+//snippet expr_colon uses resource
 // Colon form: enter, evaluate, exit, yield the value.
 contents := with Res(; name = "d") as g: g.read()
 println("expr:", contents)
+/**<
+  open  d
+  close d err = nil
+expr: d-data
+**/
 //endsnippet
 
-//snippet expr_block
+//snippet expr_block uses resource
 // Block form: enter, run the body, exit, yield the RESOURCE (built inside).
 built := with Res(; name = "e") as it {
     it.add(1)
@@ -106,6 +135,15 @@ println("make():", make().items)
 
 // A non-resource value is a silent no-op (the body still runs).
 with 42 as n { println("noop:", n) }
+/**<
+  open  e
+  close e err = nil
+expr-block: e open = false items = [1, 2]
+  open  f
+  close f err = nil
+make(): [9]
+noop: 42
+**/
 //endsnippet
 
 //snippet capture

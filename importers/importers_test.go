@@ -215,3 +215,24 @@ func run(w io.Writer, script []byte, opts gad.CompilerOptions) (ret gad.Object, 
 		StdOut: gad.NewWriter(w),
 	})
 }
+
+// TestOsDirsNameResolverEmptyResolvesAgainstCwd verifies that with no search
+// path a relative module name still resolves against the importing module's
+// directory (so `gad run dir/main.gad` can import "./sibling.gad" from outside
+// dir), while an absolute name and an empty cwd are left as they are.
+func TestOsDirsNameResolverEmptyResolvesAgainstCwd(t *testing.T) {
+	resolve := importers.OsDirsNameResolverPtr(&importers.PathList{})
+
+	got, err := resolve(filepath.Join("samples", "modules"), "./mathx.gad")
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join("samples", "modules", "mathx.gad"), got)
+
+	abs := filepath.Join(string(filepath.Separator), "x", "y.gad")
+	got, err = resolve("samples", abs)
+	require.NoError(t, err)
+	require.Equal(t, abs, got)
+
+	got, err = resolve("", "./y.gad")
+	require.NoError(t, err)
+	require.Equal(t, "./y.gad", got)
+}

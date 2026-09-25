@@ -19,6 +19,22 @@ var x
 with x = mk() { … }         // assign to an existing variable
 ```
 
+The examples use this resource — a class with `enter()` / `exit(err)` hooks
+that logs each call:
+
+```gad
+/**
+A resource: a class with enter()/exit(err) hooks (plus a little state).
+**/
+Res := Class("Res", (cls, define) => define(; fields = (; name = (= ""), open = (= false), items = (= nil)),
+    methods = [
+        enter(this) { this.open = true; this.items = []; println("  open ", this.name); return this }
+        exit(this, err) { this.open = false; println("  close", this.name, "err =", err) }
+        read(this) => this.name + "-data"
+        add(this, v) { this.items += v }
+    ]))
+```
+
 ```gad
 // `as` binds the resource to a block-local name.
 println("as:")
@@ -42,6 +58,26 @@ try {
 }
 ```
 
+Output:
+
+```text
+as:
+  open  a
+  use   a open = true
+  close a err = nil
+define:
+  open  b
+  use   b
+  close b err = nil
+  after, open = false
+error+nested:
+  open  outer
+  open  inner
+  close inner err = error: boom
+  close outer err = error: boom
+  caught: error: boom
+```
+
 ## Expression forms
 
 The **colon** variant, `with resource [as name]: value`, enters the resource,
@@ -51,6 +87,14 @@ evaluates `value`, runs `exit`, and yields `value`:
 // Colon form: enter, evaluate, exit, yield the value.
 contents := with Res(; name = "d") as g: g.read()
 println("expr:", contents)
+```
+
+Output:
+
+```text
+  open  d
+  close d err = nil
+expr: d-data
 ```
 
 The **block** variant, `with resource [as name] { body }`, is an expression too:
@@ -72,6 +116,18 @@ println("make():", make().items)
 
 // A non-resource value is a silent no-op (the body still runs).
 with 42 as n { println("noop:", n) }
+```
+
+Output:
+
+```text
+  open  e
+  close e err = nil
+expr-block: e open = false items = [1, 2]
+  open  f
+  close f err = nil
+make(): [9]
+noop: 42
 ```
 
 `with` introduces no new opcode: it desugars to a block that registers

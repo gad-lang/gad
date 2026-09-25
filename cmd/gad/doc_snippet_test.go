@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gad-lang/gad/web/gadbridge"
 	cc "github.com/moisespsena-go/command-context"
 	"github.com/stretchr/testify/require"
 )
@@ -224,4 +225,68 @@ func TestSnippetEmbeddedFence(t *testing.T) {
 	require.True(t, strings.HasPrefix(out, "````gad\n"), "outer fence must be 4 backticks: %q", out)
 	require.True(t, strings.HasSuffix(strings.TrimRight(out, "\n"), "\n````"), "closing fence must be 4 backticks: %q", out)
 	require.Contains(t, out, "```gad\nx\n>>> 1\n```") // inner 3-backtick fence intact
+}
+
+// TestSnippetOutputKeepsIndent checks a multi-line `/**< … **/` output marker
+// keeps each line's leading indentation (output that starts indented must still
+// match), dropping only the blank edges and trailing whitespace.
+func TestSnippetOutputKeepsIndent(t *testing.T) {
+	src := "//snippet out\n" +
+		"println(\"  open\")\n" +
+		"println(\"done\")\n" +
+		"/**<\n" +
+		"  open\n" +
+		"done   \n" +
+		"\n" +
+		"**/\n" +
+		"//endsnippet\n"
+
+	snips := extractSnippets([]byte(src))
+	require.Equal(t, "  open\ndone", snips["out"].expected)
+	_, err := expandSnippets("@snippet out", snips, "gad", true)
+	require.NoError(t, err)
+
+	// A one-line marker is still trimmed.
+	snips = extractSnippets([]byte("//snippet one\nprintln(\"hi\")\n/**< hi **/\n//endsnippet\n"))
+	require.Equal(t, "hi", snips["one"].expected)
+}
+
+// TestSnippetRunsInFileDir checks snippets verified by `gad doc` resolve relative
+// `import("./…")` / `embed("…")` paths against the documented file's directory.
+func TestSnippetRunsInFileDir(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lib.gad"), []byte("export answer = 42\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "data.txt"), []byte("hi"), 0o644))
+	src := []byte("/***\nDemo.\n\n@snippet rel\n***/\n\n" +
+		"//snippet rel\n" +
+		"[import(\"./lib.gad\").answer, str(embed(\"data.txt\").data)]\n" +
+		"/**= [42, \"hi\"] **/\n" +
+		"//endsnippet\n")
+	path := filepath.Join(dir, "main.gad")
+	require.NoError(t, os.WriteFile(path, src, 0o644))
+
+	doc, err := gadbridge.ExtractDoc(string(src), "gad")
+	require.NoError(t, err)
+	_, err = buildDocDict(doc, path, src, sourceTypeFor(path), true)
+	require.NoError(t, err)
+	require.Equal(t, ".", exampleWorkDir, "the work dir is restored after the file")
+}
+
+// TestSnippetUsesTrailingArrayNotMeta checks a `uses` context ending in an array
+// expression does not become the metadata block of a declaration that opens the
+// using snippet (metadata binds to an adjacent declaration line).
+func TestSnippetUsesTrailingArrayNotMeta(t *testing.T) {
+	src := "//snippet ctx\n" +
+		"x := 1\n" +
+		"[x, 2]\n" +
+		"/**= [1, 2] **/\n" +
+		"//endsnippet\n\n" +
+		"//snippet use uses ctx\n" +
+		"class C { v = 3 }\n" +
+		"[C().v, str(C.@meta)]\n" +
+		"/**= [3, \"(;)\"] **/\n" +
+		"//endsnippet\n"
+	snips := extractSnippets([]byte(src))
+	_, err := expandSnippets("@snippet use", snips, "gad", true)
+	require.NoError(t, err)
 }

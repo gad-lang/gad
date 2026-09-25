@@ -58,6 +58,22 @@ import (
 // order, each once), so the snippet can reference their definitions and its
 // result still verifies — but the context is not rendered and its own result
 // marker is ignored; only the snippet's own code appears in the block.
+//
+// Execution details (the user guide is doc/conventions.md, "Verified snippets"):
+//
+//   - Every check runs the snippet's code from its start up to the marker (with
+//     the prelude), so an output check sees everything printed so far,
+//     including the prelude's output.
+//   - The expected EXPR is evaluated with the prelude only, never the snippet's
+//     own code, and compared with Object.Equal (a rawStr is not a str).
+//   - A multi-line `/**<` keeps its lines verbatim (indentation included; blank
+//     edges and trailing whitespace dropped), see markerText; one-line markers
+//     are trimmed.
+//   - Prelude parts and the snippet are joined with a blank line, so a trailing
+//     `[ … ]` expression never binds as the metadata block of a declaration that
+//     opens the next part.
+//   - While `gad doc` verifies a file, snippets resolve relative import/embed
+//     paths against that file's directory (exampleWorkDir).
 
 // snippetResultKind classifies a snippet's expected-result marker.
 type snippetResultKind int
@@ -170,9 +186,31 @@ func parseSnippetChecks(body []string) (code []string, checks []snippetCheck) {
 			}
 			cur = body[i]
 		}
-		checks = append(checks, snippetCheck{len(code), kind, strings.TrimSpace(strings.Join(parts, "\n"))})
+		checks = append(checks, snippetCheck{len(code), kind, markerText(kind, parts)})
 	}
 	return code, checks
+}
+
+// markerText is the expected text of a block result marker, from its parts (the
+// text after the sigil on the opening line, then each following line). A value
+// is trimmed. An output written below the opening line keeps its lines verbatim
+// — leading indentation included, so output that starts indented can be matched
+// — dropping only the blank edges and trailing whitespace.
+func markerText(kind snippetResultKind, parts []string) string {
+	if kind != snippetOutput || len(parts) < 2 || strings.TrimSpace(parts[0]) != "" {
+		return strings.TrimSpace(strings.Join(parts, "\n"))
+	}
+	lines := parts[1:]
+	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
+		lines = lines[1:]
+	}
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	for i, ln := range lines {
+		lines[i] = strings.TrimRight(ln, " \t\r")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // trimSnippetBlankEdges drops leading and trailing blank code lines, shifting the
@@ -411,7 +449,10 @@ func snippetPrelude(snip *snippet, snippets map[string]*snippet) string {
 		}
 	}
 	add(snip.uses)
-	return strings.Join(parts, "\n")
+	// A blank line between contexts (and before the snippet, see withPrelude)
+	// keeps a context's trailing `[ … ]` expression from reading as the metadata
+	// block of a declaration that opens the next part.
+	return strings.Join(parts, "\n\n")
 }
 
 // withPrelude prepends the execution-context prelude to code (nothing when the
@@ -420,7 +461,7 @@ func withPrelude(prelude, code string) string {
 	if prelude == "" {
 		return code
 	}
-	return prelude + "\n" + code
+	return prelude + "\n\n" + code
 }
 
 // fenceFor returns the Markdown code-fence (a run of backticks) that safely wraps
@@ -628,9 +669,7 @@ func stripSnippetMarkers(src string) string {
 // capturing (and returning) its standard output alongside the last value.
 func evalGadExampleCapture(src string) (gad.Object, string, error) {
 	builtins := gad.NewBuiltins().Build()
-	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
-		ModuleMap: DefaultModuleMap(".", &sourcePath),
-	}}
+	opts := exampleCompileOptions()
 	var out bytes.Buffer
 	eval := gad.NewEval(builtins, defaultSymbolTable(builtins.Builtins().NameSet), opts,
 		&gad.RunOpts{StdOut: &out, StdErr: io.Discard})

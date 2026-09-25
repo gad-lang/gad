@@ -35,6 +35,9 @@ enum Perm {
     **/
     Delete
 }
+
+[Perm.Read.value, Perm.Write.value, Perm.Exec.value, Perm.Delete.value]
+// => [1, 2, 10, 11]
 ```
 
 A field without an explicit `= value` takes the previous magnitude **+ 1** (or
@@ -247,6 +250,8 @@ enum Perm {
     **/
     Delete
 }
+
+[Perm.Read.value, Perm.Write.value, Perm.Exec.value, Perm.Delete.value]
 
 Values := enum { Read, Write, Exec = 10, Delete }
 [Values.Read.value, Values.Exec.value, Values.Delete.value]

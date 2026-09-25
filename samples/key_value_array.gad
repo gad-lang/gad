@@ -3,67 +3,113 @@
 
 `keyValue` (`[k = v]`) and `keyValueArray` (`(; … )`) are an ordered list of
 `key = value` pairs (duplicate keys allowed) — the literal form behind named
-arguments. Part of the [Collections](collections.gad) chapter. This whole
-sample is a runnable tour; the full listing is in the Example below.
+arguments. Part of the [Collections](collections.gad) chapter.
+
+## A single pair
+
+`[k = v]` is a `keyValue`: `.k` is the key, `.v` the value and `.array` the
+`[k, v]` pair. The `=` is what makes it one — `["color"]` is a plain array.
+
+@snippet kv_pair
+
+## Ordered pairs
+
+`(; … )` is a `keyValueArray`. Keys may be identifiers, strings, numbers,
+booleans or a dynamic `[(expr)=v]`.
+
+@snippet kva_keys
+
+## Flags
+
+A bare key is a flag (`key` == `key=yes`); `key=no` drops the entry.
+`kva.flag(name)` reads one.
+
+@snippet kva_flags
+
+## Function values
+
+A value may be a function or closure, written in method form.
+
+@snippet kva_funcs
+
+## Typed keys
+
+`name Type` carries the declared type as metadata on the key — the same form
+that types a function's named parameters (`func(; n int = 0)`).
+
+@snippet kva_typed
+
+## Duplicates, lookup and mutation
+
+Duplicate keys are preserved; `values(name)` / `delete(name)` act on every entry
+of a name. Indexing yields the `keyValue`, and entries are mutable.
+
+@snippet kva_access
+
+## Spread, iteration and conversion
+
+`**kva` merges another key-value array; `for k, v in kva` iterates the pairs,
+`dict(kva)` converts it, and — being exactly the named-argument form — it
+spreads into a call's named arguments.
+
+@snippet kva_spread
 **/
 
-// --- keyValue: a single pair ---
+//snippet kv_pair
 pair := [color = "red"]
-println("k/v/array:", pair.k, pair.v, pair.array)   // color red ["color", "red"]
+[pair.k, pair.v, pair.array, typeName(pair), typeName(["color"])]
+/**= ["color", "red", ["color", "red"], "keyValue", "array"] **/
+//endsnippet
 
-// --- keyValueArray: ordered pairs ---
+//snippet kva_keys
 kva := (; a = 1, b = 2)
-println("kva:", str(kva))                            // (;a=1, b=2)
+anyKeys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
+[str(kva), str(anyKeys)]
+/**= ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)"] **/
+//endsnippet
 
-/**
-keys may be identifiers, strings, numbers, booleans or a dynamic [(expr)=v].
-**/
-keys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
-println("keys:", str(keys))   // (;name="x", "a b"=1, 42=2, true=3, k1=9)
-
-// --- flags: a bare key is `yes`; `=no` drops the entry ---
+//snippet kva_flags
 flags := (; debug, verbose = no, level = 3)
-println("flags:", str(flags))                // (;debug, level=3)
-println("flag debug:", flags.flag("debug"))  // true
-println("flag verbose:", flags.flag("verbose"))  // false
+[str(flags), flags.flag("debug"), flags.flag("verbose")]
+/**= ["(;debug, level=3)", true, false] **/
+//endsnippet
 
-// --- function and closure values ---
+//snippet kva_funcs
 fns := (; greet() => "hi", add(a, b) => a + b, twice(x) { return x * 2 })
-println("greet:", fns[0].v())          // hi
-println("add:", fns[1].v(2, 3))        // 5
-println("twice:", fns[2].v(4))         // 8
+[fns[0].v(), fns[1].v(2, 3), fns[2].v(4)]
+/**= ["hi", 5, 8] **/
+//endsnippet
 
-// --- typed keys: `name Type` carries the declared type as metadata on the key ---
-// (the same form types a function's named parameters, e.g. `func(; n int = 0)`).
+//snippet kva_typed
 typed := (; id int, label str = "none")
-println("typed name:", typed[0].k.name)      // id
-println("typed has type:", len(typed[0].k.types) == 1)  // true
-println("typed value:", typed[1].v)          // none
+[typed[0].k.name, len(typed[0].k.types), typed[1].v]
+/**= ["id", 1, "none"] **/
+//endsnippet
 
-// --- duplicate keys are preserved; values()/delete() act on names ---
+//snippet kva_access
 dup := (; tag = 1, tag = 2, name = 3)
-println("values(tag):", dup.values("tag"))       // [1, 2]
-println("values():", dup.values())               // [1, 2, 3]
-println("delete(tag):", str(dup.delete("tag")))  // (;name=3)
-
-// --- indexing yields the keyValue; entries are mutable ---
+found := [dup.values("tag"), dup.values()]
+removed := str(dup.delete("tag"))
 m := (; x = 1)
-m[0].v = 99
-println("mutated:", str(m))     // (;x=99)
+m[0].v = 99                          // indexing yields the keyValue
+[found, removed, str(m)]
+/**= [[[1, 2], [1, 2, 3]], "(;name=3)", "(;x=99)"] **/
+//endsnippet
 
-// --- spread merges another keyValueArray ---
+//snippet kva_spread
 base := (; a = 1, b = 2)
 merged := (; head = 0, **base)
-println("merged:", str(merged))  // (;head=0, a=1, b=2)
-
-// --- iterate (key, value), and convert to a dict ---
-for k, v in base {
-    println("  iter:", k, "=", v)   // a = 1 / b = 2
-}
-println("dict:", dict(base))        // {a: 1, b: 2}
-
-// --- it is exactly the named-argument form: spread it into a call ---
 show := func(; a = 0, b = 0, **rest) => [a, b, dict(rest)]
-println("as named args:", show(; **(; a = 1, b = 2, c = 3)))  // [1, 2, {c: 3}]
+[str(merged), dict(base), show(; **(; a = 1, b = 2, c = 3))]
+/**= ["(;head=0, a=1, b=2)", {a: 1, b: 2}, [1, 2, {c: 3}]] **/
+
+for k, v in base {
+    println(k, "=", v)
+}
+/**<
+a = 1
+b = 2
+**/
+//endsnippet
 
 return str(kva)

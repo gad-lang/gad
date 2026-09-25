@@ -69,12 +69,13 @@ func area {
 /**= [12.56636, 6.0] **/
 //endsnippet
 
-//snippet met
+//snippet met uses methods
 /**
 `met` adds a method to an existing callable afterwards.
 **/
 met area(side int) => side * side // square (int), extends the `area` above
-println("area(4) =", area(4))     // 16
+[area(4), area(2.0, 3.0)]         // the new method beside the existing ones
+/**= [16, 6.0] **/
 //endsnippet
 
 //snippet override

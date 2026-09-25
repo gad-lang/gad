@@ -323,3 +323,96 @@ regular `//` and `/* */` comments: a doc comment is *attached* to an AST node's
 - Contents are auto-formatted with the Markdown formatter.
 - When `SINGLE` or `BLOCK`, a newline is inserted **after** the target when needed
   to separate it from following code.
+
+## Verified snippets (`//snippet`)
+
+Documentation pulls real, **verified** code out of the source instead of copying
+it by hand. A region between line comments is a snippet:
+
+````gad ignore
+/**
+# Greeting
+
+@snippet greet
+**/
+
+//snippet greet
+greet := func(name) => "hi " + name
+greet("Gad")
+/**= "hi Gad" **/
+//endsnippet
+````
+
+`@snippet NAME` in a doc comment (the module header or a symbol's doc) is
+replaced by a fenced block holding the region's code; the marker lines never
+appear. `gad doc` runs every snippet check while generating (skip with
+`--no-doctest`), and `make verify` regenerates `doc/samples`, so a documented
+result can never drift from what the code does. Check one file with
+`gad doc --no-save FILE` — it exits non-zero on a mismatch.
+
+### Result markers
+
+| Marker            | Checks                                   | Rendered as                  |
+|-------------------|------------------------------------------|------------------------------|
+| `/**= EXPR **/`   | the value of the code before it `==` EXPR | a `// => value` line         |
+| `/**< TEXT **/`   | the STDOUT of the code before it == TEXT | an `Output:` text block      |
+| `//= EXPR`        | terse one-line form of `/**= … **/`      | as above                     |
+| `//< TEXT`        | terse one-line form of `/**< … **/`      | as above                     |
+
+Use `/**=` when the value is the point of the example (collect several results
+in one array: `[a, b, c]`), and `/**<` when the printed output is (loops,
+`println` tours, resources that log). A snippet may hold several markers; each
+verifies the code **from the start of the snippet** up to it — so an output
+check sees everything printed so far, not just the lines since the previous
+marker.
+
+### Rules that are easy to miss
+
+- **Each snippet runs standalone**, in a fresh VM. It sees nothing from the rest
+  of the file unless it declares a context: `//snippet usage uses define other`
+  prepends those snippets' code (transitively, each once). The context's code is
+  not rendered and its own markers are ignored — but it **runs**, so its output
+  is part of a `/**<` capture: prefer `/**=` in a snippet that `uses` a noisy
+  context.
+- **The whole file also runs** top to bottom (as a script, and as the page's
+  Example). Snippets therefore share one scope there: a name declared with `:=`
+  in two snippets is a redeclaration error. Give every snippet its own names.
+- **The expected value is evaluated on its own** — with the `uses` context, but
+  *without* the snippet's code — so it cannot name the snippet's locals. Write
+  literals (`/**= [1, "a"] **/`), or compute a comparison in the snippet itself
+  (`[x == Perm.Read]` … `/**= [true] **/`).
+- **Some equal-looking values are not equal.** A raw string is not a `str`
+  (`` `a` `` ≠ `"a"`; wrap it in `str(…)`) and an enum value is not the int it
+  prints as — even though the mismatch message shows the same text on both
+  sides. (Numbers compare by value: `6.0` equals `6`.)
+- **A multi-line `/**<` keeps its lines verbatim** — leading indentation
+  included, only blank edge lines and trailing spaces are dropped — so output that
+  starts indented matches. Put the text on the lines *below* `/**<`; the one-line
+  form `/**< text **/` is trimmed.
+- **Relative paths resolve against the documented file's directory**:
+  `import("./sibling.gad")` and `embed("data/x.txt")` work as they do when the
+  file runs.
+- **Avoid output that depends on how the code runs**: module names and paths
+  (`str(SomeInterface)`, a function's repr, `@name`, `@file`) differ between a
+  snippet run and a file run. Check a property of it instead (`typeName(…)`,
+  `hasSuffix(…)`, a member's `name`).
+- **Output must be deterministic.** A dict's iteration order is unspecified, so
+  a check that prints dict entries passes or fails at random — iterate with
+  `iterator(d; sorted)`, or check the dict as a value (`/**= {a: 1} **/`
+  compares regardless of order).
+- **A `[ … ]` right above a declaration is its metadata.** An array expression
+  on the line directly before `class`/`interface`/`func`/… reads as that
+  declaration's `[k=v]` block; separate them with a blank line.
+- **The optimizer folds constants when the whole file runs**, before a
+  user-defined operator (`met gad.binOpIn(…)`) exists — `1 in 6` may then fail
+  to compile even though the snippet alone passes. Bind an operand to a variable
+  (`mask := 6; 1 in mask`).
+
+### Which samples use them
+
+Every hand-written `samples/*.gad` page documents its examples with snippets.
+The exceptions are the generated API stubs (`samples/builtins.gad`,
+`samples/types.gad`, `samples/stdlib/*.gad`, rebuilt by `go generate` from Go
+doc comments — edit those comments, not the stub), the `*_test.gad` files
+(already assertions, run by `gad test`), and pages that cannot run standalone
+(command-line argv, template mode, imported modules/partials).

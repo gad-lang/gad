@@ -182,6 +182,13 @@ func fenceLangFor(sourceType string) string {
 // executed and verified; a mismatch or run error aborts generation.
 func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType string, run bool) (gad.Dict, error) {
 	lang := fenceLangFor(sourceType)
+	// Snippets run as if they were the file itself: relative `import("./…")` /
+	// `embed("…")` paths resolve against the file's directory.
+	if run && path != "" {
+		prev := exampleWorkDir
+		exampleWorkDir = filepath.Dir(path)
+		defer func() { exampleWorkDir = prev }()
+	}
 	if err := expandDocSnippets(doc, src, lang, run); err != nil {
 		return nil, err
 	}

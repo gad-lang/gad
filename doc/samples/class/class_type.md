@@ -30,7 +30,75 @@ name is an index error.
 `MyClass.foo` and `MyClass["foo"]` are the same lookup (the class's `IndexGet`);
 the bracket form just lets the key be an expression — `MyClass[dynamicName]`.
 
-The runnable Example below tours all of these.
+The classes the examples use:
+
+```gad
+/**
+Shape is a small base class, spread into Circle below.
+**/
+class Shape {
+    /**
+    what kind of shape
+    **/
+    kind str = "?"
+}
+
+/**
+Circle has a typed field, a property and a method — enough to show every
+introspection attribute.
+**/
+class Circle {
+    *Shape
+    /**
+    the radius
+    **/
+    r int
+    props {
+        /**
+        the area (a getter)
+        **/
+        area => 3 * this.r * this.r
+    }
+    methods {
+        /**
+        the radius scaled by k
+        **/
+        scaled(k) => this.r * k
+    }
+}
+```
+
+### Introspection
+
+Each `@`-attribute is a dict/array; iterate `k, v` to read the member names
+(`kind` lives on the parent, so it is not among Circle's own fields).
+
+```gad
+[
+    Circle.@name,
+    [k for k, v in Circle.@fields],
+    [k for k, v in Circle.@props],
+    [k for k, v in Circle.@methods],
+    len(Circle.@parents),
+    typeName(Circle.@module),
+]
+// => ["Circle", ["r"], ["area"], ["scaled"], 1, "Module"]
+```
+
+### Members by name, attribute vs item
+
+```gad
+attr := "@name"
+c := Circle(; r = 2, kind = "circle")   // bound values live on an instance
+[
+    typeName(Circle.area),               // the unbound property object
+    typeName(Circle["scaled"]),          // the unbound method object
+    Circle[attr],                        // item form: a dynamic key
+    Circle.@name == Circle["@name"],     // the same lookup
+    c.area, c.scaled(5),
+]
+// => ["ClassProperty", "ClassMethod", "Circle", true, 12, 10]
+```
 
 ## Example — `class_type.gad`
 
@@ -69,28 +137,25 @@ class Circle {
     }
 }
 
-// --- introspection attributes ---
-// Each `@`-attribute is a dict/array; iterate `k, v` to read the member names.
-println("@name     :", Circle.@name)                        // Circle
-println("@fields   :", [k for k, v in Circle.@fields])      // [r] (kind lives on the parent)
-println("@props    :", [k for k, v in Circle.@props])       // [area]
-println("@methods  :", [k for k, v in Circle.@methods])     // [scaled]
-println("@parents  :", len(Circle.@parents) >= 1)           // true
-println("@module   :", typeName(Circle.@module))            // Module
 
-// --- members by name (the unbound property / method objects) ---
-println("member .area   :", typeName(Circle.area))        // classProperty
-println("member [scaled]:", typeName(Circle["scaled"]))   // classMethod
+[
+    Circle.@name,
+    [k for k, v in Circle.@fields],
+    [k for k, v in Circle.@props],
+    [k for k, v in Circle.@methods],
+    len(Circle.@parents),
+    typeName(Circle.@module),
+]
 
-// --- attribute vs item: the same IndexGet, item lets the key be dynamic ---
 attr := "@name"
-println("dynamic Circle[attr]:", Circle[attr])            // Circle
-println("dot == item        :", Circle.@name == Circle["@name"]) // true
-
-// The bound values live on an instance, not on the class:
-c := Circle(; r = 2, kind = "circle")
-println("instance area  :", c.area)                       // 12
-println("instance scaled:", c.scaled(5))                  // 10
+c := Circle(; r = 2, kind = "circle")   // bound values live on an instance
+[
+    typeName(Circle.area),               // the unbound property object
+    typeName(Circle["scaled"]),          // the unbound method object
+    Circle[attr],                        // item form: a dynamic key
+    Circle.@name == Circle["@name"],     // the same lookup
+    c.area, c.scaled(5),
+]
 
 return Circle.@name
 ```

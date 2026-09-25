@@ -115,6 +115,13 @@ met gad.selfAssignOpDoubleMod(a int, b int) {
 n := 7
 n %%= 5
 println(n)                        // 12
+/**<
+12345
+[12, 345]
+10 0 7
+1002
+12
+**/
 //endsnippet
 
 return packed

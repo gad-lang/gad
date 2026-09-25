@@ -50,7 +50,8 @@ New methods can be added to an existing callable later with `met`.
 `met` adds a method to an existing callable afterwards.
 **/
 met area(side int) => side * side // square (int), extends the `area` above
-println("area(4) =", area(4))     // 16
+[area(4), area(2.0, 3.0)]         // the new method beside the existing ones
+// => [16, 6]
 ```
 
 ## Overriding and `$old`
@@ -105,7 +106,7 @@ func area {
 `met` adds a method to an existing callable afterwards.
 **/
 met area(side int) => side * side // square (int), extends the `area` above
-println("area(4) =", area(4))     // 16
+[area(4), area(2.0, 3.0)]         // the new method beside the existing ones
 
 func step(n int) => n * 10
 met ~step($old, n int) => $old(n) + 1 // wrap the previous `step`

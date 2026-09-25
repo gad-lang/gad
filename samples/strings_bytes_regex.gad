@@ -122,18 +122,18 @@ e := #`hi {name}`   // interpolated raw string -> rawStr "hi Gad" (\ verbatim)
 //endsnippet
 
 //snippet rawforms
-name := "Gad"
+user := "Gad"
 verbatim := `C:\tmp\{x}`     // rawStr: \ and {…} are literal (no escapes/interp)
 lines := `first
 second`                      // backtick literals span lines verbatim
-tmpl := #`path C:\{name}`    // template raw str: \ stays literal, {name} interpolates
-[verbatim, lines, tmpl, typeName(verbatim), typeName(tmpl)]
+tpath := #`path C:\{user}`    // template raw str: \ stays literal, {user} interpolates
+[verbatim, lines, tpath, typeName(verbatim), typeName(tpath)]
 /**= [`C:\tmp\{x}`, raw "first\nsecond", `path C:\Gad`, "rawstr", "rawstr"] **/
 //endsnippet
 
 //snippet interp
-name := "Gad"
-[#"Hello {name}!", #"sum = {2 + 3}", #`raw {name}`]
+lang := "Gad"
+[#"Hello {lang}!", #"sum = {2 + 3}", #`raw {lang}`]
 /**= ["Hello Gad!", "sum = 5", `raw Gad`] **/
 //endsnippet
 
@@ -148,9 +148,9 @@ tmpl := #"hi {sym}"       // NOT a symbol: `#` + quotes is an interpolated strin
 //endsnippet
 
 //snippet escape
-name := "Gad"
+app := "Gad"
 lit := #"literal \{ and \}"          // escaped braces -> literal text
-mix := #"{name} in \{ braces }"      // escape + real interpolation
+mix := #"{app} in \{ braces }"      // escape + real interpolation
 js := #"json: \{ {str({a: 1})} }"    // braces in the expr's own literal are fine
 plain := "regular \{ ok"             // works in ordinary strings too
 [lit, mix, js, plain]
