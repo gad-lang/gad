@@ -162,20 +162,25 @@ package gad
 //
 // filter(it iterable, callback callable) <iterator>
 // Returns a lazy iterator over the elements of iterable for which callback
-// returns a truthy value.
+// returns a truthy value. The callback is called as `callback(value, key,
+// iterable)` (key: the index or dict key).
 //
 // map(it iterable, callback callable; update=no, nokey=no) <iterator>
-// Returns a lazy iterator applying callback to each element of iterable.
-// `update=yes` replaces elements in place; `nokey=yes` passes only the value to
-// the callback.
+// Returns a lazy iterator applying callback to each element of iterable, called
+// as `callback(value, key)`; `nokey=yes` passes only the value. `update=yes`
+// also writes each result back into the collection — as the iterator is
+// consumed (e.g. by `collect`), since it is lazy.
 //
 // each(it iterable, callback callable) <any>
 // Calls callback for every element of iterable (for its side effects) and
-// returns the iterable.
+// returns the iterable. The callback is called as `callback(key, value)` — key
+// first, unlike map/filter.
 //
 // reduce(it iterable, callback callable, initial any) <any>
 // Folds the elements of iterable with callback into a single value, starting
-// from initial (or the first element when initial is omitted).
+// from initial (or the first element when initial is omitted). The callback is
+// called as `callback(accumulator, value, key)` and returns the next
+// accumulator.
 //
 // keys(it iterable) <iterator>
 // Returns a lazy iterator over the keys of a value.
@@ -190,13 +195,15 @@ package gad
 // Returns an iterator over a value.
 //
 // enumerate(it iterable) <iterator>
-// Returns a lazy iterator yielding each element paired with its index.
+// Returns a lazy iterator yielding each element paired with its index, as a
+// key-value `[(index)=value]` (read `.k` / `.v`).
 //
 // collect(it iterable) <array>
 // Consumes an iterator or iterable into an array.
 //
-// toArray(*args) <array>
-// Returns its arguments collected into an array.
+// toArray(*its) <array>
+// Concatenates its arguments into one array: an array contributes its elements,
+// any other iterable its entries as key-value pairs `[(key)=value]`.
 //
 // sort(o any; less=nil) <any>
 // Returns the collection sorted ascending; `less` is an optional comparator

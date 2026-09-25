@@ -27,6 +27,12 @@ New methods can be added to an existing callable later with `met`.
 
 @snippet met
 
+`addMethod(target, fn…)` is the function form of `met`: it attaches typed
+overloads to a function-with-methods (or a class) and returns the target — handy
+when the overloads are built at run time.
+
+@snippet add_method
+
 ## Overriding and `$old`
 
 `met ~name(...)` **overrides** an existing method signature instead of raising a
@@ -90,6 +96,13 @@ func size(n int) => n * 2
 // the (int) method, chosen by an example value or by a type name:
 [gad.methodFromArgs(size, 4)(10), gad.methodFromArgs(size, int)(10)]
 /**= [20, 20] **/
+//endsnippet
+
+//snippet add_method
+func kind { (x int) => "int" }
+addMethod(kind, func(x str) => "str", func(x float) => "float")
+[kind(1), kind("a"), kind(1.5)]
+/**= ["int", "str", "float"] **/
 //endsnippet
 
 return area(4)

@@ -23,12 +23,44 @@ concatenates strings and appends to arrays. `===`/`!==` are **strict** (same
 concrete type; object identity for non-primitives), customizable via
 `met gad.binOpSame`.
 
+```gad
+[
+    [7 / 2, 7 % 2, 2 ** 10, -7 / 2],       // int division truncates
+    [6 & 3, 6 | 3, 6 ^ 3, 6 &^ 3],         // and, or, xor, and-not (bit clear)
+    [1 << 4, 256 >> 2, ^5],                // shifts; unary ^ is the complement
+    [0 || "fallback", "x" && "y"],         // logical ops return an operand
+    ["ab" + "c", [1] + 2],                 // + concatenates / appends
+]
+// => [[3, 1, 1024, -3], [2, 7, 5, 4], [16, 64, -6], ["fallback", "y"], ["abc", [1, 2]]]
+```
+
 ## Ranges, ternary, nullish
 
 `from .. to` builds an inclusive iterable `Range` (step with `/` or the `step`
 arg; `..` binds tighter than `/`). `cond ? a : b` is the ternary. `??` returns
 the right operand only when the left is `nil`; `?.` is a nullish selector and
 `?.(args)` a nullish call (evaluate/call only when non-nil).
+
+A `?.` short-circuits the rest of the chain: once the value before it is `nil`,
+the whole chain is `nil` — so `a?.b.c` never reads `.c` on a missing `b`. A
+missing dict key reads as `nil`, which is how `?.` also guards absent members.
+`??` supplies a fallback for any of them.
+
+```gad
+user := {name: "ann", address: nil, greet: (who) => "hi " + who}
+guest := nil
+[
+    user?.name,
+    guest?.name,                       // nil: guest is nil
+    user.address?.city,                // nil: address is nil
+    user.phone?.number,                // nil: a missing key reads as nil
+    guest?.address.city,               // nil: the chain stops at the first ?.
+    user.greet?.("bo"),                // call when non-nil
+    user.bye?.("bo"),                  // nil: nothing to call
+    guest?.name ?? "anonymous",        // ?? supplies the fallback
+]
+// => ["ann", nil, nil, nil, nil, "hi bo", nil, "anonymous"]
+```
 
 ## Absent-coalescing (`!?` / `!?=`)
 
@@ -44,6 +76,18 @@ Array append has four forms: `arr + x` (append one, concatenating an iterable),
 `arr ++ it` (extend with an iterable), `arr += x` (append x as **one** element,
 in place), `arr ++= it` (extend in place). A single target with a comma list is
 an array literal (`x := 1, 2, 3`).
+
+```gad
+sub := 10; sub -= 3; sub *= 2          // 14
+mask := 6; mask &= 3                   // 2
+shift := 1; shift <<= 3                // 8
+clear := 6; clear &^= 2                // 4
+unset := nil; unset ??= "set"          // assigns only when nil
+kept := "kept"; kept ??= "ignored"
+count := 1; count++; count++           // postfix: statements
+[sub, mask, shift, clear, unset, kept, count]
+// => [14, 2, 8, 4, "set", "kept", 3]
+```
 
 ## Operator handlers and the `gad` namespace
 
@@ -127,6 +171,36 @@ unary tightest, ternary loosest. Read/write with `.name` (literal) and `[expr]`
 ## Example — `user_operators.gad`
 
 ```gad
+[
+    [7 / 2, 7 % 2, 2 ** 10, -7 / 2],       // int division truncates
+    [6 & 3, 6 | 3, 6 ^ 3, 6 &^ 3],         // and, or, xor, and-not (bit clear)
+    [1 << 4, 256 >> 2, ^5],                // shifts; unary ^ is the complement
+    [0 || "fallback", "x" && "y"],         // logical ops return an operand
+    ["ab" + "c", [1] + 2],                 // + concatenates / appends
+]
+
+user := {name: "ann", address: nil, greet: (who) => "hi " + who}
+guest := nil
+[
+    user?.name,
+    guest?.name,                       // nil: guest is nil
+    user.address?.city,                // nil: address is nil
+    user.phone?.number,                // nil: a missing key reads as nil
+    guest?.address.city,               // nil: the chain stops at the first ?.
+    user.greet?.("bo"),                // call when non-nil
+    user.bye?.("bo"),                  // nil: nothing to call
+    guest?.name ?? "anonymous",        // ?? supplies the fallback
+]
+
+sub := 10; sub -= 3; sub *= 2          // 14
+mask := 6; mask &= 3                   // 2
+shift := 1; shift <<= 3                // 8
+clear := 6; clear &^= 2                // 4
+unset := nil; unset ??= "set"          // assigns only when nil
+kept := "kept"; kept ??= "ignored"
+count := 1; count++; count++           // postfix: statements
+[sub, mask, shift, clear, unset, kept, count]
+
 /**
 Define `<<<` and `>>>` on ints as "push"/"pop"-ish helpers.
 **/

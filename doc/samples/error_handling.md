@@ -21,6 +21,22 @@ err := error("oops")
 ## throw
 
 `throw` raises any value as an error, unwinding until a `catch` handles it.
+It is also an **expression**, so it fits wherever a value is expected — a
+ternary branch, a `??` fallback, a closure body — and it only raises when that
+branch is actually evaluated.
+
+```gad
+positive := (n) => n > 0 ? n : throw "not positive: " + str(n)
+required := (v) => v ?? throw "missing value"
+attempt := func(f) { try { return f() } catch e { return e.message } }
+[
+    positive(3),
+    attempt(() => positive(-1)),       // the throwing branch ran
+    required("x"),
+    attempt(() => required(nil)),
+]
+// => [3, "not positive: -1", "x", "missing value"]
+```
 
 ## try / catch / finally
 
@@ -144,6 +160,16 @@ safe := func() {
     throw "boom"
 }
 safe()
+
+positive := (n) => n > 0 ? n : throw "not positive: " + str(n)
+required := (v) => v ?? throw "missing value"
+attempt := func(f) { try { return f() } catch e { return e.message } }
+[
+    positive(3),
+    attempt(() => positive(-1)),       // the throwing branch ran
+    required("x"),
+    attempt(() => required(nil)),
+]
 
 return safeDiv(20, 4)
 ```

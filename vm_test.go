@@ -4866,7 +4866,7 @@ func TestVMTailCall(t *testing.T) {
 	testExpectRun(t, `return (() => {5 + 10})()`, nil, Int(15))
 	testExpectRun(t, `return ((b) => {a:=5; a + b})(10)`, nil, Int(15))
 	testExpectRun(t, `return ((b) => {a:=5; return a + b})(10)`, nil, Int(15))
-	testExpectRun(t, `return (() => {if 1 {2}})()`, nil, Nil)
+	testExpectRun(t, `return (() => {if 1 {2}})()`, nil, Int(2)) // Julia-style: the if's value
 	testExpectRun(t, `return (() => {if 1 {2}; 3})()`, nil, Int(3))
 
 	testExpectRun(t, `

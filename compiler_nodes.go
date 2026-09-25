@@ -1977,21 +1977,109 @@ func (c *Compiler) compileAddMethodsExpr(nd node.Node, nameExpr node.Expr, metho
 	return nil
 }
 
+// implicitReturnStmts gives a closure block `(…) => { … }` its implicit value,
+// Julia-style — a block is worth its last evaluated expression: when the last
+// statement is an expression it becomes a `return` of it; an assignment to plain
+// variables is worth the assigned value(s); and the rule applies recursively to
+// the statements that END in a block — a nested `{ … }`, every branch of an
+// `if` / `else if` / `else`, and the `try` and `catch` bodies of a `try` (its
+// `finally` never supplies the value). An `if` whose taken branch is missing, a
+// loop, or any other statement in the last position yields nil (Julia's
+// `nothing`). The statements are rewritten on shallow
+// copies, so the parsed AST (shared with the formatter and tooling) is left
+// untouched.
+func implicitReturnStmts(stmts node.Stmts) node.Stmts {
+	l := len(stmts)
+	if l == 0 {
+		return stmts
+	}
+	last := implicitReturnStmt(stmts[l-1])
+	if last == stmts[l-1] {
+		return stmts
+	}
+	out := append(node.Stmts(nil), stmts...)
+	out[l-1] = last
+	return out
+}
+
+// implicitReturnStmt rewrites one statement in the last position of a closure
+// block (see implicitReturnStmts), returning it unchanged when it has no value.
+func implicitReturnStmt(st node.Stmt) node.Stmt {
+	switch t := st.(type) {
+	case *node.ExprStmt:
+		return &node.ReturnStmt{Return: node.Return{ReturnPos: t.Pos(), Result: t.Expr}}
+	case *node.AssignStmt:
+		// Julia-style, an assignment is worth the value it assigns: run it, then
+		// return the target (an array of them for `a, b := …`). Only plain
+		// variable targets qualify — a selector/index or a destructuring pattern
+		// keeps the nil value.
+		var targets []node.Expr
+		for _, lhs := range t.LHS {
+			id, ok := lhs.(*node.IdentExpr)
+			if !ok || id.Name == "_" {
+				return st
+			}
+			targets = append(targets, &node.IdentExpr{Name: id.Name, NamePos: id.NamePos})
+		}
+		var result node.Expr = targets[0]
+		if len(targets) > 1 {
+			result = &node.ArrayExpr{Elements: targets, LBrack: t.Pos(), RBrack: t.End()}
+		}
+		return &node.BlockStmt{Stmts: node.Stmts{t, &node.ReturnStmt{Return: node.Return{ReturnPos: t.Pos(), Result: result}}}}
+	case *node.BlockStmt:
+		if b := implicitReturnBlock(t); b != t {
+			return b
+		}
+	case *node.IfStmt:
+		body := implicitReturnBlock(t.Body)
+		els := t.Else
+		if els != nil {
+			els = implicitReturnStmt(els)
+		}
+		if body != t.Body || els != t.Else {
+			cp := *t
+			cp.Body, cp.Else = body, els
+			return &cp
+		}
+	case *node.TryStmt:
+		body := implicitReturnBlock(t.Body)
+		catch := t.Catch
+		if catch != nil {
+			if cb := implicitReturnBlock(catch.Body); cb != catch.Body {
+				cc := *catch
+				cc.Body = cb
+				catch = &cc
+			}
+		}
+		if body != t.Body || catch != t.Catch {
+			cp := *t
+			cp.Body, cp.Catch = body, catch
+			return &cp
+		}
+	}
+	return st
+}
+
+// implicitReturnBlock applies implicitReturnStmts to a block, copying it only
+// when its last statement changes.
+func implicitReturnBlock(b *node.BlockStmt) *node.BlockStmt {
+	if b == nil {
+		return nil
+	}
+	stmts := implicitReturnStmts(b.Stmts)
+	if len(stmts) > 0 && len(b.Stmts) > 0 && stmts[len(stmts)-1] == b.Stmts[len(b.Stmts)-1] {
+		return b
+	}
+	cp := *b
+	cp.Stmts = stmts
+	return &cp
+}
+
 func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
 	var stmts []node.Stmt
 	if b, ok := nd.Body.(*node.BlockExpr); ok {
-		stmts = b.Stmts
-		if l := len(stmts); l > 0 {
-			switch t := stmts[l-1].(type) {
-			case *node.ExprStmt:
-				stmts[l-1] = &node.ReturnStmt{
-					Return: node.Return{
-						ReturnPos: t.Pos(),
-						Result:    t.Expr,
-					},
-				}
-			}
-		}
+		// The block's value is its last expression (see implicitReturnStmts).
+		stmts = implicitReturnStmts(b.Stmts)
 	} else {
 		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: nd.Body}})
 	}

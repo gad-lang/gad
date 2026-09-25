@@ -1290,6 +1290,11 @@ func IteratorStateCheck(vm *VM, it Iterator, state *IteratorState) (err error) {
 		return
 	}
 	for state.Mode == IteratorStateModeContinue {
+		// Reset to Entry before advancing: an iterator's Next only sets Done (or
+		// Continue to skip), so without the reset a skipped element (e.g. one a
+		// `filter` callback rejected) left the state in Continue and every
+		// following element was skipped too.
+		state.Mode = IteratorStateModeEntry
 		if err = it.Next(vm, state); err != nil || state.Mode == IteratorStateModeDone {
 			return
 		}

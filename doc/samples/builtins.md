@@ -324,7 +324,8 @@ filter(it iterable, callback callable) <iterator>
 ```
 
 Returns a lazy iterator over the elements of iterable for which callback
-returns a truthy value.
+returns a truthy value. The callback is called as `callback(value, key,
+iterable)` (key: the index or dict key).
 
 ### map
 
@@ -332,9 +333,10 @@ returns a truthy value.
 map(it iterable, callback callable; update=no, nokey=no) <iterator>
 ```
 
-Returns a lazy iterator applying callback to each element of iterable.
-`update=yes` replaces elements in place; `nokey=yes` passes only the value to
-the callback.
+Returns a lazy iterator applying callback to each element of iterable, called
+as `callback(value, key)`; `nokey=yes` passes only the value. `update=yes`
+also writes each result back into the collection — as the iterator is
+consumed (e.g. by `collect`), since it is lazy.
 
 ### each
 
@@ -343,7 +345,8 @@ each(it iterable, callback callable) <any>
 ```
 
 Calls callback for every element of iterable (for its side effects) and
-returns the iterable.
+returns the iterable. The callback is called as `callback(key, value)` — key
+first, unlike map/filter.
 
 ### reduce
 
@@ -352,7 +355,9 @@ reduce(it iterable, callback callable, initial any) <any>
 ```
 
 Folds the elements of iterable with callback into a single value, starting
-from initial (or the first element when initial is omitted).
+from initial (or the first element when initial is omitted). The callback is
+called as `callback(accumulator, value, key)` and returns the next
+accumulator.
 
 ### keys
 
@@ -392,7 +397,8 @@ Returns an iterator over a value.
 enumerate(it iterable) <iterator>
 ```
 
-Returns a lazy iterator yielding each element paired with its index.
+Returns a lazy iterator yielding each element paired with its index, as a
+key-value `[(index)=value]` (read `.k` / `.v`).
 
 ### collect
 
@@ -405,10 +411,11 @@ Consumes an iterator or iterable into an array.
 ### toArray
 
 ```gad
-toArray(*args) <array>
+toArray(*its) <array>
 ```
 
-Returns its arguments collected into an array.
+Concatenates its arguments into one array: an array contributes its elements,
+any other iterable its entries as key-value pairs `[(key)=value]`.
 
 ### sort
 
@@ -822,26 +829,31 @@ export isError(o any) <bool> => nil
 
 /**
 Returns a lazy iterator over the elements of iterable for which callback
-returns a truthy value.
+returns a truthy value. The callback is called as `callback(value, key,
+iterable)` (key: the index or dict key).
 **/
 export filter(it iterable, callback callable) <iterator> => nil
 
 /**
-Returns a lazy iterator applying callback to each element of iterable.
-`update=yes` replaces elements in place; `nokey=yes` passes only the value to
-the callback.
+Returns a lazy iterator applying callback to each element of iterable, called
+as `callback(value, key)`; `nokey=yes` passes only the value. `update=yes`
+also writes each result back into the collection — as the iterator is
+consumed (e.g. by `collect`), since it is lazy.
 **/
 export map(it iterable, callback callable; update=no, nokey=no) <iterator> => nil
 
 /**
 Calls callback for every element of iterable (for its side effects) and
-returns the iterable.
+returns the iterable. The callback is called as `callback(key, value)` — key
+first, unlike map/filter.
 **/
 export each(it iterable, callback callable) <any> => nil
 
 /**
 Folds the elements of iterable with callback into a single value, starting
-from initial (or the first element when initial is omitted).
+from initial (or the first element when initial is omitted). The callback is
+called as `callback(accumulator, value, key)` and returns the next
+accumulator.
 **/
 export reduce(it iterable, callback callable, initial any) <any> => nil
 
@@ -866,7 +878,8 @@ Returns an iterator over a value.
 export iterate(it iterable) <iterator> => nil
 
 /**
-Returns a lazy iterator yielding each element paired with its index.
+Returns a lazy iterator yielding each element paired with its index, as a
+key-value `[(index)=value]` (read `.k` / `.v`).
 **/
 export enumerate(it iterable) <iterator> => nil
 
@@ -876,9 +889,10 @@ Consumes an iterator or iterable into an array.
 export collect(it iterable) <array> => nil
 
 /**
-Returns its arguments collected into an array.
+Concatenates its arguments into one array: an array contributes its elements,
+any other iterable its entries as key-value pairs `[(key)=value]`.
 **/
-export toArray(*args) <array> => nil
+export toArray(*its) <array> => nil
 
 /**
 Returns the collection sorted ascending; `less` is an optional comparator

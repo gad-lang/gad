@@ -54,6 +54,17 @@ met area(side int) => side * side // square (int), extends the `area` above
 // => [16, 6]
 ```
 
+`addMethod(target, fn…)` is the function form of `met`: it attaches typed
+overloads to a function-with-methods (or a class) and returns the target — handy
+when the overloads are built at run time.
+
+```gad
+func kind { (x int) => "int" }
+addMethod(kind, func(x str) => "str", func(x float) => "float")
+[kind(1), kind("a"), kind(1.5)]
+// => ["int", "str", "float"]
+```
+
 ## Overriding and `$old`
 
 `met ~name(...)` **overrides** an existing method signature instead of raising a
@@ -115,6 +126,10 @@ step(3)                               // 30 + 1
 func size(n int) => n * 2
 // the (int) method, chosen by an example value or by a type name:
 [gad.methodFromArgs(size, 4)(10), gad.methodFromArgs(size, int)(10)]
+
+func kind { (x int) => "int" }
+addMethod(kind, func(x str) => "str", func(x float) => "float")
+[kind(1), kind("a"), kind(1.5)]
 
 return area(4)
 ```

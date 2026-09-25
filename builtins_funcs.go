@@ -1051,12 +1051,16 @@ func BuiltinIsFunc(c Call) (ok Object, err error) {
 		}
 	}
 
+	// Walk stops at the first non-nil result, so keep walking (nil) until a
+	// value does not match; returning the bool itself used to stop after the
+	// first value, so `is(int, 1, "x")` reported true.
 	c.Args.Walk(func(i int, arg Object) any {
 		argt = c.VM.ResolveType(arg.Type())
 		if expectedNames := assertion.AcceptType(argt); expectedNames != "" {
 			ok = False
+			return ok
 		}
-		return ok
+		return nil
 	})
 
 	return

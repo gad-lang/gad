@@ -19,13 +19,15 @@ pair := [color = "red"]
 ## Ordered pairs
 
 `(; … )` is a `keyValueArray`. Keys may be identifiers, strings, numbers,
-booleans or a dynamic `[(expr)=v]`.
+booleans or a dynamic `[(expr)=v]`. The `keyValueArray(pair…)` builtin builds
+one from `keyValue` pairs.
 
 ```gad
 kva := (; a = 1, b = 2)
 anyKeys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
-[str(kva), str(anyKeys)]
-// => ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)"]
+built := keyValueArray([a=1], keyValue("b", 2))
+[str(kva), str(anyKeys), str(built)]
+// => ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)", "(;a=1, b=2)"]
 ```
 
 ## Flags
@@ -108,7 +110,8 @@ pair := [color = "red"]
 
 kva := (; a = 1, b = 2)
 anyKeys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
-[str(kva), str(anyKeys)]
+built := keyValueArray([a=1], keyValue("b", 2))
+[str(kva), str(anyKeys), str(built)]
 
 flags := (; debug, verbose = no, level = 3)
 [str(flags), flags.flag("debug"), flags.flag("verbose")]

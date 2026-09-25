@@ -3,7 +3,8 @@
 
 Gad's composite types are **arrays** (ordered lists) and **dicts** (string-keyed
 maps). Comprehensions live in [comprehensions.gad](comprehensions.gad),
-keyValue arrays in [key_value_array.gad](key_value_array.gad), and
+keyValue arrays in [key_value_array.gad](key_value_array.gad), the
+`map`/`filter`/`reduce` helpers in [functional.gad](functional.gad), and
 destructuring in [destructuring.gad](destructuring.gad).
 
 ## Arrays
@@ -30,6 +31,14 @@ This holds for `.name`, a dict key, `[name=value]` and `(;name=value)`. Only the
 key position is affected; on the value side keywords keep their meaning.
 
 @snippet keyword_keys
+
+### Concurrent dicts
+
+`syncDict(d)` wraps a dict for concurrent use (reads and writes are
+synchronized, for hosts that share it across goroutines); it reads and writes
+like a dict, and `isSyncDict` tells it apart (it is not a plain `dict`).
+
+@snippet sync_dict
 
 ## Spread and merge literals
 
@@ -95,6 +104,14 @@ for k, v in person { // dicts: (key, value)
 }
 squares
 /**= [100, 400, 900] **/
+//endsnippet
+
+//snippet sync_dict
+shared := syncDict({hits: 1})
+shared.hits += 1
+shared.users = ["ann"]
+[shared.hits, shared.users, isSyncDict(shared), isDict(shared), typeName(shared)]
+/**= [2, ["ann"], true, false, "syncDict"] **/
 //endsnippet
 
 return [1, 20, 3, 4, 5]

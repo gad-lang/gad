@@ -35,6 +35,24 @@ methods can be added with `met` (or from Go with `AddMethod`).
 
 @snippet constructors
 
+The same holds for the other kinds — `uint`, `decimal` (arbitrary precision),
+`rawstr` (an uninterpreted string) — and `array(…)` collects its arguments.
+
+@snippet constructors_more
+
+## Type checks
+
+`typeName(v)` names a value's type. Each type has a predicate — `isInt`,
+`isUint`, `isFloat`, `isChar`, `isBool`, `isStr`, `isRawStr`, `isBytes`,
+`isArray`, `isDict`, `isNil`, `isIterator`, … — plus `isCallable` (anything that
+can be called) and `isFunction` (a function value). `is(type, v…)` reports
+whether **every** value is of the type; `type` may be an array of types, any of
+which matches. For a checked conversion that also accepts interfaces and type
+unions use the `::` operator; `cast(T, v)` converts a class instance or a
+reflected Go value to the object type `T`.
+
+@snippet type_checks
+
 ## Numbers, booleans & flags
 
 Numeric literals: `int` (`19`, `0x1F`=31, `017`=15), `uint` (`5u`), `float`
@@ -46,7 +64,9 @@ type written `yes`/`no` and printed `on`/`off`.
 ## Characters
 
 A `char` is a single unicode code point in single quotes. Adding an int shifts
-the code point and keeps the `char` type.
+the code point and keeps the `char` type. `chars(s)` splits a string into its
+chars — `len` counts bytes, so it differs from `len(chars(s))` for non-ASCII
+text.
 
 @snippet chars
 
@@ -69,7 +89,8 @@ identity — every literal is a fresh object.
 
 Assignment copies values, except the reference types `array`, `dict` and `bytes`,
 which share their backing storage (as in Go). Use `copy` for a shallow copy and
-`dcopy` for a deep copy.
+`dcopy` for a deep copy — a shallow copy still shares the nested arrays/dicts.
+`cap` reports an array's (or bytes') capacity.
 
 @snippet copy
 **/
@@ -79,14 +100,32 @@ which share their backing storage (as in Go). Use `copy` for a shallow copy and
 /**= [42, 31, -51.0, "1984", 'X', 65] **/
 //endsnippet
 
+//snippet constructors_more
+[uint(3), decimal("1.10") + decimal("2.2"), rawstr("a\\b"), typeName(rawstr("x")), array(1, "a"), bool(0), bool("x")]
+/**= [3u, 3.3d, `a\b`, "rawstr", [1, "a"], false, true] **/
+//endsnippet
+
+//snippet type_checks
+class Point { x = 0 }
+[
+    [isInt(1), isUint(1u), isFloat(1.0), isChar('a'), isBool(true)],
+    [isArray([]), isDict({}), isBytes(bytes("")), isRawStr(`r`)],
+    [isCallable(len), isFunction(len), isFunction(() => 1), isCallable(1)],
+    [isIterator(iterate([1])), isIterator([1])],
+    [is(int, 1, 2), is(int, 1, "x"), is([int, str], 1, "x")],
+    typeName(cast(Point, Point())),
+]
+/**= [[true, true, true, true, true], [true, true, true, true], [true, true, true, false], [true, false], [true, false, true], "Point"] **/
+//endsnippet
+
 //snippet numbers
 [typeName(19), typeName(5u), typeName(1e10), typeName(2d), 0x1F, 017]
 /**= ["int", "uint", "float", "decimal", 31, 15] **/
 //endsnippet
 
 //snippet chars
-['A' + 1, char(88), int('A'), 'ç' > '9']
-/**= ['B', 'X', 65, true] **/
+['A' + 1, char(88), int('A'), 'ç' > '9', chars("héy"), len("héy"), len(chars("héy"))]
+/**= ['B', 'X', 65, true, ['h', 'é', 'y'], 4, 3] **/
 //endsnippet
 
 //snippet equality
@@ -107,8 +146,12 @@ alias := orig  // shares storage
 alias[0] = 99
 indep := copy(orig) // independent shallow copy
 indep[1] = 0
-[orig[0], orig[1]]
-/**= [99, 2] **/
+nested := [[1]]
+shallow := copy(nested)
+deep := dcopy(nested)
+nested[0][0] = 9              // the shallow copy shares the inner array
+[orig[0], orig[1], shallow[0], deep[0], cap([1, 2]) >= 2]
+/**= [99, 2, [9], [1], true] **/
 //endsnippet
 
 return [typeof(42), typeof("s"), typeof([1]), typeof({a: 1})]

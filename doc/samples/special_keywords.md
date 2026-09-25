@@ -62,12 +62,22 @@ forward := func(; **extra) => @nargs
 entry module (guard "run only when executed directly" code with it), and
 `@module` is the live module object (its exports, params and metadata).
 
+The same keys are members of any module object: `m.@main` tells whether an
+imported module `m` is the entry one (it is not), and `@module.@main` is
+`@main` read through the current module object.
+
 ```gad
 /**
 Module info: @name, @file, @main, @module.
 **/
-[typeName(@name), typeName(@main)]   // the module name (str) and whether it is main
-// => ["str", "bool"]
+mathx := import("./modules/mathx.gad")
+[
+    typeName(@name), typeName(@main),   // the module name (str), whether it is main
+    typeName(@module),                  // the current module object
+    @module.@main == @main,             // the same answer, via the object
+    mathx.@main,                        // an imported module is never the entry
+]
+// => ["str", "bool", "Module", true, false]
 ```
 
 ## Globals: `@g`
@@ -123,7 +133,13 @@ forward := func(; **extra) => @nargs
 /**
 Module info: @name, @file, @main, @module.
 **/
-[typeName(@name), typeName(@main)]   // the module name (str) and whether it is main
+mathx := import("./modules/mathx.gad")
+[
+    typeName(@name), typeName(@main),   // the module name (str), whether it is main
+    typeName(@module),                  // the current module object
+    @module.@main == @main,             // the same answer, via the object
+    mathx.@main,                        // an imported module is never the entry
+]
 
 /**
 @g — the host globals object (short form of the old `globals()`).

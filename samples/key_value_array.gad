@@ -15,7 +15,8 @@ arguments. Part of the [Collections](collections.gad) chapter.
 ## Ordered pairs
 
 `(; … )` is a `keyValueArray`. Keys may be identifiers, strings, numbers,
-booleans or a dynamic `[(expr)=v]`.
+booleans or a dynamic `[(expr)=v]`. The `keyValueArray(pair…)` builtin builds
+one from `keyValue` pairs.
 
 @snippet kva_keys
 
@@ -64,8 +65,9 @@ pair := [color = "red"]
 //snippet kva_keys
 kva := (; a = 1, b = 2)
 anyKeys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
-[str(kva), str(anyKeys)]
-/**= ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)"] **/
+built := keyValueArray([a=1], keyValue("b", 2))
+[str(kva), str(anyKeys), str(built)]
+/**= ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)", "(;a=1, b=2)"] **/
 //endsnippet
 
 //snippet kva_flags

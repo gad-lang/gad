@@ -80,17 +80,35 @@ connect := func(; **opts) {                   // named args
 
 ## Mixed positional + named
 
-A MixedParams value (`(values… ; name=value…)`) carries BOTH positional and
-named parts, so it uses the full `( positional ; named )` pattern — the
-positional side takes a trailing `*rest` (a single star, like a variadic
-parameter `func(a, *rest)`) and the named side a trailing `**rest`:
+A **MixedParams** value is written like a call's argument list in parentheses —
+`(values… ; name=value…)`, with `*` / `**` spreads and `(,)` for an empty one.
+It carries BOTH parts: `.positional` (an array) and `.named` (a key-value
+array), so it can be stored and later spread into a call.
 
 ```gad
-mp := (1, 2, *[3]; user = "ann", role = "admin")
-(a, b, *rest_pos; user, role:r, **rest_named) := mp
+args := (1, *[2, 3]; mode = "fast", **{debug: yes})
+run := func(*xs; **opts) => [xs, dict(opts)]
+[
+    typeName(args),
+    args.positional,
+    str(args.named),
+    run(*args.positional; **args.named),        // spread it into a call
+    [len((,).positional), len((,).named)],      // the empty one
+]
+// => ["MixedParams", [1, 2, 3], "(;mode=\"fast\", debug)", [[1, 2, 3], {debug: on, mode: "fast"}], [0, 0]]
 ```
 
-For just the named side of any value, use `(; … )` or `{ … }` on it.
+It destructures with the full `( positional ; named )` pattern — the positional
+side takes a trailing `*rest` (a single star, like a variadic parameter
+`func(a, *rest)`) and the named side a trailing `**rest`. For just the named side
+of any value, use `(; … )` or `{ … }` on it.
+
+```gad
+mp := (1, 2, *[3]; user = "ann", role = "admin", team = "core")
+(first, second, *restPos; user: who, role: r, **restNamed) := mp
+[first, second, restPos, who, r, restNamed]
+// => [1, 2, [3], "ann", "admin", {team: "core"}]
+```
 
 ## Example — `destructuring.gad`
 
@@ -125,4 +143,18 @@ connect := func(; **opts) {                   // named args
     return host + ":" + str(port)
 }
 [toUpper("hi"), hasPrefix("hello", "he"), [ka, kb, krest], connect(; host = "example.com")]
+
+args := (1, *[2, 3]; mode = "fast", **{debug: yes})
+run := func(*xs; **opts) => [xs, dict(opts)]
+[
+    typeName(args),
+    args.positional,
+    str(args.named),
+    run(*args.positional; **args.named),        // spread it into a call
+    [len((,).positional), len((,).named)],      // the empty one
+]
+
+mp := (1, 2, *[3]; user = "ann", role = "admin", team = "core")
+(first, second, *restPos; user: who, role: r, **restNamed) := mp
+[first, second, restPos, who, r, restNamed]
 ```

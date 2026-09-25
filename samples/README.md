@@ -33,6 +33,7 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `functions.gad`            | functions, arrow closures, closures, variadics    |
 | `collections.gad`          | arrays, dicts, spread literals, iteration         |
 | `comprehensions.gad`       | array and dict comprehensions                     |
+| `functional.gad`           | `map`/`filter`/`reduce`/`each`, `keys`/`values`/`items`/`enumerate`, `zip`, sorting |
 | `control_flow.gad`         | `if`/`else`, `for`, `match`                        |
 | `error_handling.gad`       | errors, `try`/`catch`/`finally`, the `or` fallback |
 | `strings_bytes_regex.gad`  | strings, `b"…"`/`h"…"` bytes, `/regex/` literals  |
@@ -47,6 +48,7 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `ranges.gad`               | the `..` range operator, steps, temporal ranges   |
 | `user_operators.gad`       | user operators `<<<` `>>>` `%%` via `gad.binOp`  |
 | `in_operator.gad`          | the `in` membership operator                       |
+| `io.gad`                   | printing, `sprintf`/`printf`, `obstart`/`obend`, `STDIN`/`STDOUT`/`STDERR`, `write` |
 | `doc_comments.gad`         | doc comments and `>>>` examples                    |
 | `unary_operators.gad`      | unary `!` `-` `+` `^` `++` `--` and `gad.unOp`   |
 | `with.gad`                 | the `with` context manager (statement + expression) |

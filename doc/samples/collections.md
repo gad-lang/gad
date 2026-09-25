@@ -3,7 +3,8 @@
 
 Gad's composite types are **arrays** (ordered lists) and **dicts** (string-keyed
 maps). Comprehensions live in [comprehensions.gad](comprehensions.gad),
-keyValue arrays in [key_value_array.gad](key_value_array.gad), and
+keyValue arrays in [key_value_array.gad](key_value_array.gad), the
+`map`/`filter`/`reduce` helpers in [functional.gad](functional.gad), and
 destructuring in [destructuring.gad](destructuring.gad).
 
 ## Arrays
@@ -51,6 +52,20 @@ key position is affected; on the value side keywords keep their meaning.
 mk := {class: 1, else: 2, func: 3} // keywords as bare string keys
 [mk.class, mk["else"], mk.func]    // read via selector and index
 // => [1, 2, 3]
+```
+
+### Concurrent dicts
+
+`syncDict(d)` wraps a dict for concurrent use (reads and writes are
+synchronized, for hosts that share it across goroutines); it reads and writes
+like a dict, and `isSyncDict` tells it apart (it is not a plain `dict`).
+
+```gad
+shared := syncDict({hits: 1})
+shared.hits += 1
+shared.users = ["ann"]
+[shared.hits, shared.users, isSyncDict(shared), isDict(shared), typeName(shared)]
+// => [2, ["ann"], true, false, "syncDict"]
 ```
 
 ## Spread and merge literals
@@ -124,6 +139,11 @@ for k, v in person { // dicts: (key, value)
     println(#"  {k} -> {v}")
 }
 squares
+
+shared := syncDict({hits: 1})
+shared.hits += 1
+shared.users = ["ann"]
+[shared.hits, shared.users, isSyncDict(shared), isDict(shared), typeName(shared)]
 
 return [1, 20, 3, 4, 5]
 ```

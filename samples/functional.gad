@@ -1,0 +1,135 @@
+/**
+# Functional Helpers
+
+Builtins that transform any **iterable** — arrays, dicts, strings, bytes,
+ranges, key-value arrays and the iterators these helpers return — without an
+explicit loop. `map`, `filter`, `keys`, `values`, `items`, `enumerate` and `zip`
+are **lazy**: they return an iterator that does the work as it is consumed, by
+`collect` (into an array), a `for … in` loop or another helper. `reduce` and
+`each` run at once. Part of the [Collections](collections.gad) chapter; the
+iterator protocol for your own types is in [Control Flow](control_flow.gad).
+
+## map and filter
+
+`map(it, cb)` yields `cb(value, key)` for each element — the key is the index,
+or the dict key. With the `nokey` flag the callback takes only the value.
+`filter(it, cb)` keeps the elements for which `cb(value, key, it)` is truthy.
+Both return iterators, so they chain.
+
+@snippet map_filter
+
+`map(…; update)` also writes each result back into the collection — as the
+iterator is consumed, since it is lazy:
+
+@snippet map_update
+
+## reduce and each
+
+`reduce(it, cb, initial)` folds the elements into one value, calling
+`cb(accumulator, value, key)` and keeping what it returns; without `initial` the
+first element starts the fold. `each(it, cb)` calls `cb(key, value)` — **key
+first**, unlike `map`/`filter` — for its side effects and returns the iterable.
+
+@snippet reduce_each
+
+## keys, values, items and enumerate
+
+`keys` and `values` iterate one side of a collection; `items` yields its
+entries as key-value pairs `[(key)=value]` (`.k` / `.v`), and `enumerate` pairs
+each element with its position the same way.
+
+@snippet entries
+
+## zip, iterate and toArray
+
+`zip(a, b, …)` **chains** its iterables end to end (it does not pair them).
+`iterate(x)` returns a plain iterator over any iterable. `toArray(…)`
+concatenates its arguments into one array — an array contributes its elements,
+another iterable its `[(key)=value]` entries.
+
+@snippet chain_convert
+
+## sort and sortReverse
+
+`sort` / `sortReverse` return the collection ordered ascending / descending; a
+`less=(a, b) => …` comparator customises the order.
+
+@snippet sorting
+
+## A pipeline
+
+Chained, the lazy helpers read as a pipeline: nothing runs until `collect` asks
+for values, and each element flows through every stage before the next one
+starts.
+
+@snippet pipeline
+**/
+
+//snippet map_filter
+nums := [1, 2, 3, 4, 5]
+[
+    collect(map(nums, (v, i) => v * 10 + i)),           // value, index
+    collect(map(nums, (v) => v * v; nokey)),            // value only
+    collect(filter(nums, (v, i, all) => v % 2 == 1)),   // value, index, iterable
+    collect(map({a: 1}, (v, k) => k + "=" + str(v))),   // a dict: value, key
+    collect(filter("gad lang", (c, i, s) => c != ' ')), // a string: its chars
+]
+/**= [[10, 21, 32, 43, 54], [1, 4, 9, 16, 25], [1, 3, 5], ["a=1"], ['g', 'a', 'd', 'l', 'a', 'n', 'g']] **/
+//endsnippet
+
+//snippet map_update
+prices := [10, 20]
+lazy := map(prices, (v, i) => v * 2; update)
+before := copy(prices)             // nothing ran yet
+collect(lazy)                      // consuming it writes the results back
+[before, prices]
+/**= [[10, 20], [20, 40]] **/
+//endsnippet
+
+//snippet reduce_each
+total := reduce([1, 2, 3, 4], (acc, v, i) => acc + v, 0)
+longest := reduce(["go", "gad", "lang"], (acc, v, i) => len(v) > len(acc) ? v : acc)
+seen := []
+each({x: 1}, (k, v) => { seen += k + str(v) })   // key first
+[total, longest, seen, typeName(each([1], (i, v) => nil))]
+/**= [10, "lang", ["x1"], "array"] **/
+//endsnippet
+
+//snippet entries
+d := {name: "gad"}
+pair := collect(items(d))[0]
+[
+    collect(keys(d)), collect(values(["x", "y"])),
+    [pair.k, pair.v],
+    [[e.k, e.v] for e in enumerate(["a", "b"])],
+]
+/**= [["name"], ["x", "y"], ["name", "gad"], [[0, "a"], [1, "b"]]] **/
+//endsnippet
+
+//snippet chain_convert
+[
+    collect(zip([1, 2], ["a"], 3 .. 4)),   // chained, not paired
+    collect(iterate("ab")),
+    toArray([1, 2], [3]),                  // arrays: their elements
+    [[e.k, e.v] for e in toArray("ab")],   // other iterables: their entries
+]
+/**= [[1, 2, "a", 3, 4], ['a', 'b'], [1, 2, 3], [[0, 'a'], [1, 'b']]] **/
+//endsnippet
+
+//snippet sorting
+[
+    sort([3, 1, 2]),
+    sortReverse([3, 1, 2]),
+    sort(["pear", "fig", "apple"]; less=(a, b) => len(a) < len(b)),
+]
+/**= [[1, 2, 3], [3, 2, 1], ["fig", "pear", "apple"]] **/
+//endsnippet
+
+//snippet pipeline
+squaresOfEvens := map(
+    filter(1 .. 10, (v, i, r) => v % 2 == 0),
+    (v) => v * v; nokey,
+)
+[typeName(squaresOfEvens), collect(squaresOfEvens), reduce(squaresOfEvens, (a, v, i) => a + v, 0)]
+/**= ["MapIterator", [4, 16, 36, 64, 100], 220] **/
+//endsnippet

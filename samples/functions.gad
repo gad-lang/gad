@@ -15,6 +15,48 @@ Inner functions capture variables from their enclosing scope.
 
 @snippet basics
 
+## The value of a closure block
+
+A closure may also have a block body, `(params) => { … }`. Like in Julia, a
+block is **worth its last evaluated expression**, so without a `return` the
+closure yields:
+
+- the value of its last statement when that is an expression — arithmetic, a
+  call, a ternary, a `match`;
+- for an **assignment** to plain variables, the value assigned (`a := 5` is
+  worth `5`; `a, b := 1, 2` is worth `[1, 2]`);
+- for a statement that **ends in a block**, the value of the block that ran: the
+  taken branch of an `if` / `else if` / `else`, a nested `{ … }`, and the `try`
+  body — or the `catch` body when it caught an error (a `finally` runs but never
+  supplies the value);
+- `nil` (Julia's `nothing`) otherwise: a loop, an `if` whose false branch is
+  missing, or an assignment to a selector/index (`o.k = 1`).
+
+A `func` block has no implicit value at all (only `return` sets one), while
+`func() => expr` is the expression form again.
+
+@snippet closure_block_value
+
+So choosing a value by condition needs no `return`: each branch is worth its
+last expression.
+
+@snippet closure_block_match
+
+## Returning several values
+
+`return a, b` returns the comma-separated values as one **array** (the same rule
+as an assignment's right-hand side), ready to be destructured by the caller.
+
+@snippet return_many
+
+## Partial application
+
+`wrap(fn, args…; named…)` returns a new function that calls `fn` with those
+arguments **prepended** — a partial application. The wrapper's own positional
+arguments are appended after them and its named arguments merged in.
+
+@snippet wrap
+
 ## Variadic parameters
 
 The last positional parameter may be variadic (`*name`); it collects the
@@ -96,6 +138,53 @@ adder := func(base) => (x) => base + x // closure capturing `base`
 add5 := adder(5)
 [sum(2, 3), double(21), add5(4)]
 /**= [5, 42, 9] **/
+//endsnippet
+
+//snippet closure_block_value
+[
+    (() => { 5 + 10 })(),                       // the last expression
+    (() => { a := 5; a + 1 })(),                // statements, then an expression
+    (() => { a := 5 })(),                       // an assignment: the value
+    (() => { a, b := 1, 2 })(),                 // several targets: an array
+    (() => { if true { 2 } })(),                // the taken branch
+    (() => { if false { 1 } else { { 7 } } })(), // …down nested blocks
+    (() => { if false { 1 } })(),               // no branch taken: nil
+    (() => { try { throw "x"; 8 } catch { 9 } })(), // the catch that ran
+    (() => { for x in [1, 2] { x } })(),        // a loop: nil
+    (() => { return 4; 5 })(),                  // return wins
+    func() { 5 + 10 }(),                        // a func block: only return sets a value
+    (func() => 5 + 10)(),                       // …its => form is an expression
+]
+/**= [15, 6, 5, [1, 2], 2, 7, nil, 9, nil, 4, nil, 15] **/
+//endsnippet
+
+//snippet closure_block_match
+sign := (n) => {
+    abs := n < 0 ? -n : n
+    if n > 0 {
+        "positive " + str(abs)
+    } else if n < 0 {
+        "negative " + str(abs)
+    } else {
+        "zero"
+    }
+}
+[sign(3), sign(-2), sign(0)]
+/**= ["positive 3", "negative 2", "zero"] **/
+//endsnippet
+
+//snippet return_many
+minMax := func(xs) {
+    lo, hi := xs[0], xs[0]
+    for x in xs {
+        lo = x < lo ? x : lo
+        hi = x > hi ? x : hi
+    }
+    return lo, hi                               // == return [lo, hi]
+}
+lo, hi := minMax([3, 9, 1, 4])
+[minMax([2, 5]), lo, hi]
+/**= [[2, 5], 1, 9] **/
 //endsnippet
 
 //snippet variadic
@@ -181,4 +270,12 @@ func hello(name str; loud=false) <str> {
 
 [hello.@name, hello.@args, hello.@nargs, hello.@ret, str(hello.@meta)]
 /**= ["hello", ["name"], ["loud"], "<str>", "(;route=\"/hello\")"] **/
+//endsnippet
+
+//snippet wrap
+add := func(a, b; scale=1) => (a + b) * scale
+add10 := wrap(add, 10)
+tagged := wrap(func(*xs; **opts) => [xs, dict(opts)], "first"; source="wrap")
+[add10(5), add10(5; scale=2), tagged("second"; extra=1)]
+/**= [15, 30, [["first", "second"], {source: "wrap", extra: 1}]] **/
 //endsnippet

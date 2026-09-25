@@ -17,6 +17,11 @@ directly — but merely *holding* an error does not stop execution; only `throw`
 ## throw
 
 `throw` raises any value as an error, unwinding until a `catch` handles it.
+It is also an **expression**, so it fits wherever a value is expected — a
+ternary branch, a `??` fallback, a closure body — and it only raises when that
+branch is actually evaluated.
+
+@snippet throw_expr
 
 ## try / catch / finally
 
@@ -116,6 +121,19 @@ safe := func() {
 }
 safe()
 /**= "recovered: error: boom" **/
+//endsnippet
+
+//snippet throw_expr
+positive := (n) => n > 0 ? n : throw "not positive: " + str(n)
+required := (v) => v ?? throw "missing value"
+attempt := func(f) { try { return f() } catch e { return e.message } }
+[
+    positive(3),
+    attempt(() => positive(-1)),       // the throwing branch ran
+    required("x"),
+    attempt(() => required(nil)),
+]
+/**= [3, "not positive: -1", "x", "missing value"] **/
 //endsnippet
 
 return safeDiv(20, 4)
