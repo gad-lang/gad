@@ -1045,6 +1045,13 @@ func (e *MultiParenExpr) ToFuncParams() (params FuncParams, err *NodeError) {
 
 exps:
 	for i, n = range e.PositionalElements {
+		if ti := PtrParam(n); ti != nil { // `(p *array)`
+			n = ti
+		} else if av, _ := n.(*ArgVarLit); av != nil {
+			if ti := PtrParam(av.Value); ti != nil { // `(*xs *int)`
+				n = &ArgVarLit{TokenPos: av.TokenPos, Value: ti}
+			}
+		}
 		switch t := n.(type) {
 		case *IdentExpr:
 			params.Args.Values = append(params.Args.Values, &TypedIdentExpr{Ident: t})
@@ -1077,7 +1084,11 @@ nexps:
 	for i, n = range e.NamedElements {
 		switch t := n.(type) {
 		case *KeyValuePairLit:
-			switch t2 := t.Key.(type) {
+			key := t.Key
+			if ti := PtrParam(key); ti != nil { // `(; n *int = 0)`
+				key = ti
+			}
+			switch t2 := key.(type) {
 			case *IdentExpr:
 				params.NamedArgs.Names = append(params.NamedArgs.Names, &TypedIdentExpr{Ident: t2})
 				params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
@@ -3226,4 +3237,71 @@ func (e *ArrayTypeExpr) String() string {
 
 func (e *ArrayTypeExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
+}
+
+// PtrTypeExpr is a pointer type written where a type goes: `*int`, `*array`,
+// `*[]str`, `*<int|str>` — it accepts a `ptr` (see the `&` operator) whose
+// current value is one of Types. As with an array type, one type needs no
+// envelope: `*int` is the short form of `*<int>`.
+type PtrTypeExpr struct {
+	Star source.Pos
+	// Types are the types the pointed-to value may be.
+	Types []*TypeExpr
+	// Enveloped says the types were written inside `<…>`.
+	Enveloped bool
+	RAngle    source.Pos
+}
+
+func (e *PtrTypeExpr) ExprNode() {}
+
+func (e *PtrTypeExpr) Pos() source.Pos { return e.Star }
+
+func (e *PtrTypeExpr) End() source.Pos {
+	if e.Enveloped && e.RAngle.IsValid() {
+		return e.RAngle + 1
+	}
+	if len(e.Types) > 0 {
+		return e.Types[len(e.Types)-1].End()
+	}
+	return e.Star + 1
+}
+
+func (e *PtrTypeExpr) String() string {
+	names := make([]string, len(e.Types))
+	for i, t := range e.Types {
+		names[i] = t.String()
+	}
+	if len(names) == 1 {
+		return "*" + names[0]
+	}
+	return "*<" + strings.Join(names, " | ") + ">"
+}
+
+func (e *PtrTypeExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
+// PtrParam reinterprets `name * Type` — the way an expression parser reads a
+// pointer-typed parameter such as `(p *array)`, which it cannot tell from a
+// multiplication — as the typed identifier `name *Type`. It is used only where
+// a parameter is expected (so `(a * b)` elsewhere stays a product); nil when e
+// is not that shape.
+func PtrParam(e Expr) *TypedIdentExpr {
+	b, ok := e.(*BinaryExpr)
+	if !ok || b.Token != token.Mul {
+		return nil
+	}
+	name, ok := b.LHS.(*IdentExpr)
+	if !ok {
+		return nil
+	}
+	switch b.RHS.(type) {
+	case *IdentExpr, *SelectorExpr:
+	default:
+		return nil
+	}
+	return &TypedIdentExpr{Ident: name, Type: []*TypeExpr{{Expr: &PtrTypeExpr{
+		Star:  b.TokenPos,
+		Types: []*TypeExpr{{Expr: b.RHS}},
+	}}}}
 }

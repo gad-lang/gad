@@ -118,6 +118,8 @@ const (
 	OpPopSource
 	OpFiles
 	OpInterfaceExtends
+	OpVarPtr
+	OpAddrOfIndex
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -211,6 +213,8 @@ var OpcodeNames = [...]string{
 	OpPopSource:         "POPSOURCE",
 	OpFiles:             "FILES",
 	OpInterfaceExtends:  "INTERFACEEXTENDS",
+	OpVarPtr:            "VARPTR",
+	OpAddrOfIndex:       "ADDROFINDEX",
 }
 
 // OpcodeOperands is the number of operands.
@@ -304,6 +308,8 @@ var OpcodeOperands = [...][]int{
 	OpPopSource:         {},     // pop the source-name stack
 	OpFiles:             {},     // push the source-name stack as a read-only Array
 	OpInterfaceExtends:  {2},    // n; pop n parent values (interfaces or arrays of them) + the interface, push it extending them
+	OpVarPtr:            {},     // pop a variable cell (from OpGetLocalPtr/OpGetFreePtr), push a `ptr` to it (`&x`)
+	OpAddrOfIndex:       {},     // pop key and target, push a `ptr` to target[key] (`&a.b`, `&a[i]`)
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

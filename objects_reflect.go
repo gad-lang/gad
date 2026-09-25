@@ -92,6 +92,13 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 	case reflect.Func:
 		return &ReflectFunc{orv}, nil
 	default:
+		// A Go pointer to a plain basic value (`*int`, `*string`, …) is a script
+		// `ptr` (`p.v`). A type with methods (e.g. a named `type V int` with a
+		// String method) keeps its reflected form and behaviour.
+		if ptr && isBasicKind(rv.Kind()) && rv.Type().NumMethod() == 0 &&
+			reflect.PointerTo(rv.Type()).NumMethod() == 0 {
+			return &GoPtr{orv}, nil
+		}
 		return &orv, nil
 	}
 	rvr.Init()

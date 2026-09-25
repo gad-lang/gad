@@ -3402,6 +3402,33 @@ func TestParseMethod(t *testing.T) {
 
 func TestParsePtr(t *testing.T) {
 	test.New(t, "&x").String("&(x)").Code("&x")
+	test.New(t, "&a.b").Code("&a.b")
+	test.New(t, "&a[1]").Code("&a[1]")
+	test.New(t, "f(&x)").Code("f(&x)")
+	// `&` stays the bitwise and between operands
+	test.New(t, "a & b").Code("a & b")
+}
+
+// TestParsePtrType covers `*T` pointer types: in parameters (where `p *int`
+// is reinterpreted from the product the expression parser reads), with an
+// envelope, over an array type, in named/variadic parameters, class and
+// interface fields — while `(a * b)` outside a parameter list stays a product.
+func TestParsePtrType(t *testing.T) {
+	for src, code := range map[string]string{
+		"func f(p *int) {}":          "func f(p *int) {}",
+		"func f(p *pkg.T) {}":        "func f(p *pkg.T) {}",
+		"func f(v *<int|str>) {}":    "func f(v *<int | str>) {}",
+		"func f(xs *[]int) {}":       "func f(xs *[]int) {}",
+		"func f(; c *int = nil) {}":  "func f(; c *int=nil) {}",
+		"func f(*ps *int) {}":        "func f(*ps *int) {}",
+		"f := (p *int) => p.v":       "f := (p *int) => p.v",
+		"class C { pos *int }":       "class C {pos *int}",
+		"interface I { value *int }": "interface I {value *int; }",
+		"x := (a * b)":               "x := (a * b)",
+		"x := f(a *b)":               "x := f((a * b))",
+	} {
+		test.New(t, src).Code(code)
+	}
 }
 
 func TestParseSpecialKeywords(t *testing.T) {

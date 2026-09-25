@@ -29,6 +29,7 @@
 - [method_interfaces](method_interfaces.md)
 - [method_resolution](method_resolution.md)
 - [mixins](mixins.md)
+- [pointers](pointers.md)
 - [properties](properties.md)
 - [ranges](ranges.md)
 - [raw_argv](raw_argv.md)

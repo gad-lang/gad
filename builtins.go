@@ -301,6 +301,9 @@ const (
 	BuiltinWritable
 	// BuiltinNumberTypeUnion is the builtin `number` type union: int|uint|float|decimal.
 	BuiltinNumberTypeUnion
+	// BuiltinPtr is the `ptr` type of `&x` pointers (see Pointer). Appended here,
+	// after every earlier builtin, so existing builtin indexes do not shift.
+	BuiltinPtr
 
 	BuiltinEnd_
 )
@@ -309,7 +312,7 @@ var (
 	// lastBuiltinType seeds NewBuiltinType for dynamically-registered types; it
 	// must be the last statically-numbered builtin so dynamic types never reuse a
 	// static slot.
-	lastBuiltinType = BuiltinNumberTypeUnion
+	lastBuiltinType = BuiltinPtr
 	lastBuiltinMux  = sync.Mutex{}
 )
 

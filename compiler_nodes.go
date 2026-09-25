@@ -1751,10 +1751,6 @@ func (c *Compiler) compileFuncExpr(nd *node.FuncExpr) error {
 	return c.compileFunc(nd, nd.Type, body)
 }
 
-func (c *Compiler) compilePtr(nd *node.Ptr) (err error) {
-	return c.Errorf(nd, "compile %T is not implemented", nd)
-}
-
 func (c *Compiler) compileComputedExpr(nd *node.ComputedExpr) (err error) {
 	stmts := nd.Stmts
 	switch t := stmts[len(stmts)-1].(type) {
@@ -2770,6 +2766,12 @@ func (c *Compiler) compileFuncHeaderExpr(nd *node.FuncHeaderExpr) error {
 // to the `typedIdent` builtin. It is the same constant the type position builds
 // (structuralTypeSymbol), pushed on the stack.
 func (c *Compiler) compileArrayTypeExpr(nd *node.ArrayTypeExpr) error {
+	return c.compileStructuralTypeExpr(nd)
+}
+
+// compileStructuralTypeExpr pushes the constant a structural type written as a
+// value compiles to (see compileArrayTypeExpr): an array or a pointer type.
+func (c *Compiler) compileStructuralTypeExpr(nd node.Expr) error {
 	sym, err := c.structuralTypeSymbol(nd)
 	if err != nil {
 		return err
@@ -4093,6 +4095,65 @@ func (c *Compiler) compileInterpolatedStringLit(nd *node.InterpolatedStringLit) 
 	return c.Compile(expr)
 }
 
+// compilePtr compiles the address-of operator `&expr`, yielding a `ptr`:
+//
+//   - `&x` for a local or a captured (free) variable promotes its slot to a
+//     shared cell (the one closures capture) and wraps it (OpVarPtr), so writes
+//     through `p.v` change the variable itself;
+//   - `&x` for a `global` points to its entry in the globals object;
+//   - `&a.b` / `&a[i]` evaluate `a` and the key once and point to that member of
+//     any IndexGetter (OpAddrOfIndex, see AddrOf).
+//
+// A constant, a builtin, or any other expression has no address.
+func (c *Compiler) compilePtr(nd *node.Ptr) error {
+	switch x := nd.Expr.(type) {
+	case *node.IdentExpr:
+		symbol, ok := c.symbolTable.Resolve(x.Name)
+		if !ok {
+			return c.Errorf(x, "unresolved reference %q", x.Name)
+		}
+		if symbol.Constant {
+			return c.Errorf(nd, "cannot take the address of constant %q", x.Name)
+		}
+		switch symbol.Scope {
+		case ScopeLocal:
+			c.emit(nd, OpGetLocalPtr, symbol.Index)
+		case ScopeFree:
+			c.emit(nd, OpGetFreePtr, symbol.Index)
+		case ScopeGlobal:
+			c.emit(nd, OpGlobals)
+			c.emit(nd, OpConstant, symbol.Index) // the global's name
+			c.emit(nd, OpAddrOfIndex)
+			return nil
+		default:
+			return c.Errorf(nd, "cannot take the address of %q", x.Name)
+		}
+		c.emit(nd, OpVarPtr)
+		return nil
+	case *node.SelectorExpr:
+		if err := c.Compile(x.X); err != nil {
+			return err
+		}
+		if err := c.Compile(x.Sel); err != nil {
+			return err
+		}
+		c.emit(nd, OpAddrOfIndex)
+		return nil
+	case *node.IndexExpr:
+		if err := c.Compile(x.X); err != nil {
+			return err
+		}
+		if err := c.Compile(x.Index); err != nil {
+			return err
+		}
+		c.emit(nd, OpAddrOfIndex)
+		return nil
+	case *node.ParenExpr:
+		return c.compilePtr(&node.Ptr{TokenPos: nd.TokenPos, Expr: x.Expr})
+	}
+	return c.Errorf(nd, "cannot take the address of %s: & needs a variable, a field or an index", nd.Expr.String())
+}
+
 func (c *Compiler) compileIdent(nd *node.IdentExpr) error {
 	symbol, ok := c.symbolTable.Resolve(nd.Name)
 	if !ok {
@@ -4743,6 +4804,19 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 	// whose leaves are of the element types. The element types are resolved the
 	// way a parameter's are, as symbols, so an element may be anything a
 	// parameter may be.
+	// `*int`, `*<int|str>` — a pointer whose current value is of those types,
+	// resolved as symbols like a parameter's.
+	case *node.PtrTypeExpr:
+		pt := &PtrType{}
+		for _, et := range t.Types {
+			syms, err := c.typeExprSymbols(et)
+			if err != nil {
+				return nil, err
+			}
+			pt.Elem = append(pt.Elem, syms...)
+			pt.ElemNames = append(pt.ElemNames, et.String())
+		}
+		obj, name = pt, pt.Name()
 	case *node.ArrayTypeExpr:
 		st := &ArrayType{Depth: t.Depth}
 		for _, et := range t.Types {

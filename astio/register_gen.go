@@ -120,6 +120,7 @@ func init() {
 		(*node.ParenExpr)(nil),
 		(*node.PropExpr)(nil),
 		(*node.Ptr)(nil),
+		(*node.PtrTypeExpr)(nil),
 		(*node.RawHeredocLit)(nil),
 		(*node.RawStrLit)(nil),
 		(*node.RegexLit)(nil),

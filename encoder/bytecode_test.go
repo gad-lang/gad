@@ -359,3 +359,34 @@ func TestInterfaceExtendsBytecodeRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantRet, gotRet)
 }
+
+// TestStructuralTypesBytecodeRoundtrip verifies the structural type constants a
+// type position compiles to — an array type (`[]int`) and a pointer type
+// (`*int`, `*<int|str>`) — survive an encode/decode round-trip, and that `&` and
+// `.v` (the pointer opcodes) run the same afterwards.
+func TestStructuralTypesBytecodeRoundtrip(t *testing.T) {
+	src := `
+		sat := func(f) { try { f(); return true } catch { return false } }
+		count := func(xs []int) => len(xs)
+		bump := func(p *int) { p.v += 1 }
+		kind := func(v *<int|str>) => typeName(v.v)
+		n := 1
+		bump(&n)
+		s := "a"
+		return [count([1, 2]), n, kind(&s), sat(() => count(["x"])), sat(() => bump(&s))]`
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{})
+	require.NoError(t, err)
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, gad.Array{gad.Int(2), gad.Int(2), gad.Str("str"), gad.False, gad.False}, wantRet)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}

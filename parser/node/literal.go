@@ -1852,6 +1852,9 @@ func (c *CallArgs) ToFuncParams() (fp *FuncParams, err error) {
 	}
 
 	for i, v := range c.Args.Values {
+		if ti := PtrParam(v); ti != nil { // `(p *array)`
+			v = ti
+		}
 		switch t := v.(type) {
 		case *IdentExpr:
 			fp.Args.Values = append(fp.Args.Values, &TypedIdentExpr{Ident: t})
@@ -1869,7 +1872,11 @@ func (c *CallArgs) ToFuncParams() (fp *FuncParams, err error) {
 	}
 
 	if c.Args.Var != nil {
-		switch t := c.Args.Var.Value.(type) {
+		varValue := c.Args.Var.Value
+		if ti := PtrParam(varValue); ti != nil { // `(*xs *int)`
+			varValue = ti
+		}
+		switch t := varValue.(type) {
 		case *IdentExpr:
 			fp.Args.Var = &TypedIdentExpr{Ident: t}
 		case *TypedIdentExpr:

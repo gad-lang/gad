@@ -49,6 +49,7 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `user_operators.gad`       | user operators `<<<` `>>>` `%%` via `gad.binOp`  |
 | `in_operator.gad`          | the `in` membership operator                       |
 | `io.gad`                   | printing, `sprintf`/`printf`, `obstart`/`obend`, `STDIN`/`STDOUT`/`STDERR`, `write` |
+| `pointers.gad`             | `&x`, `p.v`, `*T` pointer types, pointers to fields/elements, Go interop |
 | `doc_comments.gad`         | doc comments and `>>>` examples                    |
 | `unary_operators.gad`      | unary `!` `-` `+` `^` `++` `--` and `gad.unOp`   |
 | `with.gad`                 | the `with` context manager (statement + expression) |

@@ -903,6 +903,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileFuncHeaderExpr(nt)
 	case *node.ArrayTypeExpr:
 		return c.compileArrayTypeExpr(nt)
+	case *node.PtrTypeExpr:
+		return c.compileStructuralTypeExpr(nt)
 	case *node.TypedArrayTypeStmt:
 		return c.compileTypedArrayTypeStmt(nt)
 	case *node.TypeUnionExpr:
@@ -1441,7 +1443,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule, OpGlobals,
 		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpExtendModuleConst, OpSetReturnModule, OpToRawStr,
 		OpAssign, OpAssignTransform, OpEnv, OpEnvGet, OpDelete,
-		OpPopSource, OpFiles:
+		OpPopSource, OpFiles, OpVarPtr, OpAddrOfIndex:
 		return buf, nil
 	default:
 		return buf, &Error{

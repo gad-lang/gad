@@ -43,6 +43,8 @@ var (
 	InterfaceMethodV1 EncDec
 	InterfaceContextFuncV1 EncDec
 	MetaTypeV1             EncDec
+	ArrayTypeV1            EncDec
+	PtrTypeV1              EncDec
 	KeyValueV1             EncDec
 	KeyValueArrayV1        EncDec
 )
@@ -87,6 +89,8 @@ const (
 	typeMetaType
 	typeKeyValue
 	typeKeyValueArray
+	typeArrayType
+	typePtrType
 )
 
 const versionV1 byte = 1
@@ -131,4 +135,6 @@ func init() {
 	Register[gad.MetaType](typeMetaType, versionV1, &MetaTypeV1)
 	Register[gad.KeyValue](typeKeyValue, versionV1, &KeyValueV1)
 	Register[gad.KeyValueArray](typeKeyValueArray, versionV1, &KeyValueArrayV1)
+	Register[gad.ArrayType](typeArrayType, versionV1, &ArrayTypeV1)
+	Register[gad.PtrType](typePtrType, versionV1, &PtrTypeV1)
 }

@@ -522,6 +522,26 @@ VMLoop:
 				vm.stack[ifaceIdx] = iface.BindContextFuncs(fns)
 			}
 			vm.ip += 2
+		case OpVarPtr:
+			// Stack: [cell]. `&x`: wrap the variable's cell (the slot OpGetLocalPtr
+			// / OpGetFreePtr promoted) into a ptr — a distinct value, so reading the
+			// variable that holds it yields the pointer, not an alias.
+			cell, _ := vm.stack[vm.sp-1].(*ObjectPtr)
+			vm.stack[vm.sp-1] = NewVarPtr(cell, nil)
+		case OpAddrOfIndex:
+			// Stack: [target, key]. `&a.b` / `&a[i]`: a ptr to target[key].
+			target, key := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
+			p, err := AddrOf(vm, target, key)
+			if err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
+			vm.stack[vm.sp-1] = nil
+			vm.sp--
+			vm.stack[vm.sp-1] = p
 		case OpInterfaceExtends:
 			// Stack: [iface, p0, …, p(n-1)]. Pop the n parent values (each an
 			// interface or an array of them, flattened) and the interface below

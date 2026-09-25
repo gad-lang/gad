@@ -1,0 +1,262 @@
+
+# Pointers (`&x`, `p.v`, `*T`)
+
+A **pointer** lets code read and write a value **where it lives** — a variable,
+a dict key, a class field, an array element — instead of a copy. `&x` takes the
+address of `x` and yields a `ptr`; `p.v` reads the value and `p.v = …` (or
+`p.v += …`, `p.v++`) writes it back, changing `x` itself.
+
+It is meant for passing **arrays, bytes and primitives** by reference: a
+function that receives `&count` can increment the caller's variable, and one that
+receives `&items` can grow the caller's array — even when growing reallocates
+it.
+
+```gad
+x := 10
+p := &x                  // p points to the variable x
+before := p.v            // read through the pointer
+p.v = 20                 // write through it: x changes
+p.v += 1
+[before, x, typeName(p)]
+// => [10, 21, "ptr"]
+```
+
+## Passing by reference
+
+Without a pointer a function gets the value: a primitive is copied, and an
+array or bytes value — although shared — is **replaced** by a new one when `+=`
+or `++` grows it, so the caller would not see the growth. Through `.v` the
+new value is written back into the caller's variable.
+
+```gad
+inc := func(n) { n.v += 1 }
+push := func(xs, v) { xs.v += v }             // may reallocate: written back
+appendByte := func(buf, b) { buf.v += bytes(b) }
+
+count := 1
+inc(&count)
+inc(&count)
+items := [1]
+push(&items, 2)
+data := bytes("ab")
+appendByte(&data, 99)
+[count, items, str(data)]
+// => [3, [1, 2], "abc"]
+```
+
+## Pointer types (`*T`)
+
+A parameter, field or interface member typed `*T` accepts a `ptr` whose
+**current** value is a `T` — checked when the value is passed, like any typed
+parameter (a later write through `.v` is not re-checked, as with a plain
+variable). Several types are enveloped like an array type's: `*<int|str>`;
+`*[]int` points to an array of ints. Passing the value itself (`total(nums)`
+instead of `total(&nums)`) is a type error.
+
+```gad
+func total(xs *array) => len(xs.v)
+func describe(v *<int|str>) => typeName(v.v)
+func sum(xs *[]int) => reduce(xs.v, (acc, v, i) => acc + v, 0)
+fails := func(f) { try { f(); return false } catch { return true } }
+
+nums := [1, 2, 3]
+word := "gad"
+ratio := 1.5
+[
+    total(&nums), sum(&nums),
+    describe(&word),
+    fails(() => total(nums)),      // not a pointer
+    fails(() => total(&word)),     // points to a str, not an array
+    fails(() => describe(&ratio)), // a float is not in <int|str>
+]
+// => [3, 6, "str", true, true, true]
+```
+
+## Sharing with closures, outliving the function
+
+`&x` promotes the variable's stack slot to the same shared cell a closure uses
+to capture it, so a pointer and a closure see each other's changes; and the
+cell lives on, so a pointer to a local stays valid after its function returns.
+A `global` variable is pointed to in the globals object.
+
+```gad
+running := 0
+add := (n) => { running += n }     // a closure capturing running
+shared := &running                 // the same cell
+add(5)
+seen := shared.v
+shared.v = 100
+add(1)
+
+counter := func() {
+    n := 0
+    return &n                      // n lives on in its cell
+}
+c := counter()
+c.v += 1
+c.v += 1
+[seen, running, c.v]
+// => [5, 101, 2]
+```
+
+## Pointers to fields and elements
+
+`&obj.field` and `&arr[i]` point to a member of any indexable value — a dict, a
+class instance (its property accessors run on each access), an array. The
+object and the key are fixed when the pointer is taken.
+
+```gad
+user := {name: "ann"}
+name := &user.name
+name.v = "bo"
+
+xs := [1, 2, 3]
+second := &xs[1]
+second.v *= 10
+
+class Temp {
+    celsius = 0
+    props {
+        fahrenheit {
+            () => this.celsius * 9 / 5 + 32
+            (f) { this.celsius = (f - 32) * 5 / 9 }
+        }
+    }
+}
+t := Temp()
+f := &t.fahrenheit          // the accessors run on each access
+f.v = 212
+[user.name, xs, t.celsius, f.v]
+// => ["bo", [1, 20, 3], 100, 212]
+```
+
+Such a pointer targets the **object**, not the variable that holds it: after
+`q := &xs[1]`, an `xs += …` that reallocates the array leaves `q` on the old
+one. When the value may be replaced, point to the variable and index through
+it: `p := &xs` … `p.v[1]`.
+
+## What has no address
+
+`&` needs a variable, a field or an index: `&1`, `&f()` and `&len` (a builtin)
+are compile errors, and so is the address of a `const` (it cannot be written).
+
+## Equality and printing
+
+Two pointers are equal when they point to the same variable (or the same key of
+the same object) — not when their values are equal. A pointer is always truthy
+and prints as `&value`.
+
+```gad
+a := 1
+b := 1
+pa := &a
+[pa == &a, pa == &b, bool(pa), str(pa)]
+// => [true, false, true, "&1"]
+```
+
+## From Go
+
+A host works with the `gad.Pointer` interface (`PtrGet` / `PtrSet`), which
+every pointer implements:
+
+```go
+// A pointer to a class instance field, or to a key of any IndexGetter:
+p, err := gad.AddrOf(vm, inst, gad.Str("pos"))
+_ = p.PtrSet(vm, gad.Int(5))
+v, _ := p.PtrGet(vm)
+
+// A Go pointer to a basic value is a script ptr that writes the Go variable:
+port := 80
+g := gad.Dict{}
+g["port"], _ = gad.ToObject(&port) // the script's `port.v = 8080` changes port
+```
+
+A Go pointer to a struct keeps its reflected form, whose fields already read and
+write the Go memory, so `&cfg.Port` in a script points into the Go struct. A Go
+type can be a pointer too: implement `gad.Pointer`, report `gad.TPtr` as its
+type, and answer `.v` with `gad.PtrIndexGet` / `gad.PtrIndexSet`; a type may also
+hand out its own pointers for members by implementing `gad.Addressable`.
+
+## Example — `pointers.gad`
+
+```gad
+x := 10
+p := &x                  // p points to the variable x
+before := p.v            // read through the pointer
+p.v = 20                 // write through it: x changes
+p.v += 1
+[before, x, typeName(p)]
+
+inc := func(n) { n.v += 1 }
+push := func(xs, v) { xs.v += v }             // may reallocate: written back
+appendByte := func(buf, b) { buf.v += bytes(b) }
+
+count := 1
+inc(&count)
+inc(&count)
+items := [1]
+push(&items, 2)
+data := bytes("ab")
+appendByte(&data, 99)
+[count, items, str(data)]
+
+func total(xs *array) => len(xs.v)
+func describe(v *<int|str>) => typeName(v.v)
+func sum(xs *[]int) => reduce(xs.v, (acc, v, i) => acc + v, 0)
+fails := func(f) { try { f(); return false } catch { return true } }
+
+nums := [1, 2, 3]
+word := "gad"
+ratio := 1.5
+[
+    total(&nums), sum(&nums),
+    describe(&word),
+    fails(() => total(nums)),      // not a pointer
+    fails(() => total(&word)),     // points to a str, not an array
+    fails(() => describe(&ratio)), // a float is not in <int|str>
+]
+
+running := 0
+add := (n) => { running += n }     // a closure capturing running
+shared := &running                 // the same cell
+add(5)
+seen := shared.v
+shared.v = 100
+add(1)
+
+counter := func() {
+    n := 0
+    return &n                      // n lives on in its cell
+}
+c := counter()
+c.v += 1
+c.v += 1
+[seen, running, c.v]
+
+user := {name: "ann"}
+name := &user.name
+name.v = "bo"
+
+xs := [1, 2, 3]
+second := &xs[1]
+second.v *= 10
+
+class Temp {
+    celsius = 0
+    props {
+        fahrenheit {
+            () => this.celsius * 9 / 5 + 32
+            (f) { this.celsius = (f - 32) * 5 / 9 }
+        }
+    }
+}
+t := Temp()
+f := &t.fahrenheit          // the accessors run on each access
+f.v = 212
+[user.name, xs, t.celsius, f.v]
+
+a := 1
+b := 1
+pa := &a
+[pa == &a, pa == &b, bool(pa), str(pa)]
+```

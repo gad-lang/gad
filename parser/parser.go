@@ -2542,7 +2542,7 @@ func (p *Parser) peekStructuralTypeAfterIdent() bool {
 		if len(toks) == 1 {
 			// Only `[` and `<` are ambiguous, and neither may sit on the line
 			// below the name it types.
-			if nlBefore[0] || (t.Token != token.LBrack && t.Token != token.Less) {
+			if nlBefore[0] || (t.Token != token.LBrack && t.Token != token.Less && t.Token != token.Mul) {
 				return false
 			}
 		}
@@ -2553,6 +2553,20 @@ func (p *Parser) peekStructuralTypeAfterIdent() bool {
 	}
 
 	switch toks[0].Token {
+	// `p *[]int`, `p *<int|str>` — never an expression (`x * []` / `x * <`), so a
+	// pointer type. The plain `p *int` IS a valid product; it is reinterpreted
+	// only where a parameter is expected (see node.PtrParam).
+	case token.Mul:
+		if len(toks) < 2 {
+			return false
+		}
+		switch toks[1].Token {
+		case token.Less, token.Shl:
+			return true
+		case token.LBrack:
+			return len(toks) > 2 && toks[2].Token == token.RBrack
+		}
+		return false
 	case token.LBrack:
 		return len(toks) > 1 && toks[1].Token == token.RBrack
 	case token.Less:
@@ -2753,7 +2767,12 @@ func (p *Parser) isTypeStart() bool {
 	case token.LBrack:
 		// `[]T` — an array type.
 		return p.Peek().Token == token.RBrack
-
+	case token.Mul:
+		// `*T` — a pointer type (`*int`, `*[]str`, `*<int|str>`).
+		switch p.Peek().Token {
+		case token.Ident, token.LBrack, token.Less, token.Shl, token.Mul:
+			return true
+		}
 	}
 	return false
 }
@@ -2920,6 +2939,9 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 	// `[]T`, `[][]T`, `[]<T1|T2>` — an array type.
 	case token.LBrack:
 		return &node.TypeExpr{Expr: p.parseArrayType()}
+	// `*T`, `*<T1|T2>` — a pointer type.
+	case token.Mul:
+		return &node.TypeExpr{Expr: p.parsePtrType()}
 	// `<(x int) <ret any>>` — a function header as a type.
 	case token.Less:
 		return &node.TypeExpr{Expr: p.ParseFuncHeaderExpr()}
@@ -2981,6 +3003,37 @@ func (p *Parser) parseArrayType() node.Expr {
 		return e
 	}
 
+	if t := p.parseType(); t != nil {
+		e.Types = append(e.Types, t)
+	}
+	return e
+}
+
+// parsePtrType parses a pointer type written where a type goes: `*` then ONE
+// type (`*int`, `*[]str`, `**int`) or several enveloped in angle brackets
+// (`*<int|str>`), like an array type's element.
+func (p *Parser) parsePtrType() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "PtrType"))
+	}
+	e := &node.PtrTypeExpr{Star: p.Token.Pos}
+	p.Next() // consume `*`
+	p.SkipSpace()
+	if p.Token.Token == token.Less || p.Token.Token == token.Shl {
+		openPos := p.Token.Pos
+		p.consumeLess()
+		p.SkipSpace()
+		// `*<(x int) <ret any>>`: the `<` is a function header's own.
+		if p.Token.Token == token.LParen || p.Token.Token == token.LBrack {
+			e.Types = []*node.TypeExpr{{Expr: p.parseFuncHeaderBody(openPos)}}
+			return e
+		}
+		e.Enveloped = true
+		e.Types = p.ParseTypes()
+		p.SkipSpace()
+		e.RAngle = p.expectGreater()
+		return e
+	}
 	if t := p.parseType(); t != nil {
 		e.Types = append(e.Types, t)
 	}
@@ -4768,8 +4821,10 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 		valueExpr = p.ParseFuncExprT(tok)
 	// An ident is the key's type; `[]…` and `<(…` are it too (structuralTypeHere),
 	// where the expression parser would otherwise read an index or a comparison.
-	case token.Ident, token.LBrack, token.Less:
-		if p.Token.Token == token.Ident || p.structuralTypeHere() {
+	// `*T` after a key is a pointer type (a key followed by `*` means nothing
+	// else).
+	case token.Ident, token.LBrack, token.Less, token.Mul:
+		if p.Token.Token == token.Ident || (p.Token.Token == token.Mul && p.isTypeStart()) || p.structuralTypeHere() {
 			if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
 				keyExpr = &node.TypedIdentExpr{
 					Ident: ident,
