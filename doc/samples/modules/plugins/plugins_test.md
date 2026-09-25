@@ -1,0 +1,28 @@
+# plugins_test
+
+plugins_test.gad — tests for the greeting plugins (run with `gad test`).
+
+A glob import skips `*_test` files by default, so `import("./plugins/*.gad")`
+loads only the plugins; `@includes=["*_test.gad"]` brings this file in.
+
+## Public API
+
+### lang
+
+```gad
+lang = "test"
+```
+
+The plugin's language code (so this file reads like a plugin, too).
+
+## Example — `plugins_test.gad`
+
+```gad
+/// The plugin's language code (so this file reads like a plugin, too).
+export lang = "test"
+
+func testGreetings(t) {
+    t.equal("Hello, Ann!", import("./en.gad").greet("Ann"))
+    t.equal("Olá, Ann!", import("./pt.gad").greet("Ann"))
+}
+```

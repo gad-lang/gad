@@ -1,0 +1,6 @@
+/***
+30_draft.gad — a work-in-progress partial that main.gad's glob include leaves
+out with `excludes=["*_draft.gad"]` (it would reset `swatches`).
+***/
+
+swatches = 0

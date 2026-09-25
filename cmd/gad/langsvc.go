@@ -5,8 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	gad "github.com/gad-lang/gad"
 	gadxnode "github.com/gad-lang/gad/gadx/node"
 	gadxparser "github.com/gad-lang/gad/gadx/parser"
+	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/langsym"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
@@ -27,6 +29,15 @@ func init() {
 			return nil, "", false
 		}
 		return data, p, true
+	}
+	langsym.IncludeGlobber = func(fromFile, pattern string) []gad.GlobMatch {
+		imp := &importers.FileImporter{WorkDir: filepath.Dir(fromFile)}
+		g, ok := imp.Get(pattern).(gad.GlobExtImporter)
+		if !ok {
+			return nil
+		}
+		ms, _ := g.Glob()
+		return ms
 	}
 }
 

@@ -78,3 +78,14 @@ func TestParseSourceKeywords(t *testing.T) {
 	b := file.Stmts[1].(*node.AssignStmt)
 	require.IsType(t, &node.FilesLit{}, b.RHS[0])
 }
+
+// TestParseIncludeGlobFilters verifies the named args of a glob include (the
+// embed-style filters) are kept on the node and written back by the formatter.
+func TestParseIncludeGlobFilters(t *testing.T) {
+	inc := parseInclude(t, `include ("parts/*.gad", "x.gad"; excludes=["*_test.gad"], includes_re=["^a"])`)
+	require.Len(t, inc.Paths, 2)
+	require.Len(t, inc.NamedArgs.Names, 2)
+	require.Equal(t, "excludes", inc.NamedArgs.Names[0].Ident.Name)
+	require.Equal(t, "includes_re", inc.NamedArgs.Names[1].Ident.Name)
+	require.Equal(t, `include ("parts/*.gad", "x.gad"; excludes=["*_test.gad"], includes_re=["^a"])`, inc.String())
+}

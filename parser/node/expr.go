@@ -572,7 +572,14 @@ func (e *TypedIdentExpr) writeInlineUnion(ctx *CodeWriteContext) {
 	}
 }
 
-// ImportExpr represents an import expression
+// ImportExpr represents an import expression: `import("name"; params…)`.
+//
+// A module name holding a glob meta character (`*`, `?`, `[…]`; `**` spans
+// directories) imports every module it matches and yields an array of them,
+// sorted by path — `import("./plugins/*.gad")`. The named args `@includes`,
+// `@excludes`, `@includes_re` and `@excludes_re` filter the matches like embed's
+// filters (`@`-prefixed since the other named args are module params); `*_test`
+// files are skipped unless an include naming `_test` selects them.
 type ImportExpr struct {
 	CallExpr
 }

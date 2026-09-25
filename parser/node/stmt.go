@@ -827,15 +827,22 @@ func (s *ThrowStmt) WriteCode(ctx *CodeWriteContext) {
 //
 //	include "path.gad"                 // one file
 //	include ("a.gad", "b.gad", …)      // several, in order
+//	include ("parts/*.gad"; excludes=["*_draft.gad"])  // every glob match
 //
 // Unlike `import`, no module is created and no params are passed; each file's
 // statements are emitted directly (wrapped so `@file`/`@files` report the source
-// name while its code runs).
+// name while its code runs). A glob path includes every matching file in path
+// order, narrowed by the includes/excludes/includes_re/excludes_re named args
+// (as embed's; `*_test` files are skipped unless an include names `_test`).
 type IncludeStmt struct {
 	IncludePos source.Pos
 	LParen     source.Pos // valid for the parenthesized multi-file form
 	RParen     source.Pos
 	Paths      []*StrLit
+	// NamedArgs are the named args after `;` — the glob filters `includes`,
+	// `excludes`, `includes_re` and `excludes_re` of a glob path, as in embed
+	// (`include ("parts/*.gad"; excludes=["*_test.gad"])`).
+	NamedArgs CallExprNamedArgs
 }
 
 func (s *IncludeStmt) StmtNode() {}
@@ -868,6 +875,10 @@ func (s *IncludeStmt) String() string {
 			b.WriteString(", ")
 		}
 		b.WriteString(p.String())
+	}
+	if s.NamedArgs.Valid() {
+		b.WriteString("; ")
+		b.WriteString(s.NamedArgs.String())
 	}
 	if s.LParen.IsValid() {
 		b.WriteByte(')')

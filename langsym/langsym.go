@@ -7,6 +7,8 @@ package langsym
 import (
 	"reflect"
 
+	"github.com/gad-lang/gad"
+
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
@@ -23,6 +25,12 @@ import (
 // ignored). It is nil by default (no cross-file resolution); the editor host
 // (e.g. `gad complete`/`gad def`) sets it to read from disk.
 var IncludeResolver func(fromFile, path string) (src []byte, name string, ok bool)
+
+// IncludeGlobber expands a glob `include` path written in fromFile into the
+// matching files, sorted by path (see gad.GlobExtImporter); each match's Name
+// is then read with IncludeResolver. Set by the host alongside IncludeResolver;
+// when nil, glob includes contribute no declarations.
+var IncludeGlobber func(fromFile, pattern string) []gad.GlobMatch
 
 // Decl is a declared name, where it was declared, the declaring node, and its
 // lead doc comment (when the declaration carries one).
@@ -276,8 +284,22 @@ func (r *resolver) walk(n ast.Node, sc *scope) {
 		// declarations become visible here (from the include line onward). Pull
 		// them in via the host-provided IncludeResolver.
 		if IncludeResolver != nil {
+			filters, _, _ := gad.PathFiltersFromArgs("", &x.NamedArgs)
 			for _, pth := range x.Paths {
-				r.addIncludeDecls(pth.Value(), x.Pos(), sc)
+				path := pth.Value()
+				if !gad.IsGlobPattern(path) {
+					r.addIncludeDecls(path, x.Pos(), sc)
+					continue
+				}
+				// `include ("parts/*.gad"; excludes=[…])` — every matching file.
+				if IncludeGlobber == nil {
+					continue
+				}
+				for _, m := range IncludeGlobber(r.file.Name, path) {
+					if filters.MatchModule(m.Rel) && m.Name != r.file.Name {
+						r.addIncludeDecls(m.Name, x.Pos(), sc)
+					}
+				}
 			}
 		}
 		return

@@ -6,60 +6,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/gad-lang/gad"
 )
 
+// matchFilePath reports whether relPath passes embed's include/exclude
+// filters (shared with the glob import/include filters, see gad.PathFilters).
 func matchFilePath(opts *gad.EmbeddedImportOptions, relPath string) bool {
-	base := filepath.Base(relPath)
-
-	for _, pattern := range opts.Excludes {
-		if matched, _ := filepath.Match(pattern, base); matched {
-			return false
-		}
-		if matched, _ := filepath.Match(pattern, relPath); matched {
-			return false
-		}
+	f := gad.PathFilters{
+		Includes:   opts.Includes,
+		Excludes:   opts.Excludes,
+		IncludesRe: opts.IncludesRe,
+		ExcludesRe: opts.ExcludesRe,
 	}
-	for _, pattern := range opts.ExcludesRe {
-		if matched, _ := regexp.MatchString(pattern, relPath); matched {
-			return false
-		}
-	}
-
-	if len(opts.Includes) > 0 {
-		included := false
-		for _, pattern := range opts.Includes {
-			if matched, _ := filepath.Match(pattern, base); matched {
-				included = true
-				break
-			}
-			if matched, _ := filepath.Match(pattern, relPath); matched {
-				included = true
-				break
-			}
-		}
-		if !included {
-			return false
-		}
-	}
-
-	if len(opts.IncludesRe) > 0 {
-		included := false
-		for _, pattern := range opts.IncludesRe {
-			if matched, _ := regexp.MatchString(pattern, relPath); matched {
-				included = true
-				break
-			}
-		}
-		if !included {
-			return false
-		}
-	}
-
-	return true
+	return f.Match(relPath)
 }
 
 var _ gad.EmbeddedExtImporter = (*EmbeddedFileImporter)(nil)

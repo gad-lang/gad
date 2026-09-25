@@ -1,0 +1,12 @@
+/***
+en.gad — an English greeting plugin, loaded by main.gad's glob import
+`import("./plugins/*.gad")`.
+***/
+
+param (; punct = "!")
+
+/// The plugin's language code.
+export lang = "en"
+
+/// Greet name in English.
+export greet(name) => "Hello, " + name + punct

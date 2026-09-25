@@ -50,6 +50,58 @@ counter.inc()                     // internal write (+1)
 // => [[0, 6, 0], 11, "Prop"]
 ```
 
+## Importing many modules with a glob
+
+A module name holding a glob meta character (`*`, `?`, `[…]`) imports **every
+matching module** and yields an **array** of them, sorted by path. `*` matches
+within one directory level and a `**` segment any number of them
+(`./plugins/**/*.gad`). The pattern resolves like any import name (a `./`
+pattern against this file's directory), a pattern matching nothing yields `[]`,
+and the importing file itself is never matched. Other named args are the
+module params, passed to each module.
+
+```gad
+// en.gad and pt.gad, sorted; `punct` is their module param (the first import of
+// a module applies its params, like any import)
+plugins := import("./plugins/*.gad"; punct=".")
+[
+    [p.lang for p in plugins],
+    [p.greet("Gad") for p in plugins],
+    import("./no_such_dir/*.gad"),                    // no match: []
+]
+// => [["en", "pt"], ["Hello, Gad.", "Olá, Gad."], []]
+```
+
+The matches can be narrowed by the same filters `embed` takes, prefixed with `@`
+because an import's named args are otherwise module params:
+
+| Named arg      | Keeps / drops the files whose…                        |
+|----------------|-------------------------------------------------------|
+| `@includes`    | base name or relative path matches one of the globs   |
+| `@excludes`    | … drops those matching one of the globs               |
+| `@includes_re` | relative path matches one of the regular expressions  |
+| `@excludes_re` | … drops those matching one of the regular expressions |
+
+Each takes a string or an array of strings (literals — they are applied at
+compile time); the relative path is the one below the pattern's static
+directory (`./plugins/`).
+
+**Test files are skipped by default**: a `*_test` file (`plugins_test.gad`) only
+matches when an include that names `_test` itself selects it —
+`@includes=["*_test.gad"]` or `@includes_re=["_test"]`. A generic include such
+as `*.gad` does not bring it back.
+
+```gad
+langs := func(mods) => [m.lang for m in mods]
+[
+    langs(import("./plugins/*.gad"; @excludes=["pt.gad"])),
+    langs(import("./plugins/*.gad"; @includes_re=["^p"])),     // pt.gad (not the test file)
+    langs(import("./plugins/*.gad"; @includes=["*_test.gad"])), // only the test file
+    langs(import("./plugins/*.gad"; @includes=["*.gad", "*_test.gad"])),
+]
+// => [["en"], ["pt"], ["test"], ["en", "test", "pt"]]
+```
+
 ## Example — `main.gad`
 
 ```gad
@@ -70,6 +122,23 @@ seen += counter.count             // 0
 counter.total = 10                // external write to the live binding
 counter.inc()                     // internal write (+1)
 [seen, counter.total, typeName(reflect.get(counter, "count"))]
+
+// en.gad and pt.gad, sorted; `punct` is their module param (the first import of
+// a module applies its params, like any import)
+plugins := import("./plugins/*.gad"; punct=".")
+[
+    [p.lang for p in plugins],
+    [p.greet("Gad") for p in plugins],
+    import("./no_such_dir/*.gad"),                    // no match: []
+]
+
+langs := func(mods) => [m.lang for m in mods]
+[
+    langs(import("./plugins/*.gad"; @excludes=["pt.gad"])),
+    langs(import("./plugins/*.gad"; @includes_re=["^p"])),     // pt.gad (not the test file)
+    langs(import("./plugins/*.gad"; @includes=["*_test.gad"])), // only the test file
+    langs(import("./plugins/*.gad"; @includes=["*.gad", "*_test.gad"])),
+]
 
 return mathx.square(7)
 ```

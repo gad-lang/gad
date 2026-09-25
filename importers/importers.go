@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/gad-lang/gad"
@@ -112,6 +114,86 @@ func (m *FileImporter) Name() (string, error) {
 	return pth, nil
 }
 
+var _ gad.GlobExtImporter = (*FileImporter)(nil)
+
+// Glob implements gad.GlobExtImporter: it expands the glob pattern given to Get
+// (e.g. "./plugins/*.gad" or "parts/**/*.gad") into the matching files, sorted
+// by path. The pattern resolves like a plain import name — a "./" or "../"
+// pattern against the importing module's directory (WorkDir), any other
+// relative one against Root — and a match never escapes Root. Only regular
+// files match; each match's Name is its absolute path (the name Name() gives
+// that file) and Rel its path below the pattern's static base directory.
+func (m *FileImporter) Glob() ([]gad.GlobMatch, error) {
+	pattern := filepath.ToSlash(m.name)
+	baseRel, glob := gad.SplitGlobPattern(pattern)
+	if glob == "" {
+		return nil, fmt.Errorf("%q is not a glob pattern", m.name)
+	}
+
+	baseDir := filepath.FromSlash(baseRel)
+	if !filepath.IsAbs(baseDir) {
+		dir := m.root()
+		if isRelative(pattern) || m.Root == "" {
+			dir = m.WorkDir
+		}
+		baseDir = filepath.Join(dir, baseDir)
+	}
+	baseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return nil, err
+	}
+	if root := m.root(); root != "" && !filepath.IsAbs(m.name) {
+		absRoot, err := filepath.Abs(root)
+		if err == nil {
+			rel, err := filepath.Rel(absRoot, baseDir)
+			if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return nil, fmt.Errorf("%w: %s", ErrImportOutsideRoot, m.name)
+			}
+		}
+	}
+
+	info, err := os.Stat(baseDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil // nothing to match
+		}
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, nil
+	}
+
+	depth := gad.GlobDepth(glob)
+	var out []gad.GlobMatch
+	err = filepath.WalkDir(baseDir, func(p string, d fs.DirEntry, werr error) error {
+		if werr != nil {
+			return werr
+		}
+		if p == baseDir {
+			return nil
+		}
+		rel, _ := filepath.Rel(baseDir, p)
+		rel = filepath.ToSlash(rel)
+		if d.IsDir() {
+			// A fixed-depth pattern never matches below its own depth.
+			if depth >= 0 && strings.Count(rel, "/")+1 >= depth {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.Type().IsRegular() || !gad.MatchGlob(glob, rel) {
+			return nil
+		}
+		out = append(out, gad.GlobMatch{Name: p, Rel: rel})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Rel < out[j].Rel })
+	return out, nil
+}
+
 // Import returns the module source paired with its dialect as a gad.SourceCode.
 // The dialect is chosen from the file extension (.gadt -> template, .gadx ->
 // Gadx, otherwise plain Gad); the compiler parses the bytes with the matching
@@ -205,6 +287,9 @@ func OsDirsNameResolverPtr(dirs *PathList) func(cwd, path string) (string, error
 	}
 	return func(cwd string, p string) (name string, err error) {
 		p = path.Clean(p)
+		if filepath.IsAbs(p) {
+			return p, nil
+		}
 		name = filepath.Join(cwd, p)
 		if _, err = os.Stat(name); err == nil || !os.IsNotExist(err) {
 			return

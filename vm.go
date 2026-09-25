@@ -1739,6 +1739,10 @@ func (v *vmPool) _acquire(vm *VM, cf *CompiledFunction) *VM {
 	vm.bytecode.Modules = v.root.bytecode.Modules
 	vm.bytecode.Main = cf
 	vm.constants = v.root.bytecode.Constants
+	// OpLoadModule reads the module specs from vm.modules (not the bytecode), so
+	// a forked VM needs them too — without it an `import` inside an invoked
+	// function (e.g. a `gad test` function) indexed an empty list.
+	vm.modules = v.root.bytecode.Modules
 	vm.modulesCache = v.root.modulesCache
 	vm.pool = vmPool{
 		root: v.root,

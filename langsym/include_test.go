@@ -3,6 +3,7 @@ package langsym_test
 import (
 	"testing"
 
+	gad "github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/langsym"
 	"github.com/stretchr/testify/require"
 )
@@ -76,4 +77,32 @@ func TestCompletionsIncludeNilResolver(t *testing.T) {
 	syms := langsym.Completions(f, sf, nth(src, "x", 0))
 	require.NotNil(t, hasSymbol(syms, "x"))
 	require.Nil(t, hasSymbol(syms, "appName"))
+}
+
+// TestCompletionsFollowsGlobInclude verifies a glob include contributes the
+// declarations of every file IncludeGlobber matches, narrowed by the include's
+// filters, with test files skipped by default.
+func TestCompletionsFollowsGlobInclude(t *testing.T) {
+	prevR, prevG := langsym.IncludeResolver, langsym.IncludeGlobber
+	defer func() { langsym.IncludeResolver, langsym.IncludeGlobber = prevR, prevG }()
+	files := map[string]string{
+		"/p/a.gad":      "fromA := 1\n",
+		"/p/b.gad":      "fromB := 2\n",
+		"/p/b_test.gad": "fromTest := 3\n",
+	}
+	langsym.IncludeResolver = func(fromFile, path string) ([]byte, string, bool) {
+		src, ok := files[path]
+		return []byte(src), path, ok
+	}
+	langsym.IncludeGlobber = func(fromFile, pattern string) []gad.GlobMatch {
+		return []gad.GlobMatch{{Name: "/p/a.gad", Rel: "a.gad"}, {Name: "/p/b.gad", Rel: "b.gad"},
+			{Name: "/p/b_test.gad", Rel: "b_test.gad"}}
+	}
+
+	src := "include (\"p/*.gad\"; excludes=[\"b.gad\"])\nprintln(1)\n"
+	f, sf := parse(t, src)
+	syms := langsym.Completions(f, sf, nth(src, "println", 0))
+	require.NotNil(t, hasSymbol(syms, "fromA"))
+	require.Nil(t, hasSymbol(syms, "fromB"), "excluded by the filter")
+	require.Nil(t, hasSymbol(syms, "fromTest"), "a test file is skipped by default")
 }

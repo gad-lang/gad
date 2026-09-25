@@ -12,8 +12,13 @@ Forms:
 
 - `@include "data.gad"`                — one file (a bare string).
 - `@include ("a.gad", "b.gad")`        — several, in order.
+- `@include ("parts/*.gad"; excludes=["*_draft.gad"])` — every file a glob
+  matches, in path order, narrowed by the `includes` / `excludes` /
+  `includes_re` / `excludes_re` filters (`*_test` files are skipped unless an
+  include names `_test`); see [include](../include/main.gad).
 
-Here it pulls in plain-Gad data (`pageTitle`, `items`) and renders it.
+Here a glob pulls in the plain-Gad data (`include_data.gad`: `pageTitle`,
+`items`) and renders it.
 
 ## Components
 
@@ -22,7 +27,7 @@ Here it pulls in plain-Gad data (`pageTitle`, `items`) and renders it.
 ## Example — `include.gadx`
 
 ```gadx
-@include "include_data.gad"
+@include ("include_*.gad")
 
 @main
 	article

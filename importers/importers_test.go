@@ -236,3 +236,30 @@ func TestOsDirsNameResolverEmptyResolvesAgainstCwd(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "./y.gad", got)
 }
+
+// TestFileImporterGlob verifies Glob expands a pattern into regular files sorted
+// by path, relative to the pattern's static base, honouring `**` and a
+// fixed-depth pattern, and yields nothing for a missing base directory.
+func TestFileImporterGlob(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"m/b.gad", "m/a.gad", "m/x/c.gad", "m/x/y/d.gad", "m/note.txt"} {
+		p := filepath.Join(dir, filepath.FromSlash(name))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, nil, 0o644))
+	}
+	imp := &importers.FileImporter{WorkDir: dir}
+	rels := func(pattern string) (out []string) {
+		g := imp.Get(pattern).(gad.GlobExtImporter)
+		ms, err := g.Glob()
+		require.NoError(t, err)
+		for _, m := range ms {
+			require.True(t, filepath.IsAbs(m.Name))
+			out = append(out, m.Rel)
+		}
+		return
+	}
+	require.Equal(t, []string{"a.gad", "b.gad"}, rels("./m/*.gad"))
+	require.Equal(t, []string{"a.gad", "b.gad", "x/c.gad", "x/y/d.gad"}, rels("./m/**/*.gad"))
+	require.Equal(t, []string{"x/c.gad"}, rels("m/*/*.gad"))
+	require.Empty(t, rels("./missing/*.gad"))
+}

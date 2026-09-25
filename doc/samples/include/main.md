@@ -50,6 +50,31 @@ a new module (use `import` for that).
 // => [false, "Module"]
 ```
 
+## Including many files with a glob
+
+A path holding a glob meta character (`*`, `?`, `[…]`) includes **every
+matching file**, inline and in path order — so a numeric prefix
+(`10_colors.gad`, `20_sizes.gad`) fixes the order, and a later part may use what
+an earlier one declared. `**` spans directories (`parts/**/*.gad`); a pattern
+matching nothing includes nothing, and the including file itself is never
+matched.
+
+Since `include` takes no params, its filters are the plain `embed` names:
+`includes` / `excludes` (globs, matched against the base name or the path
+below the pattern's static directory) and `includes_re` / `excludes_re`
+(regular expressions on that path), each a string or an array of strings. They
+apply to every glob path of the statement. As with `import`, **test files are
+skipped by default** — a `*_test` file is included only when an `includes` /
+`includes_re` naming `_test` selects it.
+
+```gad
+// 10_colors.gad, then 20_sizes.gad — the draft is filtered out
+include ("parts/*.gad"; excludes=["*_draft.gad"])
+colorsOnly := len(palette)
+[palette, sizes, swatches, colorsOnly]
+// => [["red", "green"], {large: 3, small: 1}, 4, 2]
+```
+
 ## Example — `main.gad`
 
 ```gad
@@ -62,6 +87,11 @@ include (
 banner(appName)
 
 [loadedFrom == @file, typeName(@mod)]   // config.gad's @file differs from ours
+
+// 10_colors.gad, then 20_sizes.gad — the draft is filtered out
+include ("parts/*.gad"; excludes=["*_draft.gad"])
+colorsOnly := len(palette)
+[palette, sizes, swatches, colorsOnly]
 
 return appName
 ```

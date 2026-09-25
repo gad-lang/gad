@@ -3896,6 +3896,7 @@ func (p *Parser) ParseIncludeStmt() node.Stmt {
 		IncludePos: pos,
 		LParen:     c.LParen,
 		RParen:     c.RParen,
+		NamedArgs:  c.NamedArgs,
 	}
 	for _, a := range c.Args.Values {
 		if s, ok := a.(*node.StrLit); ok {

@@ -1,0 +1,11 @@
+# 20_sizes
+
+20_sizes.gad — a partial of main.gad's glob include; it runs after
+10_colors.gad, so it may use `palette`.
+
+## Example — `20_sizes.gad`
+
+```gad
+sizes := {small: 1, large: 3}
+swatches := len(palette) * len(sizes)
+```

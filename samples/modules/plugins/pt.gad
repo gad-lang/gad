@@ -1,0 +1,12 @@
+/***
+pt.gad — a Portuguese greeting plugin, loaded by main.gad's glob import
+`import("./plugins/*.gad")`.
+***/
+
+param (; punct = "!")
+
+/// The plugin's language code.
+export lang = "pt"
+
+/// Greet name in Portuguese.
+export greet(name) => "Olá, " + name + punct

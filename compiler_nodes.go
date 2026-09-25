@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -3419,39 +3420,147 @@ func (c *Compiler) CompileModule(nd *ModuleStmt) (err error) {
 // OpPushSource/OpPopSource so `@file`/`@files` report the included
 // source while its code runs. Includes may nest; a cycle is reported.
 func (c *Compiler) compileIncludeStmt(nd *node.IncludeStmt) (err error) {
+	// include takes no module params, so its filters need no `@` prefix.
+	filters, rest, err := c.globFilterArgs(nd, "include", "", &nd.NamedArgs)
+	if err != nil {
+		return err
+	}
+	if rest.Valid() {
+		return c.Errorf(nd, "include: unexpected named arg %q (only includes, excludes, includes_re and excludes_re)",
+			rest.Names[0].String())
+	}
+
+	hasGlob := false
 	for _, pth := range nd.Paths {
 		path := pth.Value()
 		if path == "" {
 			return c.Errorf(pth, "include: empty path")
 		}
-
-		src, url, kind, rerr := c.resolveIncludeSource(pth, path)
-		if rerr != nil {
-			return rerr
+		if !IsGlobPattern(path) {
+			if err = c.includeFile(pth, path); err != nil {
+				return err
+			}
+			continue
 		}
-
-		if c.includeActive == nil {
-			c.includeActive = map[string]bool{}
+		// `include ("parts/*.gad")` — every matching file, sorted by path.
+		hasGlob = true
+		matches, err := c.globMatches(pth, "include", path, filters)
+		if err != nil {
+			return err
 		}
-		if c.includeActive[url] {
-			return c.Errorf(pth, "include cycle detected: %q", url)
+		for _, m := range matches {
+			if err = c.includeFile(pth, m.Name); err != nil {
+				return err
+			}
 		}
-
-		file, perr := c.parseIncludeFile(url, src, kind)
-		if perr != nil {
-			return c.error(pth, perr)
-		}
-
-		c.emit(pth, OpPushSource, c.addConstant(Str(url)))
-		c.includeActive[url] = true
-		cerr := c.compileStmts(file.Stmts...)
-		delete(c.includeActive, url)
-		if cerr != nil {
-			return cerr
-		}
-		c.emit(pth, OpPopSource)
+	}
+	if !hasGlob && !filters.IsZero() {
+		return c.Errorf(nd, "include: the includes/excludes filters need a glob path")
 	}
 	return nil
+}
+
+// includeFile compiles one included file inline (see compileIncludeStmt).
+func (c *Compiler) includeFile(pth *node.StrLit, path string) error {
+	src, url, kind, rerr := c.resolveIncludeSource(pth, path)
+	if rerr != nil {
+		return rerr
+	}
+
+	if c.includeActive == nil {
+		c.includeActive = map[string]bool{}
+	}
+	if c.includeActive[url] {
+		return c.Errorf(pth, "include cycle detected: %q", url)
+	}
+
+	file, perr := c.parseIncludeFile(url, src, kind)
+	if perr != nil {
+		return c.error(pth, perr)
+	}
+
+	c.emit(pth, OpPushSource, c.addConstant(Str(url)))
+	c.includeActive[url] = true
+	cerr := c.compileStmts(file.Stmts...)
+	delete(c.includeActive, url)
+	if cerr != nil {
+		return cerr
+	}
+	c.emit(pth, OpPopSource)
+	return nil
+}
+
+// globFilterArgs splits the glob filter args out of named (see
+// PathFiltersFromArgs), reporting a non-literal value or an invalid regexp as a
+// compile error.
+func (c *Compiler) globFilterArgs(nd ast.Node, what, prefix string, named *node.CallExprNamedArgs) (PathFilters, node.CallExprNamedArgs, error) {
+	f, rest, bad := PathFiltersFromArgs(prefix, named)
+	if bad != "" {
+		return f, rest, c.Errorf(nd, "%s: %s must be a string literal or an array of them", what, bad)
+	}
+	if err := f.ValidateRe(); err != nil {
+		return f, rest, c.Errorf(nd, "%s: invalid filter: %v", what, err)
+	}
+	return f, rest, nil
+}
+
+// globMatches expands a glob import/include pattern through the module map's
+// ext importer (it must implement GlobExtImporter), sorted by path and narrowed
+// by the filters (test files are skipped unless an include names them, see
+// PathFilters.MatchModule). The importing module's own file and any file being
+// included right now are skipped, so `import("./*.gad")` never imports itself.
+func (c *Compiler) globMatches(nd ast.Node, what, pattern string, f PathFilters) ([]GlobMatch, error) {
+	importer := c.moduleMap.Get(pattern)
+	g, ok := importer.(GlobExtImporter)
+	if !ok {
+		return nil, c.Errorf(nd, "%s: glob pattern %q needs a file importer", what, pattern)
+	}
+	all, err := g.Glob()
+	if err != nil {
+		return nil, c.Errorf(nd, "%s: %q: %v", what, pattern, err)
+	}
+	self := c.selfSourcePaths()
+	out := make([]GlobMatch, 0, len(all))
+	for _, m := range all {
+		if !f.MatchModule(m.Rel) || self[absPath(m.Name)] {
+			continue
+		}
+		out = append(out, m)
+	}
+	return out, nil
+}
+
+// selfSourcePaths are the absolute paths a glob must not match: the module
+// being compiled and the files currently being included.
+func (c *Compiler) selfSourcePaths() map[string]bool {
+	self := map[string]bool{}
+	add := func(name string) {
+		name = strings.TrimPrefix(name, "file:")
+		if name != "" {
+			self[absPath(name)] = true
+		}
+	}
+	if c.module != nil {
+		add(c.module.Name)
+		add(c.module.URL)
+	}
+	if c.file != nil {
+		add(c.file.Name)
+	}
+	// The entry file when the main module is compiled under a synthetic name.
+	add(c.opts.ModuleFile)
+	for url := range c.includeActive {
+		add(url)
+	}
+	return self
+}
+
+// absPath is filepath.Abs, or p itself when it cannot be made absolute.
+func absPath(p string) string {
+	if a, err := filepath.Abs(filepath.FromSlash(p)); err == nil {
+		return a
+	}
+	return p
 }
 
 // resolveIncludeSource resolves an include path to its source bytes, canonical
@@ -3536,6 +3645,43 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 		return c.Errorf(nd, "empty module name")
 	}
 
+	filters, named, err := c.globFilterArgs(nd, "import", "@", &args.NamedArgs)
+	if err != nil {
+		return err
+	}
+	args.NamedArgs = named
+
+	if IsGlobPattern(moduleName) {
+		return c.compileGlobImport(nd, moduleName, filters, args)
+	}
+	if !filters.IsZero() {
+		return c.Errorf(nd, "import: the @includes/@excludes filters need a glob pattern (got %q)", moduleName)
+	}
+	return c.compileImportModule(nd, moduleName, args)
+}
+
+// compileGlobImport compiles `import("dir/*.gad"; …)`: every module the glob
+// pattern matches (sorted by path, narrowed by the @includes/@excludes
+// filters) is imported with the same module args, and the expression yields an
+// array of the imported modules, in that order.
+func (c *Compiler) compileGlobImport(nd *node.ImportExpr, pattern string, filters PathFilters, args node.CallArgs) error {
+	matches, err := c.globMatches(nd, "import", pattern, filters)
+	if err != nil {
+		return err
+	}
+	for _, m := range matches {
+		if err = c.compileImportModule(nd, m.Name, args); err != nil {
+			return err
+		}
+	}
+	c.emit(nd, OpArray, len(matches))
+	return nil
+}
+
+// compileImportModule compiles the import of one module by name (a registered
+// module or a name the ext importer resolves), leaving the module value on the
+// stack.
+func (c *Compiler) compileImportModule(nd *node.ImportExpr, moduleName string, args node.CallArgs) (err error) {
 	var (
 		p   = c
 		pth []int
