@@ -66,6 +66,13 @@ into one interface. A using class exposes `C.@mixins` (like `C.@parents`). See
 [the class-samples mixin tests](class/mixins_test.gad) for the full reflection
 surface and the `this`-receiver contract validation.
 
+## Parent lists
+
+A `*` parent spread takes a mixin or an **array of mixins** (flattened, nesting
+allowed), written inline or held in a variable: `*[A, B]`, `*parents`.
+
+@snippet mixin_parents
+
 This whole sample is a runnable tour (see the Example below).
 **/
 
@@ -188,5 +195,23 @@ from mixins, and inherited ones — on the `this` receiver.
 class Card { use Shape; title = "" }
 met Card.summary(this) => this.title + " (" + str(this.sides) + " sides, " + this.name + ")"
 println("met summary: ", Card(; title="Ace", sides=4, name="c").summary())
+
+//snippet mixin_parents
+mixin Sized   { size = 1 }
+mixin Colored { color = "red" }
+mixin Labeled { label = "" }
+
+// a literal list of parent mixins
+mixin Styled { *[Sized, Colored] }
+
+// a list held in a variable (nested arrays flatten)
+styleParts := [Sized, [Colored, Labeled]]
+mixin Styled2 { *styleParts }
+
+class Button { use Styled2 }
+b := Button(; label = "ok")
+[len(Styled.@parents), len(Styled2.@parents), b.size, b.color, b.label]
+/**= [2, 3, 1, "red", "ok"] **/
+//endsnippet
 
 return w.count

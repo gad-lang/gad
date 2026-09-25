@@ -514,6 +514,31 @@ VMLoop:
 				vm.stack[ifaceIdx] = iface.BindContextFuncs(fns)
 			}
 			vm.ip += 2
+		case OpInterfaceExtends:
+			// Stack: [iface, p0, …, p(n-1)]. Pop the n parent values (each an
+			// interface or an array of them, flattened) and the interface below
+			// them; push a copy extending those parents, resolved here where the
+			// interface is declared.
+			numItems := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			parents := make([]Object, numItems)
+			copy(parents, vm.stack[vm.sp-numItems:vm.sp])
+			for i := vm.sp - numItems; i < vm.sp; i++ {
+				vm.stack[i] = nil
+			}
+			vm.sp -= numItems
+			ifaceIdx := vm.sp - 1
+			if iface, _ := vm.stack[ifaceIdx].(*Interface); iface != nil {
+				bound, err := iface.BindExtends(parents)
+				if err != nil {
+					if err = vm.throwGenErr(err); err != nil {
+						vm.err = err
+						return
+					}
+					continue
+				}
+				vm.stack[ifaceIdx] = bound
+			}
+			vm.ip += 2
 		case OpDict:
 			numItems := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			kv := make(Dict)

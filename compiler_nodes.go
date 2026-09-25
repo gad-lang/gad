@@ -2397,6 +2397,15 @@ func (c *Compiler) compileMethodInterfaceStmt(nd *node.MethodInterfaceStmt) erro
 // lowers to an InterfaceProp whose Getter returns and Setter takes the declared
 // type. An anonymous interface gets an incremented `ifaces#N` name.
 func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
+	return c.buildInterfaceParents(nd, true)
+}
+
+// buildInterfaceParents builds the interface constant; with symParents its
+// `*Parent` spreads are recorded as symbol refs (Extends) resolved lazily — used
+// for an inline interface in a type position, which is a pure constant. The
+// declaration form (compileInterfaceExpr) passes false and binds the parents at
+// run time instead (OpInterfaceExtends), where the interface is declared.
+func (c *Compiler) buildInterfaceParents(nd *node.InterfaceExpr, symParents bool) (*Interface, error) {
 	name := ""
 	if id := nd.NameIdent(); id != nil {
 		name = id.Name
@@ -2425,16 +2434,36 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 		iface.Elem = &InterfaceField{Iface: iface, Name: "[]", TypesSymbols: syms}
 	}
 
-	for _, parent := range nd.Parents {
+	// `*A` names a parent; `*[A, B]` lists several (flattened, nesting allowed);
+	// `*parents` may also name a variable holding an array of interfaces, which
+	// is resolved (and flattened) at run time like any parent symbol.
+	var addParent func(parent node.Expr) error
+	addParent = func(parent node.Expr) error {
+		if arr, ok := parent.(*node.ArrayExpr); ok {
+			for _, e := range arr.Elements {
+				if err := addParent(e); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		id := node.EType(parent).Ident()
 		if id == nil {
-			return nil, c.Errorf(parent, "interface extends: expected a type reference")
+			return c.Errorf(parent, "interface extends: expected a type reference or an array of them")
 		}
 		sym, err := c.requireSymbol(id, id.Name)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		iface.Extends = append(iface.Extends, &sym.SymbolInfo)
+		return nil
+	}
+	if symParents {
+		for _, parent := range nd.Parents {
+			if err := addParent(parent); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	getter := func(mname string, syms ParamType) *FuncHeaderObject {
@@ -2576,11 +2605,24 @@ func (c *Compiler) buildCtxFuncHeaderObject(nd *node.FuncHeaderExpr) (_ *FuncHea
 // compileInterfaceExpr compiles `interface { … }` to a *Interface bytecode
 // constant.
 func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
-	iface, err := c.buildInterface(nd)
+	iface, err := c.buildInterfaceParents(nd, false)
 	if err != nil {
 		return err
 	}
 	c.emit(nd, OpConstant, c.addConstant(iface))
+	// `*Parent` spreads are evaluated where the interface is declared (so a local
+	// parent resolves in the declaring frame, even when the interface is used from
+	// a closure) and bound into a runtime copy (OpInterfaceExtends). A parent may
+	// be any expression yielding an interface or an array of them: `*A`,
+	// `*[A, B]`, `*parents`.
+	if n := len(nd.Parents); n > 0 {
+		for _, p := range nd.Parents {
+			if err := c.Compile(p); err != nil {
+				return err
+			}
+		}
+		c.emit(nd, OpInterfaceExtends, n)
+	}
 	// Context-function members capture their function value where the interface
 	// is declared: push the constant template, then each Expr's value, and bind
 	// them into a runtime copy (OpInterfaceBind). This makes such an interface a

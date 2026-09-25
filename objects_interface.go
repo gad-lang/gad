@@ -207,6 +207,37 @@ type InterfaceMethod struct {
 
 func (i *Interface) Type() ObjectType { return TInterface }
 
+// BindExtends returns a shallow copy of the interface that also extends the
+// given parent values (the runtime binding of `*Parent` spreads, see
+// OpInterfaceExtends): each is an interface or an array of them, flattened
+// recursively, appended to ExtendsIface. Any other value is an error.
+func (i *Interface) BindExtends(parents []Object) (*Interface, error) {
+	cp := *i
+	cp.ExtendsIface = append([]*Interface(nil), i.ExtendsIface...)
+	var add func(v Object) error
+	add = func(v Object) error {
+		switch x := v.(type) {
+		case *Interface:
+			cp.ExtendsIface = append(cp.ExtendsIface, x)
+		case Array:
+			for _, e := range x {
+				if err := add(e); err != nil {
+					return err
+				}
+			}
+		default:
+			return NewArgumentTypeError("interface "+i.IName+" extends", "interface|array[interface]", v.Type().Name())
+		}
+		return nil
+	}
+	for _, p := range parents {
+		if err := add(p); err != nil {
+			return nil, err
+		}
+	}
+	return &cp, nil
+}
+
 // BindContextFuncs returns a shallow copy of the interface with each
 // ContextFuncs entry's Fn set from fns (in order): the runtime binding of the
 // captured context-function values (see OpInterfaceBind). len(fns) must equal
@@ -322,15 +353,13 @@ func (i *Interface) canAssignVMUncached(vm *VM, obj Object) (bool, error) {
 		return i.Native(vm, obj)
 	}
 	if vm != nil {
-		for _, sym := range i.Extends {
-			pv, err := vm.GetSymbolValue(sym)
-			if err != nil {
-				return false, err
-			}
-			if parent, _ := pv.(*Interface); parent != nil {
-				if ok, err := parent.CanAssignVM(vm, obj); err != nil || !ok {
-					return ok, err
-				}
+		parents, err := i.extendsParents(vm)
+		if err != nil {
+			return false, err
+		}
+		for _, parent := range parents {
+			if ok, err := parent.CanAssignVM(vm, obj); err != nil || !ok {
+				return ok, err
 			}
 		}
 	}
@@ -971,15 +1000,13 @@ func (i *Interface) Flatten(vm *VM) (*Interface, error) {
 			}
 		}
 		if vm != nil {
-			for _, sym := range x.Extends {
-				pv, err := vm.GetSymbolValue(sym)
-				if err != nil {
+			parents, err := x.extendsParents(vm)
+			if err != nil {
+				return err
+			}
+			for _, parent := range parents {
+				if err := walk(parent); err != nil {
 					return err
-				}
-				if parent, _ := pv.(*Interface); parent != nil {
-					if err := walk(parent); err != nil {
-						return err
-					}
 				}
 			}
 		}
@@ -1417,4 +1444,27 @@ func (m *InterfaceMethod) IndexGet(_ *VM, index Object) (Object, error) {
 		return metaObject(m.Meta), nil
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
+
+// extendsParents resolves the symbol parents (Extends, kept only for an inline
+// interface written where a type goes) to interfaces. A symbol may hold one
+// interface or an array of them, flattened recursively; any other value is an
+// error.
+func (i *Interface) extendsParents(vm *VM) ([]*Interface, error) {
+	vals := make([]Object, 0, len(i.Extends))
+	for _, sym := range i.Extends {
+		pv, err := vm.GetSymbolValue(sym)
+		if err != nil {
+			return nil, err
+		}
+		vals = append(vals, pv)
+	}
+	if len(vals) == 0 {
+		return nil, nil
+	}
+	cp, err := (&Interface{IName: i.IName}).BindExtends(vals)
+	if err != nil {
+		return nil, err
+	}
+	return cp.ExtendsIface, nil
 }

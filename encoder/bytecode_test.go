@@ -328,3 +328,34 @@ func TestTypedArrayBytecodeRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantRet, gotRet)
 }
+
+// TestInterfaceExtendsBytecodeRoundtrip verifies interface parents bound at run
+// time (OpInterfaceExtends) — a single parent, a literal list and a variable
+// holding one — behave the same after an encode/decode round-trip.
+func TestInterfaceExtendsBytecodeRoundtrip(t *testing.T) {
+	src := `
+		sat := func(v, T) { try { v :: T; return true } catch { return false } }
+		interface A { a int }
+		interface B { b int }
+		ps := [A, B]
+		interface I1 { *A }
+		interface I2 { *[A, B] }
+		interface I3 { *ps; c int }
+		return [sat({a: 1}, I1), sat({}, I1), sat({a: 1, b: 2}, I2), sat({a: 1}, I2),
+			sat({a: 1, b: 2, c: 3}, I3), sat({a: 1, b: 2}, I3)]`
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{})
+	require.NoError(t, err)
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, gad.Array{gad.True, gad.False, gad.True, gad.False, gad.True, gad.False}, wantRet)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}

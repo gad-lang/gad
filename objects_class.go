@@ -702,8 +702,8 @@ func (t *Class) Define(c Call) (err error) {
 			Name:          "extends",
 			TypeAssertion: TypeAssertionFromTypes(TArray),
 			// The extends array lists the parent classes; each element is a
-			// parent class or an [parentClass, alias] pair. Spread the elements
-			// so each is handled as its own parent spec.
+			// parent spec (a class, an `[alias=class]` pair or an array of specs —
+			// see CallExtends). Spread the elements so each is handled on its own.
 			Do: func(value Object) (err error) {
 				return t.CallExtends(Call{VM: c.VM, Args: Args{value.(Array)}})
 			},
@@ -1358,38 +1358,60 @@ func (t *Class) CallAddFields(call Call) (err error) {
 	return nil
 }
 
+// CallExtends adds parent classes. Each argument is a parent spec:
+//
+//   - a class: `A`;
+//   - a key-value pair `[alias=A]`: A under that alias;
+//   - a key-value array `(; a=A, b=B)`: each pair is an aliased parent;
+//   - an array of specs, flattened recursively: `[A, [b=B]]` — so a class body
+//     may spread a parent list, `*[A, B]` or `*parents` with `parents := [A, B]`.
+//
+// The `*A: alias` body form compiles to `[alias=A]`.
 func (t *Class) CallExtends(c Call) (err error) {
 	if err = c.Args.CheckMinLen(1); err != nil {
 		return
 	}
 
-	return c.Args.WalkE(func(i int, arg Object) (err error) {
-		switch v := arg.(type) {
-		case *Class:
-			t.Extends(v, "")
-		case Array:
-			if len(v) != 2 || v[0].Type() != TClass || v[1].Type() != TStr {
-				err = NewArgumentTypeError(
-					strconv.Itoa(i)+"st",
-					"class|array[parent class, alias string]",
-					arg.Type().Name(),
-				)
-			} else {
-				t.Extends(v[0].(*Class), v[1].ToString())
-			}
-			return
-		}
-		if parent, ok := arg.(*Class); !ok {
-			err = NewArgumentTypeError(
-				strconv.Itoa(i)+"st",
-				"Class",
-				arg.Type().Name(),
-			)
-		} else {
-			t.Extends(parent, "")
-		}
-		return
+	return c.Args.WalkE(func(i int, arg Object) error {
+		return t.extendsSpec(strconv.Itoa(i)+"st", arg)
 	})
+}
+
+// extendsSpec adds the parent(s) one CallExtends spec names (see CallExtends).
+func (t *Class) extendsSpec(argName string, arg Object) error {
+	switch v := arg.(type) {
+	case *Class:
+		t.Extends(v, "")
+		return nil
+	case *KeyValue:
+		return t.extendsAliased(argName, v)
+	case KeyValueArray:
+		for _, kv := range v {
+			if err := t.extendsAliased(argName, kv); err != nil {
+				return err
+			}
+		}
+		return nil
+	case Array:
+		for _, e := range v {
+			if err := t.extendsSpec(argName, e); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return NewArgumentTypeError(argName, "class|[alias=class]|array[class|[alias=class]]", arg.Type().Name())
+}
+
+// extendsAliased adds the `[alias=Parent]` parent: the key is the alias, the
+// value the parent class.
+func (t *Class) extendsAliased(argName string, kv *KeyValue) error {
+	parent, ok := kv.V.(*Class)
+	if !ok {
+		return NewArgumentTypeError(argName+" ("+kv.K.ToString()+")", "class", kv.V.Type().Name())
+	}
+	t.Extends(parent, kv.K.ToString())
+	return nil
 }
 
 // useMixins records the mixins pulled in with `use A, B` (t.mixins, its

@@ -164,13 +164,29 @@ func (m *Mixin) define(c Call) (err error) {
 			TypeAssertion: TypeAssertionFromTypes(TArray),
 			// The parent mixins (`*A` spreads). Stored as-is (duplicates allowed);
 			// deduplication happens where a class uses the mixin, not here.
+			// An element may itself be an array of parents (flattened recursively),
+			// so a body can spread a list: `*[A, B]` or `*parents`.
 			Do: func(value Object) error {
-				for i, v := range value.(Array) {
-					parent, ok := v.(*Mixin)
-					if !ok {
-						return NewArgumentTypeError(strconv.Itoa(i)+"st (extends)", "Mixin", v.Type().Name())
+				var add func(i int, v Object) error
+				add = func(i int, v Object) error {
+					switch x := v.(type) {
+					case *Mixin:
+						m.parents = append(m.parents, x)
+						return nil
+					case Array:
+						for _, e := range x {
+							if err := add(i, e); err != nil {
+								return err
+							}
+						}
+						return nil
 					}
-					m.parents = append(m.parents, parent)
+					return NewArgumentTypeError(strconv.Itoa(i)+"st (extends)", "Mixin|array[Mixin]", v.Type().Name())
+				}
+				for i, v := range value.(Array) {
+					if err := add(i, v); err != nil {
+						return err
+					}
 				}
 				return nil
 			},

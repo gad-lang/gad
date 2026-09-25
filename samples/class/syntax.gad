@@ -23,6 +23,26 @@ rejected); a `?` after the field name (`x? int`, `x? int|str`) makes it
 
 Doc comments attach to the class and its members (`///`, `/** … **/`,
 `/*** … ***/`). The Example below is a runnable tour.
+
+## Parents: lists and aliases
+
+A `*` parent spread takes any expression yielding a **parent spec**:
+
+| spec | meaning |
+|:-----|:--------|
+| `*A` | the class `A` (reached in `inst.@parents` as `A`) |
+| `*A: base` | `A` under the alias `base` — compiles to `*[base=A]` |
+| `*[base=A]` | a key-value pair: the key is the alias, the value the class |
+| `*[A, B]` | a **list** of parents, flattened (nesting allowed) |
+| `*[A, [b=B]]` | a list mixing plain and aliased parents |
+| `*parents` | a variable holding any of the above (`parents := [A, B]`) |
+
+The alias is the key of the embedded parent instance in `inst.@parents`; a
+parent without one is keyed by its class name. An array item that is not a
+class or an `[alias=class]` pair is an error (the old `[A, "alias"]` pair is not
+a spec — write `[alias=A]`).
+
+@snippet class_parents
 **/
 
 /**
@@ -185,5 +205,29 @@ Counter := class {
 c := Counter()
 c.next(); c.next()
 println("counter:", c.next())           // 3
+
+//snippet class_parents
+class Wheels { wheels = 4 }
+class Engine { hp = 100 }
+
+// a literal list of parents
+class Car { *[Wheels, Engine] }
+
+// a list held in a variable, one parent aliased (`[motor=Engine]`)
+vehicleParts := [Wheels, [motor=Engine]]
+class Truck { *vehicleParts }
+
+// `*Engine: motor` is the same as `*[motor=Engine]`
+class Boat { *Engine: motor }
+
+truck := Truck(; hp = 400)
+[
+    Car().wheels, Car().hp,              // promoted from both parents
+    truck.hp, truck.@parents.motor.hp,           // the aliased parent instance
+    sort(collect(keys(truck.@parents))),     // parent keys: class name or alias
+    collect(keys(Boat().@parents)),
+]
+/**= [4, 100, 400, 400, ["Wheels", "motor"], ["motor"]] **/
+//endsnippet
 
 return p.mag

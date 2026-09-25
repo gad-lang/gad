@@ -84,6 +84,38 @@ interface and the value's type. Hosts can pre-warm/share the cache with
 `gad.NewInterfaceSatCache()` + `(*gad.VM).SetInterfaceSatCache`; the Gadx `Render`
 engine does this per compiled template.
 
+## Extending (`*Parent`)
+
+An interface extends others with `*` spreads: a value must satisfy every
+parent. A spread takes any expression yielding an interface or an **array of
+interfaces** (flattened, nesting allowed) — `*A`, `*[A, B]`, or a variable
+`*parents` — evaluated **where the interface is declared**, so a local parent
+is resolved in its own scope even when the interface is used from a closure. A
+non-interface item is an error at the declaration.
+
+```gad
+interface HasName { name str }
+interface HasAge  { age int }
+interface HasTags { tags []str }
+
+// a literal list of parents
+interface Human { *[HasName, HasAge] }
+
+// a list held in a variable (nested arrays flatten), plus an own field
+personParts := [HasName, [HasAge, HasTags]]
+interface Associate { *personParts; id int }
+
+fitsIface := func(v, T) { try { v :: T; return true } catch { return false } }
+[
+    fitsIface({name: "ann", age: 30}, Human),
+    fitsIface({name: "ann"}, Human),              // no age
+    fitsIface({name: "b", age: 1, tags: ["x"], id: 7}, Associate),
+    len(Human.@flat.fields),      // name, age
+    len(Associate.@flat.fields),  // name, age, tags, id
+]
+// => [true, false, true, 2, 4]
+```
+
 This whole sample is a runnable tour (see the Example below).
 
 ## Example — `interfaces.gad`
@@ -412,6 +444,26 @@ is reused as a getter.
 interface HasRun { run() }
 conflict := interface { *HasRun; get run int }.@flat or "conflict rejected"
 println("conflict:    ", conflict)             // conflict rejected
+
+interface HasName { name str }
+interface HasAge  { age int }
+interface HasTags { tags []str }
+
+// a literal list of parents
+interface Human { *[HasName, HasAge] }
+
+// a list held in a variable (nested arrays flatten), plus an own field
+personParts := [HasName, [HasAge, HasTags]]
+interface Associate { *personParts; id int }
+
+fitsIface := func(v, T) { try { v :: T; return true } catch { return false } }
+[
+    fitsIface({name: "ann", age: 30}, Human),
+    fitsIface({name: "ann"}, Human),              // no age
+    fitsIface({name: "b", age: 1, tags: ["x"], id: 7}, Associate),
+    len(Human.@flat.fields),      // name, age
+    len(Associate.@flat.fields),  // name, age, tags, id
+]
 
 return ok
 ````

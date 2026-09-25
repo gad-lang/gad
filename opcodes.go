@@ -117,6 +117,7 @@ const (
 	OpPushSource
 	OpPopSource
 	OpFiles
+	OpInterfaceExtends
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -209,6 +210,7 @@ var OpcodeNames = [...]string{
 	OpPushSource:        "PUSHSOURCE",
 	OpPopSource:         "POPSOURCE",
 	OpFiles:             "FILES",
+	OpInterfaceExtends:  "INTERFACEEXTENDS",
 }
 
 // OpcodeOperands is the number of operands.
@@ -301,6 +303,7 @@ var OpcodeOperands = [...][]int{
 	OpPushSource:        {2},    // constant index of the source name (a Str); push it on the source-name stack
 	OpPopSource:         {},     // pop the source-name stack
 	OpFiles:             {},     // push the source-name stack as a read-only Array
+	OpInterfaceExtends:  {2},    // n; pop n parent values (interfaces or arrays of them) + the interface, push it extending them
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

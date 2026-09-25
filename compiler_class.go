@@ -370,12 +370,12 @@ func (c *Compiler) mixinCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 }
 
 // classExtendsExpr builds the `extends=[…]` array: each parent is its type
-// expression, or a `[type, "alias"]` pair when an alias was given.
+// expression, or a `[alias=type]` key-value pair when an alias was given.
 func classExtendsExpr(nd *node.TypeLitExpr) node.Expr {
 	elems := make([]node.Expr, len(nd.Parents))
 	for i, p := range nd.Parents {
 		if p.Alias != nil {
-			elems[i] = &node.ArrayExpr{Elements: []node.Expr{p.Type, node.Str(p.Alias.Name, p.Alias.Pos())}}
+			elems[i] = &node.KeyValueLit{Key: p.Alias, Value: p.Type}
 		} else {
 			elems[i] = p.Type
 		}
