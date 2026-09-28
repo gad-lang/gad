@@ -152,6 +152,7 @@ func init() {
 		(*node.WithStmt)(nil),
 		(*gadxnode.AssignStmt)(nil),
 		(*gadxnode.CallLineStmt)(nil),
+		(*gadxnode.ClassStmt)(nil),
 		(*gadxnode.CodeStmt)(nil),
 		(*gadxnode.CommentStmt)(nil),
 		(*gadxnode.CompCallStmt)(nil),
