@@ -1176,26 +1176,8 @@ func (c *Compiler) compileSourceModule(
 	// The dialect of the imported source drives how it is parsed; the Gadx
 	// fallback is always installed, so lowered Gadx nodes compile regardless.
 	var file *parser.File
-	switch kind {
-	case SourceKindGadx:
-		if file, err = parseGadxFile(modFile); err != nil {
-			return
-		}
-	default:
-		parserOptions := &parser.ParserOptions{Trace: trace}
-		var scannerOptions *parser.ScannerOptions
-		if kind == SourceKindGadt {
-			// A .gadt module is a mixed template: literal text with {% … %} code.
-			parserOptions.Mode |= parser.ParseMixed
-			scannerOptions = &parser.ScannerOptions{
-				Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
-				MixedDelimiter: parser.DefaultMixedDelimiter,
-			}
-		}
-		p := parser.NewParserWithOptions(modFile, parserOptions, scannerOptions)
-		if file, err = p.ParseFile(); err != nil {
-			return
-		}
+	if file, err = parseSourceFile(modFile, kind, trace); err != nil {
+		return
 	}
 
 	symbolTable := NewSymbolTable(c.symbolTable.builtins).

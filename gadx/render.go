@@ -60,6 +60,15 @@ type Render struct {
 	// If nil, transpilation is skipped.
 	TranspilePath func(srcPath string) string
 
+	// Inspect, when set, is given every source file of the template each time
+	// it compiles — on the first render and after a change —, parsed as the
+	// compiler parses it (gad.ParseSource): the rendered file, and every module
+	// it imports and file it includes, recursively. An application looks at
+	// what the templates say through it (the texts they ask for, where); its
+	// error fails the compilation. Every file of a compilation has been given
+	// when the OnRender callbacks run.
+	Inspect importers.InspectFunc
+
 	// BuiltinsFunc returns the Gad builtins to use for compilation.
 	// If nil, defaults to AppendBuiltins(gad.NewBuiltins()).
 	BuiltinsFunc func() *gad.Builtins
@@ -309,6 +318,7 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		SourceKind:    gad.SourceKindForExt(filePath),
 		FileReader:    tr.Read,
 		TranspilePath: r.TranspilePath,
+		Inspect:       r.Inspect,
 	})
 
 	if r.ModuleMapFunc != nil {
@@ -322,6 +332,18 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 	}}
 	// A .gadx ModuleFile compiles through gad's native Gadx front-end; a plain
 	// .gad entry compiles as ordinary Gad. The dialect is chosen by extension.
+
+	// The rendered file is inspected here; what it imports and includes, by
+	// the importer as it reads them.
+	if r.Inspect != nil {
+		file, err := gad.ParseSource(filePath, src, gad.SourceKindForExt(filePath))
+		if err != nil {
+			return nil, fmt.Errorf("compile %s: %w", filePath, err)
+		}
+		if err = r.Inspect(filePath, file); err != nil {
+			return nil, fmt.Errorf("inspect %s: %w", filePath, err)
+		}
+	}
 
 	st := gad.NewSymbolTable(r.cachedBuiltins.NameSet)
 	if _, err := st.DefineGlobals(globalNames); err != nil {

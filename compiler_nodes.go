@@ -3716,22 +3716,7 @@ func (c *Compiler) parseIncludeFile(url string, src []byte, kind SourceKind) (*p
 		trace = c.trace
 	}
 
-	switch kind {
-	case SourceKindGadx:
-		return parseGadxFile(modFile)
-	default:
-		parserOptions := &parser.ParserOptions{Trace: trace}
-		var scannerOptions *parser.ScannerOptions
-		if kind == SourceKindGadt {
-			parserOptions.Mode |= parser.ParseMixed
-			scannerOptions = &parser.ScannerOptions{
-				Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
-				MixedDelimiter: parser.DefaultMixedDelimiter,
-			}
-		}
-		p := parser.NewParserWithOptions(modFile, parserOptions, scannerOptions)
-		return p.ParseFile()
-	}
+	return parseSourceFile(modFile, kind, trace)
 }
 
 func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
