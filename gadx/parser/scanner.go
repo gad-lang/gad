@@ -1421,7 +1421,16 @@ func (s *scanner) scanClass() gadparser.PToken {
 
 	s.ensureBalanced(start, '{', '}')
 	balanced, end, ok := s.readBalanced(start, '{', '}')
-	if !ok || strings.TrimSpace(s.buffer[end:]) != "" {
+	if !ok {
+		// the body never closes: the rest is the class, and an error
+		lit := s.buffer
+		s.consume(len(lit))
+		pt := s.newToken(gadxtoken.Class, lit, "")
+		pt.Set("name", name)
+		pt.Set("error", fmt.Sprintf("@class %s: the body is not closed with }", name))
+		return pt
+	}
+	if strings.TrimSpace(s.buffer[end:]) != "" {
 		return gadparser.PToken{}
 	}
 	inner := balanced[1 : len(balanced)-1]

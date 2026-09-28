@@ -1,0 +1,36 @@
+/**
+Classes — `@class IDENT { … }`, and `@export class IDENT { … }` for one the
+module exports. The body is a Gad class body — fields with their types,
+defaults and `[k=v]` metadata, `props`, `methods`, `new`, a field typed by an
+anonymous class (`a class { … }`), members given at run time (`** EXPR`) — and
+may span lines up to the balanced `}`. Each compiles to a Gad `class IDENT { … }`
+statement (exported, to `export IDENT` too), so a module importing this one
+reads `mod.PageOptions` as any class. Render @main to see the values.
+**/
+
+// a class the module keeps to itself
+@class listLayout { comp str = "index_list" }
+
+// the modules found at run time, as a glob import would give them
+@const (MODULES = {portfolio: 1, blog: 2})
+
+/** What a page tells this layout. */
+@export class PageOptions {
+	[label="Title"]
+	title str = "Home"
+	posts class {
+		layout? listLayout
+		perPage int = 10
+	}
+	** {fields: {module: (; types=[str], nullable=true, meta=(; options=collect(keys(MODULES)).|sort))}}
+}
+
+@main
+	~ o := PageOptions(; posts = {layout: {}})
+	ul
+		li title = {= o.title }
+		// an anonymous class is named by its path
+		li posts is {= typeName(o.posts) }, perPage = {= o.posts.perPage }
+		li layout is {= typeName(o.posts.layout) }, comp = {= o.posts.layout.comp }
+		// a field given at run time
+		li module = {= o.module ?? "none" }

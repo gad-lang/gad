@@ -1855,6 +1855,11 @@ func (p *Parser) parseClass() *gadxnode.ClassStmt {
 		Exported: stringData(tok, "exported", "") == "true",
 	}
 
+	if msg := stringData(tok, "error", ""); msg != "" {
+		p.Error(tok.Pos, msg)
+		return s
+	}
+
 	inner := stringData(tok, "value", "")
 	prefix := "class " + name + " { "
 

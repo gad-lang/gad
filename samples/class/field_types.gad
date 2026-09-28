@@ -30,30 +30,12 @@ defaults to nil.
 
 @snippet field_class
 
-## Anonymous classes (`a class { … }`)
+## Anonymous classes and members given at run time
 
-A field may be typed by a class declared right there, `a class { … }`: a record
-of its own, nested to any depth, without a name to come up with for each level
-— a settings record reads as the tree it is. The class is named after its path
-from the outermost class, that class's name first (`Options.page.header`; an
-anonymous outermost class has a generated name, `#N`, as an anonymous function
-does — `#3.page.header`), and
-behaves as any class-typed field: a dict builds it, its fields keep their
-metadata, types and defaults, and a field not given is nil.
-
-@snippet field_inline_class
-
-## Members given at run time (`** EXPR`)
-
-A class body item `** EXPR` adds the members EXPR gives when the class is
-declared, after the declared ones — for what is only known then: the modules a
-glob import found, say. EXPR is a dict (or a key-value array) of `fields`,
-`methods` and `props`, given as a declared class gives them: a field is a name
-to its default, or to a spec `(; types=[…], nullable=true, meta=(; …),
-default=…)`; fields in a dict come in the order of their names, in a key-value
-array in its own.
-
-@snippet field_spread
+A field may also be typed by a class declared right there — `a class { … }`,
+see [anonymous classes](inline_classes.gad) —, and a class may take members
+known only when it is declared — `** EXPR`, see
+[members given at run time](spread_members.gad).
 
 ## Type enforcement
 
@@ -101,41 +83,6 @@ p := Point(; x = 9, y = 9)
     Rect(; a = {x: 1, y: 2}).b,             // not provided: nil
 ]
 /**= ["Point", 4, ["Rect", "Point", 2], 9, nil] **/
-//endsnippet
-
-//snippet field_inline_class
-class Options {
-    page class {
-        header class {
-            [label="Title"] title str = "Home"
-            sticky bool = false
-        }
-    }
-    theme str = "light"
-}
-o := Options(; page = {header: {sticky: true}})
-[
-    typeName(o.page), typeName(o.page.header),
-    o.page.header.title, o.page.header.sticky, o.theme,
-    Options().page,                              // not given: nil
-]
-/**= ["Options.page", "Options.page.header", "Home", true, "light", nil] **/
-//endsnippet
-
-//snippet field_spread
-plugins := {pt: 1, en: 2}
-extra := {fields: (;
-    lang=(; types=[str], nullable=true, meta=(; label="Language")),
-    count=len(plugins),
-)}
-class Settings {
-    name str = "site"
-    ** extra
-    ** {methods: [func title(this) { return this.name + " (" + str(this.count) + ")" }]}
-}
-s := Settings(; lang = "pt")
-[s.name, s.lang, s.count, s.title()]
-/**= ["site", "pt", 2, "site (2)"] **/
 //endsnippet
 
 //snippet field_enforce uses field_class
