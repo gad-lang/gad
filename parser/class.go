@@ -181,6 +181,17 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 		}()
 	}
 
+	// `** EXPR` — members given at run time: EXPR is `{fields: …, methods: …,
+	// props: …}`, added after the declared ones (classes only).
+	if p.Token.Token == token.Pow {
+		p.Next()
+		p.SkipSpace()
+		if e := p.ParseExpr(); e != nil {
+			cls.Spreads = append(cls.Spreads, e)
+		}
+		return
+	}
+
 	// `*Parent [: Alias]` — a parent class, written as a spread body item.
 	if p.Token.Token == token.Mul {
 		p.Next()

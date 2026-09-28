@@ -110,6 +110,10 @@ func (c *Compiler) classCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	if len(nd.New) > 0 {
 		inner.AppendS("new", classNewExpr(nd))
 	}
+	if len(nd.Spreads) > 0 {
+		// `** EXPR`: the members EXPR gives, added last (Class.Define)
+		inner.AppendS("spread", &node.ArrayExpr{Elements: nd.Spreads})
+	}
 
 	// (cls, define) => define(; …)
 	callback := &node.ClosureExpr{

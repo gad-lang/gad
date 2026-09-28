@@ -171,6 +171,10 @@ type TypeLitExpr struct {
 	Use    []Expr
 	UseDoc *ast.CommentGroup
 	Fields []*ClassFieldExpr
+	// Spreads are the `** EXPR` body items of a class: members given at run
+	// time, EXPR evaluating to `{fields: …, methods: …, props: …}` (a dict or a
+	// key-value array), added after the declared ones.
+	Spreads []Expr
 	// This is a mixin's optional `this { … }` interface block: it declares the
 	// interface the `this` parameter of the mixin's props/methods must satisfy.
 	// Parsed as an anonymous interface body; mixin-only.
@@ -264,6 +268,13 @@ func writeTypeLitBody(ctx *CodeWriteContext, e *TypeLitExpr) {
 	for _, f := range sortedClassFields(e.Fields) {
 		f := f
 		items = append(items, func() { f.WriteCode(ctx) })
+	}
+	for _, sp := range e.Spreads {
+		sp := sp
+		items = append(items, func() {
+			ctx.WriteString("**")
+			sp.WriteCode(ctx)
+		})
 	}
 	if e.This != nil {
 		items = append(items, func() {

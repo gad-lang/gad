@@ -2,6 +2,7 @@ package gad
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -663,12 +664,11 @@ func (t *Class) Module() *ModuleSpec {
 // consume those first (see NewClassFunc / NamedArgs.GetDoCheck).
 func (t *Class) Define(c Call) (err error) {
 	var (
-		kvaTA  = TypeAssertionFromTypes(TKeyValueArray)
 		dictTA = TypeAssertionFromTypes(TDict)
 
 		fields = &NamedArgVar{
 			Name:          "fields",
-			TypeAssertion: kvaTA,
+			TypeAssertion: TypeAssertionFromTypes(TKeyValueArray, TDict),
 			Do: func(value Object) error {
 				return t.CallAddFields(Call{VM: c.VM, Args: Args{Array{value}}})
 			},
@@ -741,9 +741,24 @@ func (t *Class) Define(c Call) (err error) {
 				return nil
 			},
 		}
+
+		// spread are the `** EXPR` body items: each a dict (or key-value array)
+		// of fields, methods and props, added after the declared members.
+		spread = &NamedArgVar{
+			Name:          "spread",
+			TypeAssertion: TypeAssertionFromTypes(TArray),
+			Do: func(value Object) error {
+				for _, item := range value.(Array) {
+					if err := t.addSpread(c.VM, item); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+		}
 	)
 
-	if err = c.NamedArgs.GetDo(meta, mixins, constructor, fields, methods, properties, extends, initFields); err != nil {
+	if err = c.NamedArgs.GetDo(meta, mixins, constructor, fields, methods, properties, extends, initFields, spread); err != nil {
 		return
 	}
 	// With every member registered, validate the class against the contract each
@@ -1310,7 +1325,7 @@ func (t *Class) CallAddFields(call Call) (err error) {
 	var (
 		items = &Arg{
 			Name:          "items",
-			TypeAssertion: TypeAssertionFromTypes(TKeyValueArray),
+			TypeAssertion: TypeAssertionFromTypes(TKeyValueArray, TDict),
 		}
 	)
 
@@ -1318,7 +1333,7 @@ func (t *Class) CallAddFields(call Call) (err error) {
 		return
 	}
 
-	for _, value := range items.Value.(KeyValueArray) {
+	for _, value := range fieldItems(items.Value) {
 		f := &ClassField{class: t}
 		switch tk := value.K.(type) {
 		case *TypedIdent:
@@ -1346,6 +1361,19 @@ func (t *Class) CallAddFields(call Call) (err error) {
 					if _, isFlag := kv.V.(Flag); !isFlag && kv.V != Nil {
 						f.Value = kv.V
 					}
+				case "types":
+					// the spec of a field given at run time (`** EXPR`), which
+					// has no typed name to carry them
+					types, _ := kv.V.(Array)
+					for _, typ := range types {
+						ta, ok := typ.(TypeAssigner)
+						if !ok {
+							return ErrType.NewError(fmt.Sprintf("field %q: %s is not a type", f.Name, typ.Type().Name()))
+						}
+						f.Types = append(f.Types, ta)
+					}
+				case "nullable":
+					f.Nullable = !kv.V.IsFalsy()
 				}
 			}
 		default:
@@ -1353,6 +1381,70 @@ func (t *Class) CallAddFields(call Call) (err error) {
 		}
 		if err = t.AddField(f); err != nil {
 			return
+		}
+	}
+	return nil
+}
+
+// fieldItems are the fields a `fields` argument gives: a key-value array as
+// it is, in its order; a dict by its keys, sorted — a dict has no order of its
+// own, and the fields of a class have one.
+func fieldItems(o Object) KeyValueArray {
+	switch v := o.(type) {
+	case KeyValueArray:
+		return v
+	case Dict:
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		out := make(KeyValueArray, len(keys))
+		for i, k := range keys {
+			out[i] = &KeyValue{K: Str(k), V: v[k]}
+		}
+		return out
+	}
+	return nil
+}
+
+// addSpread adds the members a `** EXPR` class body item gives: EXPR is a dict
+// (or a key-value array) of `fields` (as the declared ones are given — a name
+// to a default, or to a spec `(; types=[…], nullable=true, meta=(; …),
+// default=…)`), `methods` and `props`.
+func (t *Class) addSpread(vm *VM, item Object) error {
+	var get func(key string) Object
+	switch v := item.(type) {
+	case Dict:
+		get = func(key string) Object { return v[key] }
+	case KeyValueArray:
+		get = func(key string) Object {
+			for _, kv := range v {
+				if kv.K.ToString() == key {
+					return kv.V
+				}
+			}
+			return nil
+		}
+	case *NilType:
+		return nil
+	default:
+		return ErrType.NewError(fmt.Sprintf("class %s: ** expects a dict of fields, methods and props, got %s",
+			t.Name(), item.Type().Name()))
+	}
+	if f := get("fields"); f != nil && f != Nil {
+		if err := t.CallAddFields(Call{VM: vm, Args: Args{Array{f}}}); err != nil {
+			return err
+		}
+	}
+	if m := get("methods"); m != nil && m != Nil {
+		if err := t.CallAddMethods(Call{VM: vm, Args: Args{Array{m}}}); err != nil {
+			return err
+		}
+	}
+	if p := get("props"); p != nil && p != Nil {
+		if err := t.CallAddProperties(Call{VM: vm, Args: Args{Array{p}}}); err != nil {
+			return err
 		}
 	}
 	return nil

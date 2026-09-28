@@ -75,6 +75,32 @@ o := Options(; page = {header: {sticky: true}})
 // => ["Options.page", "Options.page.header", "Home", true, "light", nil]
 ```
 
+## Members given at run time (`** EXPR`)
+
+A class body item `** EXPR` adds the members EXPR gives when the class is
+declared, after the declared ones — for what is only known then: the modules a
+glob import found, say. EXPR is a dict (or a key-value array) of `fields`,
+`methods` and `props`, given as a declared class gives them: a field is a name
+to its default, or to a spec `(; types=[…], nullable=true, meta=(; …),
+default=…)`; fields in a dict come in the order of their names, in a key-value
+array in its own.
+
+```gad
+plugins := {pt: 1, en: 2}
+extra := {fields: (;
+    lang=(; types=[str], nullable=true, meta=(; label="Language")),
+    count=len(plugins),
+)}
+class Settings {
+    name str = "site"
+    ** extra
+    ** {methods: [func title(this) { return this.name + " (" + str(this.count) + ")" }]}
+}
+s := Settings(; lang = "pt")
+[s.name, s.lang, s.count, s.title()]
+// => ["site", "pt", 2, "site (2)"]
+```
+
 ## Type enforcement
 
 A typed field rejects a value of a different type; the raised `TypeError` names
@@ -177,6 +203,19 @@ o := Options(; page = {header: {sticky: true}})
     o.page.header.title, o.page.header.sticky, o.theme,
     Options().page,                              // not given: nil
 ]
+
+plugins := {pt: 1, en: 2}
+extra := {fields: (;
+    lang=(; types=[str], nullable=true, meta=(; label="Language")),
+    count=len(plugins),
+)}
+class Settings {
+    name str = "site"
+    ** extra
+    ** {methods: [func title(this) { return this.name + " (" + str(this.count) + ")" }]}
+}
+s := Settings(; lang = "pt")
+[s.name, s.lang, s.count, s.title()]
 
 rejects := func(f) { try { f(); return false } catch { return true } }
 class Box { v int|str }
