@@ -329,7 +329,7 @@ func isStandaloneDoc(c *CommentStmt) bool { return c.Block && c.Doc }
 func isBlockDirective(s gnode.Stmt) bool {
 	switch s.(type) {
 	case *CompDecl, *FuncDecl, *ParamStmt, *GlobalStmt, *VarStmt, *ConstStmt,
-		*EnumStmt, *ExportStmt, *TestDecl, *SlotDecl:
+		*EnumStmt, *ClassStmt, *ExportStmt, *TestDecl, *SlotDecl:
 		return true
 	}
 	return false
@@ -1124,6 +1124,30 @@ func (s *EnumStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.WriteLine(kw + s.Name)
 }
 
+func (s *ClassStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	writeDoc(ctx, s.Doc)
+	kw := "@"
+	if s.Exported {
+		kw = "@export "
+	}
+	if s.Decl == nil {
+		ctx.WriteLine(kw + "class " + s.Name + " {}")
+		return
+	}
+	// The Decl renders as `class Name { … }`, a member per line; the directive
+	// is that, behind its `@`.
+	code := strings.TrimRight(gnode.Code(s.Decl,
+		gnode.CodeWithFlags(ctx.EmbedFlags),
+		gnode.CodeWithPrefix(ctx.Prefix),
+	), "\n")
+	for i, line := range strings.Split(code, "\n") {
+		if i == 0 {
+			line = kw + line
+		}
+		ctx.WriteLine(line)
+	}
+}
+
 func (s *CallLineStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	parts := make([]string, 0, len(s.Args)+1)
 	parts = append(parts, ctx.gadExpr(s.Callee))
@@ -1235,6 +1259,7 @@ var (
 	_ GadxCoder = (*TestDecl)(nil)
 	_ GadxCoder = (*CallLineStmt)(nil)
 	_ GadxCoder = (*EnumStmt)(nil)
+	_ GadxCoder = (*ClassStmt)(nil)
 )
 
 // writeRawTextTag writes a raw-text element (a script or a stylesheet) in the

@@ -215,6 +215,13 @@ func (p *Parser) parseStmt() gnode.Stmt {
 			d.Doc = doc
 		}
 		return d
+	case gadxtoken.Class:
+		doc := p.takeDoc()
+		d := p.parseClass()
+		if d != nil {
+			d.Doc = doc
+		}
+		return d
 	case gadxtoken.Func:
 		// Take the held doc before parsing the body so nested body statements do
 		// not see (and flush) it.
@@ -304,7 +311,7 @@ func (p *Parser) parseDoctype() *gadxnode.DoctypeStmt {
 func isDocTarget(tok token.Token) bool {
 	switch tok {
 	case gadxtoken.Comp, gadxtoken.Func, gadxtoken.Param,
-		gadxtoken.Var, gadxtoken.Const, gadxtoken.Enum, gadxtoken.Export:
+		gadxtoken.Var, gadxtoken.Const, gadxtoken.Enum, gadxtoken.Class, gadxtoken.Export:
 		return true
 	}
 	return false
@@ -1829,6 +1836,46 @@ func (p *Parser) parseEnum() *gadxnode.EnumStmt {
 		s.Decl = enumStmt
 	} else {
 		p.Error(tok.Pos, "expected enum declaration")
+	}
+	return s
+}
+
+// parseClass reads an `@class` / `@export class` directive: its body is a Gad
+// class body, parsed as the `class NAME { … }` statement at its original
+// position.
+func (p *Parser) parseClass() *gadxnode.ClassStmt {
+	tok := p.Token
+	p.expect(gadxtoken.Class)
+
+	name := stringData(tok, "name", "")
+	s := &gadxnode.ClassStmt{
+		NodePos:  tok.Pos,
+		NodeEnd:  tok.Pos + source.Pos(len(tok.Literal)),
+		Name:     name,
+		Exported: stringData(tok, "exported", "") == "true",
+	}
+
+	inner := stringData(tok, "value", "")
+	prefix := "class " + name + " { "
+
+	base := noBase
+	if v, ok := tok.GetOk("innerPos"); ok {
+		if pos, ok := v.(source.Pos); ok {
+			if b := pos - source.Pos(len(prefix)); b >= 1 {
+				base = b
+			}
+		}
+	}
+
+	stmt, err := parseGadFirstStmtAt(prefix+inner+" }", base, false)
+	if err != nil {
+		p.Error(tok.Pos, err.Error())
+		return s
+	}
+	if decl, ok := stmt.(*gnode.TypeDeclStmt); ok {
+		s.Decl = decl
+	} else {
+		p.Error(tok.Pos, "expected class declaration")
 	}
 	return s
 }

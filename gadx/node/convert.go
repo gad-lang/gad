@@ -164,6 +164,8 @@ func convertStmt(s gnode.Stmt) gnode.Stmts {
 		return convertParam(st)
 	case *EnumStmt:
 		return convertEnum(st)
+	case *ClassStmt:
+		return convertClass(st)
 	case *ExportStmt:
 		return convertExport(st)
 	case *TestDecl:
@@ -572,6 +574,23 @@ func convertEnum(s *EnumStmt) gnode.Stmts {
 	stmts := gnode.Stmts{s.Decl}
 	// `@export enum` declares the enum locally and exports its name (like
 	// `@export func`), so other declarations in the module can reference it.
+	if s.Exported {
+		stmts = append(stmts, &gnode.ExportStmt{
+			TokenPos: s.Pos(),
+			KeyExpr:  gnode.EIdent(s.Name, s.Pos()),
+		})
+	}
+	return stmts
+}
+
+// convertClass lowers a `@class` directive to its Gad `class IDENT { … }`
+// statement (already parsed by the gadx parser), exporting the name for an
+// `@export class`.
+func convertClass(s *ClassStmt) gnode.Stmts {
+	if s.Decl == nil {
+		return nil
+	}
+	stmts := gnode.Stmts{s.Decl}
 	if s.Exported {
 		stmts = append(stmts, &gnode.ExportStmt{
 			TokenPos: s.Pos(),

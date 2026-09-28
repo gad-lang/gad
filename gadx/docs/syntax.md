@@ -657,6 +657,31 @@ Each form compiles to a Gad `enum IDENT { … }` statement, so a member exposes
 name (`Perm["Write"]`) and iterable in declaration order. See the Gad
 [enum documentation](../../gad/doc/enums.md) for the value-computation rules.
 
+## Classes
+
+Declare a class with `@class IDENT { … }`, and one the module exports with
+`@export class IDENT { … }`. The body is a Gad class body — fields with their
+types, defaults and `[k=v]` metadata, `props`, `methods`, `new` — and may span
+lines up to the balanced `}`. A field may be typed by a class declared right
+there, `a class { … }`, named by its path (`PageOptions.posts`).
+
+```gadx
+@class listLayout { comp? enum { index_list, compact } }
+
+/** What a page tells this layout. */
+@export class PageOptions {
+    [label="Title"] title str = "Home"
+    posts class {
+        layout? listLayout
+    }
+}
+```
+
+Each form compiles to a Gad `class IDENT { … }` statement (and, exported, to
+`export IDENT`), so a module that imports the layout reads `layout.PageOptions`
+— its fields, their types and metadata — as any Gad class. See the Gad
+[class documentation](../../doc/samples/class/field_types.md).
+
 ## Globals
 
 Declare globals with `@global`. Names may be space-separated (legacy) or

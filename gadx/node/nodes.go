@@ -946,6 +946,36 @@ func (s *EnumStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 	}
 }
 
+// ClassStmt — @class declaration (compiles to Gad `class IDENT { ... }`)
+// =============================================================================
+
+type ClassStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Name    string
+	// Decl is the fully-formed Gad class statement (`class Name { … }`), parsed
+	// from the directive body.
+	Decl *gnode.TypeDeclStmt
+	// Exported marks an `@export class`: the class is declared locally and its
+	// name is exported.
+	Exported bool
+	// Doc is the text of a `/** … */` doc comment immediately preceding the
+	// declaration, or "".
+	Doc string
+}
+
+func (s *ClassStmt) Pos() source.Pos { return s.NodePos }
+func (s *ClassStmt) End() source.Pos { return s.NodeEnd }
+func (s *ClassStmt) StmtNode()       {}
+func (s *ClassStmt) String() string  { return fmt.Sprintf("gadx.Class(%s)", s.Name) }
+
+func (s *ClassStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	if s.Decl != nil {
+		s.Decl.WriteCode(ctx)
+	}
+}
+
 // ExportStmt — export declaration
 // =============================================================================
 

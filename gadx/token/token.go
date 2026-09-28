@@ -46,6 +46,7 @@ const (
 	Call      // `! recv.method arg1 arg2` — fluent call statement
 	Repeat    // `(N)` right after a tag head — the tag is written N times
 	Include   // @include — compile source file(s) inline (Gad `include`)
+	Class     // @class — a class declaration (Gad `class NAME { … }`)
 	tokMax
 )
 
@@ -91,6 +92,7 @@ var tokNames = [...]string{
 	Call:         "CALL",
 	Repeat:       "REPEAT",
 	Include:      "INCLUDE",
+	Class:        "CLASS",
 }
 
 // String returns a human-readable name for a gadx token.

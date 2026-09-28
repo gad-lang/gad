@@ -202,6 +202,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanEnum(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanClass(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanFunc(); tok.Valid() {
 			return tok
 		}
@@ -1381,6 +1384,54 @@ func (s *scanner) scanEnum() gadparser.PToken {
 	pt := s.newToken(gadxtoken.Enum, lit, strings.TrimSpace(inner))
 	pt.Set("name", name)
 	pt.Set("innerPos", base0+source.Pos(innerStart+lead))
+	if exported {
+		pt.Set("exported", "true")
+	}
+	return pt
+}
+
+var rgxClassHead = regexp.MustCompile(`^(@export\s+)?@class\s+([a-zA-Z_]\w*)\s*\{`)
+
+// scanClass scans `@class NAME { … }` and `@export class NAME { … }` — `@export
+// class` too, as `@export enum` is. The body is a Gad class body (fields,
+// metadata, props, methods…) and may span lines up to the balanced `}`. It is
+// stored verbatim as the token value, with its absolute position; the parser
+// reads it as a Gad `class NAME { … }` statement.
+func (s *scanner) scanClass() gadparser.PToken {
+	buf := s.buffer
+	exported := false
+	if strings.HasPrefix(buf, "@export class ") {
+		// `@export class NAME {` reads as `@export @class NAME {`
+		buf = "@export @class " + strings.TrimPrefix(buf, "@export class ")
+	}
+	m := rgxClassHead.FindStringSubmatch(buf)
+	if m == nil {
+		return gadparser.PToken{}
+	}
+	exported = m[1] != ""
+	name := m[2]
+	// the head in the buffer itself: `@class NAME {` or `@export class NAME {`
+	head := len(m[0])
+	if exported {
+		head -= len("@")
+	}
+	start := head - 1 // index of the opening '{'
+
+	base0 := source.Pos(s.file.Base + s.offset - len(s.buffer) - 1)
+
+	s.ensureBalanced(start, '{', '}')
+	balanced, end, ok := s.readBalanced(start, '{', '}')
+	if !ok || strings.TrimSpace(s.buffer[end:]) != "" {
+		return gadparser.PToken{}
+	}
+	inner := balanced[1 : len(balanced)-1]
+	lead := len(inner) - len(strings.TrimLeft(inner, " \t\r\n"))
+
+	lit := s.buffer[:end]
+	s.consume(end)
+	pt := s.newToken(gadxtoken.Class, lit, strings.TrimSpace(inner))
+	pt.Set("name", name)
+	pt.Set("innerPos", base0+source.Pos(start+1+lead))
 	if exported {
 		pt.Set("exported", "true")
 	}
