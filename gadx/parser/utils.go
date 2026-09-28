@@ -109,29 +109,51 @@ func parseTextGadAt(s string, base source.Pos) (node.Stmts, error) {
 }
 
 func parseCallArgsString(s string) (args *node.CallArgs, err error) {
+	return parseCallArgsStringAt(s, noBase)
+}
+
+// parseCallArgsStringAt parses the arguments of a call, s, which begins at
+// base in the original source: each argument keeps its own position there
+// (noBase: positions local to s).
+func parseCallArgsStringAt(s string, base source.Pos) (args *node.CallArgs, err error) {
+	lead := len(s) - len(strings.TrimLeft(s, " \t\r\n"))
 	s = strings.TrimSpace(s)
-	if s == "" {
-		return &node.CallArgs{}, nil
-	}
-	parts := splitTopLevelArgs(s)
 	args = &node.CallArgs{}
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
+	if s == "" {
+		return args, nil
+	}
+	// at is the position of the byte i of s
+	at := func(i int) source.Pos {
+		if base == noBase {
+			return noBase
+		}
+		return base + source.Pos(lead+i)
+	}
+	cur := 0
+	for _, raw := range splitTopLevelArgs(s) {
+		// the parts are s's, in order: find each where the last one ended
+		off := cur
+		if i := strings.Index(s[cur:], raw); i >= 0 {
+			off = cur + i
+		}
+		cur = off + len(raw)
+
+		part := strings.TrimSpace(raw)
 		if part == "" {
 			continue
 		}
+		off += len(raw) - len(strings.TrimLeft(raw, " \t\r\n"))
 		if strings.HasPrefix(part, "**") {
 			name := strings.TrimSpace(part[2:])
-			args.NamedArgs.Append(&node.NamedArgExpr{Ident: node.EIdent(name, 0), Var: true}, nil)
+			args.NamedArgs.Append(&node.NamedArgExpr{Ident: node.EIdent(name, at(off)), Var: true}, nil)
 			continue
 		}
 		if idx := topLevelAssignIndex(part); idx >= 0 {
 			name := strings.TrimSpace(part[:idx])
-			value := strings.TrimSpace(part[idx+1:])
-			args.NamedArgs.AppendS(name, parseExprStr(value, 0))
+			args.NamedArgs.AppendS(name, parseExprStr(part[idx+1:], at(off+idx+1)))
 			continue
 		}
-		args.Args.Values = append(args.Args.Values, parseExprStr(part, 0))
+		args.Args.Values = append(args.Args.Values, parseExprStr(part, at(off)))
 	}
 	return args, nil
 }

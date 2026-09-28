@@ -97,13 +97,14 @@ func TestPositionPreservationRuntime(t *testing.T) {
 		},
 		{
 			name: "if-condition",
-			// line 3, col 6: @if w()
+			// line 3, col 10: the call of `@if w()` — its "(", as the other
+			// cases point at — past the `@if ` the condition follows
 			src: "@global w\n" +
 				"@main\n" +
 				"    @if w()\n" +
 				"        p yes\n",
 			wantLine: 3,
-			wantCol:  6,
+			wantCol:  10,
 		},
 		{
 			name: "deeper-line",

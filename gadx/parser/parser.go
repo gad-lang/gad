@@ -873,7 +873,7 @@ func (p *Parser) parseInlineAttribute() *gadxnode.TagAttribute {
 			Value: gnode.Str(stringData(tok, "value", ""), tok.Pos),
 		}
 		if cond := stringData(tok, "condition", ""); cond != "" {
-			attr.Condition = parseExprStr(cond, tok.Pos)
+			attr.Condition = parseExprStr(cond, valueAt(tok, "condition"))
 		}
 		return attr
 	case gadxtoken.ClassName:
@@ -883,7 +883,7 @@ func (p *Parser) parseInlineAttribute() *gadxnode.TagAttribute {
 			Value: gnode.Str(stringData(tok, "value", ""), tok.Pos),
 		}
 		if cond := stringData(tok, "condition", ""); cond != "" {
-			attr.Condition = parseExprStr(cond, tok.Pos)
+			attr.Condition = parseExprStr(cond, valueAt(tok, "condition"))
 		}
 		return attr
 	default:
@@ -901,7 +901,7 @@ func (p *Parser) parseIf() *gadxnode.IfStmt {
 
 	s := &gadxnode.IfStmt{
 		NodePos: tok.Pos,
-		Cond:    parseExprStr(condStr, tok.Pos),
+		Cond:    parseExprStr(condStr, valueAt(tok, "value")),
 	}
 
 	if p.Token.Token == gadxtoken.Indent {
@@ -913,7 +913,7 @@ func (p *Parser) parseIf() *gadxnode.IfStmt {
 		elseIfTok := p.Token
 		p.expect(gadxtoken.ElseIf)
 		clause := &gadxnode.ElseIfClause{
-			Cond: parseExprStr(stringData(elseIfTok, "value", ""), elseIfTok.Pos),
+			Cond: parseExprStr(stringData(elseIfTok, "value", ""), valueAt(elseIfTok, "value")),
 		}
 		if p.Token.Token == gadxtoken.Indent {
 			clause.Body = p.parseBlock(s)
@@ -940,7 +940,7 @@ func (p *Parser) parseFor() *gadxnode.ForStmt {
 
 	s := &gadxnode.ForStmt{
 		NodePos: tok.Pos,
-		Cond:    parseExprStr(condStr, tok.Pos),
+		Cond:    parseExprStr(condStr, valueAt(tok, "value")),
 	}
 
 	if p.Token.Token == gadxtoken.Indent {
@@ -970,7 +970,7 @@ func (p *Parser) parseAssignment() *gadxnode.AssignStmt {
 		NodePos: tok.Pos,
 		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
 		Op:      op,
-		RHS:     parseExprStr(valueStr, tok.Pos),
+		RHS:     parseExprStr(valueStr, valueAt(tok, "value")),
 	}
 
 	if x != "" {
@@ -1038,6 +1038,27 @@ func (p *Parser) parseCode() *gadxnode.CodeStmt {
 	}
 
 	return s
+}
+
+// valueAt is where the token's data key (its "value", "condition"…) begins in
+// the source: the scanner's valuePos for the value when it recorded one, else
+// where the text is in the token's literal — the directive keyword, `@for`,
+// comes before it —, else the token's own position.
+func valueAt(tok gadparser.PToken, key string) source.Pos {
+	if key == "value" {
+		if positions, ok := tokenValuePos(tok); ok && len(positions) > 0 {
+			return positions[0]
+		}
+	}
+	if tok.Pos == source.NoPos {
+		return tok.Pos
+	}
+	if v := stringData(tok, key, ""); v != "" {
+		if i := strings.LastIndex(tok.Literal, v); i >= 0 {
+			return tok.Pos + source.Pos(i)
+		}
+	}
+	return tok.Pos
 }
 
 // tokenValuePos returns the per-value base positions recorded by the scanner
@@ -1409,7 +1430,7 @@ func (p *Parser) parseAttributeGroup(tok gadparser.PToken) []*gadxnode.TagAttrib
 
 	var cond gnode.Expr
 	if condStr := stringData(tok, "condition", ""); condStr != "" {
-		cond = parseExprStr(condStr, tok.Pos)
+		cond = parseExprStr(condStr, valueAt(tok, "condition"))
 	}
 
 	base := tok.Pos + 1 // byte after the opening '['
@@ -2101,13 +2122,18 @@ func (p *Parser) parseCompCall() *gadxnode.CompCallStmt {
 	}
 	if callee != "" {
 		call.Name = ""
-		call.Func = parseExprStr(callee, tok.Pos)
+		call.Func = parseExprStr(callee, valueAt(tok, "callee"))
 	} else {
 		call.Func = compCallFuncExpr(name, tok.Pos)
 	}
 
 	if header := stringData(tok, "args", ""); header != "" {
-		args, err := parseCallArgsString(header)
+		// the arguments keep their positions: the header is in the literal
+		base := noBase
+		if i := strings.Index(tok.Literal, header); i >= 0 && tok.Pos != source.NoPos {
+			base = tok.Pos + source.Pos(i)
+		}
+		args, err := parseCallArgsStringAt(header, base)
 		if err != nil {
 			panic(err)
 		}
@@ -2154,7 +2180,7 @@ func (p *Parser) parseMatch() *gadxnode.MatchStmt {
 	tok := p.Token
 	p.expect(gadxtoken.Match)
 
-	tagExpr := parseExprStr(stringData(tok, "value", ""), tok.Pos)
+	tagExpr := parseExprStr(stringData(tok, "value", ""), valueAt(tok, "value"))
 	s := &gadxnode.MatchStmt{
 		NodePos: tok.Pos,
 		Tag:     tagExpr,
@@ -2168,7 +2194,7 @@ func (p *Parser) parseMatch() *gadxnode.MatchStmt {
 			caseTok := p.Token
 			p.expect(gadxtoken.Case)
 			cc := &gadxnode.CaseClause{
-				Expr: parseExprStr(stringData(caseTok, "value", ""), caseTok.Pos),
+				Expr: parseExprStr(stringData(caseTok, "value", ""), valueAt(caseTok, "value")),
 			}
 			if p.Token.Token == gadxtoken.Indent {
 				cc.Body = p.parseBlock(s)
