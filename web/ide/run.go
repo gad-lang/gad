@@ -265,12 +265,15 @@ func (s *Server) handleTranspile(w http.ResponseWriter, r *http.Request) {
 // When Session is set the expression is evaluated in the paused debug frame;
 // otherwise it runs standalone with Source as a prelude.
 type inspectRequest struct {
-	Session  string   `json:"session"`
-	Expr     string   `json:"expr"`
-	Source   string   `json:"source"`
-	Path     string   `json:"path"`
-	Disabled []string `json:"disabled"`
-	Safe     bool     `json:"safe"`
+	Session string `json:"session"`
+	Expr    string `json:"expr"`
+	Source  string `json:"source"`
+	Path    string `json:"path"`
+	// SourceType is Source's dialect ("gad" | "gadTemplate" | "gadx"), for the
+	// order imports without an extension resolve in (empty: Path's).
+	SourceType string   `json:"sourceType"`
+	Disabled   []string `json:"disabled"`
+	Safe       bool     `json:"safe"`
 }
 
 // handleInspect evaluates Expr and returns its tree-navigator description (type,
@@ -303,7 +306,9 @@ func (s *Server) handleInspect(w http.ResponseWriter, r *http.Request) {
 				workdir = filepath.Dir(abs)
 			}
 		}
-		obj, err = s.evalObject(req.Source, req.Expr, workdir, runRequest{Disabled: req.Disabled, Safe: req.Safe})
+		obj, err = s.evalObject(req.Source, req.Expr, workdir, runRequest{
+			Path: req.Path, SourceType: req.SourceType, Disabled: req.Disabled, Safe: req.Safe,
+		})
 	}
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
