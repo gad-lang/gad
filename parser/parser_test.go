@@ -308,6 +308,15 @@ func TestFormatDecl(t *testing.T) {
 	test.New(t, "param (;x, **y)").Code("param (; x, **y)")
 }
 
+func TestFormatFieldClass(t *testing.T) {
+	// An anonymous class typing a field (`a class { … }`) is written back as
+	// it was declared — no name (the one it is given is implied) —, inline in
+	// the compact code and a field per line, nested, when formatted.
+	test.New(t, `class O { a class { b class { [label="C"] c int = 3 } }; t str }`).
+		Code(`class O {a class {b class {[label="C"] c int = 3}}; t str}`).
+		FormattedCode("class O {\n\ta class {\n\t\tb class {\n\t\t\t[label=\"C\"]\n\t\t\tc int = 3\n\t\t}\n\t}\n\tt str\n}")
+}
+
 func TestFormatDoubleColon(t *testing.T) {
 	// the assign-to-type operator `::` formats tightly (no surrounding spaces)
 	// and without wrapping parens.

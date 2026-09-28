@@ -45,6 +45,36 @@ p := Point(; x = 9, y = 9)
 // => ["Point", 4, ["Rect", "Point", 2], 9, nil]
 ```
 
+## Anonymous classes (`a class { … }`)
+
+A field may be typed by a class declared right there, `a class { … }`: a record
+of its own, nested to any depth, without a name to come up with for each level
+— a settings record reads as the tree it is. The class is named after its path
+from the outermost class, that class's name first (`Options.page.header`; an
+anonymous outermost class has a generated name, `#N`, as an anonymous function
+does — `#3.page.header`), and
+behaves as any class-typed field: a dict builds it, its fields keep their
+metadata, types and defaults, and a field not given is nil.
+
+```gad
+class Options {
+    page class {
+        header class {
+            [label="Title"] title str = "Home"
+            sticky bool = false
+        }
+    }
+    theme str = "light"
+}
+o := Options(; page = {header: {sticky: true}})
+[
+    typeName(o.page), typeName(o.page.header),
+    o.page.header.title, o.page.header.sticky, o.theme,
+    Options().page,                              // not given: nil
+]
+// => ["Options.page", "Options.page.header", "Home", true, "light", nil]
+```
+
 ## Type enforcement
 
 A typed field rejects a value of a different type; the raised `TypeError` names
@@ -130,6 +160,22 @@ p := Point(; x = 9, y = 9)
     [typeName(s.rect), typeName(s.rect.a), s.rect.a.y],
     Rect(; a = p, b = {x: 1, y: 1}).a.x,    // an instance is kept as-is
     Rect(; a = {x: 1, y: 2}).b,             // not provided: nil
+]
+
+class Options {
+    page class {
+        header class {
+            [label="Title"] title str = "Home"
+            sticky bool = false
+        }
+    }
+    theme str = "light"
+}
+o := Options(; page = {header: {sticky: true}})
+[
+    typeName(o.page), typeName(o.page.header),
+    o.page.header.title, o.page.header.sticky, o.theme,
+    Options().page,                              // not given: nil
 ]
 
 rejects := func(f) { try { f(); return false } catch { return true } }

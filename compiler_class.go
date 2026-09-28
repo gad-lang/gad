@@ -61,10 +61,17 @@ func (c *Compiler) classCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 
 	pos := nd.Pos()
 
-	var name string
+	// The name: the declared one; else the path an enclosing class gave it
+	// (a field's `class { … }`); else, anonymous, a generated one (`#N`), as
+	// an anonymous function has.
+	name := nd.ImpliedName
 	if id, _ := nd.NameExpr.(*node.IdentExpr); id != nil {
 		name = id.Name
 	}
+	if name == "" {
+		name = c.newAnonymousFuncName()
+	}
+	nameFieldClasses(nd, name)
 
 	clsIdent := node.EIdent("cls", pos)
 	defineIdent := node.EIdent("define", pos)
@@ -547,5 +554,22 @@ func thisParam(typeIdent node.Expr) *node.TypedIdentExpr {
 	return &node.TypedIdentExpr{
 		Ident: node.EIdent("this", typeIdent.Pos()),
 		Type:  []*node.TypeExpr{{Expr: typeIdent}},
+	}
+}
+
+// nameFieldClasses names the anonymous classes the fields of cls are typed by
+// (`a class { … }`) by their path below it — `PageOptions.a`, and
+// `PageOptions.a.b` when that one is compiled —, so an instance says where in
+// the record it is.
+func nameFieldClasses(cls *node.TypeLitExpr, name string) {
+	for _, f := range cls.Fields {
+		if f.Name == nil || f.Name.Ident == nil {
+			continue
+		}
+		for _, t := range f.Name.Type {
+			if inner, ok := t.Expr.(*node.TypeLitExpr); ok && inner.NameExpr == nil && !inner.Mixin && !inner.Static {
+				inner.ImpliedName = name + "." + f.Name.Ident.Name
+			}
+		}
 	}
 }

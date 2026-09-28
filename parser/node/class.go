@@ -157,10 +157,16 @@ type TypeLitExpr struct {
 	// (static fields, props, methods) but has no instances — its members are on the
 	// type itself (`this` is the type), it may declare a `call(…)` factory instead
 	// of `new`, and it lowers to a StaticType.
-	Static     bool
-	NameExpr   Expr
-	Parents    []*ClassParentExpr
-	ExtendsDoc *ast.CommentGroup
+	Static   bool
+	NameExpr Expr
+	// ImpliedName names an anonymous class a field is typed by (`a class { … }`)
+	// by its path from the outermost class holding it, that class's name first
+	// — `PageOptions.a.b`, `#1.a.b` below an anonymous one —, so an instance
+	// says where in the record it is. The compiler sets it. It is not written back (the source has no
+	// name there); NameExpr, when set, wins.
+	ImpliedName string
+	Parents     []*ClassParentExpr
+	ExtendsDoc  *ast.CommentGroup
 	// Use are the mixins a class pulls in (`use A, B`); class-only.
 	Use    []Expr
 	UseDoc *ast.CommentGroup

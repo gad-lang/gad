@@ -568,6 +568,12 @@ func (e *TypedIdentExpr) writeInlineUnion(ctx *CodeWriteContext) {
 		if i > 0 {
 			ctx.WriteString(" | ")
 		}
+		// an anonymous class (`a class { … }`) is a body, laid out as one: in
+		// the writer's context, a field per line
+		if lit, ok := t.Expr.(*TypeLitExpr); ok {
+			lit.WriteCode(ctx)
+			continue
+		}
 		ctx.WriteString(t.String())
 	}
 }

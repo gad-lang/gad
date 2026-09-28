@@ -2957,6 +2957,11 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 		// (`interface` is a contextual keyword; only `{`/`[` after it opens one).
 		case p.Token.Literal == "interface" && (p.Peek().Token == token.LBrace || p.Peek().Token == token.LBrack):
 			return &node.TypeExpr{Expr: p.ParseInterfaceExpr()}
+		// `class { … }` — an anonymous class declared where its type is used:
+		// a field whose value is a record of its own (`a class { b int }`),
+		// nested to any depth, as `interface { … }` is for an interface.
+		case p.Token.Literal == "class" && p.Peek().Token == token.LBrace:
+			return &node.TypeExpr{Expr: p.ParseClassExpr()}
 		}
 	}
 	return &node.TypeExpr{Expr: p.ParseSimpleSelectorExpr(p.ParseIdent())}
