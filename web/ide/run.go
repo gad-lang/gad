@@ -33,10 +33,22 @@ type moduleInfo struct {
 	Unsafe bool   `json:"unsafe"`
 }
 
+// requestSourceType is the dialect a run/debug request's source is written in:
+// its sourceType ("gad" | "gadTemplate" | "gadx") when given — the buffer may
+// not be saved as its dialect yet — else the path's extension.
+func requestSourceType(path, sourceType string) gad.SourceKind {
+	if kind, ok := gad.ParseSourceKind(sourceType); ok {
+		return kind
+	}
+	return gad.SourceKindForExt(path)
+}
+
 // buildModuleMap creates a module map with the stdlib builtin modules (honouring
 // safe mode and per-module disables) and a file importer rooted at workdir so
-// relative imports resolve. Shared by run and debug.
-func buildModuleMap(workdir string, disabled []string, safe bool) *gad.ModuleMap {
+// relative imports resolve. sourceType is the dialect of the code importing: it
+// sets the order a name without an extension resolves in (a Gadx source
+// prefers .gadx; see gad.SourceExtensionsFor). Shared by run and debug.
+func buildModuleMap(workdir string, sourceType gad.SourceKind, disabled []string, safe bool) *gad.ModuleMap {
 	mb := helper.NewModuleMapBuilder()
 	mb.Safe = safe
 	mb.Disabled = make(map[string]bool, len(disabled))
@@ -51,6 +63,7 @@ func buildModuleMap(workdir string, disabled []string, safe bool) *gad.ModuleMap
 	}
 	mm.SetExtImporter(&importers.FileImporter{
 		WorkDir:    workdir,
+		SourceKind: sourceType,
 		FileReader: importers.ShebangReadFile,
 	})
 	return mm
@@ -311,7 +324,7 @@ func (s *Server) evalObject(source, expr, workdir string, req runRequest) (gad.O
 	script := gadbridge.EvalSource(source, expr, "")
 	builtins := gad.NewBuiltins()
 	st := gad.NewSymbolTable(builtins.NameSet)
-	mm := buildModuleMap(workdir, req.Disabled, req.Safe)
+	mm := buildModuleMap(workdir, requestSourceType(req.Path, req.SourceType), req.Disabled, req.Safe)
 	res, err := gad.Compile(st, []byte(script), gad.CompileOptions{
 		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},
 	})
@@ -357,11 +370,15 @@ func (s *Server) handleDiagnose(w http.ResponseWriter, r *http.Request) {
 // runRequest configures a run. Source defaults to the named file's content when
 // empty so the UI can run a saved file directly.
 type runRequest struct {
-	Path     string   `json:"path"`     // workspace-relative, for imports + saved source
-	Source   string   `json:"source"`   // overrides on-disk content when set
-	Args     []string `json:"args"`     // CLI-style positional arguments
-	Disabled []string `json:"disabled"` // builtin modules to disable
-	Safe     bool     `json:"safe"`     // disable all unsafe modules
+	Path string `json:"path"` // workspace-relative, for imports + saved source
+	// SourceType is the dialect of Source ("gad" | "gadTemplate" | "gadx"); it
+	// selects the resolution order of imports written without an extension
+	// (empty: from Path's extension).
+	SourceType string   `json:"sourceType"`
+	Source     string   `json:"source"`   // overrides on-disk content when set
+	Args       []string `json:"args"`     // CLI-style positional arguments
+	Disabled   []string `json:"disabled"` // builtin modules to disable
+	Safe       bool     `json:"safe"`     // disable all unsafe modules
 	// Output capture. SaveStdout / SaveStderr name workspace-relative files for
 	// each stream; when Combine is set both streams are written (interleaved as
 	// stdout then stderr) to SaveStdout only. SaveOut is the legacy combined
@@ -441,7 +458,7 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 	builtins := newBuiltins(req.Path)
 	st := gad.NewSymbolTable(builtins.NameSet)
 
-	mm := buildModuleMap(workdir, req.Disabled, req.Safe)
+	mm := buildModuleMap(workdir, requestSourceType(req.Path, req.SourceType), req.Disabled, req.Safe)
 
 	opts := gad.CompileOptions{
 		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},

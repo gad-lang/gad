@@ -50,6 +50,21 @@ func (k SourceKind) Ext() string {
 	}
 }
 
+// ParseSourceKind maps a source-type name — the dialect names the tooling and
+// the web bridge use: "gad", "gadTemplate" (or "template", "gadt") and "gadx",
+// case-sensitive — to its SourceKind; ok is false for any other name.
+func ParseSourceKind(name string) (kind SourceKind, ok bool) {
+	switch name {
+	case "gad":
+		return SourceKindGad, true
+	case "gadTemplate", "template", "gadt":
+		return SourceKindGadt, true
+	case "gadx":
+		return SourceKindGadx, true
+	}
+	return SourceKindGad, false
+}
+
 // SourceKindForExt maps a file extension (or path) to a SourceKind: `.gadx` ->
 // Gadx, `.gadt` -> template, anything else -> plain Gad.
 func SourceKindForExt(pth string) SourceKind { return sourceKindForExt(pth) }

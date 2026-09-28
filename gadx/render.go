@@ -306,7 +306,7 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		Root:    root,
 		// A name without an extension resolves in the entry's dialect order
 		// (.gadx first from a .gadx entry).
-		From:          filePath,
+		SourceKind:    gad.SourceKindForExt(filePath),
 		FileReader:    tr.Read,
 		TranspilePath: r.TranspilePath,
 	})

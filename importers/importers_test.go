@@ -274,7 +274,7 @@ func TestFileImporterSourceExtensionOrder(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), nil, 0o644))
 	}
 	resolve := func(from, name string) string {
-		imp := &importers.FileImporter{WorkDir: dir, From: from}
+		imp := &importers.FileImporter{WorkDir: dir, SourceKind: gad.SourceKindForExt(from)}
 		got, err := imp.Get(name).Name()
 		require.NoError(t, err)
 		return filepath.Base(got)
@@ -286,7 +286,7 @@ func TestFileImporterSourceExtensionOrder(t *testing.T) {
 	require.Equal(t, "m.gadt", resolve("main.gad", "./m.gadt")) // an explicit extension is kept
 
 	rels := func(from, pattern string) (out []string) {
-		imp := &importers.FileImporter{WorkDir: dir, From: from}
+		imp := &importers.FileImporter{WorkDir: dir, SourceKind: gad.SourceKindForExt(from)}
 		ms, err := imp.Get(pattern).(gad.GlobExtImporter).Glob()
 		require.NoError(t, err)
 		for _, m := range ms {

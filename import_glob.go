@@ -41,9 +41,9 @@ var SourceExtensions = []string{".gad", ".gadt", ".gadx"}
 var GadxSourceExtensions = []string{".gadx", ".gad", ".gadt"}
 
 // SourceExtensionsFor returns the resolution order for a name written without
-// an extension in the file from (the importing module's path).
-func SourceExtensionsFor(from string) []string {
-	if path.Ext(from) == ".gadx" {
+// an extension in a module of the given dialect: a Gadx module prefers .gadx.
+func SourceExtensionsFor(kind SourceKind) []string {
+	if kind == SourceKindGadx {
 		return GadxSourceExtensions
 	}
 	return SourceExtensions

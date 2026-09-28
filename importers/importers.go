@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/parser"
 )
 
 // FileImporter is an implemention of gad.ExtImporter to import files from file
@@ -35,17 +36,28 @@ type FileImporter struct {
 	// Empty Root keeps the older behaviour, where every name resolved against
 	// WorkDir and nesting shifted what a plain name meant.
 	Root string
-	// From is the path of the importing module: it selects the order a name
-	// written without an extension is resolved in (gad.SourceExtensionsFor —
-	// a .gadx file prefers .gadx). Fork sets it for nested imports.
-	From       string
+	// SourceKind is the dialect of the importing module: it selects the order
+	// a name written without an extension is resolved in
+	// (gad.SourceExtensionsFor — a Gadx module prefers .gadx). Fork derives it
+	// from the imported module's path for nested imports.
+	SourceKind gad.SourceKind
 	FileReader func(string) (data []byte, uri string, err error)
 	// TranspilePath, when set and non-empty for a ".gadx" module, is the output
 	// path its transpiled Gad source is written to on import (see
 	// gad.TranspileGadx).
 	TranspilePath func(srcPath string) string
-	name          string
+	// Inspect, when set, is given every source this importer reads — each
+	// imported module and included file, and so, through Fork, those they
+	// import and include — parsed as the compiler parses it (gad.ParseSource):
+	// an application may look at what the sources say (the calls they make,
+	// where) while they compile. An error it returns fails the import.
+	Inspect InspectFunc
+	name    string
 }
+
+// InspectFunc looks at a source a compilation reads: srcPath is its path, file
+// what it parses to.
+type InspectFunc func(srcPath string, file *parser.File) error
 
 // root reports the boundary for this importer, falling back to WorkDir so that
 // the first fork of an importer created without one still gets a root.
@@ -84,7 +96,7 @@ func (m *FileImporter) Name() (string, error) {
 		return "", nil
 	}
 	if m.NameResolver != nil {
-		exts := gad.SourceExtensionsFor(m.From)
+		exts := gad.SourceExtensionsFor(m.SourceKind)
 		name, err := m.NameResolver(m.WorkDir, m.name)
 		if err != nil && path.Ext(m.name) == "" {
 			// `import("./config")`: retry with each source extension.
@@ -116,7 +128,7 @@ func (m *FileImporter) Name() (string, error) {
 	if p, err := filepath.Abs(pth); err == nil {
 		pth = p
 	}
-	pth = withSourceExt(pth, gad.SourceExtensionsFor(m.From))
+	pth = withSourceExt(pth, gad.SourceExtensionsFor(m.SourceKind))
 
 	if root != "" {
 		absRoot, err := filepath.Abs(root)
@@ -201,7 +213,7 @@ func (m *FileImporter) Glob() ([]gad.GlobMatch, error) {
 
 	depth := gad.GlobDepth(glob)
 	noExt := path.Ext(glob) == ""
-	exts := gad.SourceExtensionsFor(m.From)
+	exts := gad.SourceExtensionsFor(m.SourceKind)
 	byStem := map[string]stemMatch{}
 	var out []gad.GlobMatch
 	err = filepath.WalkDir(baseDir, func(p string, d fs.DirEntry, werr error) error {
@@ -290,6 +302,15 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 			}
 		}
 	}
+	if m.Inspect != nil {
+		file, perr := gad.ParseSource(module.Name, src, kind)
+		if perr != nil {
+			return nil, "", perr
+		}
+		if err = m.Inspect(module.Name, file); err != nil {
+			return nil, "", err
+		}
+	}
 	data = gad.SourceCode{Data: src, Kind: kind}
 	return
 }
@@ -300,14 +321,15 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 	// Note that; moduleName == Literal()
 	return &FileImporter{
-		WorkDir: filepath.Dir(moduleName),
-		From:    moduleName,
+		WorkDir:    filepath.Dir(moduleName),
+		SourceKind: gad.SourceKindForExt(moduleName),
 		// Carried through so nesting never moves the root: a plain name means
 		// the same file however deep the import chain goes.
 		Root:          m.root(),
 		FileReader:    m.FileReader,
 		NameResolver:  m.NameResolver,
 		TranspilePath: m.TranspilePath,
+		Inspect:       m.Inspect,
 	}
 }
 

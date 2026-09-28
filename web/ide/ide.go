@@ -74,7 +74,7 @@ func New(path string) (*Server, error) {
 		}
 		// The file importer compiles imported .gadx modules natively, so nested
 		// .gadx imports work for both plain Gad and Gadx entrypoints.
-		return buildModuleMap(workdir, req.Disabled, req.Safe)
+		return buildModuleMap(workdir, requestSourceType(req.Path, req.SourceType), req.Disabled, req.Safe)
 	}
 	s.dbg.NormalizeFile = s.normalizeDebugFile
 	s.dbg.RelativizeValue = s.relativizeValue

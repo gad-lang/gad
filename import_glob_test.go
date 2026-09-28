@@ -209,7 +209,7 @@ func TestImportGlobDict(t *testing.T) {
 	require.NoError(t, os.WriteFile(main, src, 0o644))
 	builtins := gad.NewBuiltins()
 	opts := gad.CompileOptions{}
-	opts.ModuleMap = gad.NewModuleMap().SetExtImporter(&importers.FileImporter{WorkDir: dir, From: main})
+	opts.ModuleMap = gad.NewModuleMap().SetExtImporter(&importers.FileImporter{WorkDir: dir, SourceKind: gad.SourceKindForExt(main)})
 	opts.ModuleFile = main
 	cr, err := gad.Compile(gad.NewSymbolTable(builtins.NameSet), src, opts)
 	require.NoError(t, err)
@@ -220,4 +220,20 @@ func TestImportGlobDict(t *testing.T) {
 	})
 	require.Contains(t, ops, "DICT")
 	require.NotContains(t, ops, "ASSIGN")
+}
+
+// TestParseSourceKind covers the source-type names the tooling uses.
+func TestParseSourceKind(t *testing.T) {
+	for name, want := range map[string]gad.SourceKind{
+		"gad": gad.SourceKindGad, "gadTemplate": gad.SourceKindGadt, "template": gad.SourceKindGadt,
+		"gadt": gad.SourceKindGadt, "gadx": gad.SourceKindGadx,
+	} {
+		got, ok := gad.ParseSourceKind(name)
+		require.True(t, ok, name)
+		require.Equal(t, want, got, name)
+	}
+	_, ok := gad.ParseSourceKind("js")
+	require.False(t, ok)
+	require.Equal(t, []string{".gadx", ".gad", ".gadt"}, gad.SourceExtensionsFor(gad.SourceKindGadx))
+	require.Equal(t, []string{".gad", ".gadt", ".gadx"}, gad.SourceExtensionsFor(gad.SourceKindGadt))
 }

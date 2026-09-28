@@ -113,10 +113,13 @@ type StartRequest struct {
 	Breakpoints     []int            `json:"breakpoints"`
 	BreakpointSpecs []BreakpointSpec `json:"breakpointSpecs"`
 	StopOnEntry     bool             `json:"stopOnEntry"`
-	Path            string           `json:"path"`     // workspace-relative file, for imports
-	Args            []string         `json:"args"`     // CLI-style positional arguments
-	Disabled        []string         `json:"disabled"` // builtin modules to disable
-	Safe            bool             `json:"safe"`     // disable all unsafe modules
+	Path            string           `json:"path"` // workspace-relative file, for imports
+	// SourceType is the dialect of Source ("gad" | "gadTemplate" | "gadx"), for
+	// the order imports without an extension resolve in (empty: Path's).
+	SourceType string   `json:"sourceType"`
+	Args       []string `json:"args"`     // CLI-style positional arguments
+	Disabled   []string `json:"disabled"` // builtin modules to disable
+	Safe       bool     `json:"safe"`     // disable all unsafe modules
 }
 
 // CommandRequest resumes a session (continue/next/stepIn/stepOut/pause).
