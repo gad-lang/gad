@@ -12,6 +12,15 @@ dict.
 
 @snippet import_module
 
+## Names without an extension
+
+A module name may omit its extension: `import("./mathx")` loads the first
+source that exists, in the importing file's dialect order — `.gad`, `.gadt`,
+`.gadx`; from a `.gadx` file `.gadx` first, then `.gad`, `.gadt`. The same holds
+for `include`.
+
+@snippet import_no_ext
+
 ## Module parameters
 
 Named import args set the module's `param (…)`. A module runs once and is then
@@ -60,6 +69,20 @@ matches when an include that names `_test` itself selects it —
 as `*.gad` does not bring it back.
 
 @snippet import_glob_filters
+
+A glob whose last segment has no extension names **modules**, like an import
+without one: `./plugins/*` matches only Gad sources, by name, and a name
+present in several dialects resolves in the order above (one module per
+name).
+
+## A dict of modules (`::dict`)
+
+Cast to `dict`, a glob import compiles **directly** to a dict — no array is
+built and converted — keyed by each module's name: its path below the
+pattern's static directory, without the extension (`en`, `sub/extra`). Filters
+and params work as before.
+
+@snippet import_glob_dict
 ***/
 
 //snippet import_module
@@ -110,6 +133,22 @@ langs := func(mods) => [m.lang for m in mods]
     langs(import("./plugins/*.gad"; @includes=["*.gad", "*_test.gad"])),
 ]
 /**= [["en"], ["pt"], ["test"], ["en", "test", "pt"]] **/
+//endsnippet
+
+//snippet import_no_ext
+m := import("./mathx")                  // resolves ./mathx.gad
+m.square(4)
+/**= 16 **/
+//endsnippet
+
+//snippet import_glob_dict
+greeters := import("./plugins/*")::dict  // plugins_test.gad is a test file: skipped
+[
+    sort(collect(keys(greeters))),
+    greeters.pt.lang,
+    typeName(greeters),
+]
+/**= [["en", "pt"], "pt", "dict"] **/
 //endsnippet
 
 return mathx.square(7)

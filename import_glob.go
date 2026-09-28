@@ -31,6 +31,37 @@ type GlobExtImporter interface {
 	Glob() ([]GlobMatch, error)
 }
 
+// SourceExtensions are the Gad source extensions, in the order an import or
+// include name written without one is resolved: `import("./config")` loads
+// config.gad, else config.gadt, else config.gadx.
+var SourceExtensions = []string{".gad", ".gadt", ".gadx"}
+
+// GadxSourceExtensions is that order for an import written in a `.gadx` file,
+// which prefers its own dialect: .gadx, then .gad, then .gadt.
+var GadxSourceExtensions = []string{".gadx", ".gad", ".gadt"}
+
+// SourceExtensionsFor returns the resolution order for a name written without
+// an extension in the file from (the importing module's path).
+func SourceExtensionsFor(from string) []string {
+	if path.Ext(from) == ".gadx" {
+		return GadxSourceExtensions
+	}
+	return SourceExtensions
+}
+
+// SourceStem returns the name of a Gad source path without its extension and
+// the extension's rank in exts (see SourceExtensionsFor); ok is false for any
+// other file.
+func SourceStem(name string, exts []string) (stem string, rank int, ok bool) {
+	ext := path.Ext(name)
+	for i, e := range exts {
+		if ext == e {
+			return strings.TrimSuffix(name, ext), i, true
+		}
+	}
+	return name, -1, false
+}
+
 // IsGlobPattern reports whether an import/include path is a glob pattern: it
 // holds a `*`, `?` or `[` meta character.
 func IsGlobPattern(s string) bool {

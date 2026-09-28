@@ -179,3 +179,45 @@ func TestIncludeGlob(t *testing.T) {
 		require.Error(t, err, src)
 	}
 }
+
+// TestImportGlobDict covers `import(glob)::dict`: it compiles straight to a
+// dict (no array, no cast at run time) keyed by each module's name — its path
+// below the pattern's static directory without the source extension — and an
+// extension-less pattern names modules like an import does.
+func TestImportGlobDict(t *testing.T) {
+	dir := globTree(t)
+	for _, c := range []struct {
+		src  string
+		want gad.Object
+	}{
+		{`d := import("./plugins/*")::dict; return [typeName(d), sort(collect(keys(d))), d.a.name]`,
+			gad.Array{gad.Str("dict"), gad.Array{gad.Str("a"), gad.Str("b")}, gad.Str("a")}},
+		{`d := import("./plugins/**/*.gad")::dict; return sort(collect(keys(d)))`,
+			gad.Array{gad.Str("a"), gad.Str("b"), gad.Str("sub/c")}},
+		{`d := import("./plugins/*"; tag="T")::dict; return d.b.label`, gad.Str("T")},
+		{`d := import("./plugins/*"; @excludes=["b.gad"]):::dict; return collect(keys(d))`, gad.Array{gad.Str("a")}},
+		{`return typeName(import("./plugins/*"))`, gad.Str("array")}, // without the cast
+	} {
+		got, err := runGlob(t, dir, c.src)
+		require.NoError(t, err, c.src)
+		require.Equal(t, c.want, got, c.src)
+	}
+
+	// No OpAssign: the dict is built directly.
+	main := filepath.Join(dir, "main.gad")
+	src := []byte(`return import("./plugins/*")::dict`)
+	require.NoError(t, os.WriteFile(main, src, 0o644))
+	builtins := gad.NewBuiltins()
+	opts := gad.CompileOptions{}
+	opts.ModuleMap = gad.NewModuleMap().SetExtImporter(&importers.FileImporter{WorkDir: dir, From: main})
+	opts.ModuleFile = main
+	cr, err := gad.Compile(gad.NewSymbolTable(builtins.NameSet), src, opts)
+	require.NoError(t, err)
+	var ops []string
+	gad.IterateInstructions(cr.Bytecode.Main.Instructions, func(_ int, op gad.Opcode, _ []int, _ int) bool {
+		ops = append(ops, gad.OpcodeNames[op])
+		return true
+	})
+	require.Contains(t, ops, "DICT")
+	require.NotContains(t, ops, "ASSIGN")
+}

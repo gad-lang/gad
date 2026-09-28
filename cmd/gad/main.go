@@ -550,12 +550,20 @@ func defaultSymbolTable(builtins gad.BuiltinsNameSet) *gad.SymbolTable {
 }
 
 func DefaultModuleMap(workdir string, sourcePath *importers.PathList) *gad.ModuleMap {
+	return DefaultModuleMapFrom(workdir, "", sourcePath)
+}
+
+// DefaultModuleMapFrom is DefaultModuleMap for code in the file from: an import
+// written without an extension resolves in that file's dialect order (a .gadx
+// file prefers .gadx; see gad.SourceExtensionsFor).
+func DefaultModuleMapFrom(workdir, from string, sourcePath *importers.PathList) *gad.ModuleMap {
 	mb := helper.NewModuleMapBuilder()
 	mb.Safe = safe
 	mb.Disabled = disabledModules
 	return mb.Build().
 		SetExtImporter(&importers.FileImporter{
 			WorkDir:      workdir,
+			From:         from,
 			FileReader:   importers.ShebangReadFile,
 			NameResolver: importers.OsDirsNameResolverPtr(sourcePath),
 		})
@@ -790,7 +798,7 @@ func (s *Script) execute() error {
 	opts := gad.CompileOptions{
 		CompilerOptions: gad.DefaultCompilerOptions,
 	}
-	opts.ModuleMap = DefaultModuleMap(s.workdir, s.sourcePath)
+	opts.ModuleMap = DefaultModuleMapFrom(s.workdir, s.modulePath, s.sourcePath)
 	opts.EmbededdMap = DefaultEmbedMap(s.workdir)
 
 	// `.gadt` files are templates by convention.

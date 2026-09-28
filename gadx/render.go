@@ -302,8 +302,11 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 	}
 
 	mm := gad.NewModuleMap().SetExtImporter(&importers.FileImporter{
-		WorkDir:       workDir,
-		Root:          root,
+		WorkDir: workDir,
+		Root:    root,
+		// A name without an extension resolves in the entry's dialect order
+		// (.gadx first from a .gadx entry).
+		From:          filePath,
 		FileReader:    tr.Read,
 		TranspilePath: r.TranspilePath,
 	})

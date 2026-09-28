@@ -17,6 +17,19 @@ mathx := import("./mathx.gad")
 // => [3.141592653589793, 49, 27, 12.566370614359172, 12]
 ```
 
+## Names without an extension
+
+A module name may omit its extension: `import("./mathx")` loads the first
+source that exists, in the importing file's dialect order — `.gad`, `.gadt`,
+`.gadx`; from a `.gadx` file `.gadx` first, then `.gad`, `.gadt`. The same holds
+for `include`.
+
+```gad
+m := import("./mathx")                  // resolves ./mathx.gad
+m.square(4)
+// => 16
+```
+
 ## Module parameters
 
 Named import args set the module's `param (…)`. A module runs once and is then
@@ -102,6 +115,28 @@ langs := func(mods) => [m.lang for m in mods]
 // => [["en"], ["pt"], ["test"], ["en", "test", "pt"]]
 ```
 
+A glob whose last segment has no extension names **modules**, like an import
+without one: `./plugins/*` matches only Gad sources, by name, and a name
+present in several dialects resolves in the order above (one module per
+name).
+
+## A dict of modules (`::dict`)
+
+Cast to `dict`, a glob import compiles **directly** to a dict — no array is
+built and converted — keyed by each module's name: its path below the
+pattern's static directory, without the extension (`en`, `sub/extra`). Filters
+and params work as before.
+
+```gad
+greeters := import("./plugins/*")::dict  // plugins_test.gad is a test file: skipped
+[
+    sort(collect(keys(greeters))),
+    greeters.pt.lang,
+    typeName(greeters),
+]
+// => [["en", "pt"], "pt", "dict"]
+```
+
 ## Example — `main.gad`
 
 ```gad
@@ -138,6 +173,16 @@ langs := func(mods) => [m.lang for m in mods]
     langs(import("./plugins/*.gad"; @includes_re=["^p"])),     // pt.gad (not the test file)
     langs(import("./plugins/*.gad"; @includes=["*_test.gad"])), // only the test file
     langs(import("./plugins/*.gad"; @includes=["*.gad", "*_test.gad"])),
+]
+
+m := import("./mathx")                  // resolves ./mathx.gad
+m.square(4)
+
+greeters := import("./plugins/*")::dict  // plugins_test.gad is a test file: skipped
+[
+    sort(collect(keys(greeters))),
+    greeters.pt.lang,
+    typeName(greeters),
 ]
 
 return mathx.square(7)

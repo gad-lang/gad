@@ -34,7 +34,11 @@ type FileImporter struct {
 	//
 	// Empty Root keeps the older behaviour, where every name resolved against
 	// WorkDir and nesting shifted what a plain name meant.
-	Root       string
+	Root string
+	// From is the path of the importing module: it selects the order a name
+	// written without an extension is resolved in (gad.SourceExtensionsFor —
+	// a .gadx file prefers .gadx). Fork sets it for nested imports.
+	From       string
 	FileReader func(string) (data []byte, uri string, err error)
 	// TranspilePath, when set and non-empty for a ".gadx" module, is the output
 	// path its transpiled Gad source is written to on import (see
@@ -80,7 +84,20 @@ func (m *FileImporter) Name() (string, error) {
 		return "", nil
 	}
 	if m.NameResolver != nil {
-		return m.NameResolver(m.WorkDir, m.name)
+		exts := gad.SourceExtensionsFor(m.From)
+		name, err := m.NameResolver(m.WorkDir, m.name)
+		if err != nil && path.Ext(m.name) == "" {
+			// `import("./config")`: retry with each source extension.
+			for _, ext := range exts {
+				if n, e := m.NameResolver(m.WorkDir, m.name+ext); e == nil {
+					return n, nil
+				}
+			}
+		}
+		if err == nil {
+			name = withSourceExt(name, exts)
+		}
+		return name, err
 	}
 
 	pth := m.name
@@ -99,6 +116,7 @@ func (m *FileImporter) Name() (string, error) {
 	if p, err := filepath.Abs(pth); err == nil {
 		pth = p
 	}
+	pth = withSourceExt(pth, gad.SourceExtensionsFor(m.From))
 
 	if root != "" {
 		absRoot, err := filepath.Abs(root)
@@ -112,6 +130,24 @@ func (m *FileImporter) Name() (string, error) {
 	}
 
 	return pth, nil
+}
+
+// withSourceExt resolves a module path written without an extension: when p
+// has none and is not an existing file, the first p+ext of exts that exists is
+// returned; otherwise p itself.
+func withSourceExt(p string, exts []string) string {
+	if filepath.Ext(p) != "" {
+		return p
+	}
+	if st, err := os.Stat(p); err == nil && !st.IsDir() {
+		return p
+	}
+	for _, ext := range exts {
+		if st, err := os.Stat(p + ext); err == nil && !st.IsDir() {
+			return p + ext
+		}
+	}
+	return p
 }
 
 var _ gad.GlobExtImporter = (*FileImporter)(nil)
@@ -164,6 +200,9 @@ func (m *FileImporter) Glob() ([]gad.GlobMatch, error) {
 	}
 
 	depth := gad.GlobDepth(glob)
+	noExt := path.Ext(glob) == ""
+	exts := gad.SourceExtensionsFor(m.From)
+	byStem := map[string]stemMatch{}
 	var out []gad.GlobMatch
 	err = filepath.WalkDir(baseDir, func(p string, d fs.DirEntry, werr error) error {
 		if werr != nil {
@@ -181,17 +220,42 @@ func (m *FileImporter) Glob() ([]gad.GlobMatch, error) {
 			}
 			return nil
 		}
-		if !d.Type().IsRegular() || !gad.MatchGlob(glob, rel) {
+		if !d.Type().IsRegular() {
 			return nil
 		}
-		out = append(out, gad.GlobMatch{Name: p, Rel: rel})
+		// A pattern whose last segment has no extension names MODULES, like an
+		// import without one: `config/*_config` matches config/db_config.gad by
+		// its name, and only Gad sources match.
+		if noExt {
+			if stem, rank, ok := gad.SourceStem(rel, exts); ok && gad.MatchGlob(glob, stem) {
+				if prev, seen := byStem[stem]; !seen || rank < prev.rank {
+					byStem[stem] = stemMatch{gad.GlobMatch{Name: p, Rel: rel}, rank}
+				}
+			}
+			return nil
+		}
+		if gad.MatchGlob(glob, rel) {
+			out = append(out, gad.GlobMatch{Name: p, Rel: rel})
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	// Of the same module name in several dialects the first extension of the
+	// resolution order wins (see gad.SourceExtensionsFor).
+	for _, m := range byStem {
+		out = append(out, m.GlobMatch)
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Rel < out[j].Rel })
 	return out, nil
+}
+
+// stemMatch is a glob match found by its module name (no extension), with the
+// rank of its extension in gad.SourceExtensions.
+type stemMatch struct {
+	gad.GlobMatch
+	rank int
 }
 
 // Import returns the module source paired with its dialect as a gad.SourceCode.
@@ -237,6 +301,7 @@ func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 	// Note that; moduleName == Literal()
 	return &FileImporter{
 		WorkDir: filepath.Dir(moduleName),
+		From:    moduleName,
 		// Carried through so nesting never moves the root: a plain name means
 		// the same file however deep the import chain goes.
 		Root:          m.root(),

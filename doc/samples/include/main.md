@@ -65,7 +65,9 @@ below the pattern's static directory) and `includes_re` / `excludes_re`
 (regular expressions on that path), each a string or an array of strings. They
 apply to every glob path of the statement. As with `import`, **test files are
 skipped by default** — a `*_test` file is included only when an `includes` /
-`includes_re` naming `_test` selects it.
+`includes_re` naming `_test` selects it. A path without an extension resolves
+like an import's (`include ("config")` loads `config.gad`, else `.gadt`, else
+`.gadx`), and an extension-less glob (`parts/*`) matches modules by name.
 
 ```gad
 // 10_colors.gad, then 20_sizes.gad — the draft is filtered out

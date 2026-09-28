@@ -3057,6 +3057,11 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 		return c.Compile(&call)
 	}
 
+	// `import("config/*")::dict` builds the dict of modules directly.
+	if imp := c.globImportDictCast(nd); imp != nil {
+		return c.compileImport(imp, true)
+	}
+
 	if err := c.Compile(nd.LHS); err != nil {
 		return err
 	}
@@ -3730,6 +3735,12 @@ func (c *Compiler) parseIncludeFile(url string, src []byte, kind SourceKind) (*p
 }
 
 func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
+	return c.compileImport(nd, false)
+}
+
+// compileImport compiles an import; asDict (a glob import cast `::dict`) builds
+// a dict of the matched modules instead of an array (see compileGlobImport).
+func (c *Compiler) compileImport(nd *node.ImportExpr, asDict bool) (err error) {
 	moduleName, args := nd.Build()
 	if moduleName == "" {
 		return c.Errorf(nd, "empty module name")
@@ -3742,7 +3753,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 	args.NamedArgs = named
 
 	if IsGlobPattern(moduleName) {
-		return c.compileGlobImport(nd, moduleName, filters, args)
+		return c.compileGlobImport(nd, moduleName, filters, args, asDict)
 	}
 	if !filters.IsZero() {
 		return c.Errorf(nd, "import: the @includes/@excludes filters need a glob pattern (got %q)", moduleName)
@@ -3754,18 +3765,62 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 // pattern matches (sorted by path, narrowed by the @includes/@excludes
 // filters) is imported with the same module args, and the expression yields an
 // array of the imported modules, in that order.
-func (c *Compiler) compileGlobImport(nd *node.ImportExpr, pattern string, filters PathFilters, args node.CallArgs) error {
+//
+// With asDict — the import cast to a dict, `import("config/*")::dict` — it
+// yields a dict instead, built directly (no array to convert): each module
+// keyed by its name, the matched path below the pattern's static directory
+// without the source extension (`db_config`, `sub/cache_config`).
+func (c *Compiler) compileGlobImport(nd *node.ImportExpr, pattern string, filters PathFilters, args node.CallArgs, asDict bool) error {
 	matches, err := c.globMatches(nd, "import", pattern, filters)
 	if err != nil {
 		return err
 	}
 	for _, m := range matches {
+		if asDict {
+			key, _, _ := SourceStem(m.Rel, SourceExtensions) // the rel path when not a source
+			c.emit(nd, OpConstant, c.addConstant(Str(key)))
+		}
 		if err = c.compileImportModule(nd, m.Name, args); err != nil {
 			return err
 		}
 	}
-	c.emit(nd, OpArray, len(matches))
+	if asDict {
+		c.emit(nd, OpDict, len(matches)*2)
+	} else {
+		c.emit(nd, OpArray, len(matches))
+	}
 	return nil
+}
+
+// globImportDictCast reports whether nd is `import(glob…) :: dict` (or `:::`),
+// returning the import: such a cast compiles straight to a dict of the modules.
+func (c *Compiler) globImportDictCast(nd *node.BinaryExpr) *node.ImportExpr {
+	if nd.Token != token.DoubleColon && nd.Token != token.TripleColon {
+		return nil
+	}
+	lhs := nd.LHS
+	for {
+		p, ok := lhs.(*node.ParenExpr)
+		if !ok {
+			break
+		}
+		lhs = p.Expr
+	}
+	imp, ok := lhs.(*node.ImportExpr)
+	if !ok {
+		return nil
+	}
+	if name, _ := imp.Build(); !IsGlobPattern(name) {
+		return nil
+	}
+	id, ok := nd.RHS.(*node.IdentExpr)
+	if !ok || id.Name != "dict" {
+		return nil
+	}
+	if sym, ok := c.symbolTable.Resolve(id.Name); !ok || sym.Scope != ScopeBuiltin {
+		return nil // a local `dict` shadows the builtin type
+	}
+	return imp
 }
 
 // compileImportModule compiles the import of one module by name (a registered

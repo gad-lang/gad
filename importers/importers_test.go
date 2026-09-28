@@ -263,3 +263,41 @@ func TestFileImporterGlob(t *testing.T) {
 	require.Equal(t, []string{"x/c.gad"}, rels("m/*/*.gad"))
 	require.Empty(t, rels("./missing/*.gad"))
 }
+
+// TestFileImporterSourceExtensionOrder verifies a name written without an
+// extension resolves to the first existing source in the importing file's
+// dialect order — .gad, .gadt, .gadx; from a .gadx file .gadx, .gad, .gadt —
+// and that an extension-less glob matches modules by name, one per name.
+func TestFileImporterSourceExtensionOrder(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"m.gad", "m.gadt", "m.gadx", "only.gadt", "x_cfg.gad", "y_cfg.gadx", "note.txt"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), nil, 0o644))
+	}
+	resolve := func(from, name string) string {
+		imp := &importers.FileImporter{WorkDir: dir, From: from}
+		got, err := imp.Get(name).Name()
+		require.NoError(t, err)
+		return filepath.Base(got)
+	}
+	require.Equal(t, "m.gad", resolve("main.gad", "./m"))
+	require.Equal(t, "m.gad", resolve("", "./m"))
+	require.Equal(t, "m.gadx", resolve("page.gadx", "./m"))
+	require.Equal(t, "only.gadt", resolve("page.gadx", "./only"))
+	require.Equal(t, "m.gadt", resolve("main.gad", "./m.gadt")) // an explicit extension is kept
+
+	rels := func(from, pattern string) (out []string) {
+		imp := &importers.FileImporter{WorkDir: dir, From: from}
+		ms, err := imp.Get(pattern).(gad.GlobExtImporter).Glob()
+		require.NoError(t, err)
+		for _, m := range ms {
+			out = append(out, m.Rel)
+		}
+		return
+	}
+	// `*` without an extension: modules only (not note.txt), one per name
+	require.Equal(t, []string{"m.gad", "only.gadt", "x_cfg.gad", "y_cfg.gadx"}, rels("main.gad", "./*"))
+	require.Equal(t, []string{"m.gadx", "only.gadt", "x_cfg.gad", "y_cfg.gadx"}, rels("page.gadx", "./*"))
+	require.Equal(t, []string{"x_cfg.gad", "y_cfg.gadx"}, rels("main.gad", "./*_cfg"))
+	// with an extension the pattern matches file names as written
+	require.Equal(t, []string{"note.txt"}, rels("main.gad", "./*.txt"))
+}
