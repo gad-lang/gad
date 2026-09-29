@@ -81,6 +81,9 @@ type Symbol struct {
 	Assigned bool
 	Constant bool
 	Original *Symbol
+	// hoistPending marks a const the block declared at its start whose
+	// declaration has not assigned it yet (compiler_hoist.go).
+	hoistPending bool
 }
 
 func (s *Symbol) String() string {

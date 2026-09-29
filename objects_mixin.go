@@ -68,17 +68,21 @@ type Mixin struct {
 // through the defineFn call, mirroring the class `Class(name, (Type, define) =>
 // …)` protocol.
 func NewMixinFunc(c Call) (ret Object, err error) {
+	// the name, or the mixin made before, empty, to define (compiler_hoist.go)
 	nameArg := &Arg{
 		Name:          "name",
-		TypeAssertion: TypeAssertionFromTypes(TStr),
+		TypeAssertion: TypeAssertionFromTypes(TStr, TMixin),
 	}
 	rest, err := c.Args.DestructureRangeVar(1, nameArg)
 	if err != nil {
 		return
 	}
 
-	m := &Mixin{name: string(nameArg.Value.(Str)), module: c.VM.CurrentModuleSpec()}
-	m.class = NewClass(m.name, m.module)
+	m, made := nameArg.Value.(*Mixin)
+	if !made {
+		m = &Mixin{name: string(nameArg.Value.(Str)), module: c.VM.CurrentModuleSpec()}
+		m.class = NewClass(m.name, m.module)
+	}
 
 	if len(rest) > 0 {
 		handler, ok := rest[0].(CallerObject)

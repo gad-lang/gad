@@ -1256,6 +1256,12 @@ func (c *Compiler) compileDefine(
 	keyword token.Token,
 ) error {
 	symbol, exists := c.symbolTable.DefineLocal(ident)
+	if exists && symbol.hoistPending && keyword == token.Const {
+		// a const the block declared at its start: assigned here
+		symbol.hoistPending = false
+		c.emit(nd, OpSetLocal, symbol.Index)
+		return nil
+	}
 	if !allowRedefine && exists && ident != "_" {
 		return c.Errorf(nd, "%q redeclared in this block", ident)
 	}
@@ -3515,13 +3521,17 @@ func (c *Compiler) compileFileStmts(stmts node.Stmts) (err error) {
 	if lastExport < 0 {
 		return c.compileStmts(stmts...)
 	}
-	if err = c.compileStmts(stmts[:lastExport+1]...); err != nil {
-		return
-	}
-	if err = c.flushExports(stmts[lastExport]); err != nil {
-		return
-	}
-	return c.compileStmts(stmts[lastExport+1:]...)
+	// one list — its consts visible in the whole file —, the exports flushed
+	// after the last one
+	return c.hoisted(stmts, func() error {
+		if err := c.compileStmtList(stmts[:lastExport+1]...); err != nil {
+			return err
+		}
+		if err := c.flushExports(stmts[lastExport]); err != nil {
+			return err
+		}
+		return c.compileStmtList(stmts[lastExport+1:]...)
+	})
 }
 
 func (c *Compiler) defineModule(module *ModuleSpec) *storeItem {
@@ -4629,6 +4639,9 @@ func (c *Compiler) flushExports(nd ast.Node) error {
 	if len(c.pendingExports) > 0 {
 		dict := &node.DictExpr{Elements: c.pendingExports}
 		c.pendingExports = nil
+		if err := c.hoistExported(dict); err != nil {
+			return err
+		}
 		if err := c.Compile(dict); err != nil {
 			return err
 		}
@@ -4638,6 +4651,9 @@ func (c *Compiler) flushExports(nd ast.Node) error {
 	if len(c.pendingConstExports) > 0 {
 		dict := &node.DictExpr{Elements: c.pendingConstExports}
 		c.pendingConstExports = nil
+		if err := c.hoistExported(dict); err != nil {
+			return err
+		}
 		if err := c.Compile(dict); err != nil {
 			return err
 		}

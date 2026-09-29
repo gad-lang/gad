@@ -444,17 +444,22 @@ func NewPrinterStateFunc(c Call) (ret Object, err error) {
 func NewClassFunc(c Call) (ret Object, err error) {
 	nameArg := &Arg{
 		Name:          "name",
-		TypeAssertion: TypeAssertionFromTypes(TStr),
+		TypeAssertion: TypeAssertionFromTypes(TStr, TClass),
 	}
 
 	// `Class(name)` or `Class(name, define)`: name is required; the define
-	// handler is an optional second positional argument.
+	// handler is an optional second positional argument. In place of the name,
+	// a class made before, empty, to define: a class a block declares is made
+	// at its start (compiler_hoist.go).
 	rest, err := c.Args.DestructureRangeVar(1, nameArg)
 	if err != nil {
 		return
 	}
 
-	t := NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModuleSpec())
+	t, made := nameArg.Value.(*Class)
+	if !made {
+		t = NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModuleSpec())
+	}
 
 	// The define-handler form `Class(name, (Type, define) => define(; …))` builds
 	// the class through the handler, which receives the class as Type and a

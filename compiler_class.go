@@ -17,6 +17,10 @@ func (c *Compiler) compileClassStmt(nd *node.TypeDeclStmt) error {
 	if err != nil {
 		return err
 	}
+	if c.hoistedType(name.Name) != nil {
+		// the block made it, empty (compiler_hoist.go): define that one
+		call.Args.Values[0] = name
+	}
 	return c.Compile(&node.DeclStmt{
 		Decl: &node.GenDecl{
 			Tok: token.Const,

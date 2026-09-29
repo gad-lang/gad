@@ -61,6 +61,27 @@ right-hand-side expression.
 
 @snippet const
 
+### A const is visible in its whole block
+
+A `const` may be used before it is written: it is visible in the whole block it
+is declared in. The named declarations are consts too — `func`, `class`,
+`mixin`, `type` (a marker type, a typed array, a type union), `interface`,
+`meti` and `enum` —, so they may be written in any order and refer to one
+another.
+
+A const is assigned where it is written, unless something before needs its
+value: then it is assigned first, right before that (and what it needs, in
+turn). A class, a mixin and a marker type exist from the start of the block and
+are defined where they are written, so they may refer to each other in a cycle;
+extending a class, or using a mixin, needs its definition.
+
+@snippet const_order
+
+A cycle of values (`const a = b; const b = a`) is a compile error, and so is a
+const needed before a variable its value uses is declared. A const using `iota`,
+repeating the value before it, or destructuring is visible from its declaration
+on, as a `var` is.
+
 ## Scopes and capturing
 
 Inner functions capture variables from enclosing scopes; re-declaring a name with
@@ -99,6 +120,23 @@ const box = {foo: "bar"}
 box.foo = "baz"                   // ok: the binding is read-only, the dict is not
 [i0, i1, i2, bit1, bit2, bit4, box.foo]
 /**= [0, 1, 2, 1, 2, 4, "baz"] **/
+//endsnippet
+
+//snippet const_order
+x := twice(k)          // k and twice are declared below
+func twice(n) => n * 2
+const k = 21
+
+class Node {
+    use Named                   // Named is declared below
+    children? Nodes             // Nodes too…
+}
+type Nodes []Node               // …an array of Node
+mixin Named { name = "?" }
+
+n := Node(;name="root", children=Nodes(Node()))
+[x, n.name, len(n.children)]
+/**= [42, "root", 1] **/
 //endsnippet
 
 //snippet scopes

@@ -42,14 +42,18 @@ func NewStaticType(name string) *StaticType {
 // literal lowers to: name is required; the optional define handler receives the
 // in-construction type and a `define` function that populates it (see Define).
 func NewStaticTypeFunc(c Call) (ret Object, err error) {
-	nameArg := &Arg{Name: "name", TypeAssertion: TypeAssertionFromTypes(TStr)}
+	// the name, or the type made before, empty, to define (compiler_hoist.go)
+	nameArg := &Arg{Name: "name", TypeAssertion: TypeAssertionFromTypes(TStr, TStaticType)}
 	rest, err := c.Args.DestructureRangeVar(1, nameArg)
 	if err != nil {
 		return
 	}
 
-	t := NewStaticType(string(nameArg.Value.(Str)))
-	t.module = c.VM.CurrentModuleSpec()
+	t, made := nameArg.Value.(*StaticType)
+	if !made {
+		t = NewStaticType(string(nameArg.Value.(Str)))
+		t.module = c.VM.CurrentModuleSpec()
+	}
 
 	if len(rest) > 0 {
 		handler, ok := rest[0].(CallerObject)

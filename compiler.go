@@ -94,7 +94,10 @@ type (
 		// ifaceSpread counts the `**Expr` items of an interface being compiled:
 		// a func header written in one may take a `@self` param, as one in
 		// `funcs { … }` does.
-		ifaceSpread          int
+		ifaceSpread int
+		// hoist are the consts of the statement list being compiled, visible
+		// in the whole list (compiler_hoist.go); nil when it has none.
+		hoist                *hoistScope
 		funcHeaderIndex      uint
 		methodInterfaceIndex uint
 		interfaceIndex       uint
@@ -587,6 +590,12 @@ func (c *Compiler) Bytecode() *Bytecode {
 
 // CompileStmts compiles parser.Stmt and builds Bytecode.
 func (c *Compiler) compileStmts(stmt ...node.Stmt) (err error) {
+	return c.hoisted(stmt, func() error { return c.compileStmtList(stmt...) })
+}
+
+// compileStmtList compiles the statements of a list whose consts are
+// c.hoist.
+func (c *Compiler) compileStmtList(stmt ...node.Stmt) (err error) {
 	l := len(stmt)
 
 	if l == 0 {
@@ -605,6 +614,12 @@ stmts:
 					j++
 				default:
 					break l2
+				}
+			}
+
+			for _, s := range stmt[i:j] {
+				if _, err = c.hoistStmt(s); err != nil {
+					return
 				}
 			}
 
@@ -653,6 +668,13 @@ stmts:
 			i = j - 1
 			continue stmts
 		default:
+			var done bool
+			if done, err = c.hoistStmt(stmt[i]); err != nil || done {
+				if err != nil {
+					return
+				}
+				continue
+			}
 			if err = c.Compile(stmt[i]); err != nil {
 				return
 			}
