@@ -117,10 +117,12 @@ interface Tagged { name str; tag? int|str }
 // => [3, "b", "c"]
 ```
 
-A `**name` member is a **rest capture** used with the transforming cast
+A `**<name>` member is a **rest capture** used with the transforming cast
 [`:::`](transform_cast_test.gad): `d ::: interface { … }` coerces the source's
 class/interface-typed fields into their declared shape and gathers the keys not
-named by the interface into a dict bound to `name`.
+named by the interface into a dict bound to `name`. (A `**Expr` member — any
+expression, a bare name included — is something else: members given at run
+time, see [below](#members-given-at-run-time--expr).)
 
 `[]` written after the interface's name makes it a **array interface**, matching
 an **array** of satisfying elements: `interface P [] { … }` a flat array,
@@ -228,6 +230,60 @@ fitsIface := func(v, T) { try { v :: T; return true } catch { return false } }
     len(Associate.@flat.fields),  // name, age, tags, id
 ]
 // => [true, false, true, 2, 4]
+```
+
+## Members given at run time (`**Expr`)
+
+A body item `**Expr` adds the members EXPR gives where the interface is
+declared, right after its fields — for what is only known then. EXPR is any
+expression (a bare name included; the rest capture is `**<name>`), evaluating
+to a dict (or a key-value array) of:
+
+| Key | Holds |
+| --- | --- |
+| `fields` | a name to its type, a list of types, nil (untyped), or a spec `(; types=[…], nullable=true, meta=(; …))` |
+| `methods` | a name to a func header `<(…) <…>>`, or a list of them (its overloads) |
+| `props` | a name to a type (`prop name T`: a getter and a setter of it), a func header (the getter), or a spec `(; get=<…>, set=[<…>], meta=(; …))` |
+| `funcs` | a name to the context function (required to exist), or a spec `(; fn=…, headers=[<(… @self)>])` |
+
+In a dict the members come in the order of their names; in a key-value array,
+in its own. A header written in a spread may name the interface `@self`, as one
+in `funcs { … }` does. A `nil` spread adds nothing; an interface written as a
+type (a field's `x interface { … }`) is a constant, and takes none.
+
+```gad
+// what a glob import of plugins would give: a field per plugin
+plugins := {pt: 1, en: 2}
+langFields := {}
+for name, _ in plugins { langFields[name] = (; types=[bool], nullable=true) }
+interface Languages {
+    default str
+    **{fields: langFields}
+}
+names := []
+for f in Languages.@flat.fields { names += f.name }
+[
+    ({default: "pt", pt: true}) :: Languages != nil,
+    names,
+]
+// => [true, ["default", "en", "pt"]]
+```
+
+```gad
+render := func(indent int, obj) => "<" + str(indent) + ">"
+extra := {methods: {area: <() <float>>}, props: {label: <() <str>>}}
+interface Shape {
+    name str
+    **extra
+    **{funcs: {render: (; fn=render, headers=[<(indent int, @self)>])}}
+}
+class Square { name str; methods { area() => 4.0 }; props { label = "square" } }
+rejects := func(f) { try { f(); return false } catch { return true } }
+[
+    typeName(Square(; name="s") :: Shape),
+    rejects(() => ({name: "x"}) :: Shape),   // no area, no label
+]
+// => ["Square", true]
 ```
 
 ## Flattening (`iface.@flat`)
@@ -495,6 +551,35 @@ flat := Seeker.@flat
     str((interface { get x int; set x int }).@flat.props[0]),          // same type
     str((interface { get x int; set x str; set x }).@flat.props[0]),   // mixed types
     interface { *HasRun; get run int }.@flat or "conflict rejected",   // run(): method vs getter
+]
+
+// what a glob import of plugins would give: a field per plugin
+plugins := {pt: 1, en: 2}
+langFields := {}
+for name, _ in plugins { langFields[name] = (; types=[bool], nullable=true) }
+interface Languages {
+    default str
+    **{fields: langFields}
+}
+names := []
+for f in Languages.@flat.fields { names += f.name }
+[
+    ({default: "pt", pt: true}) :: Languages != nil,
+    names,
+]
+
+render := func(indent int, obj) => "<" + str(indent) + ">"
+extra := {methods: {area: <() <float>>}, props: {label: <() <str>>}}
+interface Shape {
+    name str
+    **extra
+    **{funcs: {render: (; fn=render, headers=[<(indent int, @self)>])}}
+}
+class Square { name str; methods { area() => 4.0 }; props { label = "square" } }
+rejects := func(f) { try { f(); return false } catch { return true } }
+[
+    typeName(Square(; name="s") :: Shape),
+    rejects(() => ({name: "x"}) :: Shape),   // no area, no label
 ]
 
 interface HasName { name str }

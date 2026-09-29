@@ -60,10 +60,10 @@ func TestParseFieldClass(t *testing.T) {
 	}
 }
 
-// `** EXPR` in a class body is a spread item: any expression, several, beside
+// `**Expr` in a class body is a spread item: any expression, several, beside
 // the fields.
 func TestParseClassSpread(t *testing.T) {
-	cls := parseClass(t, "class O { a int; ** extra; ** {fields: {b: 1}} + more\n c str }")
+	cls := parseClass(t, "class O { a int; **extra; ** {fields: {b: 1}} + more\n c str }")
 	if len(cls.Spreads) != 2 || len(cls.Fields) != 2 {
 		t.Fatalf("spreads %d, fields %d", len(cls.Spreads), len(cls.Fields))
 	}
@@ -75,7 +75,7 @@ func TestParseClassSpread(t *testing.T) {
 	}
 
 	// `*Parent` is still a parent
-	cls = parseClass(t, "class O { *P; ** x }")
+	cls = parseClass(t, "class O { *P; **x }")
 	if len(cls.Parents) != 1 || len(cls.Spreads) != 1 {
 		t.Errorf("parents %d, spreads %d", len(cls.Parents), len(cls.Spreads))
 	}
@@ -89,9 +89,9 @@ func TestParseClassSpread(t *testing.T) {
 // A spread is written back as it was, after the fields; the formatting is
 // stable.
 func TestFormatClassSpread(t *testing.T) {
-	test.New(t, `class O { a str; ** extra }`).
+	test.New(t, `class O { a str; **extra }`).
 		Code(`class O {a str; **extra}`).
 		FormattedCode("class O {\n\ta str\n\t**extra\n}")
-	test.New(t, `class O { ** {fields: {b: 1}} }`).
+	test.New(t, `class O { **{fields: {b: 1}} }`).
 		Code(`class O {**{ fields: { b: 1 } }}`)
 }

@@ -130,7 +130,7 @@ type Interface struct {
 	// captured value (bound at run time, see OpInterfaceBind) must have a
 	// signature matching each header, with `@self` standing for this interface.
 	ContextFuncs []*InterfaceContextFunc
-	// Rest is the `**name` rest-capture field name: on a dict cast (`d :: I`) the
+	// Rest is the `**<name>` rest-capture field name: on a dict cast (`d ::: I`) the
 	// keys not named by the interface are gathered into a dict bound to this name
 	// in the result. Empty when the interface has no `**` member.
 	Rest string

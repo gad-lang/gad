@@ -181,7 +181,7 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 		}()
 	}
 
-	// `** EXPR` — members given at run time: EXPR is `{fields: …, methods: …,
+	// `**Expr` — members given at run time: EXPR is `{fields: …, methods: …,
 	// props: …}`, added after the declared ones (classes only).
 	if p.Token.Token == token.Pow {
 		p.Next()

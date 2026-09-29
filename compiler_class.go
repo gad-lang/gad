@@ -111,7 +111,7 @@ func (c *Compiler) classCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 		inner.AppendS("new", classNewExpr(nd))
 	}
 	if len(nd.Spreads) > 0 {
-		// `** EXPR`: the members EXPR gives, added last (Class.Define)
+		// `**Expr`: the members EXPR gives, added last (Class.Define)
 		inner.AppendS("spread", &node.ArrayExpr{Elements: nd.Spreads})
 	}
 

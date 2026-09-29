@@ -1,7 +1,7 @@
 
-# Members given at run time (`** EXPR`)
+# Members given at run time (`**Expr`)
 
-A class body item `** EXPR` adds the members EXPR gives when the class is
+A class body item `**Expr` adds the members EXPR gives when the class is
 declared, after the members it declares — for what is only known then: the
 modules a glob import found, the options a plugin brings. A class may have
 several; they are applied in order.
@@ -22,13 +22,16 @@ Fields given as a **dict** come in the order of their names (a dict has no
 order of its own); given as a **key-value array** `(; …)`, in its order. The
 declared fields always come first.
 
+An interface takes `**Expr` too, with `fields`, `methods`, `props` and
+`funcs`: see [interfaces](../interfaces.gad#members-given-at-run-time--expr).
+
 ## Fields
 
 ```gad
 defaults := {columns: 3, rows: 2}
 class Grid {
     name str = "grid"
-    ** {fields: defaults + {gap: 8}}
+    **{fields: defaults + {gap: 8}}
 }
 g := Grid(; rows = 4)
 [g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
@@ -43,7 +46,7 @@ extra := {fields: (;
     size=(; types=[int], default=10),
 )}
 class Box {
-    ** extra
+    **extra
 }
 rejects := func(f) { try { f(); return false } catch { return true } }
 [
@@ -60,8 +63,8 @@ rejects := func(f) { try { f(); return false } catch { return true } }
 ```gad
 class Counter {
     n int = 0
-    ** {methods: [twice(this) => this.n * 2]}
-    ** {props: {label: func { (this) => "counter " + str(this.n) }}}
+    **{methods: [twice(this) => this.n * 2]}
+    **{props: {label: func { (this) => "counter " + str(this.n) }}}
 }
 c := Counter(; n = 21)
 [c.twice(), c.label]
@@ -78,7 +81,7 @@ for name, _ in plugins {
     langFields[name] = (; types=[bool], default=false)
 }
 class Languages {
-    ** {fields: langFields}
+    **{fields: langFields}
 }
 l := Languages(; pt = true)
 [l.en, l.pt, collect(keys(Languages.@fields)).|sort]
@@ -93,7 +96,7 @@ array is an error.
 ```gad
 class Plain {
     a = 1
-    ** nil
+    **nil
 }
 [Plain().a, collect(keys(Plain.@fields))]
 // => [1, ["a"]]
@@ -105,7 +108,7 @@ class Plain {
 defaults := {columns: 3, rows: 2}
 class Grid {
     name str = "grid"
-    ** {fields: defaults + {gap: 8}}
+    **{fields: defaults + {gap: 8}}
 }
 g := Grid(; rows = 4)
 [g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
@@ -115,7 +118,7 @@ extra := {fields: (;
     size=(; types=[int], default=10),
 )}
 class Box {
-    ** extra
+    **extra
 }
 rejects := func(f) { try { f(); return false } catch { return true } }
 [
@@ -127,8 +130,8 @@ rejects := func(f) { try { f(); return false } catch { return true } }
 
 class Counter {
     n int = 0
-    ** {methods: [twice(this) => this.n * 2]}
-    ** {props: {label: func { (this) => "counter " + str(this.n) }}}
+    **{methods: [twice(this) => this.n * 2]}
+    **{props: {label: func { (this) => "counter " + str(this.n) }}}
 }
 c := Counter(; n = 21)
 [c.twice(), c.label]
@@ -140,14 +143,14 @@ for name, _ in plugins {
     langFields[name] = (; types=[bool], default=false)
 }
 class Languages {
-    ** {fields: langFields}
+    **{fields: langFields}
 }
 l := Languages(; pt = true)
 [l.en, l.pt, collect(keys(Languages.@fields)).|sort]
 
 class Plain {
     a = 1
-    ** nil
+    **nil
 }
 [Plain().a, collect(keys(Plain.@fields))]
 ```

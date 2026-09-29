@@ -3,7 +3,7 @@
 Classes — `@class IDENT { … }`, and `@export class IDENT { … }` for one the
 module exports. The body is a Gad class body — fields with their types,
 defaults and `[k=v]` metadata, `props`, `methods`, `new`, a field typed by an
-anonymous class (`a class { … }`), members given at run time (`** EXPR`) — and
+anonymous class (`a class { … }`), members given at run time (`**Expr`) — and
 may span lines up to the balanced `}`. Each compiles to a Gad `class IDENT { … }`
 statement (exported, to `export IDENT` too), so a module importing this one
 reads `mod.PageOptions` as any class. Render @main to see the values.
@@ -37,7 +37,7 @@ reads `mod.PageOptions` as any class. Render @main to see the values.
 		layout? listLayout
 		perPage int = 10
 	}
-	** {fields: {module: (; types=[str], nullable=true, meta=(; options=collect(keys(MODULES)).|sort))}}
+	**{fields: {module: (; types=[str], nullable=true, meta=(; options=collect(keys(MODULES)).|sort))}}
 }
 
 @main

@@ -70,10 +70,10 @@ func parsedClass(t *testing.T, src string) *node.TypeLitExpr {
 	return &f.Stmts[0].(*node.TypeDeclStmt).TypeLitExpr
 }
 
-// `** EXPR` lowers to the define call's `spread` argument, the expressions in
+// `**Expr` lowers to the define call's `spread` argument, the expressions in
 // order, after the declared members.
 func TestCompileClassSpreadLowering(t *testing.T) {
-	lit := parsedClass(t, "class O { a = 1; ** one; ** two }")
+	lit := parsedClass(t, "class O { a = 1; **one; ** two }")
 	call, err := (&Compiler{}).classCallExpr(lit)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +87,7 @@ func TestCompileClassSpreadLowering(t *testing.T) {
 	}
 
 	// only spreads: the class still gets its define handler
-	lit = parsedClass(t, "class O { ** one; ** two }")
+	lit = parsedClass(t, "class O { **one; ** two }")
 	call, err = (&Compiler{}).classCallExpr(lit)
 	if err != nil {
 		t.Fatal(err)
@@ -97,12 +97,12 @@ func TestCompileClassSpreadLowering(t *testing.T) {
 	}
 }
 
-// A class with `** EXPR` and anonymous field classes compiles to bytecode that
+// A class with `**Expr` and anonymous field classes compiles to bytecode that
 // runs, the spread evaluated where the class is declared.
 func TestCompileClassSpreadEvaluatedAtDeclaration(t *testing.T) {
 	res := compileFile(t, `n := 0
 f := func() { n++; return {fields: {v: n}} }
-class O { ** f() }
+class O { **f() }
 return [O().v, O().v, n]`)
 	ret, err := NewVM(NewBuiltins().Build(), res.Bytecode).Run()
 	if err != nil {

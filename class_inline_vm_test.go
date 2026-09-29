@@ -34,35 +34,35 @@ func TestVMFieldClass(t *testing.T) {
 		nil, Array{Str("A.b.c.d"), Int(5)})
 }
 
-// `** EXPR` adds the members EXPR gives at run time, after the declared ones:
+// `**Expr` adds the members EXPR gives at run time, after the declared ones:
 // fields — a name to a default, or to a spec (types, nullable, meta, default)
 // —, methods and props; several apply in order; nil adds nothing.
 func TestVMClassSpread(t *testing.T) {
 	// fields: a dict, by the order of its names, after the declared ones
-	testExpectRun(t, `class G { name str = "g"; ** {fields: {rows: 2, cols: 3}} }
+	testExpectRun(t, `class G { name str = "g"; **{fields: {rows: 2, cols: 3}} }
 		g := G(; rows=4); return [g.name, g.cols, g.rows]`,
 		nil, Array{Str("g"), Int(3), Int(4)})
 	// a spec: types enforced, nullable, default
-	testExpectRun(t, `class B { ** {fields: (; title=(; types=[str], nullable=true), size=(; types=[int], default=10))} }
+	testExpectRun(t, `class B { **{fields: (; title=(; types=[str], nullable=true), size=(; types=[int], default=10))} }
 		return [B().title, B().size, B(; size=2).size]`,
 		nil, Array{Nil, Int(10), Int(2)})
-	expectErrHas(t, `class B { ** {fields: (; size=(; types=[int]))} }; return B(; size="x")`,
+	expectErrHas(t, `class B { **{fields: (; size=(; types=[int]))} }; return B(; size="x")`,
 		nil, `field "size" expects int, got str`)
 	// methods and props
-	testExpectRun(t, `class C { n int = 0; ** {methods: [twice(this) => this.n * 2]}; ** {props: {label: func { (this) => "n" + str(this.n) }}} }
+	testExpectRun(t, `class C { n int = 0; **{methods: [twice(this) => this.n * 2]}; **{props: {label: func { (this) => "n" + str(this.n) }}} }
 		c := C(; n=21); return [c.twice(), c.label]`,
 		nil, Array{Int(42), Str("n21")})
 	// built at run time, from what a loop found
 	testExpectRun(t, `mods := {pt: 1, en: 2}; f := {}; for k, _ in mods { f[k] = (; types=[bool], default=false) }
-		class L { ** {fields: f} }; l := L(; pt=true); return [l.en, l.pt]`,
+		class L { **{fields: f} }; l := L(; pt=true); return [l.en, l.pt]`,
 		nil, Array{False, True})
 	// nil adds nothing
-	testExpectRun(t, `class P { a = 1; ** nil }; return P().a`, nil, Int(1))
+	testExpectRun(t, `class P { a = 1; **nil }; return P().a`, nil, Int(1))
 	// anything else is an error
-	expectErrHas(t, `class P { ** 1 }; return P`, nil, `** expects a dict of fields, methods and props, got int`)
-	expectErrHas(t, `class P { ** {fields: (; x=(; types=[1]))} }; return P`, nil, `field "x": int is not a type`)
+	expectErrHas(t, `class P { ** 1 }; return P`, nil, `**Expr expects a dict of fields, methods and props, got int`)
+	expectErrHas(t, `class P { **{fields: (; x=(; types=[1]))} }; return P`, nil, `field "x": int is not a type`)
 	// in an anonymous class too
-	testExpectRun(t, `c := class { ** {fields: {v: 7}} }; return c().v`, nil, Int(7))
+	testExpectRun(t, `c := class { **{fields: {v: 7}} }; return c().v`, nil, Int(7))
 }
 
 // The fields a class gives at run time are its fields as the declared ones
@@ -70,8 +70,8 @@ func TestVMClassSpread(t *testing.T) {
 func TestVMClassSpreadRawFields(t *testing.T) {
 	src := `class O {
     name str = "x"
-    ** {fields: (; columns=3, title=(; types=[str], nullable=true, meta=(; label="Título")))}
-    ** {fields: {z: 1, a: 2}}
+    **{fields: (; columns=3, title=(; types=[str], nullable=true, meta=(; label="Título")))}
+    **{fields: {z: 1, a: 2}}
 }
 return O`
 	st := NewSymbolTable(NewBuiltins().NameSet)

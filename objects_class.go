@@ -742,7 +742,7 @@ func (t *Class) Define(c Call) (err error) {
 			},
 		}
 
-		// spread are the `** EXPR` body items: each a dict (or key-value array)
+		// spread are the `**Expr` body items: each a dict (or key-value array)
 		// of fields, methods and props, added after the declared members.
 		spread = &NamedArgVar{
 			Name:          "spread",
@@ -1362,7 +1362,7 @@ func (t *Class) CallAddFields(call Call) (err error) {
 						f.Value = kv.V
 					}
 				case "types":
-					// the spec of a field given at run time (`** EXPR`), which
+					// the spec of a field given at run time (`**Expr`), which
 					// has no typed name to carry them
 					types, _ := kv.V.(Array)
 					for _, typ := range types {
@@ -1408,7 +1408,7 @@ func fieldItems(o Object) KeyValueArray {
 	return nil
 }
 
-// addSpread adds the members a `** EXPR` class body item gives: EXPR is a dict
+// addSpread adds the members a `**Expr` class body item gives: EXPR is a dict
 // (or a key-value array) of `fields` (as the declared ones are given — a name
 // to a default, or to a spec `(; types=[…], nullable=true, meta=(; …),
 // default=…)`), `methods` and `props`.
@@ -1429,7 +1429,7 @@ func (t *Class) addSpread(vm *VM, item Object) error {
 	case *NilType:
 		return nil
 	default:
-		return ErrType.NewError(fmt.Sprintf("class %s: ** expects a dict of fields, methods and props, got %s",
+		return ErrType.NewError(fmt.Sprintf("class %s: **Expr expects a dict of fields, methods and props, got %s",
 			t.Name(), item.Type().Name()))
 	}
 	if f := get("fields"); f != nil && f != Nil {

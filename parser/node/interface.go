@@ -179,11 +179,15 @@ type InterfaceExpr struct {
 	Members      []*InterfaceMemberExpr      // fields, getters, setters, props (source order)
 	Methods      []*InterfaceMethodExpr      // required methods (one or more signatures each)
 	ContextFuncs []*InterfaceContextFuncExpr // context-function checks (`funcs { … }`)
-	// Rest is the `**name` rest-capture field: when the interface is used to cast
-	// a dict (`d :: I`), keys not named by the interface are collected into a dict
-	// bound to this name in the result. Nil when the interface has no `**` member.
+	// Rest is the `**<name>` rest-capture field: when the interface is used to
+	// cast a dict (`d ::: I`), keys not named by the interface are collected into
+	// a dict bound to this name in the result. Nil when the interface has none.
 	Rest    *IdentExpr
 	RestDoc *ast.CommentGroup
+	// Spreads are the `**Expr` body items: members given at run time, EXPR
+	// evaluating to `{fields: …, methods: …}`, added where the interface is
+	// declared (see InterfaceSpread).
+	Spreads []Expr
 	LBrace  source.Pos
 	RBrace  source.Pos
 	Doc     *ast.CommentGroup // doc comment preceding the interface; or nil
@@ -416,18 +420,36 @@ func writeInterfaceBody(ctx *CodeWriteContext, e *InterfaceExpr) {
 		ctx.WriteString(p.String())
 		ctx.WriteSemi()
 	}
+	spreadsDone := false
+	writeSpreads := func() {
+		if spreadsDone {
+			return
+		}
+		spreadsDone = true
+		for _, sp := range e.Spreads {
+			ctx.WriteString("**")
+			sp.WriteCode(ctx)
+			ctx.WriteSemi()
+		}
+	}
 	for _, m := range sortedInterfaceMembers(e.Members) {
+		// the spreads right after the fields, as in a class
+		if m.Kind != IfaceField {
+			writeSpreads()
+		}
 		m.WriteCode(ctx)
 		ctx.WriteSemi()
 	}
+	writeSpreads()
 	for _, m := range sortedInterfaceMethods(e.Methods) {
 		m.WriteCode(ctx)
 		ctx.WriteSemi()
 	}
 	if e.Rest != nil {
 		ctx.WriteLeadDoc(e.RestDoc)
-		ctx.WriteString("**")
+		ctx.WriteString("**<")
 		e.Rest.WriteCode(ctx)
+		ctx.WriteString(">")
 		ctx.WriteSemi()
 	}
 	if len(e.ContextFuncs) > 0 {
@@ -459,10 +481,29 @@ func writeInterfaceBodyLines(ctx *CodeWriteContext, e *InterfaceExpr) {
 			ctx.WriteString(p.String())
 		})
 	}
+	spreadsDone := false
+	addSpreads := func() {
+		if spreadsDone {
+			return
+		}
+		spreadsDone = true
+		for _, sp := range e.Spreads {
+			sp := sp
+			items = append(items, func() {
+				ctx.WriteString("**")
+				sp.WriteCode(ctx)
+			})
+		}
+	}
 	for _, m := range sortedInterfaceMembers(e.Members) {
 		m := m
+		// the spreads right after the fields, as in a class
+		if m.Kind != IfaceField {
+			addSpreads()
+		}
 		items = append(items, func() { m.WriteCode(ctx) })
 	}
+	addSpreads()
 	for _, m := range sortedInterfaceMethods(e.Methods) {
 		m := m
 		items = append(items, func() { m.WriteCode(ctx) })
@@ -470,8 +511,9 @@ func writeInterfaceBodyLines(ctx *CodeWriteContext, e *InterfaceExpr) {
 	if e.Rest != nil {
 		items = append(items, func() {
 			ctx.WriteLeadDoc(e.RestDoc)
-			ctx.WriteString("**")
+			ctx.WriteString("**<")
 			e.Rest.WriteCode(ctx)
+			ctx.WriteString(">")
 		})
 	}
 	if len(e.ContextFuncs) > 0 {

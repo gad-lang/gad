@@ -6,19 +6,19 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
-// TestTransformCastRestCapture covers the `**name` rest-capture field of an
+// TestTransformCastRestCapture covers the `**<name>` rest-capture field of an
 // interface used with the transforming cast `:::`: keys not named by the
 // interface are gathered into a dict bound to that name.
 func TestTransformCastRestCapture(t *testing.T) {
 	testExpectRun(t, `
 		d := {a: 1, b: 2, c: 3}
-		r := d ::: interface { a int, **rest }
+		r := d ::: interface { a int, **<rest> }
 		return [r.a, r.rest.b, r.rest.c]`, nil, Array{Int(1), Int(2), Int(3)})
 
 	// With no extra keys the rest dict is empty.
 	testExpectRun(t, `
 		d := {a: 1}
-		return len((d ::: interface { a int, **rest }).rest)`, nil, Int(0))
+		return len((d ::: interface { a int, **<rest> }).rest)`, nil, Int(0))
 }
 
 // TestTransformCastNestedClass covers github.com/gad-lang/gad issue #5: a dict
@@ -30,14 +30,14 @@ func TestTransformCastNestedClass(t *testing.T) {
 	// A class-typed field is built from its nested dict.
 	testExpectRun(t, base+`
 		d := {rect: {a: {x: 1, y: 2}, b: {x: 5, y: 6}}, z: "z"}
-		r := d ::: interface { rect Rect, **other }
+		r := d ::: interface { rect Rect, **<other> }
 		return [typeName(r.rect), typeName(r.rect.a), r.rect.a.x, r.rect.b.y, r.other.z]`,
 		nil, Array{Str("Rect"), Str("Point"), Int(1), Int(6), Str("z")})
 
 	// The exact repr from the issue: `rect` becomes a Rect, `z` moves into `other`.
 	testExpectRun(t, base+`
 		d := {rect: {a: {x: 1, y: 2}, b: {x: 5, y: 6}}, z: "z value"}
-		got := repr(d ::: interface { rect Rect, **other })
+		got := repr(d ::: interface { rect Rect, **<other> })
 		want := repr({rect: Rect(; a=Point(;x=1,y=2), b=Point(;x=5,y=6)), other: {z: "z value"}})
 		return got == want`, nil, True)
 }
@@ -48,7 +48,7 @@ func TestTransformCastNestedInterface(t *testing.T) {
 	base := "class Point { x int; y int }\n"
 	testExpectRun(t, base+`
 		d := {rect: {a: {x: 1, y: 2}, b: {x: 5, y: 6}}, z: "z value"}
-		got := repr(d ::: interface { rect interface{ a Point, b Point }, **otherValue })
+		got := repr(d ::: interface { rect interface{ a Point, b Point }, **<otherValue> })
 		want := repr({rect: {a: Point(;x=1,y=2), b: Point(;x=5,y=6)}, otherValue: {z: "z value"}})
 		return got == want`, nil, True)
 }
@@ -61,7 +61,7 @@ func TestTransformCastNonDictSource(t *testing.T) {
 	// A key-value array source, nested all the way down.
 	testExpectRun(t, base+`
 		kv := (; rect=(; a=(; x=1, y=2), b=(; x=5, y=6)), z="z")
-		r := kv ::: interface { rect Rect, **other }
+		r := kv ::: interface { rect Rect, **<other> }
 		return [typeName(r.rect), r.rect.a.x, r.other.z]`,
 		nil, Array{Str("Rect"), Int(1), Str("z")})
 
@@ -69,7 +69,7 @@ func TestTransformCastNonDictSource(t *testing.T) {
 	testExpectRun(t, base+`
 		class Wrapper { p Point; extra str }
 		w := Wrapper(; p = {x: 1, y: 2}, extra = "hi")
-		r := w ::: interface { p Point, **rest }
+		r := w ::: interface { p Point, **<rest> }
 		return [typeName(r.p), r.p.y, r.rest.extra]`,
 		nil, Array{Str("Point"), Int(2), Str("hi")})
 }
@@ -99,11 +99,11 @@ func TestTransformCastVsCheck(t *testing.T) {
 func TestTransformCastMissingField(t *testing.T) {
 	expectErrHas(t, `
 		d := {b: 2}
-		return d ::: interface { a int, **rest }`, nil, `field "a" is required`)
+		return d ::: interface { a int, **<rest> }`, nil, `field "a" is required`)
 
 	testExpectRun(t, `
 		d := {b: 2}
-		r := d ::: interface { a? int, **rest }
+		r := d ::: interface { a? int, **<rest> }
 		return [r.rest.b, r.a == nil]`, nil, Array{Int(2), True})
 }
 

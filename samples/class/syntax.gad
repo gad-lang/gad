@@ -21,6 +21,11 @@ rejected); a `?` after the field name (`x? int`, `x? int|str`) makes it
 **nullable**, so it also accepts `nil`. See
 [typed & nullable fields](field_types.gad).
 
+`gad fmt` writes a class body in its canonical order — parents, `use`, the
+fields in four groups (untyped then typed, without then with a default), each
+by name, then `props`, `new`, `methods` —, with a member's `[k=v]` metadata on
+the line above it: see [Class bodies](../../doc/conventions.md#class-bodies).
+
 Doc comments attach to the class and its members (`///`, `/** … **/`,
 `/*** … ***/`).
 

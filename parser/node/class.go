@@ -171,7 +171,7 @@ type TypeLitExpr struct {
 	Use    []Expr
 	UseDoc *ast.CommentGroup
 	Fields []*ClassFieldExpr
-	// Spreads are the `** EXPR` body items of a class: members given at run
+	// Spreads are the `**Expr` body items of a class: members given at run
 	// time, EXPR evaluating to `{fields: …, methods: …, props: …}` (a dict or a
 	// key-value array), added after the declared ones.
 	Spreads []Expr

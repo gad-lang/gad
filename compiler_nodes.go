@@ -2498,6 +2498,11 @@ func (c *Compiler) buildInterfaceParents(nd *node.InterfaceExpr, symParents bool
 	if name == "" {
 		name = c.newInterfaceName()
 	}
+	// an interface written as a type is a constant: members given at run time
+	// have no place in it
+	if symParents && len(nd.Spreads) > 0 {
+		return nil, c.Errorf(nd, "interface %s: **Expr needs an interface declared, not one written as a type", name)
+	}
 	iface := &Interface{IName: name, Module: c.module, ArrayDepth: nd.ArrayDepth}
 	if nd.Rest != nil {
 		iface.Rest = nd.Rest.Name
@@ -2690,6 +2695,21 @@ func (c *Compiler) buildCtxFuncHeaderObject(nd *node.FuncHeaderExpr) (_ *FuncHea
 // compileInterfaceExpr compiles `interface { … }` to a *Interface bytecode
 // constant.
 func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
+	// `**Expr`: the interface declared without them, then the members each
+	// gives added where it is declared — InterfaceSpread(iface, EXPR…).
+	if len(nd.Spreads) > 0 {
+		bare := *nd
+		bare.Spreads = nil
+		pos := nd.Pos()
+		c.ifaceSpread++
+		defer func() { c.ifaceSpread-- }()
+		return c.Compile(&node.CallExpr{
+			Func: node.EIdent(BuiltinInterfaceSpread.String(), pos),
+			CallArgs: node.CallArgs{
+				Args: node.CallExprPositionalArgs{Values: append([]node.Expr{&bare}, nd.Spreads...)},
+			},
+		})
+	}
 	iface, err := c.buildInterfaceParents(nd, false)
 	if err != nil {
 		return err
@@ -2799,6 +2819,11 @@ func (c *Compiler) compileTypeUnionExpr(nd *node.TypeUnionExpr) error {
 // compileFuncHeaderExpr and the `meti` compiler (whose headers are these
 // objects). Anonymous headers get an incremented `fh#N` name.
 func (c *Compiler) buildFuncHeaderObject(nd *node.FuncHeaderExpr) (*FuncHeaderObject, error) {
+	// in an interface's `**Expr`, a header may name the interface `@self`
+	if c.ifaceSpread > 0 {
+		fh, _, err := c.buildCtxFuncHeaderObject(nd)
+		return fh, err
+	}
 	defer c.withTypeParams(nd.TypeParams)()
 	build := func(idents ...*node.TypedIdentExpr) (Array, error) {
 		out := make(Array, 0, len(idents))

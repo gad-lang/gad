@@ -82,15 +82,19 @@ type (
 		// enterMatchExpr): while one is active, a `return` inside a block arm yields
 		// the match's value instead of returning from the function. Empty in
 		// statement-context matches and reset in forked function bodies.
-		matchExprs           []*matchExprCtx
-		tryCatchIndex        int
-		iotaVal              int
-		opts                 CompileOptions
-		trace                io.Writer
-		stack                CompileStack
-		selectorStack        [][][]func()
-		fallbackDepth        int // render/reparse fallback recursion guard
-		anonymousFuncIndex   uint
+		matchExprs         []*matchExprCtx
+		tryCatchIndex      int
+		iotaVal            int
+		opts               CompileOptions
+		trace              io.Writer
+		stack              CompileStack
+		selectorStack      [][][]func()
+		fallbackDepth      int // render/reparse fallback recursion guard
+		anonymousFuncIndex uint
+		// ifaceSpread counts the `**Expr` items of an interface being compiled:
+		// a func header written in one may take a `@self` param, as one in
+		// `funcs { … }` does.
+		ifaceSpread          int
 		funcHeaderIndex      uint
 		methodInterfaceIndex uint
 		interfaceIndex       uint

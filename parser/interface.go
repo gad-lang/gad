@@ -183,14 +183,24 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		return
 	}
 
-	// `**name` — a rest-capture field: on a dict cast (`d :: I`) the keys not named
-	// by the interface are collected into a dict bound to `name` in the result.
+	// `**<name>` — a rest-capture field: on a dict cast (`d ::: I`) the keys not
+	// named by the interface are collected into a dict bound to `name` in the
+	// result. `**Expr` — members given at run time: EXPR is `{fields: …,
+	// methods: …}`, added where the interface is declared.
 	if p.Token.Token == token.Pow {
 		p.Next()
 		p.SkipSpace()
-		if name := p.ParseIdent(); name != nil {
-			iface.Rest = name
-			iface.RestDoc = doc
+		if p.Token.Token == token.Less {
+			p.Next()
+			if name := p.ParseIdent(); name != nil {
+				iface.Rest = name
+				iface.RestDoc = doc
+			}
+			p.Expect(token.Greater)
+			return
+		}
+		if e := p.ParseExpr(); e != nil {
+			iface.Spreads = append(iface.Spreads, e)
 		}
 		return
 	}

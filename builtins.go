@@ -304,6 +304,10 @@ const (
 	// BuiltinPtr is the `ptr` type of `&x` pointers (see Pointer). Appended here,
 	// after every earlier builtin, so existing builtin indexes do not shift.
 	BuiltinPtr
+	// BuiltinInterfaceSpread is `InterfaceSpread(iface, spread…)`, what an
+	// interface with `**Expr` body items compiles to. Appended after every
+	// earlier builtin, so existing builtin indexes do not shift.
+	BuiltinInterfaceSpread
 
 	BuiltinEnd_
 )
@@ -312,7 +316,7 @@ var (
 	// lastBuiltinType seeds NewBuiltinType for dynamically-registered types; it
 	// must be the last statically-numbered builtin so dynamic types never reuse a
 	// static slot.
-	lastBuiltinType = BuiltinPtr
+	lastBuiltinType = BuiltinInterfaceSpread
 	lastBuiltinMux  = sync.Mutex{}
 )
 
@@ -352,6 +356,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"stdio":               BuiltinStdIO,
 	"wrap":                BuiltinWrap,
 	"Class":               BuiltinNewClass,
+	"InterfaceSpread":     BuiltinInterfaceSpread,
 	"StaticType":          BuiltinNewStaticType,
 	"TypedArrayType":      BuiltinNewTypedArrayType,
 	"Mixin":               BuiltinNewMixin,
@@ -905,6 +910,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinWrap: &BuiltinFunction{
 		FuncName: "wrap",
 		Value:    BuiltinWrapFunc,
+	},
+	BuiltinInterfaceSpread: &BuiltinFunction{
+		FuncName:              "InterfaceSpread",
+		Value:                 InterfaceSpreadFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinNewClass: &BuiltinFunction{
 		FuncName:              "Class",

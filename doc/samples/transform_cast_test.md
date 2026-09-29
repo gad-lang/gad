@@ -13,7 +13,7 @@ Two things happen on `dict ::: interface { … }`:
   that class from its nested dict (recursively, at any depth, like
   [nested class fields](class/field_types.gad)); a field typed by a nested
   `interface { … }` keeps its dict but coerces ITS fields the same way.
-- **Rest capture** — a `**name` member gathers every key NOT named by the
+- **Rest capture** — a `**<name>` member gathers every key NOT named by the
   interface into a dict bound to `name` in the result.
 
 The source need not be a dict literal: any item-getter works — a key-value array
@@ -33,7 +33,7 @@ class Rect { a Point; b Point }
 
 /**
 A dict cast to an interface whose field is a class type builds that class from
-the nested dict, recursively, and `**other` captures the remaining keys.
+the nested dict, recursively, and `**<other>` captures the remaining keys.
 **/
 test "nested class + rest capture" {
     data := {
@@ -44,7 +44,7 @@ test "nested class + rest capture" {
         z: "z value"
     }
 
-    got := data ::: interface { rect Rect, **other }
+    got := data ::: interface { rect Rect, **<other> }
 
     // `rect` is now a real Rect whose a/b are Points; `z` moved into `other`.
     t.equal("Rect", typeName(got.rect))
@@ -70,7 +70,7 @@ remains a plain dict.
 test "nested interface field" {
     data := {rect: {a: {x: 1, y: 2}, b: {x: 5, y: 6}}, z: "z value"}
 
-    got := data ::: interface { rect interface{ a Point, b Point }, **otherValue }
+    got := data ::: interface { rect interface{ a Point, b Point }, **<otherValue> }
 
     t.equal(
         repr(got),
@@ -88,14 +88,14 @@ a class instance is transformed the same way.
 test "non-dict sources" {
     // A key-value array, nested all the way down.
     kv := (; rect = (; a = (; x = 1, y = 2), b = (; x = 5, y = 6)), z = "z")
-    fromKv := kv ::: interface { rect Rect, **other }
+    fromKv := kv ::: interface { rect Rect, **<other> }
     t.equal("Rect", typeName(fromKv.rect))
     t.equal(1, fromKv.rect.a.x)
     t.equal("z", fromKv.other.z)
 
     // A class instance: its fields feed the transform.
     class Wrapper { p Point; extra str }
-    fromInst := Wrapper(; p = {x: 1, y: 2}, extra = "hi") ::: interface { p Point, **rest }
+    fromInst := Wrapper(; p = {x: 1, y: 2}, extra = "hi") ::: interface { p Point, **<rest> }
     t.equal("Point", typeName(fromInst.p))
     t.equal("hi", fromInst.rest.extra)
 }
@@ -121,10 +121,10 @@ A required field absent from the source fails the transform; a nullable field
 **/
 test "required and nullable fields" {
     // A missing required field is an error (the transform throws).
-    t.true(!(bool(({b: 2}) ::: interface { a int, **rest }) or false))
+    t.true(!(bool(({b: 2}) ::: interface { a int, **<rest> }) or false))
 
     // A nullable field may be absent; the rest still captures the extras.
-    got := ({b: 2}) ::: interface { a? int, **rest }
+    got := ({b: 2}) ::: interface { a? int, **<rest> }
     t.equal(nil, got.a)
     t.equal(2, got.rest.b)
 }

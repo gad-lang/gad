@@ -44,7 +44,7 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `class/field_types.gad`       | typed & nullable class fields (`x int`, `x? int|str`) |
 | `class/field_defaults_test.gad` | field defaults: literal, `(= expr)` and per-instance `initFields` |
 | `class/inline_classes.gad`    | a field typed by an anonymous class (`a class { … }`), named by its path |
-| `class/spread_members.gad`    | `** EXPR` in a class body: fields, methods and props given at run time |
+| `class/spread_members.gad`    | `**Expr` in a class body: fields, methods and props given at run time |
 | `mixins.gad`               | `mixin { … }` and `use A, B`: reusable field/prop/method bundles, parents, dedup, the `this` interface |
 | `method_interfaces.gad`   | `<…>` func headers, `meti` interfaces, `implements` |
 | `ranges.gad`               | the `..` range operator, steps, temporal ranges   |

@@ -49,7 +49,7 @@ p := Point(; x = 9, y = 9)
 
 A field may also be typed by a class declared right there — `a class { … }`,
 see [anonymous classes](inline_classes.gad) —, and a class may take members
-known only when it is declared — `** EXPR`, see
+known only when it is declared — `**Expr`, see
 [members given at run time](spread_members.gad).
 
 ## Type enforcement

@@ -114,6 +114,93 @@ var ( a, b, c
 )
 ```
 
+### Class bodies
+
+A class body has one canonical order, and `gad fmt` writes it: whatever order
+the members were declared in, the formatter rewrites the body into it.
+
+1. the parents (`*Parent`, `*Parent: Alias`), as declared;
+2. `use A, B` — the mixins;
+3. the **fields**, in four groups, each in **alphabetical order** of the name:
+   1. untyped, without a default — `a`;
+   2. typed, without a default — `b int`, `c? str`;
+   3. untyped, with a default — `d = 1`;
+   4. typed, with a default — `e int = 3`;
+4. `**Expr` — members given at run time, as declared;
+5. `this { … }` — a mixin's interface;
+6. `props { … }`, by name;
+7. `new { … }`;
+8. `methods { … }`, by name.
+
+A member's `[k=v, …]` metadata is written on the line **above** it, and the
+member on its own line; so is a class's, above the class:
+
+```gad
+[label="Grid"]
+class Grid {
+    *Base
+    name
+    [label="Columns", hint="1 to 6"]
+    columns int
+    [label="Gap"]
+    gap = 8
+    rows int = 2
+    **extra
+    props {
+        area() => this.columns * this.rows
+}
+    methods {
+        resize(this, n) => this(; columns=n)
+}
+}
+```
+
+A field typed by an anonymous class (`a class { … }`) is written the same way,
+its own body in the same order, one level in.
+
+A spread is written `**Expr`, with no space between the `**` and the
+expression — `**extra`, `**{fields: …}`; `** Expr` is accepted, and the
+formatter writes it without the space.
+
+### Interface bodies
+
+The same rule orders an interface body — an interface's fields have no
+defaults, so their groups are two:
+
+1. the parents (`*Parent`), as declared;
+2. the **fields**, each group in alphabetical order of the name:
+   1. untyped — `color`;
+   2. typed — `name? str`, `sides int`;
+3. `**Expr` — members given at run time, as declared;
+4. the accessors — `get name`, `set name`, `prop name` —, by name;
+5. the methods, by name;
+6. `**<rest>` — the rest capture (the keys the interface does not name);
+7. `funcs { … }` — the context functions.
+
+```gad
+interface Shape {
+    *Base
+    color
+    name? str
+    [label="Sides"]
+    sides int
+    **extra
+    get label str
+    area() <float>
+    **<rest>
+    funcs {
+        draw <(x int, _ @self)>
+}
+}
+```
+
+### The order of the fields
+
+The order of the fields is the order the class has them in — `RawFields`, an
+instance's keys, a form drawn from the class —: once formatted, it is the
+canonical one. Declare a class with that in mind: a field that must come first
+is the first of its group by name, or of an earlier group.
+
 ### Splitting to new lines
 
 List-like constructs — declaration specs, call arguments, array items, dict
