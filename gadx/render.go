@@ -44,6 +44,31 @@ func (r *trackingReader) Read(path string) ([]byte, string, error) {
 	return data, "file:" + path, nil
 }
 
+// SourceFile is a module an application adds to the templates' module map
+// (Render.ModuleMapFunc) that is read from a file: SourceFile is its path. A
+// template that imports it recompiles when the file changes — or is gone.
+type SourceFile interface {
+	gad.Importable
+	SourceFile() string
+}
+
+// trackedImport is a SourceFile whose import records its file as one the
+// template depends on.
+type trackedImport struct {
+	gad.Importable
+	file string
+	tr   *trackingReader
+}
+
+func (t *trackedImport) Import(ctx context.Context, module *gad.ModuleSpec) (any, string, error) {
+	p := t.file
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	t.tr.files[p] = struct{}{}
+	return t.Importable.Import(ctx, module)
+}
+
 // Render handles Gadx template rendering with bytecode caching and
 // automatic recompilation on file changes. It is safe for concurrent use.
 type Render struct {
@@ -323,6 +348,22 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 
 	if r.ModuleMapFunc != nil {
 		mm = r.ModuleMapFunc(mm)
+		// A module the application adds from a file of its own (a SourceFile)
+		// is tracked as the templates' files are, once a template imports it:
+		// a change to it recompiles.
+		// (in a copy: the map given may outlive this compilation)
+		var tracked *gad.ModuleMap
+		for name, im := range mm.Importers() {
+			if sf, ok := im.(SourceFile); ok {
+				if tracked == nil {
+					tracked = mm.Copy()
+				}
+				tracked.Add(name, &trackedImport{Importable: im, file: sf.SourceFile(), tr: tr})
+			}
+		}
+		if tracked != nil {
+			mm = tracked
+		}
 	}
 
 	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
