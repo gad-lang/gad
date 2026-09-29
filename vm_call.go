@@ -98,6 +98,8 @@ func (vm *VM) callCompiledInline(cf *CompiledFunction, args Args, namedArgs *Nam
 		err = vm.err
 		vm.err = nil
 		restore()
+		// the Go calls that ran the function are in its trace
+		recordGoFrames(err)
 		return nil, err
 	}
 	if vm.Aborted() {

@@ -124,9 +124,14 @@ func (inv *Invoker) Invoke(args Args, namedArgs *NamedArgs) (Object, error) {
 			}
 		}
 		child := inv.child
-		return inv.runWatched(func() (Object, error) {
+		ret, err := inv.runWatched(func() (Object, error) {
 			return child.RunOpts(&RunOpts{Globals: inv.vm.globals, Args: args, NamedArgs: namedArgs})
 		})
+		if err != nil {
+			// the Go calls that ran the function are in its trace
+			recordGoFrames(err)
+		}
+		return ret, err
 	}
 	return inv.invokeObject(inv.callee, args)
 }

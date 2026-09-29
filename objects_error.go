@@ -192,6 +192,8 @@ type RuntimeError struct {
 	Err     *Error
 	fileSet *source.FileSet
 	Trace   []source.Pos
+	// GoTrace are the Go calls the error crossed on its way out (GoFrames).
+	GoTrace []GoFrames
 }
 
 var (
@@ -238,6 +240,7 @@ func (o *RuntimeError) Copy() Object {
 		Err:     err,
 		fileSet: o.fileSet,
 		Trace:   append([]source.Pos{}, o.Trace...),
+		GoTrace: append([]GoFrames{}, o.GoTrace...),
 	}
 }
 
@@ -333,6 +336,11 @@ func (o *RuntimeError) Format(s fmt.State, verb rune) {
 		switch {
 		case s.Flag('+'):
 			io.WriteString(s, o.ToString())
+			if o.crossedGo() {
+				// one trace, through the Go calls into the errors it wraps
+				o.formatFrames(s)
+				return
+			}
 			o.StackTrace().Format(s, verb)
 
 			e := o.Unwrap()
