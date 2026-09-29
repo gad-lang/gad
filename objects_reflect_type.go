@@ -393,6 +393,12 @@ func (t *ReflectType) New(vm *VM, m Dict) (_ Object, err error) {
 		for k, v := range m {
 			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(vm.ToInterface(v)))
 		}
+	case reflect.Slice:
+		// an empty one, as the object a slice is (ReflectSlice)
+		return NewReflectValue(reflect.MakeSlice(t.RType, 0, 0).Interface())
+	default:
+		// the zero value of the type: a value is never an invalid reflect.Value
+		rv = reflect.New(t.RType).Elem()
 	}
 	return &ReflectValue{RType: t, RValue: rv, Options: &ReflectValueOptions{}}, nil
 }

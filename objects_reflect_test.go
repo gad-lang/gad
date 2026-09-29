@@ -2,6 +2,7 @@ package gad
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -730,4 +731,43 @@ func init() {
 		_, err = state.Write([]byte("`custom reflect printable value = " + strconv.Itoa(int(obj.ToInterface().(PrintableType))) + "`"))
 		return
 	}
+}
+
+type reflectNewSlice []string
+
+type reflectNewInt int
+
+// Calling a Go type of a slice, or of a plain kind, makes its empty value — a
+// slice (ReflectSlice) of no item, the zero of the kind —, a value that can be
+// read back, not an invalid one.
+func TestReflectTypeNewNotStruct(t *testing.T) {
+	for _, c := range []struct {
+		v    any
+		want any
+	}{
+		{reflectNewSlice{"x"}, reflectNewSlice{}},
+		{reflectNewInt(3), reflectNewInt(0)},
+	} {
+		rt := ReflectTypeOf(c.v)
+		o, err := rt.New(NewVM(nil, nil), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := ToInterface(o)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%T: %#v", c.v, got)
+		}
+	}
+	if _, ok := mustNew(t, reflectNewSlice{}).(*ReflectSlice); !ok {
+		t.Error("a slice is a ReflectSlice")
+	}
+}
+
+func mustNew(t *testing.T, v any) Object {
+	t.Helper()
+	o, err := ReflectTypeOf(v).New(NewVM(nil, nil), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return o
 }
