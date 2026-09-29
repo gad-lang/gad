@@ -2701,6 +2701,19 @@ func (c *Compiler) buildCtxFuncHeaderObject(nd *node.FuncHeaderExpr) (_ *FuncHea
 // compileInterfaceExpr compiles `interface { … }` to a *Interface bytecode
 // constant.
 func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
+	// a generic's: the interface, and the types its parameters are there —
+	// InterfaceTypeParams(iface, [T=…]), evaluated where it is declared
+	if ta := typeArgsExpr(nd.TypeArgs); ta != nil {
+		bare := *nd
+		bare.TypeArgs = nil
+		pos := nd.Pos()
+		return c.Compile(&node.CallExpr{
+			Func: node.EIdent(BuiltinInterfaceTypeParams.String(), pos),
+			CallArgs: node.CallArgs{
+				Args: node.CallExprPositionalArgs{Values: []node.Expr{&bare, ta}},
+			},
+		})
+	}
 	// `**Expr`: the interface declared without them, then the members each
 	// gives added where it is declared — InterfaceSpread(iface, EXPR…).
 	if len(nd.Spreads) > 0 {

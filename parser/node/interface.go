@@ -171,9 +171,16 @@ type InterfaceExpr struct {
 	// `interface P []<int|uint>` (or `interface P []int`): the named analogue of
 	// an anonymous `[]<int|uint>` array type. Such an interface has no body; nil
 	// otherwise. RAngle is the envelope's closing `>` (NoPos for a bare type).
-	ElemTypes    []*TypeExpr
-	RAngle       source.Pos
-	NameExpr     Expr   // *IdentExpr or nil (anonymous)
+	ElemTypes []*TypeExpr
+	RAngle    source.Pos
+	NameExpr  Expr // *IdentExpr or nil (anonymous)
+	// TypeParams are a generic interface's type parameters — `interface
+	// Pair[K, V] { … }` —: a template, as a generic class's.
+	TypeParams []*TypedIdentExpr
+	// TypeArgs are, in a generic's instance (or its template), each type
+	// parameter and the types it is there, what `Iface.@tparams` reports. The
+	// compiler sets it; it is not written back.
+	TypeArgs     []*TypedIdentExpr
 	Parents      []Expr // *Parent spreads — no alias
 	ExtendsDoc   *ast.CommentGroup
 	Members      []*InterfaceMemberExpr      // fields, getters, setters, props (source order)
@@ -383,6 +390,7 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	if e.NameExpr != nil {
 		ctx.WriteString(" ")
 		e.NameExpr.WriteCode(ctx)
+		ctx.WriteString(FormatTypeParams(e.TypeParams))
 	}
 	// An array interface: `interface P []{ … }` / `interface P []<int | uint>`
 	// (anonymous `interface []{ … }`); the `[]`s follow the name.

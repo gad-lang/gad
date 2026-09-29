@@ -140,6 +140,7 @@ func init() {
 		(*node.ThrowStmt)(nil),
 		(*node.ToRaw)(nil),
 		(*node.TryStmt)(nil),
+		(*node.TypeArgsExpr)(nil),
 		(*node.TypeExpr)(nil),
 		(*node.TypeLitExpr)(nil),
 		(*node.TypeUnionExpr)(nil),

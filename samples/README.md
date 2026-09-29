@@ -46,6 +46,7 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `class/inline_classes.gad`    | a field typed by an anonymous class (`a class { … }`), named by its path |
 | `class/spread_members.gad`    | `**Expr` in a class body: fields, methods and props given at run time |
 | `mixins.gad`               | `mixin { … }` and `use A, B`: reusable field/prop/method bundles, parents, dedup, the `this` interface |
+| `generics.gad`             | generic `class`/`interface`/`mixin` (`class P[X int, Y float]`): aliases, `Name[A, B]` instances, self-reference, a mixin as a type, `@tparams` |
 | `method_interfaces.gad`   | `<…>` func headers, `meti` interfaces, `implements` |
 | `ranges.gad`               | the `..` range operator, steps, temporal ranges   |
 | `user_operators.gad`       | user operators `<<<` `>>>` `%%` via `gad.binOp`  |

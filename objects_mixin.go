@@ -39,6 +39,9 @@ type Mixin struct {
 	parents []*Mixin // parent mixins (from `*A` spreads); may contain duplicates
 	// Meta is the mixin's `[k=v, …]` metadata (or nil); read as `Mixin.@meta`.
 	Meta KeyValueArray
+	// TParams are a generic's instance's type parameters, each and the type
+	// it is there, read as `Mixin.@tparams`; nil for a mixin not generic.
+	TParams KeyValueArray
 
 	// Raw define inputs, replayed onto a using class (see Class.useMixins).
 	rawFields  KeyValueArray
@@ -221,7 +224,14 @@ func (m *Mixin) define(c Call) (err error) {
 			return nil
 		},
 	}
-	return c.NamedArgs.GetDo(meta, extends, thisArg, fields, initFields, properties, methods)
+	tparams := &NamedArgVar{
+		Name: "tparams", TypeAssertion: TypeAssertionFromTypes(TKeyValueArray),
+		Do: func(v Object) error {
+			m.TParams, _ = v.(KeyValueArray)
+			return nil
+		},
+	}
+	return c.NamedArgs.GetDo(meta, tparams, extends, thisArg, fields, initFields, properties, methods)
 }
 
 // lineage appends this mixin's parents (depth-first, parents before self) and
@@ -366,6 +376,30 @@ func (m *Mixin) Interface() *Interface {
 	return i
 }
 
+// A mixin types a value by the interface it makes (its `@interface`): `next?
+// M` takes a value that satisfies what M says — its `this`, its parents, its
+// members —, as a class using M does.
+var _ TypeAssigner = (*Mixin)(nil)
+
+// CanAssign reports whether obj satisfies the mixin's `@interface`.
+func (m *Mixin) CanAssign(obj Object) (bool, error) {
+	return m.Interface().CanAssign(obj)
+}
+
+// CanAssignVM reports whether obj satisfies the mixin's `@interface`.
+func (m *Mixin) CanAssignVM(vm *VM, obj Object) (bool, error) {
+	return m.Interface().CanAssignVM(vm, obj)
+}
+
+// AssignTo is obj, of the mixin's kind, assigned to `to`: to the mixin, its
+// `@interface`.
+func (m *Mixin) AssignTo(vm *VM, obj Object, to TypeAssigner) (Object, error) {
+	if tm, ok := to.(*Mixin); ok {
+		to = tm.Interface()
+	}
+	return m.Interface().AssignTo(vm, obj, to)
+}
+
 // IndexGet exposes the mixin's reflection attributes, mirroring Class: `@fields`,
 // `@props`, `@methods`, `@parents`, `@name`, `@module`, `@this`, and the three
 // derived interfaces `@membersInterface`, `@classInterface` and `@interface`.
@@ -397,6 +431,8 @@ func (m *Mixin) IndexGet(vm *VM, index Object) (value Object, err error) {
 		return m.MembersInterface(), nil
 	case "@meta":
 		return metaObject(m.Meta), nil
+	case "@tparams":
+		return metaObject(m.TParams), nil
 	default:
 		return nil, ErrInvalidIndex.NewError(index.ToString())
 	}

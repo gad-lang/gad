@@ -77,12 +77,20 @@ func (c *Compiler) classCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	}
 	nameFieldClasses(nd, name)
 
+	// the class is the define callback's first parameter: named as the class,
+	// its body refers to it by its name (`class Node { next? Node }`)
 	clsIdent := node.EIdent("cls", pos)
+	if id, _ := nd.NameExpr.(*node.IdentExpr); id != nil {
+		clsIdent = node.EIdent(id.Name, pos)
+	}
 	defineIdent := node.EIdent("define", pos)
 
 	var inner node.CallExprNamedArgs
 	if m := metaArgExpr(nd.Meta); m != nil {
 		inner.AppendS("meta", m)
+	}
+	if ta := typeArgsExpr(nd.TypeArgs); ta != nil {
+		inner.AppendS("tparams", ta)
 	}
 	if len(nd.Parents) > 0 {
 		inner.AppendS("extends", classExtendsExpr(nd))
@@ -289,7 +297,11 @@ func (c *Compiler) mixinCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	}
 
 	defineIdent := node.EIdent("define", pos)
+	// the mixin is the define callback's first parameter, named as the mixin
 	mxIdent := node.EIdent("mx", pos)
+	if name != "" {
+		mxIdent = node.EIdent(name, pos)
+	}
 
 	// The `this` of every property and method is typed by the mixin's `this { … }`
 	// interface, when declared — a structural interface LITERAL used inline as the
@@ -313,6 +325,9 @@ func (c *Compiler) mixinCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	}
 	if len(nd.Parents) > 0 {
 		inner.AppendS("extends", classExtendsExpr(nd))
+	}
+	if ta := typeArgsExpr(nd.TypeArgs); ta != nil {
+		inner.AppendS("tparams", ta)
 	}
 	if nd.This != nil {
 		// The `this { … }` interface, exposed as `@this` and extended by @classInterface.

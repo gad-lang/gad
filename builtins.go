@@ -308,6 +308,10 @@ const (
 	// interface with `**Expr` body items compiles to. Appended after every
 	// earlier builtin, so existing builtin indexes do not shift.
 	BuiltinInterfaceSpread
+	// BuiltinInterfaceTypeParams is `InterfaceTypeParams(iface, [T=…])`, what
+	// a generic interface's instance compiles to (its `@tparams`). Appended
+	// after every earlier builtin, so existing builtin indexes do not shift.
+	BuiltinInterfaceTypeParams
 
 	BuiltinEnd_
 )
@@ -316,7 +320,7 @@ var (
 	// lastBuiltinType seeds NewBuiltinType for dynamically-registered types; it
 	// must be the last statically-numbered builtin so dynamic types never reuse a
 	// static slot.
-	lastBuiltinType = BuiltinInterfaceSpread
+	lastBuiltinType = BuiltinInterfaceTypeParams
 	lastBuiltinMux  = sync.Mutex{}
 )
 
@@ -357,6 +361,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"wrap":                BuiltinWrap,
 	"Class":               BuiltinNewClass,
 	"InterfaceSpread":     BuiltinInterfaceSpread,
+	"InterfaceTypeParams": BuiltinInterfaceTypeParams,
 	"StaticType":          BuiltinNewStaticType,
 	"TypedArrayType":      BuiltinNewTypedArrayType,
 	"Mixin":               BuiltinNewMixin,
@@ -914,6 +919,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinInterfaceSpread: &BuiltinFunction{
 		FuncName:              "InterfaceSpread",
 		Value:                 InterfaceSpreadFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinInterfaceTypeParams: &BuiltinFunction{
+		FuncName:              "InterfaceTypeParams",
+		Value:                 InterfaceTypeParamsFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinNewClass: &BuiltinFunction{

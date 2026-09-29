@@ -156,6 +156,12 @@ flat := Shape.@interface.@flat      // the whole contract, flattened
 // => ["Shape", ["sides"], ["name", "sides"], ["draw"], true]
 ```
 
+A mixin is also a type: it types a value — a field `m? M`, a parameter — by
+its `@interface`, so it takes an instance of a class that uses M, or anything
+else that satisfies that contract. Its body may name it (`mixin M { next? M }`),
+and it may be generic (`mixin M[T int] { v T }`, used as `use M[str]`): see
+[generics](generics.gad).
+
 A `met` added to a class after the fact sees every member — its own, those
 merged from mixins, and inherited ones — on the `this` receiver.
 

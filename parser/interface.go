@@ -45,11 +45,23 @@ func (p *Parser) parseInterfaceArrayDepth() (depth int) {
 //
 // The `[]`s follow the name (`interface NAME [] { … }`); the former
 // `interface[] NAME { … }` order is rejected with a hint.
-func (p *Parser) parseInterfaceDecl(tok PToken) *node.InterfaceExpr {
+func (p *Parser) parseInterfaceDecl(tok PToken) (out *node.InterfaceExpr) {
 	var name node.Expr
 	if p.Token.Token == token.Ident {
 		name = p.ParseIdent()
 	}
+	// `interface Pair[K, V] { … }`: a generic interface, its type parameters —
+	// `[` a name; `[]` is an array interface's depth
+	var typeParams []*node.TypedIdentExpr
+	if name != nil && p.Token.Token == token.LBrack && p.Peek().Token == token.Ident {
+		typeParams = p.parseTypeParams()
+		p.SkipSpace()
+	}
+	defer func() {
+		if typeParams != nil && out != nil {
+			out.TypeParams = typeParams
+		}
+	}()
 	depth := p.parseInterfaceArrayDepth()
 
 	if depth == 0 {

@@ -378,7 +378,10 @@ func (c *Compiler) hoistAssign(it *hoistItem) error {
 			}
 		}
 	}
-	if err := c.hoistSlots(it.decl, map[*hoistItem]bool{it: true}); err != nil {
+	// an interface may name itself (`interface Node { next? Node }`): its
+	// types are read when a value is checked, the slot assigned by then
+	_, iface := it.decl.(*node.InterfaceExpr)
+	if err := c.hoistSlots(it.decl, map[*hoistItem]bool{it: !iface}); err != nil {
 		return err
 	}
 	if err := c.Compile(it.unit); err != nil {

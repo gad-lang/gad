@@ -16,6 +16,7 @@
 - [functional](functional.md)
 - [functions](functions.md)
 - [functions_with_methods](functions_with_methods.md)
+- [generics](generics.md)
 - [hello](hello.md)
 - [heredocs](heredocs.md)
 - [in_operator](in_operator.md)

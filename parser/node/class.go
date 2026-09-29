@@ -159,6 +159,16 @@ type TypeLitExpr struct {
 	// of `new`, and it lowers to a StaticType.
 	Static   bool
 	NameExpr Expr
+	// TypeParams are a generic class's type parameters — `class Box[T, K
+	// number] { … }` —, each a name and its optional constraint. A generic
+	// class is a template: each `Box[int]` the module uses is a class of its
+	// own, the parameters replaced by the arguments (see the compiler's
+	// generics).
+	TypeParams []*TypedIdentExpr
+	// TypeArgs are, in a generic's instance (or its template), each type
+	// parameter and the types it is there — `Box[int]`: T int —, what
+	// `Class.@tparams` reports. The compiler sets it; it is not written back.
+	TypeArgs []*TypedIdentExpr
 	// ImpliedName names an anonymous class a field is typed by (`a class { … }`)
 	// by its path from the outermost class holding it, that class's name first
 	// — `PageOptions.a.b`, `#1.a.b` below an anonymous one —, so an instance
@@ -230,6 +240,7 @@ func (e *TypeLitExpr) WriteCode(ctx *CodeWriteContext) {
 	if e.NameExpr != nil {
 		ctx.WriteString(" ")
 		e.NameExpr.WriteCode(ctx)
+		ctx.WriteString(FormatTypeParams(e.TypeParams))
 	}
 	ctx.WriteString(" {")
 	writeTypeLitBody(ctx, e)

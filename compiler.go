@@ -590,6 +590,10 @@ func (c *Compiler) Bytecode() *Bytecode {
 
 // CompileStmts compiles parser.Stmt and builds Bytecode.
 func (c *Compiler) compileStmts(stmt ...node.Stmt) (err error) {
+	stmt, err = c.expandGenerics(stmt)
+	if err != nil {
+		return err
+	}
 	return c.hoisted(stmt, func() error { return c.compileStmtList(stmt...) })
 }
 

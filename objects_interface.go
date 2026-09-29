@@ -153,6 +153,11 @@ type Interface struct {
 	// as `Iface.@meta`.
 	Meta KeyValueArray
 
+	// TParams are a generic's instance's type parameters, each and the type
+	// it is there (an array of them, a union), read as `Iface.@tparams`; nil
+	// for an interface that is not generic.
+	TParams KeyValueArray
+
 	// Cached `@flat` result (see Flatten): the flattened interface, or the
 	// collision error, computed once.
 	flat      *Interface
@@ -242,6 +247,26 @@ func (i *Interface) BindExtends(parents []Object) (*Interface, error) {
 // ContextFuncs entry's Fn set from fns (in order): the runtime binding of the
 // captured context-function values (see OpInterfaceBind). len(fns) must equal
 // len(i.ContextFuncs).
+// InterfaceTypeParamsFunc is `InterfaceTypeParams(iface, [T=…])`: a copy of
+// the interface with its type parameters (TParams) — what a generic
+// interface's instance compiles to.
+func InterfaceTypeParamsFunc(c Call) (Object, error) {
+	if err := c.Args.CheckLen(2); err != nil {
+		return nil, err
+	}
+	src, ok := c.Args.Get(0).(*Interface)
+	if !ok {
+		return nil, NewArgumentTypeError("1st (interface)", "interface", c.Args.Get(0).Type().Name())
+	}
+	tp, ok := c.Args.Get(1).(KeyValueArray)
+	if !ok {
+		return nil, NewArgumentTypeError("2nd (tparams)", "keyValueArray", c.Args.Get(1).Type().Name())
+	}
+	cp := *src
+	cp.TParams = tp
+	return &cp, nil
+}
+
 func (i *Interface) BindContextFuncs(fns []Object) *Interface {
 	cp := *i
 	cp.ContextFuncs = make([]*InterfaceContextFunc, len(i.ContextFuncs))
@@ -906,6 +931,8 @@ func (i *Interface) IndexGet(vm *VM, index Object) (Object, error) {
 		return i.Flatten(vm)
 	case "@meta":
 		return metaObject(i.Meta), nil
+	case "@tparams":
+		return metaObject(i.TParams), nil
 	case "@depth":
 		// The array depth: 0 for a plain interface, N for `interface P [] … []`.
 		return Int(i.ArrayDepth), nil

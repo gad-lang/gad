@@ -23,6 +23,9 @@ Type parameters are accepted in every function-signature form:
 - **func-header value** — `<[T number](v T) <T>>`
 - **method interface** — `meti { [T number](v T) <T> }`
 
+A class, an interface and a mixin declare type parameters too — each with its
+alias, the type it is when none is given: see [generics](generics.gad).
+
 @snippet basics
 
 ## Reusing one constraint across parameters

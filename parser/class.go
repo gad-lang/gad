@@ -138,6 +138,11 @@ func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.TypeLitEx
 	// before the body, so a member does not steal it.
 	cls.Meta = p.takeMeta()
 
+	// `class Box[T, K number] { … }`: a generic class, its type parameters
+	if name != nil && p.Token.Token == token.LBrack {
+		cls.TypeParams = p.parseTypeParams()
+	}
+
 	p.SkipSpace()
 	cls.LBrace = p.Expect(token.LBrace)
 

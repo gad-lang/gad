@@ -531,6 +531,10 @@ type Class struct {
 	mixinsFlat []*Mixin
 	// Meta is the class's `[k=v, …]` metadata (or nil); read as `Class.@meta`.
 	Meta KeyValueArray
+	// TParams are a generic's instance's type parameters, each and the type
+	// it is there (an array of them, a union), read as `Class.@tparams`; nil
+	// for a class that is not generic.
+	TParams KeyValueArray
 }
 
 // NewClass returns an empty Class with the given name and defining module, its
@@ -742,6 +746,16 @@ func (t *Class) Define(c Call) (err error) {
 			},
 		}
 
+		tparams = &NamedArgVar{
+			Name:          "tparams",
+			TypeAssertion: TypeAssertionFromTypes(TKeyValueArray),
+			// A generic's instance's type parameters, read as `Class.@tparams`.
+			Do: func(value Object) error {
+				t.TParams, _ = value.(KeyValueArray)
+				return nil
+			},
+		}
+
 		// spread are the `**Expr` body items: each a dict (or key-value array)
 		// of fields, methods and props, added after the declared members.
 		spread = &NamedArgVar{
@@ -758,7 +772,7 @@ func (t *Class) Define(c Call) (err error) {
 		}
 	)
 
-	if err = c.NamedArgs.GetDo(meta, mixins, constructor, fields, methods, properties, extends, initFields, spread); err != nil {
+	if err = c.NamedArgs.GetDo(meta, tparams, mixins, constructor, fields, methods, properties, extends, initFields, spread); err != nil {
 		return
 	}
 	// With every member registered, validate the class against the contract each
@@ -1727,6 +1741,8 @@ func (t *Class) IndexGet(vm *VM, index Object) (value Object, err error) {
 		return vm.ModuleFromIndex(t.module.Index), nil
 	case "@meta":
 		return metaObject(t.Meta), nil
+	case "@tparams":
+		return metaObject(t.TParams), nil
 	default:
 		if v := t.fieldsMap[key]; v != nil {
 			return v, nil

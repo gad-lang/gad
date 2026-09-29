@@ -23,6 +23,9 @@ Type parameters are accepted in every function-signature form:
 - **func-header value** — `<[T number](v T) <T>>`
 - **method interface** — `meti { [T number](v T) <T> }`
 
+A class, an interface and a mixin declare type parameters too — each with its
+alias, the type it is when none is given: see [generics](generics.gad).
+
 ```gad
 // T is indexable, K is int|uint, V is a number; the return type reuses T.
 func mySet[T indexable, K int|uint, V number](target T, k K, v V) <T> {

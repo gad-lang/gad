@@ -749,6 +749,27 @@ func (p *Parser) ParseIndexExpr(x node.Expr) *node.IndexExpr {
 	}
 }
 
+// parseIndexOrTypeArgs parses `x[i]` — an index —, or `x[A, B]`: several are a
+// generic's type arguments (TypeArgsExpr). One, `Box[int]`, is an index the
+// compiler reads as type arguments when x names a generic.
+func (p *Parser) parseIndexOrTypeArgs(x node.Expr) node.Expr {
+	lbrack := p.Expect(token.LBrack)
+	p.ExprLevel++
+	first := p.ParseExpr()
+	if p.Token.Token != token.Comma {
+		p.ExprLevel--
+		return &node.IndexExpr{X: x, LBrack: lbrack, Index: first, RBrack: p.Expect(token.RBrack)}
+	}
+	args := []node.Expr{first}
+	for p.Token.Token == token.Comma {
+		p.Next()
+		p.SkipSpace()
+		args = append(args, p.ParseExpr())
+	}
+	p.ExprLevel--
+	return &node.TypeArgsExpr{X: x, LBrack: lbrack, Args: args, RBrack: p.Expect(token.RBrack)}
+}
+
 func (p *Parser) ParseIndexOrSlice(x node.Expr) node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "IndexOrSlice"))
@@ -760,6 +781,17 @@ func (p *Parser) ParseIndexOrSlice(x node.Expr) node.Expr {
 	var index [2]node.Expr
 	if p.Token.Token != token.Colon {
 		index[0] = p.ParseExpr()
+	}
+	// `Pair[str, int]`: several indexes are a generic's type arguments
+	if p.Token.Token == token.Comma && index[0] != nil {
+		args := []node.Expr{index[0]}
+		for p.Token.Token == token.Comma {
+			p.Next()
+			p.SkipSpace()
+			args = append(args, p.ParseExpr())
+		}
+		p.ExprLevel--
+		return &node.TypeArgsExpr{X: x, LBrack: lbrack, Args: args, RBrack: p.Expect(token.RBrack)}
 	}
 	numColons := 0
 	if p.Token.Token == token.Colon {
@@ -2737,7 +2769,7 @@ L:
 				return &node.BadExpr{From: pos, To: p.Token.Pos}
 			}
 		case token.LBrack:
-			x = p.ParseIndexExpr(x)
+			x = p.parseIndexOrTypeArgs(x)
 		default:
 			break L
 		}
@@ -2830,9 +2862,47 @@ func (p *Parser) isDeclBodyStart() bool {
 	case token.LBrace:
 		return true
 	case token.Ident:
-		return p.PeekC(2)[1].Token == token.LBrace
+		return p.PeekC(2)[1].Token == token.LBrace || p.typeParamsThenBrace(2)
 	}
 	return false
+}
+
+// typeParamsThenBrace reports whether the token at offset n (1 is the next) is
+// the `[` of a generic's type parameters — `class Box[T] {`, `interface
+// Pair[K, V] {` —: a `[` with a name after it, its matching `]`, then `{`.
+func (p *Parser) typeParamsThenBrace(n int) bool {
+	var (
+		i, depth int
+		ok       bool
+	)
+	p.PeekCb(func(t PToken) bool {
+		if t.IsSpace() {
+			return true
+		}
+		i++
+		switch {
+		case i < n:
+			return true
+		case i == n:
+			return t.Token == token.LBrack
+		case i == n+1:
+			depth = 1
+			return t.Token == token.Ident
+		case depth == 0:
+			ok = t.Token == token.LBrace
+			return false
+		}
+		switch t.Token {
+		case token.LBrack:
+			depth++
+		case token.RBrack:
+			depth--
+		case token.EOF, token.LBrace, token.RBrace:
+			return false
+		}
+		return true
+	})
+	return ok
 }
 
 // isTypedArrayDeclStart reports whether the current `type` identifier begins a
@@ -2964,6 +3034,8 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 			return &node.TypeExpr{Expr: p.ParseClassExpr()}
 		}
 	}
+	// a name, a selector of one (`models.Page`), a generic given its type
+	// arguments (`Box[int]`, `Pair[str, int]`, ParseSimpleSelectorExpr)
 	return &node.TypeExpr{Expr: p.ParseSimpleSelectorExpr(p.ParseIdent())}
 }
 
