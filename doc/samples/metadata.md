@@ -137,9 +137,34 @@ u := Account()
 // => ["(;table=\"users\", version=2)", "(;db=(;primary_key))", "(;computed)", "(;route=\"/save\", method=\"POST\")", 0, "anon"]
 ```
 
+## Metadata written outside the code: `parser.ParseMetadata`
+
+The same entries can be written where there is no `[ ]` to put them in — a Go
+struct tag, an attribute, a configuration value — and parsed from Go with
+`parser.ParseMetadata`: the text of a block **without its brackets**, its
+entries as they would be inside them. Single quotes delimit strings as double
+quotes do, so a block in a Go struct tag needs no escaping:
+
+```go
+type Messages struct {
+    Title string `i18n:"type=html, label='Page title', hint='The title. %s is the page name.'"`
+}
+
+kva, err := parser.ParseMetadata(field.Tag.Get("i18n"), 0)
+// kva.Elements: one *node.KeyValuePairLit per entry —
+//   Key the name, Value the expression (nil for a flag: `readonly`)
+```
+
+Positions are kept: a node's position is its offset in the text, from `base` —
+the position of the text's first byte in whatever holds it (`0` is the text on
+its own, its first byte at position 1) —, and an error points there too
+(`at metadata:1:8`). Pass the position of the text in its file to report an
+error, or to place a node, in that file. See also
+[Embedding](../embedding.md#parsing-metadata-from-go).
+
 ## Example — `metadata.gad`
 
-````gad
+```gad
 /// a user record
 [table="users", version=2]
 interface User {
@@ -223,31 +248,4 @@ u := Account()
     str(Account.save.@meta),  // a method's
     u.id, u.label,            // field defaults are preserved alongside metadata
 ]
-
-/**
-## Metadata written outside the code: `parser.ParseMetadata`
-
-The same entries can be written where there is no `[ ]` to put them in — a Go
-struct tag, an attribute, a configuration value — and parsed from Go with
-`parser.ParseMetadata`: the text of a block **without its brackets**, its
-entries as they would be inside them. Single quotes delimit strings as double
-quotes do, so a block in a Go struct tag needs no escaping:
-
-```go
-type Messages struct {
-    Title string `i18n:"type=html, label='Page title', hint='The title. %s is the page name.'"`
-}
-
-kva, err := parser.ParseMetadata(field.Tag.Get("i18n"), 0)
-// kva.Elements: one *node.KeyValuePairLit per entry —
-//   Key the name, Value the expression (nil for a flag: `readonly`)
 ```
-
-Positions are kept: a node's position is its offset in the text, from `base` —
-the position of the text's first byte in whatever holds it (`0` is the text on
-its own, its first byte at position 1) —, and an error points there too
-(`at metadata:1:8`). Pass the position of the text in its file to report an
-error, or to place a node, in that file. See also
-[Embedding](../embedding.md#parsing-metadata-from-go).
-**/
-````
