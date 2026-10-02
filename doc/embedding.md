@@ -503,6 +503,25 @@ interface — one that requires named fields, properties or methods — is norma
 written in Gad source with `interface { … }` rather than assembled in Go, since
 its member types are resolved per-VM (see [Interfaces](samples/24_interfaces.md)).
 
+## Parsing metadata from Go
+
+`parser.ParseMetadata(src, base)` parses the entries of a
+[metadata block](samples/metadata.md) written without its brackets —
+`type=html, label='Title', readonly` —, as an application keeps them in a Go
+struct tag or a configuration value. It returns the block as a
+`*node.KeyValueArrayLit` (one `*node.KeyValuePairLit` per entry; a flag has no
+`Value`), with single quotes delimiting strings as double quotes do. Positions
+are offsets into `src` from `base` — the position of its first byte in
+whatever holds it; `0` for the text on its own —, errors included.
+
+```go
+kva, err := parser.ParseMetadata(`label='Page title', hint="%s is the page"`, 0)
+for _, e := range kva.Elements {
+    kv := e.(*node.KeyValuePairLit)
+    // kv.Key.String() → "label"; kv.Value.(*node.StrLit).Value() → "Page title"
+}
+```
+
 ## Safety
 
 When writing Go functions, methods or object types, mind the

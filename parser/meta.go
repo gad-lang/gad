@@ -12,6 +12,43 @@ import (
 // attached to the element's Meta field; at run time it is reachable as
 // `Element.@meta`.
 
+// ParseMetadata parses the entries of a metadata block — `k=v, …` — without
+// the brackets around them: what a block holds when it is written elsewhere,
+// as in a Go struct tag (`i18n:"type=html, label='Tab'"`). Single quotes
+// delimit strings as double quotes do, so the text needs no escaping there.
+//
+// The positions of the nodes are those of the text from base: the position of
+// its first byte in whatever holds it, so an error or a node points into that
+// (base < 1 is 1: the text on its own, its first byte at offset 0).
+func ParseMetadata(src string, base source.Pos) (kva *node.KeyValueArrayLit, err error) {
+	if base < 1 {
+		base = 1
+	}
+	fileSet := source.NewFileSet()
+	fileSet.Base = int(base)
+	file := fileSet.AddFileData("metadata", int(base), []byte(src))
+	p := NewParserWithOptions(file, &ParserOptions{Mode: ParseCharAsString},
+		&ScannerOptions{Mode: ScanCharAsString})
+	defer func() {
+		if e := recover(); e != nil {
+			if _, ok := e.(bailout); !ok {
+				panic(e)
+			}
+		}
+		p.Errors.Sort()
+		if err = p.Errors.Err(); err != nil {
+			kva = nil
+		}
+	}()
+	if p.Errors.Len() > 0 {
+		return nil, p.Errors.Err()
+	}
+	p.SkipSpace()
+	kva = p.ParseKeyValueArrayLitAt(base, token.EOF)
+	p.Expect(token.EOF)
+	return kva, nil
+}
+
 // parseMetaBlock parses `[ k=v, … ]` (current token is `[`) into a
 // KeyValueArrayLit, reusing the key-value-array entry grammar.
 func (p *Parser) parseMetaBlock() *node.KeyValueArrayLit {

@@ -1,8 +1,11 @@
 package parser_test
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/test"
 )
 
@@ -47,4 +50,65 @@ func TestParseMetadataClass(t *testing.T) {
 	test.ExpectParseString(t,
 		"[role=\"r\"]\nmixin M { x = 0 }",
 		`[role="r"] mixin M {x = 0}`)
+}
+
+// TestParseMetadataUnbracketed parses a metadata block's entries written on
+// their own — no `[ ]` —, with single-quoted strings, keeping the positions of
+// the text.
+func TestParseMetadataUnbracketed(t *testing.T) {
+	src := `type=html, label='Tab: all', hint="Shows %s.", readonly`
+	kva, err := parser.ParseMetadata(src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := len(kva.Elements); n != 4 {
+		t.Fatalf("%d entries, want 4: %s", n, kva)
+	}
+	want := []struct{ key, value string }{
+		{"type", "html"}, {"label", "Tab: all"}, {"hint", "Shows %s."}, {"readonly", ""},
+	}
+	for i, w := range want {
+		kv := kva.Elements[i].(*node.KeyValuePairLit)
+		if got := kv.Key.String(); got != w.key {
+			t.Errorf("entry %d key %q, want %q", i, got, w.key)
+		}
+		got := ""
+		switch v := kv.Value.(type) {
+		case nil:
+		case *node.StrLit:
+			got = v.Value()
+		default:
+			got = v.String()
+		}
+		if got != w.value {
+			t.Errorf("entry %d value %q, want %q", i, got, w.value)
+		}
+	}
+
+	// positions are offsets into the text (+1 for a text on its own)…
+	label := kva.Elements[1].(*node.KeyValuePairLit)
+	if got, want := int(label.Value.Pos())-1, strings.Index(src, "'Tab"); got != want {
+		t.Errorf("the label's value at offset %d, want %d", got, want)
+	}
+	// …or into whatever holds it, from base.
+	kva, err = parser.ParseMetadata(src, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hint := kva.Elements[2].(*node.KeyValuePairLit)
+	if got, want := int(hint.Key.Pos()), 100+strings.Index(src, "hint"); got != want {
+		t.Errorf("the hint's key at %d, want %d", got, want)
+	}
+
+	// an error points into the text
+	_, err = parser.ParseMetadata(`a=1, b='open`, 0)
+	if err == nil {
+		t.Fatal("an unclosed string was accepted")
+	}
+	if !strings.Contains(err.Error(), "1:8") { // the quote that opens it
+		t.Errorf("the error does not say where: %v", err)
+	}
+	if kva, err := parser.ParseMetadata("", 0); err != nil || len(kva.Elements) != 0 {
+		t.Errorf("empty metadata: %v %v", kva, err)
+	}
 }
