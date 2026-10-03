@@ -621,8 +621,16 @@ func (t *Tag) attrsKeyValueArray() gad.KeyValueArray {
 // attribute via AttrFunc (the gadx.attr formatter), then the joined class list
 // and styles. This mirrors gadx.attrs' output without invoking the builtin.
 func (t *Tag) writeAttrs(vm *gad.VM, w io.Writer, wc *writeCounter) error {
+	h := attrHandlerOf(vm)
 	for _, name := range t.attrOrder {
-		rs, err := AttrFunc(vm, gad.Str(name), t.Attrs[name])
+		value := t.Attrs[name]
+		if h != nil {
+			// the application's say on the value (Render.AttrHandler)
+			if value = h(t.Name, name, value); value == nil {
+				continue
+			}
+		}
+		rs, err := AttrFunc(vm, gad.Str(name), value)
 		if err != nil {
 			return err
 		}

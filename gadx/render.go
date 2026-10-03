@@ -107,6 +107,11 @@ type Render struct {
 	// any field. StdOut and Globals are set by Render and normally left as-is.
 	RunOptsFunc func(opts *gad.RunOpts)
 
+	// AttrHandler, when set, is given each attribute of every tag the
+	// render writes, and says the value written (see AttrHandler): to make
+	// the URIs of the static files versioned, say, with no template changed.
+	AttrHandler AttrHandler
+
 	mu             sync.Mutex
 	compileMu      sync.Mutex
 	templateCache  map[string]*templateCacheEntry
@@ -284,6 +289,7 @@ func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error 
 		r.RunOptsFunc(runOpts)
 	}
 	e := gad.NewEval(r.cachedStatic, st, gad.CompileOptions{}, runOpts)
+	defer WithAttrHandler(e.VM, r.AttrHandler)()
 	// Reuse the compiled template's interface-satisfaction cache across renders;
 	// it is reset only when the template recompiles (a fresh entry, above), so
 	// `obj :: Interface` checks in the template are validated once per type.
