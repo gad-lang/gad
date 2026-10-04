@@ -355,6 +355,34 @@ func TestFileReadWrite(t *testing.T) {
 	}
 }
 
+// An image is read as it is (raw=1): its type by its extension, shown and
+// never run (a sandbox), the workspace's paths still checked.
+func TestFileReadRaw(t *testing.T) {
+	_, h, dir := newTestServer(t)
+	png := []byte("\x89PNG\r\n\x1a\n\x00\x01")
+	if err := os.WriteFile(filepath.Join(dir, "logo.png"), png, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w := do(t, h, "GET", "/api/ide/file?raw=1&path=logo.png", nil)
+	if w.Code != 200 || w.Body.String() != string(png) {
+		t.Fatalf("raw read: %d %q", w.Code, w.Body)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "image/png" {
+		t.Errorf("Content-Type = %q", ct)
+	}
+	if csp := w.Header().Get("Content-Security-Policy"); !strings.HasPrefix(csp, "sandbox") {
+		t.Errorf("Content-Security-Policy = %q", csp)
+	}
+	if w.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Error("no nosniff")
+	}
+	for _, path := range []string{"../../etc/passwd", "missing.png", "."} {
+		if w := do(t, h, "GET", "/api/ide/file?raw=1&path="+path, nil); w.Code == 200 {
+			t.Errorf("%s: 200", path)
+		}
+	}
+}
+
 func TestPathTraversalRejected(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	w := do(t, h, "GET", "/api/ide/file?path=../../etc/passwd", nil)

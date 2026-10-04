@@ -112,13 +112,18 @@ type fileRequest struct {
 	To      string `json:"to"` // rename target
 }
 
-// handleFile reads (GET ?path=) or writes (PUT) a workspace file.
+// handleFile reads (GET ?path=; ?raw=1 for its bytes as they are, an image
+// to show) or writes (PUT) a workspace file.
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		abs, err := s.resolve(r.URL.Query().Get("path"))
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if r.URL.Query().Get("raw") != "" {
+			serveRaw(w, r, abs)
 			return
 		}
 		data, err := os.ReadFile(abs)
@@ -287,4 +292,25 @@ func statusForFS(err error) int {
 		return http.StatusNotFound
 	}
 	return http.StatusInternalServerError
+}
+
+// serveRaw serves the file at abs as it is, its type by its extension. It is
+// shown, never run: a sandbox with no scripts (an SVG opened by itself, an
+// HTML), and no sniffing of the type.
+func serveRaw(w http.ResponseWriter, r *http.Request, abs string) {
+	f, err := os.Open(abs)
+	if err != nil {
+		writeError(w, statusForFS(err), err.Error())
+		return
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil || fi.IsDir() {
+		writeError(w, http.StatusBadRequest, "not a file")
+		return
+	}
+	w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "no-cache")
+	http.ServeContent(w, r, fi.Name(), fi.ModTime(), f)
 }
