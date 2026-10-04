@@ -141,6 +141,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/ide/delete", s.handleDelete) // POST
 	mux.HandleFunc("/api/ide/rename", s.handleRename) // POST
 	mux.HandleFunc("/api/ide/fetch", s.handleFetch)   // POST (download URL -> file)
+	mux.HandleFunc("/api/ide/upload", s.handleUpload) // POST (files uploaded, text or bytes)
 
 	// Config (.gad.yaml).
 	mux.HandleFunc("/api/ide/config", s.handleConfig) // GET / PUT

@@ -2,6 +2,7 @@ package ide
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -380,6 +381,54 @@ func TestFileReadRaw(t *testing.T) {
 		if w := do(t, h, "GET", "/api/ide/file?raw=1&path="+path, nil); w.Code == 200 {
 			t.Errorf("%s: 200", path)
 		}
+	}
+}
+
+// An upload writes its files — a text, and bytes in base64 (an image) as they
+// are —, never out of the workspace (`..` stays in it); a file that cannot be
+// written refuses the whole upload.
+func TestUpload(t *testing.T) {
+	_, h, dir := newTestServer(t)
+	png := []byte("\x89PNG\r\n\x1a\n\x00\xff")
+	w := do(t, h, "POST", "/api/ide/upload", map[string]any{"files": []map[string]string{
+		{"path": "static/a.css", "content": "body {}\n"},
+		{"path": "static/img/logo.png", "bytes": base64.StdEncoding.EncodeToString(png)},
+	}})
+	if w.Code != 200 {
+		t.Fatalf("upload: %d %s", w.Code, w.Body)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "static", "a.css")); string(b) != "body {}\n" {
+		t.Errorf("the text: %q", b)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "static", "img", "logo.png")); !bytes.Equal(b, png) {
+		t.Errorf("the bytes: %q", b)
+	}
+
+	for name, files := range map[string][]map[string]string{
+		"not base64": {{"path": "ok.txt", "content": "x"}, {"path": "b.png", "bytes": "%%%"}},
+		"the root":   {{"path": "", "content": "x"}},
+		"none":       {},
+	} {
+		if w := do(t, h, "POST", "/api/ide/upload", map[string]any{"files": files}); w.Code != http.StatusBadRequest {
+			t.Errorf("%s: %d %s", name, w.Code, w.Body)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "ok.txt")); err == nil {
+		t.Error("an upload refused wrote a file")
+	}
+	// `..` is kept in the workspace
+	if w := do(t, h, "POST", "/api/ide/upload", map[string]any{"files": []map[string]string{
+		{"path": "../../escape.txt", "content": "x"}}}); w.Code != 200 {
+		t.Fatalf("..: %d", w.Code)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "escape.txt")); err != nil {
+		t.Errorf("`..` not kept in the workspace: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(dir), "escape.txt")); err == nil {
+		t.Error("written out of the workspace")
+	}
+	if w := do(t, h, "GET", "/api/ide/upload", nil); w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("GET: %d", w.Code)
 	}
 }
 

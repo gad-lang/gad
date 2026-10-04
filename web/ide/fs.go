@@ -1,6 +1,8 @@
 package ide
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -229,6 +231,70 @@ func (s *Server) handleRename(w http.ResponseWriter, r *http.Request) {
 }
 
 // fetchRequest downloads URL into the workspace file Path.
+// uploadRequest is the body of an upload: the files, each its path and its
+// text (content) or its bytes (base64, a binary file: an image, a font).
+type uploadRequest struct {
+	Files []struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+		Bytes   string `json:"bytes"`
+	} `json:"files"`
+}
+
+// MaxUploadBody is the most an upload's body may hold (its bytes in base64).
+const MaxUploadBody = 32 << 20
+
+// handleUpload writes the files uploaded — text, or bytes in base64 —, each at
+// its workspace path; all of them checked before any is written.
+func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req uploadRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, MaxUploadBody)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body (or larger than the upload limit)")
+		return
+	}
+	if len(req.Files) == 0 {
+		writeError(w, http.StatusBadRequest, "no file")
+		return
+	}
+	type file struct {
+		abs  string
+		data []byte
+	}
+	files := make([]file, len(req.Files))
+	for i, f := range req.Files {
+		abs, err := s.resolve(f.Path)
+		if err != nil || abs == s.Root {
+			writeError(w, http.StatusBadRequest, "invalid path: "+f.Path)
+			return
+		}
+		data := []byte(f.Content)
+		if f.Bytes != "" {
+			if data, err = base64.StdEncoding.DecodeString(f.Bytes); err != nil {
+				writeError(w, http.StatusBadRequest, f.Path+": bytes are not base64")
+				return
+			}
+		}
+		files[i] = file{abs, data}
+	}
+	paths := make([]string, len(files))
+	for i, f := range files {
+		if err := os.MkdirAll(filepath.Dir(f.abs), 0o755); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if err := os.WriteFile(f.abs, f.data, 0o644); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		paths[i] = s.rel(f.abs)
+	}
+	writeJSON(w, map[string]any{"paths": paths})
+}
+
 type fetchRequest struct {
 	URL  string `json:"url"`
 	Path string `json:"path"`
