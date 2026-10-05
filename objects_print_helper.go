@@ -220,6 +220,17 @@ func (s *PrinterState) PrintDictEntries(entries PrintStateDictEntries) (err erro
 		})
 }
 
+// PrintDictEntriesInOrder prints entries in the order they are given: a
+// class's fields as it declares them (Class.OrderedFields).
+func (s *PrinterState) PrintDictEntriesInOrder(entries PrintStateDictEntries) (err error) {
+	return s.PrintDict(len(entries),
+		func(i int) (Object, error) {
+			return Str(entries[i].Name), nil
+		}, func(i int) (Object, error) {
+			return entries[i].Value, nil
+		})
+}
+
 func (s *PrinterState) PrintDict(l int, key, value func(i int) (Object, error)) (err error) {
 	return s.PrintPairs(l, true, []byte{'{'}, []byte{'}'}, []byte{':', ' '}, []byte{','}, key, value)
 }

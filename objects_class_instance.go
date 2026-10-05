@@ -297,8 +297,10 @@ func (o *ClassInstance) WalkInstances(cb func(path []*ClassInstance, instance *C
 	utils.Walk(o,
 		func(e *ClassInstance, cb func(*ClassInstance) utils.WalkMode) bool {
 			var mode utils.WalkMode
-			for i := len(o.class.parents) - 1; i >= 0; i-- {
-				mode = cb(o.parents[o.class.parents[i].Alias])
+			// the parents of the instance visited, e — not of o: those of o
+			// again and again would never end
+			for i := len(e.class.parents) - 1; i >= 0; i-- {
+				mode = cb(e.parents[e.class.parents[i].Alias])
 				switch mode {
 				case utils.WalkModeBreak:
 					return false
@@ -526,15 +528,73 @@ func (o *ClassInstance) IsFalsy() bool {
 }
 
 func (o *ClassInstance) Items(vm *VM, cb ItemsGetterCallback) (err error) {
-	return o.fields.Items(vm, cb)
+	if !o.class.OrderedFields {
+		return o.fields.Items(vm, cb)
+	}
+	for i, name := range o.class.FieldNames() {
+		if err = cb(i, &KeyValue{Str(name), o.fields[name]}); err != nil {
+			return
+		}
+	}
+	return
 }
 
 func (o *ClassInstance) Keys() Array {
-	return o.fields.Keys()
+	if !o.class.OrderedFields {
+		return o.fields.Keys()
+	}
+	names := o.class.FieldNames()
+	arr := make(Array, len(names))
+	for i, name := range names {
+		arr[i] = Str(name)
+	}
+	return arr
 }
 
 func (o *ClassInstance) Values() Array {
-	return o.fields.Values()
+	if !o.class.OrderedFields {
+		return o.fields.Values()
+	}
+	names := o.class.FieldNames()
+	arr := make(Array, len(names))
+	for i, name := range names {
+		arr[i] = o.fields[name]
+	}
+	return arr
+}
+
+// orderedEntries are its fields and its parents', in the order the classes
+// declare them — the parents' first, a name once (the nearest wins) —: what
+// an instance of a class with OrderedFields prints.
+func (o *ClassInstance) orderedEntries() (entries PrintStateDictEntries) {
+	seen := map[string]bool{}
+	var walk func(inst *ClassInstance)
+	walk = func(inst *ClassInstance) {
+		for _, p := range inst.class.parents {
+			name := p.Alias
+			if name == "" {
+				name = p.Type.Name()
+			}
+			if pi := inst.parents[name]; pi != nil {
+				walk(pi)
+			}
+		}
+		for _, name := range inst.class.FieldNames() {
+			if !seen[name] {
+				seen[name] = true
+				entries = append(entries, &PrintStateDictEntry{name, inst.fields[name]})
+			}
+		}
+	}
+	walk(o)
+	// a name its own and a parent's: the value is its own, placed where the
+	// parent declares it
+	for _, e := range entries {
+		if v, ok := o.fields[e.Name]; ok {
+			e.Value = v
+		}
+	}
+	return
 }
 
 func (o *ClassInstance) ResolveMethod(name string) (inst *ClassInstance, m *ClassMethod) {
@@ -676,6 +736,12 @@ func (o *ClassInstance) Print(state *PrinterState) error {
 	if !state.IsRepr {
 		defer state.WrapRepr(o)()
 	}
+	if o.class.OrderedFields {
+		if state.IsRepr {
+			defer state.WrapRepr(o)()
+		}
+		return state.PrintDictEntriesInOrder(o.orderedEntries())
+	}
 	return o.ToDict().PrintObject(state, o)
 }
 
@@ -691,7 +757,14 @@ func (o *ClassInstance) CallPrint(c Call) (err error) {
 		return
 	}
 
-	return o.ToDict().PrintObject(state.Value.(*PrinterState), o)
+	ps := state.Value.(*PrinterState)
+	if o.class.OrderedFields {
+		if ps.IsRepr {
+			defer ps.WrapRepr(o)()
+		}
+		return ps.PrintDictEntriesInOrder(o.orderedEntries())
+	}
+	return o.ToDict().PrintObject(ps, o)
 }
 
 // ClassInstanceMethod is a ClassMethod bound to a receiver instance. Calling it

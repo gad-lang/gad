@@ -531,6 +531,11 @@ type Class struct {
 	mixinsFlat []*Mixin
 	// Meta is the class's `[k=v, …]` metadata (or nil); read as `Class.@meta`.
 	Meta KeyValueArray
+	// OrderedFields makes its instances give their fields in the order the
+	// class declares them — keys, values, items, printing, the parents' fields
+	// first —; else a dict's order, none. Set by `[ordered]` before the class,
+	// or by the application on a class it reads (a form's).
+	OrderedFields bool
 	// TParams are a generic's instance's type parameters, each and the type
 	// it is there (an array of them, a union), read as `Class.@tparams`; nil
 	// for a class that is not generic.
@@ -742,6 +747,9 @@ func (t *Class) Define(c Call) (err error) {
 			// The class's `[k=v, …]` metadata, read as `Class.@meta`.
 			Do: func(value Object) error {
 				t.Meta, _ = value.(KeyValueArray)
+				if v := t.Meta.Get(Str("ordered")); v != nil && !v.IsFalsy() {
+					t.OrderedFields = true
+				}
 				return nil
 			},
 		}
@@ -1076,6 +1084,16 @@ func (t *Class) RawFields() (r []*ClassField) {
 		r[field.index] = field
 	}
 	return
+}
+
+// FieldNames are the names of its fields, in the order it declares them.
+func (t *Class) FieldNames() []string {
+	fields := t.RawFields()
+	names := make([]string, len(fields))
+	for i, f := range fields {
+		names[i] = f.Name
+	}
+	return names
 }
 
 func (t *Class) Fields() (d Dict) {
