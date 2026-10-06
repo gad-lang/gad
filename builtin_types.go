@@ -62,6 +62,9 @@ func (b BuiltinObjTypeKey) Print(state *PrinterState) error {
 }
 
 type BuiltinObjType struct {
+	// indexType is what indexing the type gives (`Range[int]`): a type of
+	// it (WithIndexType); nil, not indexable.
+	indexType   func(vm *VM, index Object) (Object, error)
 	getters     Dict
 	setters     Dict
 	methods     Dict
@@ -86,6 +89,22 @@ func (t *BuiltinObjType) GetModule() *ModuleSpec {
 }
 
 func (t *BuiltinObjType) GadObjectType() {}
+
+// WithIndexType makes the type indexable by a type: `T[E]` is f(E) — a type
+// of T of elements E (`Range[time.CalendarDate]`).
+func (t *BuiltinObjType) WithIndexType(f func(vm *VM, index Object) (Object, error)) *BuiltinObjType {
+	t.indexType = f
+	return t
+}
+
+// IndexGet is the type indexed (WithIndexType); a type with no index, not
+// indexable.
+func (t *BuiltinObjType) IndexGet(vm *VM, index Object) (Object, error) {
+	if t.indexType == nil {
+		return nil, ErrNotIndexable.NewError(t.name)
+	}
+	return t.indexType(vm, index)
+}
 
 func (t *BuiltinObjType) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
 	return assignByTypeChain(t, obj, to)

@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"gopkg.in/yaml.v3"
 
@@ -4900,6 +4902,16 @@ func (c *Compiler) typeExprSymbolsV(t *node.TypeExpr, visiting map[string]bool) 
 		}
 		return
 	}
+	// `mod.Type`, `Range[int]`: a type computed — a selector or an index —,
+	// its value where the type is written (computedTypeSymbol)
+	switch t.Expr.(type) {
+	case *node.SelectorExpr, *node.IndexExpr:
+		var s *SymbolInfo
+		if s, err = c.computedTypeSymbol(t.Expr); err != nil {
+			return
+		}
+		return []*SymbolInfo{s}, nil
+	}
 	if id := t.Ident(); id != nil {
 		// Expand a type-parameter reference to its constraint types. `visiting`
 		// guards against a constraint that (transitively) names itself.
@@ -4932,6 +4944,42 @@ func (c *Compiler) typeExprSymbolsV(t *node.TypeExpr, visiting map[string]bool) 
 		return
 	}
 	return []*SymbolInfo{s}, nil
+}
+
+// computedTypeSeq names the variables of the computed types.
+var computedTypeSeq atomic.Int64
+
+// computedTypeMark parts the name of a computed type's variable — the type as
+// written — from its number: "time.CalendarDate#3".
+const computedTypeMark = "#"
+
+// TypeName is the name of the type a symbol is: a computed type's as it was
+// written (computedTypeSymbol), without its number.
+func TypeName(s *SymbolInfo) string {
+	if i := strings.LastIndex(s.Name, computedTypeMark); i > 0 {
+		return s.Name[:i]
+	}
+	return s.Name
+}
+
+// computedTypeSymbol is the symbol of a type that is an expression — a
+// selector (`time.CalendarDate`, `lc.PostList`), an index (`Range[int]`) —:
+// a variable of its own (the type as written, numbered), defined where the type is written with the
+// expression's value, read as any variable a type names is (a closure
+// captures it; an interface binds its cell). A symbol of the expression's
+// root alone would be the module, not the type.
+func (c *Compiler) computedTypeSymbol(e node.Expr) (*SymbolInfo, error) {
+	// named as written — what a message says (TypeName) —, made unique
+	name := e.String() + computedTypeMark + strconv.FormatInt(computedTypeSeq.Add(1), 10)
+	id := node.EIdent(name, e.Pos())
+	if err := c.Compile(&node.AssignStmt{LHS: []node.Expr{id}, RHS: []node.Expr{e}, Token: token.Define, TokenPos: e.Pos()}); err != nil {
+		return nil, err
+	}
+	sym, ok := c.symbolTable.Resolve(name)
+	if !ok {
+		return nil, c.Errorf(e, "the type %s: no variable", e.String())
+	}
+	return &sym.SymbolInfo, nil
 }
 
 func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr) (name string, symbols []*SymbolInfo, err error) {

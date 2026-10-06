@@ -10,11 +10,11 @@ func (t ParamType) String() string {
 	case 0:
 		return ""
 	case 1:
-		return t[0].Name
+		return TypeName(t[0])
 	default:
 		var s = make([]string, len(t))
 		for i, symbol := range t {
-			s[i] = symbol.Name
+			s[i] = TypeName(symbol)
 		}
 		return strings.Join(s, "|")
 	}
