@@ -53,11 +53,12 @@ for d in 2026-01-30D .. 2026-02-05D / (dur 48h) {
 
 `Range[T]` is the type of a range whose bounds are of `T` — a type as a
 parameter's, an interface's field's or a class's field's is: `Range[int]`,
-`Range[time.CalendarDate]`, `Range[type <int|float>]` (a union of types). It
-reflects the type of its bounds as `@elem`.
+`Range[time.CalendarDate]`, `Range[int|float]` (a union of types — in a type,
+the same as `Range[type <int|float>]`). It reflects the type of its bounds as
+`@elem`.
 
 ```gad
-interface Booking { nights Range[time.CalendarDate]; guests? Range[int] }
+interface Booking { nights Range[time.CalendarDate]; guests? Range[int|float] }
 fits := func(v, T) { try { v :: T; return true } catch { return false } }
 [
     fits({nights: 2026-03-01D .. 2026-03-05D}, Booking),
@@ -94,7 +95,7 @@ for d in 2026-01-30D .. 2026-02-05D / (dur 48h) {
 }
 [days, everyOther]
 
-interface Booking { nights Range[time.CalendarDate]; guests? Range[int] }
+interface Booking { nights Range[time.CalendarDate]; guests? Range[int|float] }
 fits := func(v, T) { try { v :: T; return true } catch { return false } }
 [
     fits({nights: 2026-03-01D .. 2026-03-05D}, Booking),

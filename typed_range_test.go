@@ -51,3 +51,15 @@ func TestTypedRange(t *testing.T) {
 		]`,
 		nil, Array{Str("Range[calendarDate]"), True, True, False, True, False, True, True})
 }
+
+// In a type, `Range[int|float]` is `Range[type <int|float>]`: the index's
+// `|` joins types; out of a type, it is the bitwise or it is.
+func TestTypedRangeUnion(t *testing.T) {
+	testExpectRun(t, okFn+`
+		class C { n? Range[int|float] }
+		interface I { n Range[int|float] }
+		f := func(x Range[int|float]) { return str(x) }
+		return [str(C.@fields["n"].@types[0]), ok({n: 1.5 .. 3.0}, I), ok({n: 1 .. 2}, I), ok({n: "a" .. "b"}, I), f(1 .. 3), 5|3]`,
+		nil, Array{Str("Range[int|float]"), True, True, False, Str("1 .. 3"), Int(7)})
+}
+

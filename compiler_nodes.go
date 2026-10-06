@@ -4618,7 +4618,7 @@ elems:
 func (c *Compiler) compileTypedIdentExpr(nd *node.TypedIdentExpr) error {
 	types := make(node.Exprs, len(nd.Type))
 	for i, expr := range nd.Type {
-		types[i] = expr.Expr
+		types[i] = typeIndexUnions(expr.Expr)
 	}
 	values := []node.Expr{
 		node.Str(nd.Ident.Name, nd.Ident.NamePos),
@@ -4946,6 +4946,37 @@ func (c *Compiler) typeExprSymbolsV(t *node.TypeExpr, visiting map[string]bool) 
 	return []*SymbolInfo{s}, nil
 }
 
+// typeIndexUnions is e, an expression written where a type goes, with the
+// index that is types joined by `|` — `Range[int|float]` — the union of them
+// it means (`Range[type <int|float>]`): in a type, `a|b` names types, never
+// a bitwise or. Out of a type, an index is as it is written.
+func typeIndexUnions(e node.Expr) node.Expr {
+	ix, ok := e.(*node.IndexExpr)
+	if !ok {
+		return e
+	}
+	cp := *ix
+	cp.X = typeIndexUnions(ix.X)
+	if members := orMembers(ix.Index); len(members) > 1 {
+		u := &node.TypeUnionExpr{TypePos: ix.Index.Pos()}
+		for _, m := range members {
+			u.Types = append(u.Types, node.EType(typeIndexUnions(m)))
+		}
+		cp.Index = u
+	} else {
+		cp.Index = typeIndexUnions(ix.Index)
+	}
+	return &cp
+}
+
+// orMembers are the operands of e joined by `|` (e alone, when it is not).
+func orMembers(e node.Expr) []node.Expr {
+	if b, ok := e.(*node.BinaryExpr); ok && b.Token == token.Or {
+		return append(orMembers(b.LHS), orMembers(b.RHS)...)
+	}
+	return []node.Expr{e}
+}
+
 // computedTypeSeq names the variables of the computed types.
 var computedTypeSeq atomic.Int64
 
@@ -4969,6 +5000,7 @@ func TypeName(s *SymbolInfo) string {
 // captures it; an interface binds its cell). A symbol of the expression's
 // root alone would be the module, not the type.
 func (c *Compiler) computedTypeSymbol(e node.Expr) (*SymbolInfo, error) {
+	e = typeIndexUnions(e)
 	// named as written — what a message says (TypeName) —, made unique
 	name := e.String() + computedTypeMark + strconv.FormatInt(computedTypeSeq.Add(1), 10)
 	id := node.EIdent(name, e.Pos())
