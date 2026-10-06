@@ -2,6 +2,7 @@ package pluginsync
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -41,6 +42,44 @@ func TestTextMateGrammar(t *testing.T) {
 	} {
 		if !strings.Contains(s, scope) {
 			t.Fatalf("grammar missing scope %q", scope)
+		}
+	}
+}
+
+// An identifier that starts with `$` ($el, $1 — a group of a class) is one
+// name: its rule comes before the numbers', and takes all of `$1`.
+func TestTextMateDollarIdentifiers(t *testing.T) {
+	data, err := TextMateGrammar()
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	var g struct {
+		Patterns []struct {
+			Include string `json:"include"`
+		} `json:"patterns"`
+		Repository map[string]struct {
+			Patterns []struct {
+				Name  string `json:"name"`
+				Match string `json:"match"`
+			} `json:"patterns"`
+		} `json:"repository"`
+	}
+	if err := json.Unmarshal(data, &g); err != nil {
+		t.Fatal(err)
+	}
+	order := map[string]int{}
+	for i, p := range g.Patterns {
+		order[p.Include] = i
+	}
+	d, okD := order["#dollarIdentifiers"]
+	n, okN := order["#numbers"]
+	if !okD || !okN || d > n {
+		t.Fatalf("$-identifiers must come before the numbers: %v", g.Patterns)
+	}
+	re := regexp.MustCompile(g.Repository["dollarIdentifiers"].Patterns[0].Match)
+	for _, id := range []string{"$1", "$12", "$el", "$a$b"} {
+		if m := re.FindString(id + " x"); m != id {
+			t.Errorf("%s: matched %q", id, m)
 		}
 	}
 }

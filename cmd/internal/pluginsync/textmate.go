@@ -200,6 +200,12 @@ func TextMateGrammar() ([]byte, error) {
 				{Include: "$self"},
 			},
 		},
+		// An identifier that starts with `$` ($el; $1, a group of a class,
+		// `{ … }`) is one name: matched before the numbers, so the digits of
+		// `$1` are not a number.
+		"dollarIdentifiers": {Patterns: []tmRule{
+			{Name: "variable.other.gad", Match: `\$[\w$]*`},
+		}},
 		"numbers": {Patterns: []tmRule{
 			{Name: "constant.numeric.gad", Match: `\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][-+]?\d+)?[uUdD]?\b`},
 		}},
@@ -262,6 +268,7 @@ func TextMateGrammar() ([]byte, error) {
 			{Include: "#comments"},
 			{Include: "#metadata"},
 			{Include: "#strings"},
+			{Include: "#dollarIdentifiers"},
 			{Include: "#numbers"},
 			{Include: "#keywords"},
 			{Include: "#specials"},
