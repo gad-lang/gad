@@ -12,7 +12,11 @@ import (
 var TUUID BuiltinObjTypeKey
 
 func init() {
-	TUUID = RegisterBuiltinType(BuiltinUUID, "uuid", UUID{}, NewUUIDFunc).TypeKey()
+	typ := RegisterBuiltinType(BuiltinUUID, "uuid", UUID{}, NewUUIDFunc)
+	TUUID = typ.TypeKey()
+	// the constructor's forms, typed: uuid(v str), uuid(v rawstr),
+	// uuid(v bytes), uuid(v uuid) — as calendarDate's
+	addTypeCtors(typ, "uuid", NewUUIDFunc, TStr, TRawStr, TBytes, TUUID)
 }
 
 // UUID is a universally unique identifier, the 16 bytes of RFC 9562; its
