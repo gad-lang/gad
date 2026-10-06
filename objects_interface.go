@@ -182,6 +182,10 @@ type InterfaceField struct {
 	Name         string
 	TypesSymbols ParamType   // compile-time type symbols
 	Types        ObjectTypes // resolved types (when built at run time)
+	// Bound holds, by the index of TypesSymbols, what a symbol is bound to
+	// where the interface was declared — itself, a variable's cell, a nested
+	// interface bound (InterfaceTypesFunc) —; nil, read in the current frame.
+	Bound []Object
 	// Nullable marks the field as also satisfied by nil (`name? T`, `x? int`).
 	Nullable bool
 	// Meta is the field's `[k=v, …]` metadata (or nil); read as `Iface.name.@meta`.
@@ -599,8 +603,8 @@ func ifaceFieldTypeOK(vm *VM, f *InterfaceField, v Object) (bool, error) {
 		typeVals = append(typeVals, t)
 	}
 	if vm != nil {
-		for _, sym := range f.TypesSymbols {
-			tv, err := vm.GetSymbolValue(sym)
+		for k := range f.TypesSymbols {
+			tv, err := f.typeValue(vm, k)
 			if err != nil {
 				return false, err
 			}
@@ -641,8 +645,8 @@ func (f *InterfaceField) resolveAssigners(vm *VM) []TypeAssigner {
 		out = append(out, t)
 	}
 	if len(out) == 0 && vm != nil {
-		for _, sym := range f.TypesSymbols {
-			if tv, err := vm.GetSymbolValue(sym); err == nil {
+		for k := range f.TypesSymbols {
+			if tv, err := f.typeValue(vm, k); err == nil {
 				if ta, _ := tv.(TypeAssigner); ta != nil {
 					out = append(out, ta)
 				}
@@ -1326,8 +1330,8 @@ func (f *InterfaceField) IndexGet(vm *VM, index Object) (Object, error) {
 			return objectArray(f.Types), nil
 		}
 		out := make(Array, len(f.TypesSymbols))
-		for i, s := range f.TypesSymbols {
-			v, err := vm.GetSymbolValue(s)
+		for i := range f.TypesSymbols {
+			v, err := f.typeValue(vm, i)
 			if err != nil {
 				return nil, err
 			}

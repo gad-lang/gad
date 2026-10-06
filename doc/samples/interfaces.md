@@ -164,6 +164,33 @@ Poly := interface { pts: []{ x int, y int } }
 // => [true, false, true, false]
 ```
 
+## Referring to itself
+
+As a class does, an interface **refers to itself** by its name: a field
+typed by it (`icon str|IconOptions`) is checked recursively. The types its
+fields name are those **where it is declared**: declared in a function, the
+interface keeps itself and that function's types — a local class, another
+interface — and is checked by them anywhere, after the function returned.
+A union naming it (`type Icon <str|IconOptions>`) is a type of its own.
+
+```gad
+icons := func() {
+    interface IconOptions { icon str|uuid|IconOptions; width? int }
+    type Icon <str|uuid|IconOptions>
+    return [IconOptions, Icon]
+}
+[IconOptions, Icon] := icons()   // used after icons() returned
+fits := func(v, T) { try { v :: T; return true } catch { return false } }
+[
+    fits({icon: {icon: "home", width: 24}}, IconOptions),
+    fits({icon: {icon: 24}}, IconOptions),        // 24: no icon
+    fits("home", Icon),
+    fits(uuid("01a0a168-6707-748f-b487-c0ab78e25c11"), Icon),
+    IconOptions.fields[0].types[2] == IconOptions, // itself
+]
+// => [true, false, true, true, true]
+```
+
 ## Context-function members (`funcs { … }`)
 
 A `funcs { FnExpr <header>; … }` section requires, per entry, a **free function
@@ -540,6 +567,21 @@ interface Tagged { name str; tag? int|str }
     ({name: "a", tag: 3} :: Tagged).tag,
     ({name: "b", tag: nil} :: Tagged).name,     // a nil tag is fine
     ({name: "c"} :: Tagged).name,               // an absent tag is fine
+]
+
+icons := func() {
+    interface IconOptions { icon str|uuid|IconOptions; width? int }
+    type Icon <str|uuid|IconOptions>
+    return [IconOptions, Icon]
+}
+[IconOptions, Icon] := icons()   // used after icons() returned
+fits := func(v, T) { try { v :: T; return true } catch { return false } }
+[
+    fits({icon: {icon: "home", width: 24}}, IconOptions),
+    fits({icon: {icon: 24}}, IconOptions),        // 24: no icon
+    fits("home", Icon),
+    fits(uuid("01a0a168-6707-748f-b487-c0ab78e25c11"), Icon),
+    IconOptions.fields[0].types[2] == IconOptions, // itself
 ]
 
 interface Reader { get pos int; read() <_ str> }

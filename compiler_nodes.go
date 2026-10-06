@@ -2700,7 +2700,7 @@ func (c *Compiler) buildCtxFuncHeaderObject(nd *node.FuncHeaderExpr) (_ *FuncHea
 
 // compileInterfaceExpr compiles `interface { … }` to a *Interface bytecode
 // constant.
-func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
+func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) (err error) {
 	// a generic's: the interface, and the types its parameters are there —
 	// InterfaceTypeParams(iface, [T=…]), evaluated where it is declared
 	if ta := typeArgsExpr(nd.TypeArgs); ta != nil {
@@ -2733,7 +2733,30 @@ func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
 	if err != nil {
 		return err
 	}
+	// field types naming the interface itself or a variable of this frame:
+	// InterfaceTypes(<the interface…>, keys, cell…) binds them where it is
+	// declared (objects_interface_types.go)
+	keys, cells := c.ifaceTypeCaptures(iface)
+	if keys != nil {
+		c.emit(nd, OpGetBuiltin, int(BuiltinInterfaceTypes))
+	}
 	c.emit(nd, OpConstant, c.addConstant(iface))
+	if keys != nil {
+		defer func() {
+			if err != nil {
+				return
+			}
+			c.emit(nd, OpConstant, c.addConstant(keys))
+			for _, s := range cells {
+				if s.Scope == ScopeLocal {
+					c.emit(nd, OpGetLocalPtr, s.Index)
+				} else {
+					c.emit(nd, OpGetFreePtr, s.Index)
+				}
+			}
+			c.emit(nd, OpCall, 2+len(cells), 0)
+		}()
+	}
 	// `*Parent` spreads are evaluated where the interface is declared (so a local
 	// parent resolves in the declaring frame, even when the interface is used from
 	// a closure) and bound into a runtime copy (OpInterfaceExtends). A parent may
@@ -2741,7 +2764,7 @@ func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
 	// `*[A, B]`, `*parents`.
 	if n := len(nd.Parents); n > 0 {
 		for _, p := range nd.Parents {
-			if err := c.Compile(p); err != nil {
+			if err = c.Compile(p); err != nil {
 				return err
 			}
 		}
@@ -2753,13 +2776,61 @@ func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
 	// runtime value (not a pure constant) so locals/selectors resolve correctly.
 	if n := len(nd.ContextFuncs); n > 0 {
 		for _, m := range nd.ContextFuncs {
-			if err := c.Compile(m.FnExpr); err != nil {
+			if err = c.Compile(m.FnExpr); err != nil {
 				return err
 			}
 		}
 		c.emit(nd, OpInterfaceBind, n)
 	}
 	return nil
+}
+
+// ifaceTypeCaptures are the keys (TypeKey) and the symbols of the local and
+// free variables the field types of iface — and of the interfaces they
+// write — name; keys is nil when no field type names one, nor iface itself.
+func (c *Compiler) ifaceTypeCaptures(iface *Interface) (keys Array, cells []*SymbolInfo) {
+	self := false
+	seen := map[int64]bool{}
+	walked := map[*Interface]bool{}
+	var walk func(i *Interface)
+	field := func(f *InterfaceField) {
+		for _, s := range f.TypesSymbols {
+			switch s.Scope {
+			case ScopeLocal, ScopeFree, ScopeGlobal:
+				if s.Name == iface.IName {
+					self = true
+				} else if s.Scope != ScopeGlobal && !seen[TypeKey(s)] {
+					seen[TypeKey(s)] = true
+					cells = append(cells, s)
+				}
+			case ScopeConstant:
+				if nested, _ := c.constants[s.Index].(*Interface); nested != nil {
+					walk(nested)
+				}
+			}
+		}
+	}
+	walk = func(i *Interface) {
+		if walked[i] {
+			return
+		}
+		walked[i] = true
+		for _, f := range i.Fields {
+			field(f)
+		}
+		if i.Elem != nil {
+			field(i.Elem)
+		}
+	}
+	walk(iface)
+	if !self && len(cells) == 0 {
+		return nil, nil
+	}
+	keys = make(Array, len(cells))
+	for i, s := range cells {
+		keys[i] = Int(TypeKey(s))
+	}
+	return keys, cells
 }
 
 func (c *Compiler) compileInterfaceStmt(nd *node.InterfaceStmt) error {

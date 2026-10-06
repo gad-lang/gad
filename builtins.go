@@ -316,6 +316,11 @@ const (
 	// (`uuid()`, `uuid("…")`). Appended after every earlier builtin, so
 	// existing builtin indexes do not shift.
 	BuiltinUUID
+	// BuiltinInterfaceTypes is `InterfaceTypes(iface, keys, cell…)`, what a
+	// declared interface whose field types name itself or a variable of the
+	// function declaring it compiles to (InterfaceTypesFunc). Appended after
+	// every earlier builtin, so existing builtin indexes do not shift.
+	BuiltinInterfaceTypes
 
 	BuiltinEnd_
 )
@@ -324,7 +329,7 @@ var (
 	// lastBuiltinType seeds NewBuiltinType for dynamically-registered types; it
 	// must be the last statically-numbered builtin so dynamic types never reuse a
 	// static slot.
-	lastBuiltinType = BuiltinInterfaceTypeParams
+	lastBuiltinType = BuiltinEnd_ - 1
 	lastBuiltinMux  = sync.Mutex{}
 )
 
@@ -366,6 +371,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"Class":               BuiltinNewClass,
 	"InterfaceSpread":     BuiltinInterfaceSpread,
 	"InterfaceTypeParams": BuiltinInterfaceTypeParams,
+	"InterfaceTypes":      BuiltinInterfaceTypes,
 	"StaticType":          BuiltinNewStaticType,
 	"TypedArrayType":      BuiltinNewTypedArrayType,
 	"Mixin":               BuiltinNewMixin,
@@ -928,6 +934,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinInterfaceTypeParams: &BuiltinFunction{
 		FuncName:              "InterfaceTypeParams",
 		Value:                 InterfaceTypeParamsFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinInterfaceTypes: &BuiltinFunction{
+		FuncName:              "InterfaceTypes",
+		Value:                 InterfaceTypesFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinNewClass: &BuiltinFunction{
