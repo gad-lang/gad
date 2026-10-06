@@ -12,6 +12,9 @@ type PtrType struct {
 	Elem ParamType
 	// ElemNames are those types as written, for the type's own name.
 	ElemNames []string
+	// Bound holds, by the index of Elem, the cells of the variables they
+	// name, bound where the type was written (TypeCellsFunc).
+	Bound []Object
 }
 
 var (
@@ -77,7 +80,7 @@ func (t *PtrType) CanAssignVM(vm *VM, obj Object) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return t.Elem.Accept(vm, v)
+	return t.Elem.AcceptResolve(vm, v, elemResolver(vm, t.Elem, t.Bound))
 }
 
 // IndexGet reflects the pointer type: `@elem` — the pointed-to types, resolved
@@ -89,7 +92,7 @@ func (t *PtrType) IndexGet(vm *VM, index Object) (Object, error) {
 		}
 		out := make(Array, 0, len(t.Elem))
 		for _, s := range t.Elem {
-			v, err := vm.GetSymbolValue(s)
+			v, err := elemResolver(vm, t.Elem, t.Bound)(s)
 			if err != nil {
 				return nil, err
 			}

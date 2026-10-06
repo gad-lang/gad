@@ -18,6 +18,9 @@ type ArrayType struct {
 	Elem ParamType
 	// ElemNames are those types as written, for the type's own name.
 	ElemNames []string
+	// Bound holds, by the index of Elem, the cells of the variables they
+	// name, bound where the type was written (TypeCellsFunc).
+	Bound []Object
 }
 
 var (
@@ -91,7 +94,7 @@ func (t *ArrayType) nested(obj Object, depth int, vm *VM) (bool, error) {
 		if vm == nil || len(t.Elem) == 0 {
 			return true, nil
 		}
-		return t.Elem.Accept(vm, obj)
+		return t.Elem.AcceptResolve(vm, obj, elemResolver(vm, t.Elem, t.Bound))
 	}
 
 	arr, ok := obj.(Array)
@@ -123,7 +126,7 @@ func (t *ArrayType) IndexGet(vm *VM, index Object) (Object, error) {
 			if vm == nil {
 				return nil, ErrInvalidIndex.NewError("@elem (no VM to resolve the element types)")
 			}
-			v, err := vm.GetSymbolValue(s)
+			v, err := elemResolver(vm, t.Elem, t.Bound)(s)
 			if err != nil {
 				return nil, err
 			}

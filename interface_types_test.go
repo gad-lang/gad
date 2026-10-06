@@ -81,3 +81,42 @@ func TestInterfaceSelfReference(t *testing.T) {
 		return O.fields[0].types[0] == O`,
 		nil, True)
 }
+
+// A structural type written in a function — `[]Size`, `*Item` — keeps the
+// types of its elements, the function's locals, once it returned: a class's
+// field, an interface's field, reflected and checked.
+func TestTypeCells(t *testing.T) {
+	testExpectRun(t, okFn+`
+		mk := func() {
+			enum Size { S, M, L }
+			class Item { a str }
+			class Form { sizes []Size; items? []Item; p? *Item }
+			interface I { sizes []Size; items? []Item }
+			return [Form, I, Size, Item]
+		}
+		[Form, I, Size, Item] := mk()
+		z := 1
+		return [
+			Form.@fields["sizes"].@types[0].@elem[0] == Size,
+			Form.@fields["items"].@types[0].@elem[0] == Item,
+			Form.@fields["p"].@types[0].@elem[0] == Item,
+			ok({sizes: [Size.S, Size.L]}, I),
+			ok({sizes: [1]}, I),
+			ok({sizes: [Size.M], items: [Item(; a="x")]}, I),
+			ok({sizes: [], items: [1]}, I),
+		]`,
+		nil, Array{True, True, True, True, False, True, False})
+
+	// a free variable, from a closure
+	testExpectRun(t, okFn+`
+		mk := func() {
+			enum Size { S, M }
+			return func() {
+				class F { sizes []Size }
+				return F
+			}()
+		}
+		F := mk()
+		return "Size" in str(F.@fields["sizes"].@types[0].@elem[0])`,
+		nil, True)
+}

@@ -101,8 +101,22 @@ func (b *ifaceTypesBinder) field(iface *Interface, f *InterfaceField) *Interface
 			}
 		case ScopeConstant:
 			if b.vm != nil {
-				if nested, _ := b.vm.constants[s.Index].(*Interface); nested != nil {
+				switch nested := b.vm.constants[s.Index].(type) {
+				case *Interface:
 					v = b.bind(nested)
+				case *ArrayType:
+					// `items []Item`: its element types bound too
+					if bound := bindCells(nested.Elem, b.cells); bound != nil {
+						cp := *nested
+						cp.Bound = bound
+						v = &cp
+					}
+				case *PtrType:
+					if bound := bindCells(nested.Elem, b.cells); bound != nil {
+						cp := *nested
+						cp.Bound = bound
+						v = &cp
+					}
 				}
 			}
 		}

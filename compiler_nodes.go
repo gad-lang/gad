@@ -2804,8 +2804,21 @@ func (c *Compiler) ifaceTypeCaptures(iface *Interface) (keys Array, cells []*Sym
 					cells = append(cells, s)
 				}
 			case ScopeConstant:
-				if nested, _ := c.constants[s.Index].(*Interface); nested != nil {
+				switch nested := c.constants[s.Index].(type) {
+				case *Interface:
 					walk(nested)
+				case *ArrayType, *PtrType:
+					// `items []Item`: the variables its element types name
+					_, elemCells := structuralCells(nested)
+					for _, es := range elemCells {
+						if es.Name == iface.IName {
+							continue
+						}
+						if !seen[TypeKey(es)] {
+							seen[TypeKey(es)] = true
+							cells = append(cells, es)
+						}
+					}
 				}
 			}
 		}
@@ -2886,7 +2899,24 @@ func (c *Compiler) compileStructuralTypeExpr(nd node.Expr) error {
 	if err != nil {
 		return err
 	}
+	// element types naming a variable of this frame: TypeCells(<type>,
+	// keys, cell…) binds them where it is written (objects_type_cells.go)
+	keys, cells := structuralCells(c.constants[sym.Index])
+	if keys == nil {
+		c.emit(nd, OpConstant, sym.Index)
+		return nil
+	}
+	c.emit(nd, OpGetBuiltin, int(BuiltinTypeCells))
 	c.emit(nd, OpConstant, sym.Index)
+	c.emit(nd, OpConstant, c.addConstant(keys))
+	for _, s := range cells {
+		if s.Scope == ScopeLocal {
+			c.emit(nd, OpGetLocalPtr, s.Index)
+		} else {
+			c.emit(nd, OpGetFreePtr, s.Index)
+		}
+	}
+	c.emit(nd, OpCall, 2+len(cells), 0)
 	return nil
 }
 

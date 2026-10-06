@@ -321,6 +321,11 @@ const (
 	// function declaring it compiles to (InterfaceTypesFunc). Appended after
 	// every earlier builtin, so existing builtin indexes do not shift.
 	BuiltinInterfaceTypes
+	// BuiltinTypeCells is `TypeCells(type, keys, cell…)`, what a structural
+	// type (`[]T`, `*T`) whose element types name a variable of the function
+	// writing it compiles to (TypeCellsFunc). Appended after every earlier
+	// builtin, so existing builtin indexes do not shift.
+	BuiltinTypeCells
 
 	BuiltinEnd_
 )
@@ -372,6 +377,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"InterfaceSpread":     BuiltinInterfaceSpread,
 	"InterfaceTypeParams": BuiltinInterfaceTypeParams,
 	"InterfaceTypes":      BuiltinInterfaceTypes,
+	"TypeCells":           BuiltinTypeCells,
 	"StaticType":          BuiltinNewStaticType,
 	"TypedArrayType":      BuiltinNewTypedArrayType,
 	"Mixin":               BuiltinNewMixin,
@@ -939,6 +945,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinInterfaceTypes: &BuiltinFunction{
 		FuncName:              "InterfaceTypes",
 		Value:                 InterfaceTypesFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinTypeCells: &BuiltinFunction{
+		FuncName:              "TypeCells",
+		Value:                 TypeCellsFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinNewClass: &BuiltinFunction{

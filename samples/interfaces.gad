@@ -74,7 +74,9 @@ typed by it (`icon str|IconOptions`) is checked recursively. The types its
 fields name are those **where it is declared**: declared in a function, the
 interface keeps itself and that function's types — a local class, another
 interface — and is checked by them anywhere, after the function returned.
-A union naming it (`type Icon <str|IconOptions>`) is a type of its own.
+A union naming it (`type Icon <str|IconOptions>`) is a type of its own. A
+structural type written in the function — `[]Size`, `*Item`, a class's or an
+interface's field — keeps the function's types of its elements the same way.
 
 @snippet iface_self
 
