@@ -312,6 +312,10 @@ const (
 	// a generic interface's instance compiles to (its `@tparams`). Appended
 	// after every earlier builtin, so existing builtin indexes do not shift.
 	BuiltinInterfaceTypeParams
+	// BuiltinUUID is the type `uuid` — a value and its constructor
+	// (`uuid()`, `uuid("…")`). Appended after every earlier builtin, so
+	// existing builtin indexes do not shift.
+	BuiltinUUID
 
 	BuiltinEnd_
 )

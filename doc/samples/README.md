@@ -47,6 +47,7 @@
 - [types](types.md)
 - [unary_operators](unary_operators.md)
 - [user_operators](user_operators.md)
+- [uuid](uuid.md)
 - [values_and_types](values_and_types.md)
 - [variables_and_scopes](variables_and_scopes.md)
 - [with](with.md)
