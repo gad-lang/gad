@@ -12,6 +12,15 @@ dict.
 
 @snippet import_module
 
+## The import statement
+
+`@import` — the form the templates (gadx) write — is the same import, as a
+statement: `@import "m" as name` binds the module, `@import { a, b: c, d = 1 }
+from "m"` its exports, as a curly destructuring does (a key, a key bound to
+another name, a default when the module has none of it).
+
+@snippet import_stmt
+
 ## Names without an extension
 
 A module name may omit its extension: `import("./mathx")` loads the first
@@ -84,6 +93,13 @@ and params work as before.
 
 @snippet import_glob_dict
 ***/
+
+//snippet import_stmt
+@import "./mathx.gad" as mx
+@import { square, cube: cubed, tau = 6.28 } from "./mathx.gad"
+[mx.square(3), square(4), cubed(2), tau]
+/**= [9, 16, 8, 6.28] **/
+//endsnippet
 
 //snippet import_module
 mathx := import("./mathx.gad")

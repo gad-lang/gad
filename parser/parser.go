@@ -3202,6 +3202,10 @@ do:
 			if p.isDeleteStmtStart() {
 				return p.ParseDeleteStmt()
 			}
+		case "@import":
+			// `@import "m"`, `@import "m" as name`, `@import { a, b: c } from "m"`
+			// — the import of the templates (gadx), lowered to import("m").
+			return p.ParseImportStmt()
 		case "include":
 			// `include ("a.gad", …)` — written like a call; a statement only when
 			// immediately followed by `(`.

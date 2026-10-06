@@ -894,6 +894,11 @@ func (s *scanner) ensureBalanced(start int, open, close byte) {
 }
 
 var rgxImportModule = regexp.MustCompile(`^@import\s+("[0-9a-zA-Z_\-\. \/][0-9a-zA-Z_\-\. \/]*")(\s+as\s+([a-zA-Z$_]\w*))?$`)
+
+// rgxImportMain is the short form of the import of a template's main
+// component: `@import color from "color.gadx"` is
+// `@import { main: color } from "color.gadx"`.
+var rgxImportMain = regexp.MustCompile(`^@import\s+([a-zA-Z$_]\w*)\s+from\s+("[0-9a-zA-Z_\-\. \/][0-9a-zA-Z_\-\. \/]*")$`)
 var rgxImportDestructure = regexp.MustCompile(`^@import\s*\{([^}]*)\}\s+from\s+("[0-9a-zA-Z_\-\. \/][0-9a-zA-Z_\-\. \/]*")$`)
 
 func (s *scanner) scanImportModule() gadparser.PToken {
@@ -902,6 +907,12 @@ func (s *scanner) scanImportModule() gadparser.PToken {
 			s.consume(len(sm[0]))
 			pt := s.newToken(gadxtoken.ImportModule, sm[0], sm[2])
 			pt.Set("destructure", strings.TrimSpace(sm[1]))
+			return pt
+		}
+		if sm := rgxImportMain.FindStringSubmatch(s.buffer); len(sm) != 0 {
+			s.consume(len(sm[0]))
+			pt := s.newToken(gadxtoken.ImportModule, sm[0], sm[2])
+			pt.Set("destructure", "main: "+sm[1])
 			return pt
 		}
 		if sm := rgxImportModule.FindStringSubmatch(s.buffer); len(sm) != 0 {

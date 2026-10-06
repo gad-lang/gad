@@ -1,6 +1,7 @@
 package gadx
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gad-lang/gad"
@@ -153,4 +154,26 @@ func TestCompileConstSingle(t *testing.T) {
 	compileSrc(t, `@const (name = "test")
 @main
     h1 {name}`)
+}
+
+// `@import card from "card.gadx"` draws card.gadx's main as card, the same
+// as `@import { main: card } from "card.gadx"`; an error in it is reported at
+// its line of the template.
+func TestImportMainRender(t *testing.T) {
+	mods := map[string]string{"card": "@export comp main(title)\n    p.card {= title }\n"}
+	for _, src := range []string{
+		"@import card from \"card.gadx\"\n@main\n    +card(\"Zz\")\n",
+		"@import { main: card } from \"card.gadx\"\n@main\n    +card(\"Zz\")\n",
+	} {
+		if got, err := portRun(t, src, nil, mods); err != nil || got != `<p class="card">Zz</p>` {
+			t.Errorf("%s: %q %v", src, got, err)
+		}
+	}
+	builtins := AppendBuiltins(gad.NewBuiltins())
+	_, _, err := Compile(gad.NewSymbolTable(builtins.NameSet), []byte("p x\n@import { a b } from \"comps.gadx\"\n"), gad.CompileOptions{
+		CompilerOptions: gad.CompilerOptions{FallbackFunc: CompileFallback, ModuleMap: testModuleMap()},
+	})
+	if err == nil || !strings.Contains(err.Error(), ":2:") {
+		t.Errorf("the error of an @import not at its line: %v", err)
+	}
 }

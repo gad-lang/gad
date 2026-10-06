@@ -82,7 +82,7 @@ func TestImportDestructureRename(t *testing.T) {
 	file := parseLine(t, `@import { page_wrapper: pw, hero: h } from "comps.gadx"`)
 	expectStmtCount(t, file, 1)
 	code := codeStmtStr(t, file, 0)
-	if !strings.Contains(code, "pw = gadx_import_0.page_wrapper") || !strings.Contains(code, "h = gadx_import_0.hero") {
+	if !strings.Contains(code, `{ page_wrapper:pw, hero:h } := import("comps.gadx")`) {
 		t.Fatalf("expected renamed explicit imports, got: %s", code)
 	}
 }
@@ -91,7 +91,7 @@ func TestImportDestructureDefault(t *testing.T) {
 	file := parseLine(t, `@import { page_wrapper = default_wrapper } from "comps.gadx"`)
 	expectStmtCount(t, file, 1)
 	code := codeStmtStr(t, file, 0)
-	if !strings.Contains(code, "page_wrapper = (gadx_import_0.page_wrapper ?? default_wrapper)") {
+	if !strings.Contains(code, `{ page_wrapper=default_wrapper } := import("comps.gadx")`) {
 		t.Fatalf("expected explicit import with default, got: %s", code)
 	}
 }
@@ -100,7 +100,7 @@ func TestImportDestructureRest(t *testing.T) {
 	file := parseLine(t, `@import { page_wrapper, **rest } from "comps.gadx"`)
 	expectStmtCount(t, file, 1)
 	code := codeStmtStr(t, file, 0)
-	if !strings.Contains(code, "rest = gadx_import_0") {
+	if !strings.Contains(code, `{ page_wrapper, **rest } := import("comps.gadx")`) {
 		t.Fatalf("expected explicit rest import, got: %s", code)
 	}
 }
@@ -260,7 +260,7 @@ func TestImportDestructureMixed(t *testing.T) {
 	file := parseLine(t, `@import { a, b: bb, c = 5, **rest } from "comps.gadx"`)
 	expectStmtCount(t, file, 1)
 	code := codeStmtStr(t, file, 0)
-	for _, part := range []string{"a = gadx_import_0.a", "bb = gadx_import_0.b", "c = (gadx_import_0.c ?? 5)", "rest = gadx_import_0"} {
+	for _, part := range []string{`{ a, b:bb, c=5, **rest } := import("comps.gadx")`} {
 		if !strings.Contains(code, part) {
 			t.Fatalf("expected part %q, got: %s", part, code)
 		}
@@ -294,4 +294,40 @@ func codeStmtStr(t *testing.T, file *gadxnode.File, idx int) string {
 		parts = append(parts, stmt.String())
 	}
 	return strings.Join(parts, "; ")
+}
+
+// `@import name from "m"` is `@import { main: name } from "m"`: a template's
+// main component, by a name of its own.
+func TestImportMain(t *testing.T) {
+	file := parseLine(t, `@import color from "form/fields/color.gadx"`)
+	expectStmtCount(t, file, 1)
+	if code := codeStmtStr(t, file, 0); !strings.Contains(code, `{ main:color } := import("form/fields/color.gadx")`) {
+		t.Fatalf("expected the main as color, got: %s", code)
+	}
+}
+
+// The nodes of an @import keep their positions in the file: the module
+// name, each name bound.
+func TestImportPositions(t *testing.T) {
+	src := "p x\n@import { hero: h } from \"comps.gadx\"\n@import card from \"card.gadx\"\n"
+	file := parseLine(t, src)
+	var got []string
+	for _, st := range file.Stmts {
+		cs, ok := st.(*gadxnode.CodeStmt)
+		if !ok {
+			continue
+		}
+		as := cs.Stmts[0].(*gnode.AssignStmt)
+		kva := as.LHS[0].(*gnode.KeyValueArrayLit)
+		kv := kva.Elements[0].(*gnode.KeyValuePairLit)
+		imp := as.RHS[0].(*gnode.ImportExpr)
+		for _, n := range []gnode.Node{kv.Value, imp.Args.Values[0]} {
+			off := int(n.Pos()) - int(file.InputFile.Base)
+			got = append(got, src[off:off+len(n.String())])
+		}
+	}
+	want := []string{"h", `"comps.gadx"`, "card", `"card.gadx"`}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("positions: got %q, want %q", got, want)
+	}
 }

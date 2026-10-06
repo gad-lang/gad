@@ -12,12 +12,6 @@ import (
 // is unknown, so gad assigns fragment-local positions instead.
 const noBase source.Pos = source.NoPos
 
-// parseGad parses a GAD expression string using gad's parser.
-// If textMode is true, uses mixed mode with {...} delimiters.
-func parseGad(s string, file *source.File, textMode bool) (node.Stmts, error) {
-	return parseGadAt(s, noBase, textMode)
-}
-
 // parseGadTextAt parses mixed text/expression content where a bare `{ expr }` is
 // a CONTROL statement (runs, emits nothing) and only `{= expr }` emits — the
 // pug-style tag body / `| text` rule. It is parseGadAt without
@@ -47,7 +41,8 @@ func parseGadAt(s string, base source.Pos, textMode bool) (_ node.Stmts, err err
 
 func parseGadModeAt(s string, base source.Pos, textMode, exprAsValue bool) (_ node.Stmts, err error) {
 	po := &gadparser.ParserOptions{
-		Mode: gadparser.ParseConfigDisabled,
+		// `@import name from "m"`: a template's main component
+		Mode: gadparser.ParseConfigDisabled | gadparser.ParseImportMain,
 	}
 	so := &gadparser.ScannerOptions{}
 

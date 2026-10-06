@@ -587,9 +587,22 @@ Supports Gad destructuring syntax including:
 - Rest pattern: `@import { page_wrapper, **rest } from "components.gadx"`
 - Mixed: `@import { a, b: bb, c = nil, **rest } from "modules.gadx"`
 
-All forms compile to Gad `import()` calls. Destructured imports generate a
-curly-destructure assignment (`{...} := import("...")`), which is handled by
-Gad's built-in destructuring compiler.
+### Main Import
+
+```gadx
+@import color from "form/fields/color.gadx"
+```
+
+The short form of `@import { main: color } from "form/fields/color.gadx"`: the
+module's `main` — a template's component — as `color`, drawn `+color(...)`.
+
+All forms are Gad's `@import` statement, parsed as written, at its place in
+the file: an error in one (a name, the module's) is reported at its line and
+column of the `.gadx`. They compile to `import()`: a destructured import to a
+curly-destructure assignment (`{...} := import("...")`), handled by Gad's
+built-in destructuring compiler. Gad itself takes `@import "m"`,
+`@import "m" as name` and `@import { … } from "m"`; the main form is the
+templates' only.
 
 ## Variable Declarations
 

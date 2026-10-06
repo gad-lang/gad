@@ -16,4 +16,7 @@ const (
 	ParseMixedExprAsValue
 	ParseFloatAsDecimal
 	ParseCharAsString
+	// ParseImportMain lets `@import name from "m"` bind the module's main —
+	// `@import { main: name } from "m"` —: a template's component (gadx).
+	ParseImportMain
 )

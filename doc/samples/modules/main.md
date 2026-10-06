@@ -17,6 +17,20 @@ mathx := import("./mathx.gad")
 // => [3.141592653589793, 49, 27, 12.566370614359172, 12]
 ```
 
+## The import statement
+
+`@import` — the form the templates (gadx) write — is the same import, as a
+statement: `@import "m" as name` binds the module, `@import { a, b: c, d = 1 }
+from "m"` its exports, as a curly destructuring does (a key, a key bound to
+another name, a default when the module has none of it).
+
+```gad
+@import "./mathx.gad" as mx
+@import { square, cube: cubed, tau = 6.28 } from "./mathx.gad"
+[mx.square(3), square(4), cubed(2), tau]
+// => [9, 16, 8, 6.28]
+```
+
 ## Names without an extension
 
 A module name may omit its extension: `import("./mathx")` loads the first
@@ -140,6 +154,10 @@ greeters := import("./plugins/*")::dict  // plugins_test.gad is a test file: ski
 ## Example — `main.gad`
 
 ```gad
+@import "./mathx.gad" as mx
+@import { square, cube: cubed, tau = 6.28 } from "./mathx.gad"
+[mx.square(3), square(4), cubed(2), tau]
+
 mathx := import("./mathx.gad")
 [mathx.pi, mathx.square(7), mathx.cube(3), mathx.circleArea(2), mathx.rectArea(3, 4)]
 

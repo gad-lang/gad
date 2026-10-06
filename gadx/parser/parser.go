@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -79,6 +80,24 @@ func (p *Parser) Error(pos source.Pos, msg string) {
 		panic(bailout{})
 	}
 	p.Errors.Add(filePos, msg)
+}
+
+// errorAt reports err, the error of a Gad fragment parsed at its own offset
+// (parseGadAt): each at its position in the file — the fragment's nodes are
+// in the file's coordinates —, else at pos.
+func (p *Parser) errorAt(pos source.Pos, err error) {
+	var list gadparser.ErrorList
+	if errors.As(err, &list) && len(list) > 0 {
+		for _, e := range list {
+			at := pos
+			if e.Pos.File != nil {
+				at = e.Pos.Pos()
+			}
+			p.Error(at, e.Msg)
+		}
+		return
+	}
+	p.Error(pos, err.Error())
 }
 
 // currentComp returns the component at the top of the comp stack, or nil.
@@ -1119,74 +1138,30 @@ func (p *Parser) parseInclude() *gadxnode.CodeStmt {
 	return s
 }
 
+// parseImportModule lowers the `@import` directive to Gad's import statement,
+// parsed as written — a verbatim slice of the .gadx source at its own offset,
+// so every node (the module name, each name bound) keeps its position in the
+// file:
+//
+//	@import "m"                        // import("m")
+//	@import "m" as name                // name := import("m")
+//	@import { a, b: c, d = 1 } from "m" // { a, b: c, d = 1 } := import("m")
+//	@import name from "m"              // { main: name } := import("m")
 func (p *Parser) parseImportModule() *gadxnode.CodeStmt {
 	tok := p.Token
 	p.expect(gadxtoken.ImportModule)
 
-	path := stringData(tok, "value", "")
-	ident := stringData(tok, "ident", "")
-	destructure := stringData(tok, "destructure", "")
-
-	var gadSrc string
-	switch {
-	case destructure != "":
-		gadSrc = expandImportDestructure(destructure, path, tok.Pos)
-	case ident != "":
-		gadSrc = fmt.Sprintf("var %s = import(%s)", ident, path)
-	default:
-		gadSrc = fmt.Sprintf("import(%s)", path)
-	}
-
-	stmts, err := parseGad(gadSrc, nil, false)
 	s := &gadxnode.CodeStmt{
 		NodePos: tok.Pos,
 		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
 	}
-
-	if err == nil && stmts != nil {
-		s.Stmts = stmts
+	stmts, err := parseGadAt(tok.Literal, tok.Pos, false)
+	if err != nil {
+		p.errorAt(tok.Pos, err)
+		return s
 	}
-
+	s.Stmts = stmts
 	return s
-}
-
-func expandImportDestructure(destructure, path string, pos source.Pos) string {
-	tmp := fmt.Sprintf("gadx_import_%d", pos)
-	parts := []string{fmt.Sprintf("var %s = import(%s)", tmp, path)}
-	for _, field := range strings.Split(destructure, ",") {
-		field = strings.TrimSpace(field)
-		if field == "" {
-			continue
-		}
-		if strings.HasPrefix(field, "**") {
-			alias := strings.TrimSpace(strings.TrimPrefix(field, "**"))
-			if alias != "" {
-				parts = append(parts, fmt.Sprintf("var %s = %s", alias, tmp))
-			}
-			continue
-		}
-		name := field
-		alias := field
-		fallback := ""
-		if before, after, ok := strings.Cut(field, "="); ok {
-			name = strings.TrimSpace(before)
-			alias = name
-			fallback = strings.TrimSpace(after)
-		}
-		if before, after, ok := strings.Cut(field, ":"); ok {
-			name = strings.TrimSpace(before)
-			alias = strings.TrimSpace(after)
-		}
-		if name == "" || alias == "" {
-			continue
-		}
-		value := fmt.Sprintf("%s.%s", tmp, name)
-		if fallback != "" {
-			value = fmt.Sprintf("%s ?? %s", value, fallback)
-		}
-		parts = append(parts, fmt.Sprintf("var %s = %s", alias, value))
-	}
-	return strings.Join(parts, "\n")
 }
 
 // =============================================================================
