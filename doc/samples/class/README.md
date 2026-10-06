@@ -6,6 +6,7 @@
 - [classes](classes.md)
 - [field_defaults_test](field_defaults_test.md)
 - [field_types](field_types.md)
+- [groups](groups.md)
 - [inline_classes](inline_classes.md)
 - [mixins_test](mixins_test.md)
 - [spread_members](spread_members.md)

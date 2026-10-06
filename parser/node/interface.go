@@ -8,6 +8,22 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 )
 
+// formatInterfaceMembers are the members of e in the order they are written:
+// the canonical one (sortedInterfaceMembers), unless their order means
+// something — e is `[ordered]`, a group's body, or has groups, whose names
+// (`$N`) are their order — and then as declared.
+func formatInterfaceMembers(e *InterfaceExpr) []*InterfaceMemberExpr {
+	if e.Group || hasMetaKey(e.Meta, "ordered") {
+		return e.Members
+	}
+	for _, m := range e.Members {
+		if m.Group {
+			return e.Members
+		}
+	}
+	return sortedInterfaceMembers(e.Members)
+}
+
 // sortedInterfaceMembers returns the interface's fields and property-like members
 // (get/set/prop) in canonical order: fields first, grouped untyped-before-typed
 // and sorted by name within each group, then the property-like members sorted by
@@ -109,6 +125,10 @@ type InterfaceMemberExpr struct {
 	// comment and the member; it compiles to a KeyValueArray reachable as
 	// `Iface.member.@meta`.
 	Meta *KeyValueArrayLit
+	// Group marks a field written as a group — `{ … }`, `? { … }` —: named
+	// `$N` (N its count in the body), typed by the anonymous interface of the
+	// block; it is written back as the block.
+	Group bool
 }
 
 func (e *InterfaceMemberExpr) ExprNode() {}
@@ -130,6 +150,18 @@ func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 	if kw := e.Kind.String(); kw != "" {
 		ctx.WriteString(kw)
 		ctx.WriteString(" ")
+	}
+	// a group, written back as the block it was: `{ … }`, `? { … }`
+	if e.Group && e.Name != nil && len(e.Name.Type) == 1 {
+		if iface, ok := e.Name.Type[0].Expr.(*InterfaceExpr); ok {
+			if e.Name.Nullable {
+				ctx.WriteString("? ")
+			}
+			ctx.WriteString("{")
+			writeInterfaceBody(ctx, iface)
+			ctx.WriteString("}")
+			return
+		}
 	}
 	// A field whose type is an anonymous nested interface always renders in the
 	// short form `name: { … }` (an array interface as `name: []{ … }`, deeper as
@@ -200,6 +232,9 @@ type InterfaceExpr struct {
 	Doc     *ast.CommentGroup // doc comment preceding the interface; or nil
 	// Meta is the optional `[k=v, …]` metadata block preceding the interface.
 	Meta *KeyValueArrayLit
+	// Group marks the body of a group (`{ … }` in a body): its members are in
+	// the order written, never sorted by the formatter.
+	Group bool
 }
 
 // InterfaceContextFuncExpr is one entry of an interface's `funcs { … }` section:
@@ -440,7 +475,7 @@ func writeInterfaceBody(ctx *CodeWriteContext, e *InterfaceExpr) {
 			ctx.WriteSemi()
 		}
 	}
-	for _, m := range sortedInterfaceMembers(e.Members) {
+	for _, m := range formatInterfaceMembers(e) {
 		// the spreads right after the fields, as in a class
 		if m.Kind != IfaceField {
 			writeSpreads()
@@ -503,7 +538,7 @@ func writeInterfaceBodyLines(ctx *CodeWriteContext, e *InterfaceExpr) {
 			})
 		}
 	}
-	for _, m := range sortedInterfaceMembers(e.Members) {
+	for _, m := range formatInterfaceMembers(e) {
 		m := m
 		// the spreads right after the fields, as in a class
 		if m.Kind != IfaceField {

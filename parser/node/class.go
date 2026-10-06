@@ -2,6 +2,7 @@ package node
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
@@ -49,6 +50,10 @@ type ClassFieldExpr struct {
 	Doc    *ast.CommentGroup // doc comment preceding the field; or nil
 	// Meta is the field's `[k=v, …]` metadata (or nil); read as `Class.field.@meta`.
 	Meta *KeyValueArrayLit
+	// Group marks a field written as a group — `{ … }`, `? { … }` —: named
+	// `$N` (N its count in the body), typed by the anonymous class of the
+	// block; it is written back as the block.
+	Group bool
 }
 
 func (e *ClassFieldExpr) ExprNode() {}
@@ -67,6 +72,16 @@ func (e *ClassFieldExpr) String() string { return Code(e) }
 func (e *ClassFieldExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
 	writeMeta(ctx, e.Meta)
+	if e.Group && len(e.Name.Type) == 1 {
+		if cls, ok := e.Name.Type[0].Expr.(*TypeLitExpr); ok {
+			if e.Name.Nullable {
+				ctx.WriteString("? ")
+			}
+			ctx.WriteString("{")
+			writeTypeLitBody(ctx, cls)
+			return
+		}
+	}
 	e.Name.WriteCode(ctx)
 	if e.Value != nil {
 		ctx.WriteString(" = ")
@@ -206,6 +221,9 @@ type TypeLitExpr struct {
 	Doc        *ast.CommentGroup // doc comment preceding the class; or nil
 	// Meta is the optional `[k=v, …]` metadata block preceding the class.
 	Meta *KeyValueArrayLit
+	// Group marks the body of a group (`{ … }` in a body): its fields are in
+	// the order written — its columns —, never sorted by the formatter.
+	Group bool
 }
 
 // keyword returns "mixin", "type" (marker) or "class" for formatting/diagnostics.
@@ -276,7 +294,7 @@ func writeTypeLitBody(ctx *CodeWriteContext, e *TypeLitExpr) {
 			ctx.Depth--
 		})
 	}
-	for _, f := range sortedClassFields(e.Fields) {
+	for _, f := range formatClassFields(e) {
 		f := f
 		items = append(items, func() { f.WriteCode(ctx) })
 	}
@@ -374,6 +392,35 @@ func classFieldGroup(f *ClassFieldExpr) int {
 	default:
 		return 3
 	}
+}
+
+// formatClassFields are the fields of e in the order they are written: the
+// canonical one (sortedClassFields), unless their order means something —
+// the class is `[ordered]`, or it has groups, whose names (`$N`) are their
+// order — and then as declared.
+func formatClassFields(e *TypeLitExpr) []*ClassFieldExpr {
+	if e.Group || hasMetaKey(e.Meta, "ordered") {
+		return e.Fields
+	}
+	for _, f := range e.Fields {
+		if f.Group {
+			return e.Fields
+		}
+	}
+	return sortedClassFields(e.Fields)
+}
+
+// hasMetaKey says the metadata m has the key name.
+func hasMetaKey(m *KeyValueArrayLit, name string) bool {
+	if m == nil {
+		return false
+	}
+	for _, el := range m.Elements {
+		if s := el.String(); s == name || strings.HasPrefix(s, name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 // sortedClassFields returns the fields in the canonical formatting order: the

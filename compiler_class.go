@@ -583,7 +583,8 @@ func thisParam(typeIdent node.Expr) *node.TypedIdentExpr {
 // nameFieldClasses names the anonymous classes the fields of cls are typed by
 // (`a class { … }`) by their path below it — `PageOptions.a`, and
 // `PageOptions.a.b` when that one is compiled —, so an instance says where in
-// the record it is.
+// the record it is. A group's (`{ … }`, the field `$N`) is named the same
+// way: `PageOptions.$1`, `PageOptions.$1.$2`, `PageOptions.a.$1`.
 func nameFieldClasses(cls *node.TypeLitExpr, name string) {
 	for _, f := range cls.Fields {
 		if f.Name == nil || f.Name.Ident == nil {

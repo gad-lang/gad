@@ -56,13 +56,22 @@ func (f *ClassField) Type() ObjectType {
 	return TClassField
 }
 
-// IndexGet implements the field reflection keys `@name` and `@meta`.
+// IndexGet implements the field reflection keys `@name`, `@meta`, `@types`
+// (the types it accepts: a group's, its class) and `@nullable`.
 func (f *ClassField) IndexGet(_ *VM, index Object) (Object, error) {
 	switch index.ToString() {
 	case "@name":
 		return Str(f.Name), nil
 	case "@meta":
 		return metaObject(f.Meta), nil
+	case "@types":
+		types := make(Array, len(f.Types))
+		for i, t := range f.Types {
+			types[i] = t
+		}
+		return types, nil
+	case "@nullable":
+		return Bool(f.Nullable), nil
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
@@ -1086,6 +1095,32 @@ func (t *Class) RawFields() (r []*ClassField) {
 	return
 }
 
+// IsGroupName says name is a group's: `$N` — the field a `{ … }` of a body
+// is, or one written so by hand (`$1 class { … }`, the same field).
+func IsGroupName(name string) bool {
+	if len(name) < 2 || name[0] != '$' {
+		return false
+	}
+	for _, r := range name[1:] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// Groups are its groups (`{ … }` in its body: the fields `$1`, `$2`, …), in
+// the order it declares them: `Class.@groups`.
+func (t *Class) Groups() (r Array) {
+	r = Array{}
+	for _, f := range t.RawFields() {
+		if IsGroupName(f.Name) {
+			r = append(r, f)
+		}
+	}
+	return r
+}
+
 // FieldNames are the names of its fields, in the order it declares them.
 func (t *Class) FieldNames() []string {
 	fields := t.RawFields()
@@ -1745,6 +1780,8 @@ func (t *Class) IndexGet(vm *VM, index Object) (value Object, err error) {
 	switch key {
 	case "@fields":
 		return t.Fields(), nil
+	case "@groups":
+		return t.Groups(), nil
 	case "@props":
 		return t.Properties(), nil
 	case "@methods":

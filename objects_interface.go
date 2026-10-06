@@ -927,6 +927,16 @@ func (i *Interface) IndexGet(vm *VM, index Object) (Object, error) {
 		return objectArray(i.Props), nil
 	case "methods":
 		return objectArray(i.Methods), nil
+	case "groups":
+		// its groups (`{ … }` in its body: the fields `$1`, `$2`, …), in
+		// order — a key of its own reflection, as `fields`
+		r := Array{}
+		for _, f := range i.Fields {
+			if IsGroupName(f.Name) {
+				r = append(r, f)
+			}
+		}
+		return r, nil
 	case "@flat":
 		return i.Flatten(vm)
 	case "@meta":

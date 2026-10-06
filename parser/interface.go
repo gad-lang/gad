@@ -260,6 +260,33 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		}
 	}
 
+	// `{ … }`, `? { … }` — a group: a field `$N interface { … }`, N its count
+	// in the body
+	if p.isGroupStart() {
+		nullable := p.Token.Token == token.Question
+		if nullable {
+			p.Next()
+			p.SkipSpace()
+		}
+		n := 0
+		for _, m := range iface.Members {
+			if m.Group {
+				n++
+			}
+		}
+		pos := p.Token.Pos
+		body := p.parseInterfaceBody(PToken{TokenLit: node.TokenLit{Pos: pos, Token: token.Interface, Literal: "interface"}}, nil)
+		body.Group = true
+		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
+			Kind:  node.IfaceField,
+			Name:  &node.TypedIdentExpr{Ident: groupName(n, pos), Type: []*node.TypeExpr{{Expr: body}}, Nullable: nullable},
+			Doc:   doc,
+			Meta:  meta,
+			Group: true,
+		})
+		return
+	}
+
 	// A method (single `name(...)` or block `name { (…), … }`) or a typed field
 	// (`name [Type]`).
 	name := p.ParseIdent()

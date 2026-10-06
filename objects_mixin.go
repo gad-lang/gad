@@ -407,6 +407,8 @@ func (m *Mixin) IndexGet(vm *VM, index Object) (value Object, err error) {
 	switch index.ToString() {
 	case "@fields":
 		return m.class.Fields(), nil
+	case "@groups":
+		return m.class.Groups(), nil
 	case "@props":
 		return m.class.Properties(), nil
 	case "@methods":

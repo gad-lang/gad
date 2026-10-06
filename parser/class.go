@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"strconv"
+
 	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -277,10 +280,56 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 		}
 	}
 
+	// `{ … }`, `? { … }` — a group: a field `$N` of the anonymous class of
+	// the block (a mixin's too)
+	if f := p.parseClassGroup(cls); f != nil {
+		f.Doc = doc
+		cls.Fields = append(cls.Fields, f)
+		return
+	}
+
 	if f := p.parseClassField(); f != nil {
 		f.Doc = doc
 		cls.Fields = append(cls.Fields, f)
 	}
+}
+
+// isGroupStart says the current token opens a group of a body: `{`, or `?`
+// then `{`.
+func (p *Parser) isGroupStart() bool {
+	return p.Token.Token == token.LBrace || (p.Token.Token == token.Question && p.Peek().Token == token.LBrace)
+}
+
+// groupName is the name of the next group of a body that has n already:
+// `$1`, `$2`, …
+func groupName(n int, pos source.Pos) *node.IdentExpr {
+	return &node.IdentExpr{Name: "$" + strconv.Itoa(n+1), NamePos: pos}
+}
+
+// parseClassGroup parses a group of a class or mixin body — `{ … }`, or
+// `? { … }` nullable — into the field `$N class { … }`, N its count in the
+// body. nil when the current token opens none.
+func (p *Parser) parseClassGroup(cls *node.TypeLitExpr) *node.ClassFieldExpr {
+	if !p.isGroupStart() {
+		return nil
+	}
+	nullable := p.Token.Token == token.Question
+	if nullable {
+		p.Next()
+		p.SkipSpace()
+	}
+	n := 0
+	for _, f := range cls.Fields {
+		if f.Group {
+			n++
+		}
+	}
+	pos := p.Token.Pos
+	body := p.parseClassBody(PToken{TokenLit: node.TokenLit{Pos: pos, Token: token.Class, Literal: "class"}}, nil)
+	body.Group = true
+	return &node.ClassFieldExpr{Group: true, Name: &node.TypedIdentExpr{
+		Ident: groupName(n, pos), Type: []*node.TypeExpr{{Expr: body}}, Nullable: nullable,
+	}}
 }
 
 // parseClassParent parses one `*Parent` entry: a parent type (IdentExpr or
