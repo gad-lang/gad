@@ -65,6 +65,15 @@ Converting an enum to a dict yields the same name → value mapping:
 
 @snippet bulk
 
+## Reflection
+
+An enum reflects as a class does: `@name` (as declared), `@fullName` (with its
+module's name), `@module`, `@meta`, and `@items` — its members, in order. A
+member reflects too: `@name`, `@value`, `@index` (its position) and `@enum`
+(plain `name`, `value`, `index`, `enum` work as well):
+
+@snippet reflect
+
 ## Enums as types
 
 An enum name is a **type**. Use it for a function parameter, an interface field
@@ -200,6 +209,17 @@ println(dict(Bulk))       // same name -> value mapping
 {Exec: 10, Read: 1, Write: 2}
 {Exec: 10, Read: 1, Write: 2}
 **/
+//endsnippet
+
+//snippet reflect
+[label="Rooms"] enum Room { Kitchen, Bath = 5, Garage }
+[
+    Room.@name,
+    str(Room.@meta),
+    [[m.@name, m.@value, m.@index] for m in Room.@items],
+    Room.Bath.@enum.@name,
+]
+/**= ["Room", "(;label=\"Rooms\")", [["Kitchen", 1, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"] **/
 //endsnippet
 
 //snippet as_types uses define

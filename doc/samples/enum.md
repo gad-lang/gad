@@ -186,6 +186,24 @@ Output:
 {Exec: 10, Read: 1, Write: 2}
 ```
 
+## Reflection
+
+An enum reflects as a class does: `@name` (as declared), `@fullName` (with its
+module's name), `@module`, `@meta`, and `@items` — its members, in order. A
+member reflects too: `@name`, `@value`, `@index` (its position) and `@enum`
+(plain `name`, `value`, `index`, `enum` work as well):
+
+```gad
+[label="Rooms"] enum Room { Kitchen, Bath = 5, Garage }
+[
+    Room.@name,
+    str(Room.@meta),
+    [[m.@name, m.@value, m.@index] for m in Room.@items],
+    Room.Bath.@enum.@name,
+]
+// => ["Room", "(;label=\"Rooms\")", [["Kitchen", 1, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"]
+```
+
 ## Enums as types
 
 An enum name is a **type**. Use it for a function parameter, an interface field
@@ -314,6 +332,14 @@ println(Bulk["@names"])   // ["Read", "Write", "Exec"]
 println(Bulk["@values"])  // [1, 2, 10]
 println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
 println(dict(Bulk))       // same name -> value mapping
+
+[label="Rooms"] enum Room { Kitchen, Bath = 5, Garage }
+[
+    Room.@name,
+    str(Room.@meta),
+    [[m.@name, m.@value, m.@index] for m in Room.@items],
+    Room.Bath.@enum.@name,
+]
 
 /**
 A parameter typed with the enum only accepts its members; dispatch rejects

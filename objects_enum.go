@@ -104,13 +104,32 @@ func (e *Enum) Names() (ret []string) {
 //	@values   Array of the underlying int/uint values
 //	@dict     Dict of name -> value
 //	@pairs    KeyValueArray of {name, value} in declaration order
-func (e *Enum) IndexGet(_ *VM, index Object) (value Object, err error) {
+func (e *Enum) IndexGet(vm *VM, index Object) (value Object, err error) {
 	key := index.ToString()
 	if value, ok := e.Values[key]; ok {
 		return value, nil
 	}
 	names := e.Names()
 	switch key {
+	case "@name":
+		// its name, as declared
+		return Str(e.EnumName), nil
+	case "@fullName":
+		// its name, of its module's: "mod.Kind"
+		return Str(e.FullName()), nil
+	case "@module":
+		// the module that declares it (nil: none, or no VM to read it)
+		if vm == nil || e.Module == nil {
+			return Nil, nil
+		}
+		return vm.ModuleFromIndex(e.Module.Index), nil
+	case "@items":
+		// its members, in their order (each with @name, @value, @index)
+		ret := make(Array, len(names))
+		for i, name := range names {
+			ret[i] = e.Values[name]
+		}
+		return ret, nil
 	case "@names":
 		ret := make(Array, len(names))
 		for i, name := range names {
@@ -293,14 +312,16 @@ func (e *EnumValue) Equal(right Object) bool {
 // underlying int/uint), `index` (declaration order) and `enum` (the owning
 // Enum).
 func (e *EnumValue) IndexGet(_ *VM, index Object) (Object, error) {
+	// the reflect keys (@name, …) as the enum's and a class's are; the
+	// plain ones too, as they were
 	switch index.ToString() {
-	case "name":
+	case "name", "@name":
 		return Str(e.Name), nil
-	case "value":
+	case "value", "@value":
 		return e.Value, nil
-	case "index":
+	case "index", "@index":
 		return Int(e.Index), nil
-	case "enum":
+	case "enum", "@enum":
 		return e.Enum, nil
 	case "@meta":
 		return metaObject(e.Meta), nil
