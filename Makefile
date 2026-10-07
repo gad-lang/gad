@@ -306,7 +306,9 @@ generate: version doc-prism
 
 # doc-prism (re)builds the PrismJS bundle the HTML doc template embeds
 # (doctemplates/prism.js), from web/plugins/js/prism-gad, and mirrors it into the
-# repo-root ./doc-templates copy the sync test guards. Best-effort: skipped with a
+# repo-root ./doc-templates copy the sync test guards; and the bundle of the
+# prism package (web/prism/prism.js, from web/prism/bundle.mjs), which an
+# application embeds to highlight its documentation. Best-effort: skipped with a
 # warning when bun or the prism-gad submodule is unavailable, so a checkout that
 # lacks them still builds against the committed prism.js.
 .PHONY: doc-prism
@@ -315,7 +317,8 @@ doc-prism:
 		echo "==> building doctemplates/prism.js"; \
 		out="$$(pwd)/cmd/gad/doctemplates/prism.js"; \
 		( cd web/plugins/js/prism-gad && bun build ./site-bundle.mjs --outfile "$$out" --minify --format=iife >/dev/null ) && \
-		cp cmd/gad/doctemplates/prism.js doc-templates/prism.js; \
+		cp cmd/gad/doctemplates/prism.js doc-templates/prism.js && \
+		( cd web/prism && bun build ./bundle.mjs --outfile ./prism.js --minify --format=iife >/dev/null ); \
 	else \
 		echo "==> doc-prism: bun or prism-gad submodule missing; keeping committed prism.js"; \
 	fi
