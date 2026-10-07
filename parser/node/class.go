@@ -407,9 +407,11 @@ func classFieldGroup(f *ClassFieldExpr) int {
 // formatClassFields are the fields of e in the order they are written: the
 // canonical one (sortedClassFields), unless their order means something —
 // the class is `[ordered]`, or it has groups, whose names (`$N`) are their
-// order — and then as declared.
+// order, or it is anonymous (`address class { … }`, the type of a field,
+// written in its place like a group's body, with no `[ordered]` of its
+// own) — and then as declared.
 func formatClassFields(e *TypeLitExpr) []*ClassFieldExpr {
-	if e.Group || hasMetaKey(e.Meta, "ordered") {
+	if e.Group || e.NameExpr == nil || hasMetaKey(e.Meta, "ordered") {
 		return e.Fields
 	}
 	for _, f := range e.Fields {

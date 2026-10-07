@@ -172,3 +172,15 @@ func TestFormatNilCommentAndParens(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, out, again, "formatting must be idempotent")
 }
+
+// An anonymous class — the type of a field, written in its place — keeps
+// the order of its fields, as a group's body does: it has no `[ordered]` of
+// its own. A declared class is sorted.
+func TestFormatAnonymousClassKeepsOrder(t *testing.T) {
+	src := "class F { x class { b int; a int }; c str; a str }\n"
+	want := "class F {\n\ta str\n\tc str\n\tx class {\n\t\tb int\n\t\ta int\n\t}\n}\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
+}
