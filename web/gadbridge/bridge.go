@@ -116,6 +116,30 @@ func SplitShebang(src string) (shebang, rest string) {
 	return src + "\n", "" // shebang-only file: keep it, add the newline
 }
 
+func init() {
+	// the code of a `~~` block is a Gad source of its own: formatted as one,
+	// its comments kept
+	gadxnode.FormatGadBlockFunc = func(src, prefix string, flags node.CodeWriteContextFlag, maxColumns int) (string, bool) {
+		fileSet := source.NewFileSet()
+		srcFile := fileSet.AddFileData(sourceName, -1, []byte(src))
+		po := &parser.ParserOptions{Mode: parser.ParseComments | parser.ParseConfigDisabled | parser.ParseImportMain}
+		file, err := parser.NewParserWithOptions(srcFile, po, nil).ParseFile()
+		if err != nil {
+			return "", false
+		}
+		opts := []node.CodeOption{
+			node.CodeWithFlags(flags),
+			node.CodeWithPrefix(prefix),
+			node.CodeWithComments(srcFile, file.Comments),
+			node.CodeWithMinimalParens(),
+		}
+		if maxColumns > 0 {
+			opts = append(opts, node.CodeWithMaxColumns(maxColumns))
+		}
+		return node.Code(file.Stmts, opts...), true
+	}
+}
+
 // formatGad formats plain Gad (or a mixed template when mixed is set), preserving
 // comments. ParseComments collects the comment groups so CodeWithComments can
 // re-emit them with the nodes they are attached to.
@@ -175,6 +199,7 @@ func FormatGadx(src string, opts GadxFormatOptions) FormatResult {
 		cctx.EmbedFlags = opts.EmbedFlags
 	}
 	cctx.MaxColumns = opts.MaxColumns
+	cctx.Src, cctx.SrcLines = srcFile, strings.Split(src, "\n")
 	f.WriteGadx(cctx)
 	out := buf.String()
 	if len(out) == 0 || out[len(out)-1] != '\n' {

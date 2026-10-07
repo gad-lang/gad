@@ -54,7 +54,7 @@ func TestParseConstDestructure(t *testing.T) {
 func TestFormatMixedParen(t *testing.T) {
 	// positional rest is a single `*rest`; named rest is `**rest`.
 	test.New(t, `(a, b, *pos; c, d:p, r=2, **named) := mp`).
-		FormattedCode(`(, a, b, *pos; c, d:p, r=2, **named) := mp`)
+		FormattedCode(`(, a, b, *pos; c, d: p, r=2, **named) := mp`)
 	test.New(t, `(1, 2; x=3) := mp`).FormattedCode(`(, 1, 2; x=3) := mp`)
 	// `**pos` still parses (lenient alias) and round-trips.
 	test.New(t, `(a, **pos; c) := mp`).FormattedCode(`(, a, **pos; c) := mp`)

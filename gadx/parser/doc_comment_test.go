@@ -72,7 +72,8 @@ func TestBlockCommentWriteGadx(t *testing.T) {
 	var buf bytes.Buffer
 	f.WriteGadx(gadxnode.NewGadxCodeContext(&buf))
 	out := buf.String()
-	for _, want := range []string{"/** greets **/", "@comp greeting", "/* plain block */"} {
+	// a one-line doc is written `/// doc`
+	for _, want := range []string{"/// greets\n@comp greeting", "/* plain block */"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("WriteGadx missing %q:\n%s", want, out)
 		}

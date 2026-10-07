@@ -516,6 +516,16 @@ type CodeStmt struct {
 	Stmts     gnode.Stmts
 	TrimLeft  bool
 	TrimRight bool
+	// Block marks the `~~` block form; Source is its code as written, which
+	// the formatter formats as a Gad source of its own — its comments, its
+	// docs kept.
+	Block  bool
+	Source string
+	// Directive is the directive the code was written as — "import" (an
+	// `@import`), "include" (an `@include`, Args its arguments as written) —,
+	// or "".
+	Directive string
+	Args      string
 }
 
 func (c *CodeStmt) Pos() source.Pos { return c.NodePos }
@@ -711,6 +721,9 @@ type SlotPassStmt struct {
 	// used as the `$$slots[NameExpr]` index in place of a static string.
 	NameExpr gnode.Expr
 	Body     gnode.Stmts
+	// Implicit marks the main slot a call's body is when written under it
+	// with no `@slot #main`: the formatter writes the body so, bare.
+	Implicit bool
 }
 
 func (s *SlotPassStmt) Pos() source.Pos { return s.NodePos }

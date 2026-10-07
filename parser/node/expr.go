@@ -1502,6 +1502,14 @@ func (e *UnaryExpr) String() string {
 	return "(" + e.Token.String() + e.Expr.String() + ")"
 }
 
+// signUnderSign reports whether e is a `+`/`-` over another, which written
+// together read as `++`/`--`.
+func signUnderSign(e *UnaryExpr) bool {
+	in, ok := e.Expr.(*UnaryExpr)
+	isSign := func(t token.Token) bool { return t == token.Add || t == token.Sub }
+	return ok && isSign(e.Token) && isSign(in.Token)
+}
+
 func (e *UnaryExpr) WriteCode(ctx *CodeWriteContext) {
 	if ctx.MinimalParens {
 		switch e.Token {
@@ -1513,9 +1521,12 @@ func (e *UnaryExpr) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteString(" != nil")
 		default:
 			ctx.WriteString(e.Token.String())
-			// an operand of an operator, or a unary itself (`- -x` is not
-			// `--x`), is parenthesized
-			if _, un := e.Expr.(*UnaryExpr); un || exprPrecedence(e.Expr) != 0 {
+			// a sign under a sign is spaced (`- -x` is not `--x`); an operand
+			// of an operator is parenthesized; `!!x` is as it is
+			if signUnderSign(e) {
+				ctx.WriteSingleByte(' ')
+				e.Expr.WriteCode(ctx)
+			} else if exprPrecedence(e.Expr) != 0 {
 				ctx.WriteSingleByte('(')
 				e.Expr.WriteCode(ctx)
 				ctx.WriteSingleByte(')')

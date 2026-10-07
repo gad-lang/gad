@@ -1093,6 +1093,11 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 		if !ok1 || !ok2 || before != after {
 			return "", fmt.Errorf("%s: refusing to rewrite — formatting would change the Gadx semantics", name)
 		}
+		// and it keeps every comment and doc: what they say does not reach
+		// the lowering
+		if lost := lostCommentWords(rest, res.Source); lost != "" {
+			return "", fmt.Errorf("%s: refusing to rewrite — the formatter would drop a comment (%q)", name, lost)
+		}
 		return shebang + res.Source, nil
 	}
 
@@ -1146,11 +1151,68 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 		// parenthesized with their own parentheses marked, the same — a
 		// parenthesis dropped or added (`Range[int|float]`, a union of types,
 		// is not `Range[(int | float)]`) changes it
+		if lost := lostCommentWords(rest, out); lost != "" {
+			return "", fmt.Errorf("%s: refusing to rewrite — the formatter would drop a comment (%q)", name, lost)
+		}
 		if canon, err := o.canonicalCode(name, []byte(out)); err != nil || canon != node.Code(file.Stmts, node.CodeWithFlags(o.codeFlags), node.CodeWithParenMarks()) {
 			return "", fmt.Errorf("%s: refusing to rewrite — the formatted source does not mean what the source does", name)
 		}
 	}
 	return shebang + out, nil
+}
+
+// commentWords are the words of the comments and docs of src — lines that
+// are a comment (`//`, `///`), the lines of a `/* … */` or `/** … **/`, a
+// `code // comment` at the end of a line —, counted.
+func commentWords(src string) map[string]int {
+	words := map[string]int{}
+	add := func(text string) {
+		for _, w := range strings.Fields(text) {
+			words[w]++
+		}
+	}
+	inBlock := false
+	for _, line := range strings.Split(src, "\n") {
+		t := strings.TrimSpace(line)
+		if inBlock {
+			if i := strings.Index(t, "*/"); i >= 0 {
+				add(strings.TrimRight(t[:i], "*"))
+				inBlock = false
+			} else {
+				add(t)
+			}
+			continue
+		}
+		switch {
+		case strings.HasPrefix(t, "/*"):
+			body := strings.TrimLeft(t, "/*")
+			if i := strings.Index(body, "*/"); i >= 0 {
+				add(strings.TrimRight(body[:i], "*"))
+			} else {
+				add(body)
+				inBlock = true
+			}
+		case strings.HasPrefix(t, "//"):
+			add(strings.TrimLeft(t, "/"))
+		default:
+			if i := strings.Index(t, " // "); i >= 0 {
+				add(t[i+4:])
+			}
+		}
+	}
+	return words
+}
+
+// lostCommentWords is a word of a comment of src that out has fewer of —
+// a comment the formatting dropped —, or "".
+func lostCommentWords(src, out string) string {
+	have := commentWords(out)
+	for w, n := range commentWords(src) {
+		if have[w] < n {
+			return w
+		}
+	}
+	return ""
 }
 
 // canonicalCode is src parsed as formatSource parses it, written back fully

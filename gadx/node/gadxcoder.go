@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	gnode "github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -36,6 +37,10 @@ type GadxCodeWriteContext struct {
 	// whose whitespace is content: a text run there is written as one quoted
 	// literal, the only form that carries it back through the parse.
 	preserve bool
+	// SrcLines are the lines of the source being formatted and Src its file:
+	// a blank line before a statement in it is kept (nil: none is).
+	Src      *source.File
+	SrcLines []string
 }
 
 // NewGadxCodeContext creates a new context writing to w, with 1-tab indentation
@@ -175,6 +180,9 @@ func (c *GadxCodeWriteContext) gadCode(n gnode.Coder) string {
 	opts := []gnode.CodeOption{
 		gnode.CodeWithFlags(c.EmbedFlags),
 		gnode.CodeWithMaxColumns(1 << 30),
+		// what is embedded was parsed from the source: its parentheses are
+		// its ParenExprs, written as they are, and no others
+		gnode.CodeWithMinimalParens(),
 	}
 	return strings.TrimRight(gnode.Code(n, opts...), "\n")
 }
@@ -203,6 +211,9 @@ func (c *GadxCodeWriteContext) WriteStmts(stmts gnode.Stmts) {
 	}
 
 	for i := 0; i < len(stmts); {
+		if i > 0 && c.blankInSource(stmts[i]) {
+			c.write("\n")
+		}
 		n := c.repeatRun(stmts, forms, i)
 		if n > 1 {
 			folded := *stmts[i].(*TagStmt)
@@ -257,6 +268,29 @@ func (c *GadxCodeWriteContext) repeatRun(stmts gnode.Stmts, forms []string, i in
 	return n
 }
 
+// blankInSource reports whether the source has a blank line right before
+// stmt — one the author left between it and the statement before —, kept
+// as one blank line.
+func (c *GadxCodeWriteContext) blankInSource(stmt gnode.Stmt) bool {
+	if c.Src == nil || stmt == nil || !stmt.Pos().IsValid() {
+		return false
+	}
+	pos, err := c.Src.Position(stmt.Pos())
+	if err != nil || pos.Line < 2 || pos.Line-2 >= len(c.SrcLines) {
+		return false
+	}
+	line := pos.Line - 2
+	// a `~~` block is placed at its closing `~~`: the line before it is the
+	// one before its opening `~~`, above its code
+	if code, ok := stmt.(*CodeStmt); ok && code.Block {
+		line -= strings.Count(code.Source, "\n") + 2
+		if line < 0 || line >= len(c.SrcLines) || strings.TrimSpace(c.SrcLines[line+1]) != "~~" {
+			return false
+		}
+	}
+	return strings.TrimSpace(c.SrcLines[line]) == ""
+}
+
 // GadxCoder is implemented by nodes that can write formatted gadx source.
 type GadxCoder interface {
 	WriteGadx(ctx *GadxCodeWriteContext)
@@ -278,7 +312,7 @@ func (f *File) WriteGadx(ctx *GadxCodeWriteContext) {
 		if !ok {
 			continue
 		}
-		if blank[i] {
+		if blank[i] || i > 0 && ctx.blankInSource(stmt) {
 			ctx.write("\n")
 		}
 		gc.WriteGadx(ctx)
@@ -529,6 +563,12 @@ func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	}
 
 	if IsRawText(t.Name) && len(t.Body) > 0 {
+		// a body of one interpolation is written as it is read, on the
+		// tag's line: `script[…] {=raw code}`
+		if text, ok := ctx.inlineTagText(t.Body, false); ok && strings.HasPrefix(text, "{") && !ctx.overflows(inline+" "+text) {
+			ctx.WriteLine(inline + " " + text)
+			return
+		}
 		// A script or a stylesheet holds text, not markup, so its body is
 		// written the way `@raw_text` writes one: verbatim under the tag,
 		// carrying only the block's own indentation, which the parser strips
@@ -786,12 +826,17 @@ func (c *GadxCodeWriteContext) writeWrappedTag(head string, groups []attrGroup, 
 	c.WriteLine(line + tail)
 }
 
+// DefaultMaxColumns is the width a tag's line may take before its attributes
+// wrap, when none is set: wider than Gad's — a line of markup carries its
+// classes and attributes, which wrapped at 80 most tags would be.
+const DefaultMaxColumns = 120
+
 // overflows reports whether the line (at the current indent) exceeds the column
 // budget.
 func (c *GadxCodeWriteContext) overflows(line string) bool {
 	max := c.MaxColumns
 	if max <= 0 {
-		max = gnode.DefaultMaxColumns
+		max = DefaultMaxColumns
 	}
 	return len(c.indent())+len(line) > max
 }
@@ -910,7 +955,11 @@ func (c *CommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	if c.Doc {
 		prefix = "///"
 	}
-	ctx.WriteLine(prefix + " " + c.Text)
+	if c.Text == "" {
+		ctx.WriteLine(prefix) // an empty line of a comment: no trailing space
+	} else {
+		ctx.WriteLine(prefix + " " + c.Text)
+	}
 	if len(c.Body) > 0 {
 		ctx.Depth++
 		ctx.WriteStmts(c.Body)
@@ -920,7 +969,12 @@ func (c *CommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 
 // writeDoc emits a decl's `/** … **/` doc comment line (gad convention), if any.
 func writeDoc(ctx *GadxCodeWriteContext, doc string) {
-	if doc != "" {
+	switch {
+	case doc == "":
+	case !strings.Contains(doc, "\n"):
+		// one line: `/// doc`, Gad's convention
+		ctx.WriteLine("/// " + doc)
+	default:
 		ctx.writeBlockComment("/**", doc, "**/")
 	}
 }
@@ -978,6 +1032,18 @@ func (s *AssignStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (c *CodeStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	switch {
+	case c.Directive == "include":
+		ctx.WriteLine("@include " + strings.TrimSpace(c.Args))
+		return
+	case c.Directive == "import" && len(c.Stmts) == 1:
+		// the import's statement writes itself back as the `@import`
+		ctx.WriteLine(ctx.gadCode(c.Stmts[0]))
+		return
+	case c.Block:
+		ctx.writeCodeBlock(c)
+		return
+	}
 	if len(c.Stmts) == 1 {
 		ctx.WriteLine("~ " + ctx.gadCode(c.Stmts[0]))
 	} else if len(c.Stmts) > 1 {
@@ -989,11 +1055,47 @@ func (c *CodeStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	}
 }
 
+// writeCodeBlock writes a `~~` block: its code formatted as a Gad source of
+// its own — its comments and docs with it —, at the block's depth. Code the
+// Gad formatter does not take is written as it was, re-indented.
+func (c *GadxCodeWriteContext) writeCodeBlock(code *CodeStmt) {
+	c.WriteLine("~~")
+	lines := strings.Split(formatGadBlock(code.Source, c.Prefix, c.EmbedFlags, c.MaxColumns), "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			c.write("\n")
+			continue
+		}
+		c.WriteLine(line)
+	}
+	c.WriteLine("~~")
+}
+
+// FormatGadBlockFunc formats the code of a `~~` block — Gad source, comments
+// kept, prefix its indentation unit — or returns it unchanged when it cannot.
+// The bridge sets it (the Gad formatter lives above this package); unset, a
+// block is written as it was.
+var FormatGadBlockFunc func(src, prefix string, flags gnode.CodeWriteContextFlag, maxColumns int) (string, bool)
+
+// formatGadBlock is the code of a `~~` block formatted (FormatGadBlockFunc),
+// or as written — dedented to its least indentation — when it is not.
+func formatGadBlock(src, prefix string, flags gnode.CodeWriteContextFlag, maxColumns int) string {
+	if FormatGadBlockFunc != nil {
+		if out, ok := FormatGadBlockFunc(src, prefix, flags, maxColumns); ok {
+			return strings.Trim(out, "\n")
+		}
+	}
+	return strings.Trim(dedentRaw(src), "\n")
+}
+
 func (f *FuncDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 	writeDoc(ctx, f.Doc)
 	line := "@func " + f.Name
 	if f.Params != nil {
-		line += f.Params.String()
+		// `@func name`, not `@func name()`
+		if p := f.Params.String(); p != "()" {
+			line += p
+		}
 	}
 	ctx.WriteLine(line)
 	ctx.Depth++
@@ -1016,9 +1118,8 @@ func (c *CompDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 		line = "@comp " + c.Name
 	}
 	if c.Params != nil {
-		// Suppress an empty `()` on `@main` (the entry block reads globals, not
-		// params) so it stays the canonical bare `@main`.
-		if p := c.Params.String(); !(c.Main && p == "()") {
+		// No parameters, no parentheses: `@main`, `@comp name`.
+		if p := c.Params.String(); p != "()" {
 			line += p
 		}
 	}
@@ -1034,7 +1135,10 @@ func (c *CompCallStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		line = "+(" + c.Callee + ")"
 	}
 	if c.Args.Args.Valid() || c.Args.NamedArgs.Valid() {
-		line += c.Args.String()
+		// no arguments, no parentheses: `+comp`, not `+comp()`
+		if a := ctx.gadCode(&c.Args); a != "()" {
+			line += a
+		}
 	}
 	ctx.WriteLine(line)
 	ctx.Depth++
@@ -1069,6 +1173,11 @@ func (s *SlotDecl) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *SlotPassStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	if s.Implicit {
+		// the call's body, written under it as it was
+		ctx.WriteStmts(s.Body)
+		return
+	}
 	line := "@slot #"
 	if s.NameExpr != nil && s.Name != nil {
 		line += `"` + s.Name.String() + `"` // dynamic pass name stays quoted
@@ -1145,6 +1254,7 @@ func (s *ClassStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	code := strings.TrimRight(gnode.Code(s.Decl,
 		gnode.CodeWithFlags(ctx.EmbedFlags),
 		gnode.CodeWithPrefix(ctx.Prefix),
+		gnode.CodeWithMinimalParens(),
 	), "\n")
 	for i, line := range strings.Split(code, "\n") {
 		if i == 0 {
@@ -1182,34 +1292,64 @@ func (s *MatchStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (s *VarStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	var parts []string
-	for _, d := range s.Decls {
-		if d.Init != nil {
-			parts = append(parts, fmt.Sprintf("%s = %s", d.Name, ctx.gadExpr(d.Init)))
-		} else {
-			parts = append(parts, d.Name)
-		}
-	}
-	ctx.WriteLine("@var (" + strings.Join(parts, ", ") + ")")
+	writeDoc(ctx, s.Doc)
+	ctx.writeDeclDirective("@var", s.Decls)
 }
 
 func (s *ConstStmt) WriteGadx(ctx *GadxCodeWriteContext) {
-	var parts []string
-	for _, d := range s.Decls {
+	writeDoc(ctx, s.Doc)
+	ctx.writeDeclDirective("@const", s.Decls)
+}
+
+// writeDeclDirective writes `@const (a = 1, b = …)` / `@var (…)`: a value
+// written as Gad writes it at this depth — a dict, a closure over lines when
+// it takes them, its lines under the directive's.
+func (c *GadxCodeWriteContext) writeDeclDirective(kw string, decls []VarDecl) {
+	parts := make([]string, 0, len(decls))
+	for _, d := range decls {
 		if d.Init != nil {
-			parts = append(parts, fmt.Sprintf("%s = %s", d.Name, ctx.gadExpr(d.Init)))
+			parts = append(parts, fmt.Sprintf("%s = %s", d.Name, c.gadBlockExpr(d.Init)))
 		} else {
 			parts = append(parts, d.Name)
 		}
 	}
-	ctx.WriteLine("@const (" + strings.Join(parts, ", ") + ")")
+	lines := strings.Split(kw+" ("+strings.Join(parts, ", ")+")", "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			c.write("\n")
+			continue
+		}
+		c.WriteLine(line)
+	}
+}
+
+// gadBlockExpr renders e as Gad writes it with its own indentation (the
+// context's unit) and line width: what does not fit on a line, or is a
+// body, takes lines. The lines after the first are relative to the line
+// it starts on.
+func (c *GadxCodeWriteContext) gadBlockExpr(e gnode.Expr) string {
+	max := c.MaxColumns
+	if max <= 0 {
+		max = DefaultMaxColumns
+	}
+	return strings.TrimRight(gnode.Code(e,
+		gnode.CodeWithFlags(c.EmbedFlags),
+		gnode.CodeWithPrefix(c.Prefix),
+		gnode.CodeWithMaxColumns(max),
+		gnode.CodeWithMinimalParens(),
+	), "\n")
 }
 
 func (s *GlobalStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	if s.Decl != nil {
 		// s.Decl renders `global (…)`; re-emit it as the `@global` directive
 		// (Decl takes precedence over Names, e.g. `@global Model`).
-		ctx.WriteLine("@global " + strings.TrimSpace(strings.TrimPrefix(s.Decl.String(), "global")))
+		// names only: written as names, `@global t Req Context`
+		if names, ok := bareNames(ctx, s.Decl); ok {
+			ctx.WriteLine("@global " + strings.Join(names, " "))
+			return
+		}
+		ctx.WriteLine("@global " + strings.TrimSpace(strings.TrimPrefix(ctx.gadCode(s.Decl), "global")))
 		return
 	}
 	if len(s.Names) == 0 {
@@ -1219,6 +1359,33 @@ func (s *GlobalStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.WriteLine("@global " + strings.Join(s.Names, " "))
 }
 
+// bareNames are the names d declares when it declares only names — no
+// type, no value, no `*`/`**` —, and whether it does.
+func bareNames(ctx *GadxCodeWriteContext, d *gnode.GenDecl) ([]string, bool) {
+	names := make([]string, 0, len(d.Specs))
+	for _, sp := range d.Specs {
+		code := ctx.gadCode(sp)
+		if !isPlainName(code) {
+			return nil, false
+		}
+		names = append(names, code)
+	}
+	return names, len(names) > 0
+}
+
+// isPlainName reports whether s is a name and nothing else.
+func isPlainName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, r := range s {
+		if !(r == '_' || r == '$' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || i > 0 && r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *ParamStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	writeDoc(ctx, s.Doc) // a lead `/** … **/` doc is attached to the ParamStmt
 	if s.Decl == nil {
@@ -1226,10 +1393,11 @@ func (s *ParamStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		return
 	}
 	// s.Decl.String() renders `param …`; re-emit it as the `@param` directive.
-	ctx.WriteLine("@param " + strings.TrimSpace(strings.TrimPrefix(s.Decl.String(), "param")))
+	ctx.WriteLine("@param " + strings.TrimSpace(strings.TrimPrefix(ctx.gadCode(s.Decl), "param")))
 }
 
 func (e *ExportStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	writeDoc(ctx, e.Doc)
 	line := "@export " + e.Name
 	if e.Value != nil {
 		line += " = " + ctx.gadExpr(e.Value)
@@ -1278,7 +1446,9 @@ func rawTextBlockSafe(content string) bool {
 	if content == "" {
 		return false
 	}
-	lines := strings.Split(dedentRaw(content), "\n")
+	// the blank lines after the body are the blank before what follows the
+	// tag, which is kept as such
+	lines := strings.Split(trimTrailingBlankLines(dedentRaw(content)), "\n")
 	return strings.TrimSpace(lines[0]) != "" && strings.TrimSpace(lines[len(lines)-1]) != ""
 }
 
@@ -1311,7 +1481,7 @@ func (c *GadxCodeWriteContext) writeRawTextRegion(t *TagStmt) {
 func (c *GadxCodeWriteContext) writeRawTextTag(t *TagStmt, inline string) {
 	c.WriteLine(inline)
 	c.Depth++
-	for _, line := range strings.Split(dedentRaw(c.rawTextContent(t.Body)), "\n") {
+	for _, line := range strings.Split(trimTrailingBlankLines(dedentRaw(c.rawTextContent(t.Body))), "\n") {
 		if line == "" {
 			// A blank line carries no indentation to restore, and writing one
 			// would put trailing whitespace in the file.
@@ -1321,6 +1491,15 @@ func (c *GadxCodeWriteContext) writeRawTextTag(t *TagStmt, inline string) {
 		c.WriteLine(line)
 	}
 	c.Depth--
+}
+
+// trimTrailingBlankLines drops the blank lines that end s.
+func trimTrailingBlankLines(s string) string {
+	lines := strings.Split(s, "\n")
+	for len(lines) > 1 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return strings.Join(lines, "\n")
 }
 
 // dedentRaw removes the indentation common to every non-blank line of a

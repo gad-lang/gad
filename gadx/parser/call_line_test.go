@@ -48,7 +48,8 @@ func TestFormatMergeAttrs(t *testing.T) {
 	if !strings.Contains(merged, `div[a="v", b="x"]`) {
 		t.Fatalf("expected merged group:\n%s", merged)
 	}
-	long := transpileGadx(t, "@main\n    div[alpha=\"1\"][beta=\"2\"][gamma=\"3\"][delta=\"4\"][epsilon=\"5\"][zeta=\"6\"][eta=\"7\"][theta=\"8\"]\n")
+	// (past the 120 columns a tag's line takes)
+	long := transpileGadx(t, "@main\n    div[alpha=\"1\"][beta=\"2\"][gamma=\"3\"][delta=\"4\"][epsilon=\"5\"][zeta=\"6\"][eta=\"7\"][theta=\"8\"][iota=\"9\"][kappa=\"10\"][lambda=\"11\"][mu=\"12\"]\n")
 	if !strings.Contains(long, "div[\n") {
 		t.Fatalf("expected wrapped group on overflow:\n%s", long)
 	}
@@ -86,7 +87,7 @@ func TestFormatEnumPreserved(t *testing.T) {
 // before its leading `//-` comment, not between the comment and the directive.
 func TestFormatBlankBeforeLeadingComment(t *testing.T) {
 	out := transpileGadx(t, "@comp a()\n    p x\n// doc for b\n@comp b()\n    p y\n")
-	if !strings.Contains(out, "\n\n// doc for b\n@comp b()") {
+	if !strings.Contains(out, "\n\n// doc for b\n@comp b\n") {
 		t.Fatalf("blank line should precede the leading comment:\n%s", out)
 	}
 }
@@ -122,11 +123,11 @@ func TestFormatSlotScope(t *testing.T) {
 // parse). A doc immediately before a directive (no blank) stays attached.
 func TestFormatFileDocStandalone(t *testing.T) {
 	standalone := transpileGadx(t, "/** file doc **/\n\n@comp a()\n    p x\n")
-	if !strings.Contains(standalone, "/** file doc **/\n\n@comp a()") {
+	if !strings.Contains(standalone, "/** file doc **/\n\n@comp a\n") {
 		t.Fatalf("file doc should keep its blank line:\n%s", standalone)
 	}
 	attached := transpileGadx(t, "/** comp doc **/\n@comp a()\n    p x\n")
-	if !strings.Contains(attached, "/** comp doc **/\n@comp a()") {
+	if !strings.Contains(attached, "/// comp doc\n@comp a\n") {
 		t.Fatalf("attached doc should stay attached:\n%s", attached)
 	}
 }

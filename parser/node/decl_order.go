@@ -70,7 +70,9 @@ func newDeclGroup(tok token.Token, s Stmt, specs []Spec) *DeclStmt {
 // and blank-line handling sees a sensible span as specs are appended.
 func (d *GenDecl) setRparen() {
 	if n := len(d.Specs); n > 0 {
-		d.Rparen = d.Specs[n-1].End()
+		// End is Rparen+1: the spec's last character, not past it — past it
+		// is the next line, where a comment there would read as this one's
+		d.Rparen = d.Specs[n-1].End() - 1
 	}
 }
 
@@ -250,6 +252,20 @@ func (d *GenDecl) orderedSpecs() []Spec {
 		}
 	}
 
+	// Values that do something when evaluated — a call — keep their order
+	// among themselves: `id := unique()` before `items := … unique() …` is
+	// which value each gets.
+	lastEffect := -1
+	for i := range items {
+		if v := items[i].spec; len(v.Values) > 0 && hasEffect(v.Values[0]) {
+			if lastEffect >= 0 {
+				adj[lastEffect] = append(adj[lastEffect], i)
+				indeg[i]++
+			}
+			lastEffect = i
+		}
+	}
+
 	// Greedy topological sort: repeatedly place the available item (all
 	// predecessors placed) with the smallest (rank, name).
 	placed := make([]bool, n)
@@ -274,6 +290,27 @@ func (d *GenDecl) orderedSpecs() []Spec {
 		}
 	}
 	return out
+}
+
+// hasEffect reports whether evaluating v may do something besides giving a
+// value: it calls something (an import aside), or computes (`(= …)`). A
+// function or closure it holds is not called by it.
+func hasEffect(v Expr) bool {
+	found := false
+	Walk(v, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		switch n.(type) {
+		case *ImportExpr, *FuncExpr, *ClosureExpr:
+			return false
+		case *CallExpr, *ComputedExpr:
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // writeShortVar renders a single `var name = value` as the short form

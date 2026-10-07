@@ -3067,7 +3067,7 @@ func TestParseFunction(t *testing.T) {
 		return stmts(
 			SFunc(
 				EFunc(
-					funcType(p(1, 4), ESelector(EIdent("klass", p(1, 6)), Str("fn", p(1, 12))), p(1, 15), p(1, 17),
+					funcType(p(1, 4), ESelector(EIdent("klass", p(1, 6)), BareStr("fn", p(1, 12))), p(1, 15), p(1, 17),
 						funcArgs(nil,
 							EIdent("b", p(1, 16))),
 					),
@@ -3109,7 +3109,7 @@ func TestParseFunction(t *testing.T) {
 									EIndex(
 										ESelector(
 											EIdent("klass", p(1, 6)),
-											Str("fn", p(1, 12)),
+											BareStr("fn", p(1, 12)),
 										),
 										Str("x", p(1, 15)),
 										p(1, 14),
@@ -3119,7 +3119,7 @@ func TestParseFunction(t *testing.T) {
 									p(1, 19),
 									p(1, 23),
 								),
-								Str("z", p(1, 25)),
+								BareStr("z", p(1, 25)),
 							),
 							p(1, 27), p(1, 29),
 							funcArgs(nil,
@@ -3345,7 +3345,7 @@ func TestParseMethod(t *testing.T) {
 		return stmts(
 			SExpr(
 				EMethod(EFunc(
-					funcType(p(1, 4), ESelector(EIdent("klass", p(1, 5)), Str("fn", p(1, 11))), p(1, 14), p(1, 16),
+					funcType(p(1, 4), ESelector(EIdent("klass", p(1, 5)), BareStr("fn", p(1, 11))), p(1, 14), p(1, 16),
 						funcArgs(nil,
 							EIdent("b", p(1, 15))),
 					),
@@ -3388,7 +3388,7 @@ func TestParseMethod(t *testing.T) {
 									EIndex(
 										ESelector(
 											EIdent("klass", p(1, 5)),
-											Str("fn", p(1, 11)),
+											BareStr("fn", p(1, 11)),
 										),
 										Str("x", p(1, 14)),
 										p(1, 13),
@@ -3398,7 +3398,7 @@ func TestParseMethod(t *testing.T) {
 									p(1, 18),
 									p(1, 22),
 								),
-								Str("z", p(1, 24)),
+								BareStr("z", p(1, 24)),
 							),
 							p(1, 26), p(1, 28),
 							funcArgs(nil,

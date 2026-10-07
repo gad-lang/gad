@@ -1025,6 +1025,7 @@ func (p *Parser) parseCode() *gadxnode.CodeStmt {
 			// keeps every statement mapped to its real source line/column.
 			if tok.Literal == "" {
 				joined := strings.Join(v, "\n")
+				s.Block, s.Source = true, joined
 				if trimmed := strings.TrimSpace(joined); trimmed != "" {
 					base := noBase
 					if len(positions) > 0 {
@@ -1124,8 +1125,10 @@ func (p *Parser) parseInclude() *gadxnode.CodeStmt {
 
 	stmts, err := parseGadAt(gadSrc, base, false)
 	s := &gadxnode.CodeStmt{
-		NodePos: tok.Pos,
-		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+		NodePos:   tok.Pos,
+		NodeEnd:   tok.Pos + source.Pos(len(tok.Literal)),
+		Directive: "include",
+		Args:      args,
 	}
 	if err == nil && stmts != nil {
 		// Anchor the statement keyword at the directive's `@include` (the synthetic
@@ -1152,8 +1155,9 @@ func (p *Parser) parseImportModule() *gadxnode.CodeStmt {
 	p.expect(gadxtoken.ImportModule)
 
 	s := &gadxnode.CodeStmt{
-		NodePos: tok.Pos,
-		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+		NodePos:   tok.Pos,
+		NodeEnd:   tok.Pos + source.Pos(len(tok.Literal)),
+		Directive: "import",
 	}
 	stmts, err := parseGadAt(tok.Literal, tok.Pos, false)
 	if err != nil {
@@ -2191,6 +2195,7 @@ func (p *Parser) parseCompCall() *gadxnode.CompCallStmt {
 							Name:     gnode.EIdent("main", 0),
 							FuncType: gnode.ProxyFuncType(),
 							Body:     gnode.Stmts{t},
+							Implicit: true,
 						}
 						call.SlotPass = append(call.SlotPass, lastMainSlot)
 					}

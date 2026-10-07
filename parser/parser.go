@@ -832,11 +832,11 @@ func (p *Parser) ParseSelectorNode(x node.Expr) (expr, sel node.Expr) {
 		p.Next()
 	default:
 		if tk := p.Token.Token; tk.IsKeyword() {
-			sel = node.Str(tk.String(), p.Token.Pos)
+			sel = node.BareStr(tk.String(), p.Token.Pos)
 			p.Next()
 		} else {
 			ident := p.ParseIdent()
-			sel = node.Str(ident.Name, ident.NamePos)
+			sel = node.BareStr(ident.Name, ident.NamePos)
 		}
 	}
 	expr = x
@@ -863,7 +863,7 @@ func (p *Parser) ParseSimpleSelectorNode(x node.Expr) (expr, sel node.Expr) {
 		sel = node.EParen(sel, lparen, rparen)
 	default:
 		ident := p.ParseIdent()
-		sel = node.Str(ident.Name, ident.NamePos)
+		sel = node.BareStr(ident.Name, ident.NamePos)
 	}
 	expr = x
 	return

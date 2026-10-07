@@ -225,7 +225,7 @@ func TestFormatTypeArgUnion(t *testing.T) {
 // into a `var (…)`.
 func TestFormatImportDirective(t *testing.T) {
 	src := "@import \"time\" as tm\n@import \"sys\"\n@import { a, b: c } from \"m\"\nx := tm.now()\n"
-	want := "@import \"time\" as tm\n@import \"sys\"\n@import { a, b:c } from \"m\"\n\nx := tm.now()\n"
+	want := "@import \"time\" as tm\n@import \"sys\"\n@import { a, b: c } from \"m\"\n\nx := tm.now()\n"
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
 	out, err := o.formatSource("x.gad", []byte(src), false)
 	require.NoError(t, err)
@@ -245,4 +245,43 @@ func TestFormatDeclGroupComments(t *testing.T) {
 	again, err := o.formatSource("x.gad", []byte(out), false)
 	require.NoError(t, err)
 	require.Equal(t, out, again, "formatting must be idempotent")
+}
+
+// Merged into a group and ordered, the values that do something — a call —
+// keep their order among themselves: each `unique()` gives what it gave.
+func TestFormatDeclKeepsEffectOrder(t *testing.T) {
+	src := "id := unique()\nitems := f(unique())\nb := 1\na := 2\n"
+	want := "var (a = 2, b = 1, id = unique(), items = f(unique()))\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
+	src = "items := f(unique())\nid := unique()\n"
+	out, err = o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, "var (items = f(unique()), id = unique())\n", out)
+}
+
+// A comment on its own line after `x := a.b` or a merged declaration stays
+// on its line: the selector's name ended two quotes past it, a merged
+// group one character past its last spec — on the next line, where the
+// comment was read as theirs.
+func TestFormatCommentAfterSelectorAndGroup(t *testing.T) {
+	src := "p := page.Page\n\n// c\nq := 1\na := f()\n// c1\nb := g()\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.NotContains(t, out, "page.Page //")
+	require.NotContains(t, out, "f() //")
+	require.Contains(t, out, "\n// c\n")
+	require.Contains(t, out, "\n// c1\n")
+}
+
+// The safety net counts the words of the comments: one the output has
+// fewer of is a comment the formatting dropped.
+func TestLostCommentWords(t *testing.T) {
+	src := "/**\nThe doc.\n**/\nx := 1 // one\n// two\n"
+	require.Equal(t, "", lostCommentWords(src, "/// The doc.\nx := 1 // one\n\n// two\n"))
+	require.NotEqual(t, "", lostCommentWords(src, "x := 1 // one\n// two\n"))
+	require.NotEqual(t, "", lostCommentWords(src, "/// The doc.\nx := 1\n// two\n"))
 }

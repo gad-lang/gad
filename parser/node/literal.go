@@ -487,6 +487,9 @@ func (e *RegexLit) Pattern() string {
 type StrLit struct {
 	ValuePos source.Pos
 	Literal  string
+	// Bare marks a name written without quotes — the selector of `x.name` —:
+	// it ends where the name does, not two quotes later.
+	Bare bool
 }
 
 func (e *StrLit) Value() string {
@@ -534,6 +537,9 @@ func (e *StrLit) Pos() source.Pos {
 
 // End returns the position of first character immediately after the node.
 func (e *StrLit) End() source.Pos {
+	if e.Bare {
+		return source.Pos(int(e.ValuePos) + len(e.Value()))
+	}
 	return source.Pos(int(e.ValuePos) + len(e.Literal))
 }
 
@@ -771,7 +777,8 @@ func (e *KeyValuePairLit) WriteCode(ctx *CodeWriteContext) {
 	fun := e.kvFunc()
 
 	if e.Colon {
-		ctx.WriteString(":")
+		// `key: value`, as in a dict
+		ctx.WriteString(": ")
 		e.Value.WriteCode(ctx)
 		return
 	}

@@ -384,6 +384,11 @@ func Decimal(value string, pos source.Pos) *DecimalLit {
 
 // Str builds a cooked string literal node from a value; its Literal is the value
 // encoded as a valid `"…"` literal, so formatting the node emits real code.
+// BareStr is the name value, written without quotes at pos (a selector's).
+func BareStr(value string, pos source.Pos) *StrLit {
+	return &StrLit{Literal: quote.QuoteString(value), ValuePos: pos, Bare: true}
+}
+
 func Str(value string, pos source.Pos) *StrLit {
 	return &StrLit{Literal: quote.QuoteString(value), ValuePos: pos}
 }
