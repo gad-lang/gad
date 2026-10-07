@@ -184,3 +184,12 @@ func TestFormatAnonymousClassKeepsOrder(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, out)
 }
+
+// A one-line doc block closed by a plain `*/` — `/** text */` — is a doc
+// of one line: its `*/` was kept in it (`/// text */`).
+func TestFormatDocClosedByStarSlash(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte("/** What a page tells. */\nclass P { a int }\n"), false)
+	require.NoError(t, err)
+	require.Equal(t, "/// What a page tells.\nclass P {\n\ta int\n}\n", out)
+}

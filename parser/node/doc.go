@@ -72,7 +72,12 @@ func normalizeDocFence(text string) string {
 // opening fence line (`/**` / `/***`) and the closing fence line (`**/` / `***/`).
 func blockDocContent(text, open, close string) string {
 	body := strings.TrimPrefix(text, open)
-	body = strings.TrimSuffix(body, close)
+	if strings.HasSuffix(body, close) {
+		body = strings.TrimSuffix(body, close)
+	} else {
+		// a block closed by a plain `*/` (`/** text */`): the doc is the same
+		body = strings.TrimSuffix(body, "*/")
+	}
 	return strings.Trim(body, "\n")
 }
 
