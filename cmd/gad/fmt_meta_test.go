@@ -285,3 +285,14 @@ func TestLostCommentWords(t *testing.T) {
 	require.NotEqual(t, "", lostCommentWords(src, "x := 1 // one\n// two\n"))
 	require.NotEqual(t, "", lostCommentWords(src, "/// The doc.\nx := 1\n// two\n"))
 }
+
+// A block holding only comments keeps them inside it: `for … { // … }` was
+// written `for … {}` with the comment after it.
+func TestFormatCommentOnlyBlock(t *testing.T) {
+	src := "for i := 0; i < 3; i++ {\n\t// a\n}\nf := func() {}\n"
+	want := "for i := 0; i < 3; i++ {\n\t// a\n}\n\nf := func() {}\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
+}

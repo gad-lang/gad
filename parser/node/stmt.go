@@ -171,6 +171,23 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 		return
 	}
 
+	if len(s.Stmts) == 0 && ctx.HasPrefix() && ctx.hasComments() && s.RBrace.Pos.IsValid() {
+		// a block holding only comments keeps them inside it, a line each
+		if c := ctx.peekComment(); c != nil && c.Pos() > s.LBrace.Pos && c.Pos() < s.RBrace.Pos {
+			ctx.WriteString(lb)
+			ctx.Depth++
+			for c := ctx.peekComment(); c != nil && c.Pos() < s.RBrace.Pos; c = ctx.peekComment() {
+				ctx.WriteSemi()
+				ctx.WriteString(normalizeDocFence(c.Text))
+				ctx.commentIdx++
+			}
+			ctx.Depth--
+			ctx.WriteSemi()
+			ctx.WriteString(rb)
+			return
+		}
+	}
+
 	if len(s.Stmts) == 0 {
 		var sep string
 		if len(rb) > 0 && rb != "}" && rb != ")" {
