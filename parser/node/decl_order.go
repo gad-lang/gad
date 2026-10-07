@@ -33,7 +33,8 @@ func patternNames(pattern Expr) (first string, all map[string]struct{}) {
 func mergeableDecl(s Stmt) (tok token.Token, specs []Spec, ok bool) {
 	switch v := s.(type) {
 	case *AssignStmt:
-		if v.Token == token.Define && len(v.LHS) == 1 && len(v.RHS) == 1 {
+		// an `@import … as name` stays the directive it is
+		if v.Token == token.Define && len(v.LHS) == 1 && len(v.RHS) == 1 && importDirective(v) == nil {
 			if id, isID := v.LHS[0].(*IdentExpr); isID {
 				return token.Var, []Spec{&ValueSpec{Idents: []*IdentExpr{id}, Values: []Expr{v.RHS[0]}}}, true
 			}

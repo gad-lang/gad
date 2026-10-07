@@ -22,9 +22,11 @@ func (p *Parser) ParseImportStmt() node.Stmt {
 	p.SkipSpace()
 
 	var pattern *node.KeyValueArrayLit
+	mainName := false
 	switch {
 	case p.Token.Token == token.Ident && p.mode.Has(ParseImportMain) && p.Token.Literal != "as":
 		// `@import name from "m"`: the module's main as name
+		mainName = true
 		ident := p.ParseIdent()
 		pattern = &node.KeyValueArrayLit{LParen: ident.Pos(), RParen: ident.End(), Curly: true,
 			Elements: []node.Expr{&node.KeyValuePairLit{Key: node.EIdent("main", ident.Pos()), Value: ident, Colon: true}}}
@@ -59,7 +61,7 @@ func (p *Parser) ParseImportStmt() node.Stmt {
 		p.advance(stmtStart)
 		return &node.BadStmt{From: pos, To: p.Token.Pos}
 	}
-	imp := &node.ImportExpr{CallExpr: node.CallExpr{
+	imp := &node.ImportExpr{Directive: true, MainName: mainName, CallExpr: node.CallExpr{
 		Func: node.EIdent(token.Import.String(), pos),
 		CallArgs: node.CallArgs{
 			LParen: name.Pos(),

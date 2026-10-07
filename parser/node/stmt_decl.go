@@ -46,7 +46,13 @@ func (*ParamSpec) specNode() {}
 func (s *ParamSpec) Pos() source.Pos { return s.Ident.Pos() }
 
 // Pos returns the position of first character belonging to the spec.
-func (s *ValueSpec) Pos() source.Pos { return s.Idents[0].Pos() }
+func (s *ValueSpec) Pos() source.Pos {
+	if s.Pattern != nil {
+		// a destructuring (`var [a, b] = …`) has no idents of its own
+		return s.Pattern.Pos()
+	}
+	return s.Idents[0].Pos()
+}
 
 // End returns the position of first character immediately after the spec.
 func (s *ParamSpec) End() source.Pos {
@@ -398,8 +404,23 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	ctx.WriteString(" (")
+	// each spec's comments, claimed in the order written: they follow it
+	// wherever it is put, and a group with any is one spec a line
+	var comments map[Spec]*itemComments
+	if ctx.HasPrefix() {
+		// (no `)` bounds the last: a group merged from statements ends
+		// where its last spec does — setRparen —, before its comment)
+		for i, ic := range ctx.claimBodyComments(len(d.Specs), d.Lparen, source.NoPos, func(i int) Node { return d.Specs[i] }) {
+			if ic != nil {
+				if comments == nil {
+					comments = map[Spec]*itemComments{}
+				}
+				comments[d.Specs[i]] = ic
+			}
+		}
+	}
 	write := func(i int) { specs[i].WriteCode(ctx) }
-	inNewLine := ctx.DecideNewLine(
+	inNewLine := comments != nil || ctx.DecideNewLine(
 		CodeWriteContextFlagFormatDeclItemInNewLine, len(specs), ", ", 1, write)
 
 	// A group of only value-less specs wraps greedily under NEW_LINE_CALC:
@@ -445,7 +466,9 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 			}
 		}
 
+		comments[sp].writeLead(ctx)
 		sp.WriteCode(ctx)
+		comments[sp].writeTrail(ctx)
 		if isNamed {
 			namedStarted = true
 		}

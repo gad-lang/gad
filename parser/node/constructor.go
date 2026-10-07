@@ -355,7 +355,7 @@ func EUnary(x Expr, op token.Token, pos source.Pos) *UnaryExpr {
 }
 
 func EImport(pos source.Pos, moduleName string, lparen, rparen, moduleNamePos source.Pos) *ImportExpr {
-	return &ImportExpr{CallExpr{
+	return &ImportExpr{CallExpr: CallExpr{
 		Func: EIdent(token.Import.String(), pos),
 		CallArgs: CallArgs{
 			LParen: lparen,

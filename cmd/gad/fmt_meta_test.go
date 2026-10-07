@@ -219,3 +219,30 @@ func TestFormatTypeArgUnion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, out)
 }
+
+// An `@import` is written back as the directive it was — not the
+// `name := import("m")` it lowers to —, a run of them one block, none merged
+// into a `var (…)`.
+func TestFormatImportDirective(t *testing.T) {
+	src := "@import \"time\" as tm\n@import \"sys\"\n@import { a, b: c } from \"m\"\nx := tm.now()\n"
+	want := "@import \"time\" as tm\n@import \"sys\"\n@import { a, b:c } from \"m\"\n\nx := tm.now()\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
+}
+
+// The comments of a spec of a `const (…)`/`var (…)` — above it, at the end
+// of its line — go with it wherever the group's order puts it, and the
+// group is then one spec a line: they were left after the group.
+func TestFormatDeclGroupComments(t *testing.T) {
+	src := "const (\n\tsys = import(\"sys\")\n\t// the options\n\tlc = import(\"lc\")\n\tzz = 1 // trailing\n)\n"
+	want := "const (\n\tzz = 1 // trailing\n\t// the options\n\tlc = import(\"lc\")\n\tsys = import(\"sys\")\n)\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
+	again, err := o.formatSource("x.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, again, "formatting must be idempotent")
+}

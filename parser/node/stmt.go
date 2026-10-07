@@ -56,6 +56,10 @@ func (s *AssignStmt) String() string {
 }
 
 func (s *AssignStmt) WriteCode(ctx *CodeWriteContext) {
+	if imp := importDirective(s); imp != nil && ctx.Transpile == nil {
+		writeImportDirective(ctx, s, imp)
+		return
+	}
 	ctx.WriteExprs(", ", s.LHS...)
 	ctx.WriteString(" " + s.Token.String() + " ")
 	ctx.WriteExprs(", ", s.RHS...)
@@ -295,6 +299,10 @@ func (s *ExprStmt) String() string {
 }
 
 func (s *ExprStmt) WriteCode(ctx *CodeWriteContext) {
+	if imp := importDirective(s); imp != nil && ctx.Transpile == nil {
+		writeImportDirective(ctx, s, imp)
+		return
+	}
 	if b, _ := s.Expr.(*BinaryExpr); b != nil {
 		b.WriteCodeWithParen(ctx, false)
 	} else {

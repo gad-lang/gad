@@ -842,6 +842,10 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			sep = sepNewline
 		default:
 			sep = sepNewline
+			// a run of `@import`s is one block
+			if x < last && importDirective(s) != nil && importDirective(stmt[x+1]) != nil {
+				break
+			}
 			// Separate block/declaration statements from the next with a blank
 			// line, except when inside a `{% … %}` tag (kept inline). Emit a bare
 			// newline (no indentation) so the blank line never carries trailing

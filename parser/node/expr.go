@@ -649,6 +649,59 @@ func (e *TypedIdentExpr) writeInlineUnion(ctx *CodeWriteContext) {
 // files are skipped unless an include naming `_test` selects them.
 type ImportExpr struct {
 	CallExpr
+	// Directive marks an import written as the statement `@import "m"`
+	// (`as name`, `{ … } from`): the formatter writes it back so.
+	Directive bool
+	// MainName marks `@import name from "m"`, the module's main as name
+	// (ParseImportMain): its pattern `{main: name}` is not written.
+	MainName bool
+}
+
+// importDirective is the `@import` of stmt — an ExprStmt or an AssignStmt
+// lowered from one —, or nil.
+func importDirective(stmt Stmt) *ImportExpr {
+	var x Expr
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		x = s.Expr
+	case *AssignStmt:
+		if len(s.RHS) == 1 && len(s.LHS) == 1 && s.Token == token.Define {
+			x = s.RHS[0]
+		}
+	}
+	if imp, ok := x.(*ImportExpr); ok && imp.Directive {
+		return imp
+	}
+	return nil
+}
+
+// writeImportDirective writes stmt — its import imp — as the `@import` it
+// was written as.
+func writeImportDirective(ctx *CodeWriteContext, stmt Stmt, imp *ImportExpr) {
+	ctx.WriteString("@import ")
+	name := imp.Args.Values[0]
+	if a, ok := stmt.(*AssignStmt); ok {
+		switch lhs := a.LHS[0].(type) {
+		case *IdentExpr:
+			name.WriteCode(ctx)
+			ctx.WriteString(" as " + lhs.Name)
+			return
+		case *KeyValueArrayLit:
+			if imp.MainName && len(lhs.Elements) == 1 {
+				if kv, ok := lhs.Elements[0].(*KeyValuePairLit); ok {
+					kv.Value.WriteCode(ctx)
+					ctx.WriteString(" from ")
+					name.WriteCode(ctx)
+					return
+				}
+			}
+			lhs.WriteCode(ctx)
+			ctx.WriteString(" from ")
+			name.WriteCode(ctx)
+			return
+		}
+	}
+	name.WriteCode(ctx)
 }
 
 func (e *ImportExpr) ModuleName() string {
