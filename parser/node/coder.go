@@ -794,7 +794,10 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			// Preserve the blank line separating the last floating comment from the
 			// statement it detaches from (the leading separator below writes the
 			// statement's own newline).
-			if lastEnd != 0 && ctx.lineOf(s.Pos()) > ctx.lineOf(lastEnd-1)+1 {
+			// (measured from where the statement begins: its metadata block,
+			// when one is written above it — `/// doc`, `[ordered]`, `export
+			// class` is one piece, no gap after the doc)
+			if lastEnd != 0 && ctx.lineOf(stmtStart(s)) > ctx.lineOf(lastEnd-1)+1 {
 				ctx.WriteString("\n")
 			}
 		}
@@ -856,6 +859,18 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			}
 		}
 	})
+}
+
+// stmtStart is where s begins in the source: the `[` of the metadata block
+// written above it (`[ordered]` before `export class`), when it has one, else
+// its Pos.
+func stmtStart(s Stmt) source.Pos {
+	if e, ok := s.(*ExportStmt); ok {
+		if mp := e.exportedMeta(); mp != nil && *mp != nil && (*mp).Pos() > 0 && (*mp).Pos() < s.Pos() {
+			return (*mp).Pos()
+		}
+	}
+	return s.Pos()
 }
 
 // Column returns the current cursor column (0 when unknown).

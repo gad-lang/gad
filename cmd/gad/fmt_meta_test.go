@@ -194,6 +194,19 @@ func TestFormatDocClosedByStarSlash(t *testing.T) {
 	require.Equal(t, "/// What a page tells.\nclass P {\n\ta int\n}\n", out)
 }
 
+// A doc, the metadata and the exported declaration are one piece: no blank
+// line between the doc and the `[…]` above `export` — a doc block's nor a
+// `///`'s —; a blank line in the source (a doc detached) stays.
+func TestFormatDocMetaExport(t *testing.T) {
+	src := "/// Doc of A.\n[ordered]\nexport class A {\n\tx? bool\n}\n\n" +
+		"/**\nDoc of B.\n**/\n[label=\"B\"]\nexport class B {\n\ty? bool\n}\n\n" +
+		"/// Detached.\n\n[ordered]\nexport class C {\n\tz? bool\n}\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, src, out)
+}
+
 // Formatted, a source keeps its parentheses and gets no others: what groups
 // is as written, and reads back the same (the safety net checks the meaning
 // too). A `for` writes a space before its body.
