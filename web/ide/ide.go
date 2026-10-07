@@ -155,6 +155,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/ide/eval", s.handleEval)           // POST
 	mux.HandleFunc("/api/ide/inspect", s.handleInspect)     // POST
 	mux.HandleFunc("/api/ide/modules", s.handleModules)     // GET
+	mux.HandleFunc("/api/ide/git/", s.serveGit)             // the repository's (git.go)
 
 	// Debug (shares the request/response protocol used by web/server).
 	mux.HandleFunc("/api/ide/debug/start", postOnly(s.dbg.HandleStart))
@@ -179,6 +180,8 @@ func (s *Server) handleWorkspace(w http.ResponseWriter, r *http.Request) {
 		"name":     filepath.Base(s.Root),
 		"openFile": s.OpenFile,
 		"compute":  compute,
+		// in a git repository: the Changes and Git panels (git.go)
+		"git": s.GitRepo(r.Context()),
 	})
 }
 
