@@ -1543,7 +1543,41 @@ func (s *ExportStmt) String() string {
 	return str
 }
 
+// exportedMeta is where the metadata of the declaration s exports is: it
+// is written before `export` (`[m]` then `export class C`), as it is read.
+func (s *ExportStmt) exportedMeta() **KeyValueArrayLit {
+	switch d := s.Prelude.(type) {
+	case *TypeDeclStmt:
+		return &d.Meta
+	case *InterfaceStmt:
+		return &d.Meta
+	case *TypedArrayTypeStmt:
+		return &d.Meta
+	case *EnumStmt:
+		return &d.Meta
+	case *FuncStmt:
+		if d.Func != nil {
+			return &d.Func.Meta
+		}
+	case *FuncWithMethodsStmt:
+		return &d.Meta
+	case *DeclStmt:
+		if gd, ok := d.Decl.(*GenDecl); ok {
+			if _, u := gd.declaredUnion(); u != nil {
+				return &u.Meta
+			}
+		}
+	}
+	return nil
+}
+
 func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
+	if mp := s.exportedMeta(); mp != nil && *mp != nil {
+		m := *mp
+		writeMeta(ctx, m)
+		*mp = nil
+		defer func() { *mp = m }()
+	}
 	// `export prop name = init` renders in its concise source form (the Prelude
 	// var + synthesized getter/setter are an internal desugaring).
 	if _, isProp := s.ValueExpr.(*PropExpr); isProp {

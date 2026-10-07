@@ -505,6 +505,11 @@ func NewFuncFunc(c Call) (_ Object, err error) {
 			Name:          "module",
 			TypeAssertion: TypeAssertionFromTypes(TModule),
 		}
+		// its `[k=v, …]` metadata (`[m] func f { … }`), read as `f.@meta`
+		metaVar = &NamedArgVar{
+			Name:          "meta",
+			TypeAssertion: TypeAssertionFromTypes(TKeyValueArray),
+		}
 		name string
 	)
 
@@ -523,7 +528,7 @@ func NewFuncFunc(c Call) (_ Object, err error) {
 		name = anonymous
 	}
 
-	if err = c.NamedArgs.Get(moduleVar); err != nil {
+	if err = c.NamedArgs.Get(moduleVar, metaVar); err != nil {
 		return
 	}
 
@@ -536,6 +541,9 @@ func NewFuncFunc(c Call) (_ Object, err error) {
 	}
 
 	f := NewFunc(name, moduleSpec)
+	if meta, ok := metaVar.Value.(KeyValueArray); ok {
+		f.Meta = meta
+	}
 
 	err = c.Args.WalkE(func(i int, arg Object) (err error) {
 		return SplitCaller(c.VM, arg, func(co CallerObject, types ParamsTypes) (err error) {

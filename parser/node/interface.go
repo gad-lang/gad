@@ -396,6 +396,17 @@ func MetaCode(meta *KeyValueArrayLit) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
+// metaElementCode is an element of a metadata block as it is read back: a
+// pair `key=value` — a function value too (`validation=func(v) => …`; the
+// key-value array's method shorthand, `key(v): …`, is not metadata's) —, a
+// flag `key`.
+func metaElementCode(el Expr) string {
+	if kv, ok := el.(*KeyValuePairLit); ok && kv.Value != nil && !kv.Colon {
+		return kv.Key.String() + "=" + kv.Value.String()
+	}
+	return el.String()
+}
+
 // writeMeta emits a `[k=v, …]` metadata block on its own line before a
 // doc-commentable element (declared between the doc comment and the element).
 func writeMeta(ctx *CodeWriteContext, meta *KeyValueArrayLit) {
@@ -407,7 +418,7 @@ func writeMeta(ctx *CodeWriteContext, meta *KeyValueArrayLit) {
 		if i > 0 {
 			ctx.WriteString(", ")
 		}
-		ctx.WriteString(el.String())
+		ctx.WriteString(metaElementCode(el))
 	}
 	// Formatting: the block sits on its own line, between the doc comment and
 	// the element; compact output keeps it inline.

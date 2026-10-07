@@ -485,6 +485,24 @@ VMLoop:
 
 			vm.sp++
 			vm.ip += 2
+		case OpMakeTypeUnionMeta:
+			// The metadata on the top, the n member types under it: a
+			// declared union with its `[k=v, …]` (`[m] type T <A|B>`).
+			numItems := int(vm.curInsts[vm.ip+1])
+			meta, _ := vm.stack[vm.sp-1].(KeyValueArray)
+			vm.stack[vm.sp-1] = nil
+			vm.sp--
+			members := make([]Object, numItems)
+			copy(members, vm.stack[vm.sp-numItems:vm.sp])
+			vm.sp -= numItems
+			for i := vm.sp; i < vm.sp+numItems; i++ {
+				vm.stack[i] = nil
+			}
+			u := NewTypeUnion(members...)
+			u.Meta = meta
+			vm.stack[vm.sp] = u
+			vm.sp++
+			vm.ip++
 		case OpMakeTypeUnion:
 			// Pop the top n member types and build a *TypeUnion (an anonymous
 			// `type <T1|T2|…>` value).

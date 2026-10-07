@@ -2276,39 +2276,11 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 }
 
 func (c *Compiler) compileFuncWithMethodsStmt(nd *node.FuncWithMethodsStmt) error {
-	var (
-		args = make(node.Exprs, len(nd.Methods)+1)
-		name *node.IdentExpr
-	)
-
-	if nd.NameExpr != nil {
-		name, _ = nd.NameExpr.(*node.IdentExpr)
-		if name == nil {
-			return c.Errorf(nd, "require NameExpr as *Ident")
-		}
-		args[0] = node.Str(name.String(), name.NamePos)
-	} else {
-		args[0] = node.Str("", 0)
+	call, err := c.funcWithMethodsCall(&nd.FuncWithMethodsExpr)
+	if err != nil {
+		return err
 	}
-
-	if len(nd.Methods) == 0 {
-		return c.Errorf(nd, "funcWithMethods does not have methods")
-	}
-
-	for i, m := range nd.Methods {
-		args[i+1] = m.Func()
-	}
-
-	call := &node.CallExpr{
-		Func: node.EIdent(BuiltinFunc.String(), nd.Pos()),
-
-		CallArgs: node.CallArgs{
-			Args: node.CallExprPositionalArgs{
-				Values: args,
-			},
-		},
-	}
-
+	name, _ := nd.NameExpr.(*node.IdentExpr)
 	return c.Compile(&node.DeclStmt{
 		Decl: &node.GenDecl{
 			Tok: token.Const,
@@ -2323,8 +2295,19 @@ func (c *Compiler) compileFuncWithMethodsStmt(nd *node.FuncWithMethodsStmt) erro
 }
 
 func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) error {
+	call, err := c.funcWithMethodsCall(nd)
+	if err != nil {
+		return err
+	}
+	return c.Compile(call)
+}
+
+// funcWithMethodsCall is the `Func(name, methods…; meta=[…])` call a
+// function of several methods compiles to: its name, its methods, its
+// `[k=v, …]` metadata (read as `fn.@meta`).
+func (c *Compiler) funcWithMethodsCall(nd *node.FuncWithMethodsExpr) (*node.CallExpr, error) {
 	if len(nd.Methods) == 0 {
-		return c.Errorf(nd, "funcWithMethods does not have methods")
+		return nil, c.Errorf(nd, "funcWithMethods does not have methods")
 	}
 
 	args := make(node.Exprs, len(nd.Methods)+1)
@@ -2332,7 +2315,7 @@ func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) erro
 	if nd.NameExpr != nil {
 		name, _ := nd.NameExpr.(*node.IdentExpr)
 		if name == nil {
-			return c.Errorf(nd, "require NameExpr as *Ident")
+			return nil, c.Errorf(nd, "require NameExpr as *Ident")
 		}
 		args[0] = node.Str(name.String(), name.NamePos)
 	} else {
@@ -2352,8 +2335,11 @@ func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) erro
 			},
 		},
 	}
-
-	return c.Compile(call)
+	if nd.Meta != nil && len(nd.Meta.Elements) > 0 {
+		call.NamedArgs.Names = append(call.NamedArgs.Names, &node.NamedArgExpr{Ident: node.EIdent("meta", nd.Pos())})
+		call.NamedArgs.Values = append(call.NamedArgs.Values, nd.Meta)
+	}
+	return call, nil
 }
 
 // propCallExpr builds the `Prop(name, methods...)` constructor call that a
@@ -2931,6 +2917,15 @@ func (c *Compiler) compileTypeUnionExpr(nd *node.TypeUnionExpr) error {
 		if err := c.Compile(t.Expr); err != nil {
 			return err
 		}
+	}
+	// a declared union's metadata (`[m] type T <A|B>`): on the top of its
+	// types, taken by OpMakeTypeUnionMeta
+	if nd.Meta != nil && len(nd.Meta.Elements) > 0 {
+		if err := c.Compile(nd.Meta); err != nil {
+			return err
+		}
+		c.emit(nd, OpMakeTypeUnionMeta, len(nd.Types))
+		return nil
 	}
 	c.emit(nd, OpMakeTypeUnion, len(nd.Types))
 	return nil

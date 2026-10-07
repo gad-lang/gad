@@ -2385,7 +2385,7 @@ c`, func(p pfn) []Stmt {
 		"((a == b) ? (c + (d / e)) : (f ? g : (h + i)))")
 	test.ExpectParseString(t, `(a + b) ? (c - d) : (e * f)`,
 		"((a + b) ? (c - d) : (e * f))")
-	test.ExpectParseString(t, `a + (b ? c : d) - e`, "((a + ((b ? c : d))) - e)")
+	test.ExpectParseString(t, `a + (b ? c : d) - e`, "((a + (b ? c : d)) - e)")
 	test.ExpectParseString(t, `a ? b ? c : d : e`, "(a ? (b ? c : d) : e)")
 	test.ExpectParseString(t, `a := b ? c : d`, "a := (b ? c : d)")
 	test.ExpectParseString(t, `x := a ? b ? c : d : e`,
@@ -5485,9 +5485,11 @@ func TestParseTypeUnion(t *testing.T) {
 		Code("x := type <int|uint>")
 	test.New(t, "const number = type <int|uint|float|decimal>").
 		Code("const number = type <int|uint|float|decimal>")
-	// statement form desugars to `const NAME = type <…>`
+	// statement form: `const NAME = type <…>` within, written as it was
 	test.New(t, "type num <str|int>").
-		Code("const num = type <str|int>")
+		Code("type num <str|int>")
+	test.New(t, "[doc=\"n\"] type num <str|int>").
+		Code("[doc=\"n\"] type num <str|int>")
 	// `type` stays an ordinary identifier when not followed by `<`
 	test.New(t, "type := 5").Code("type := 5")
 	test.New(t, "return x.type").Code("return x.type")

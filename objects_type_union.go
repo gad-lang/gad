@@ -34,6 +34,9 @@ type TypeUnion struct {
 	UName string
 	// Types are the member types.
 	Types []Object
+	// Meta is the `[k=v, …]` metadata of a declared union (`[m] type T
+	// <A|B>`), read as `T.@meta`; nil when it has none.
+	Meta KeyValueArray
 }
 
 var (
@@ -57,6 +60,21 @@ func NewTypeUnion(types ...Object) *TypeUnion {
 }
 
 func (u *TypeUnion) Type() ObjectType { return TTypeUnion }
+
+// IndexGet reflects the union: `@meta`, its metadata (nil when it has
+// none); `@types`, its member types.
+func (u *TypeUnion) IndexGet(_ *VM, index Object) (Object, error) {
+	switch index.ToString() {
+	case "@meta":
+		if u.Meta == nil {
+			return Nil, nil
+		}
+		return u.Meta, nil
+	case "@types":
+		return Array(append([]Object(nil), u.Types...)), nil
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
 
 // ToString renders the union name, or its `a|b|c` member list when anonymous.
 func (u *TypeUnion) ToString() string {

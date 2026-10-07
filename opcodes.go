@@ -120,6 +120,7 @@ const (
 	OpInterfaceExtends
 	OpVarPtr
 	OpAddrOfIndex
+	OpMakeTypeUnionMeta
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -215,6 +216,7 @@ var OpcodeNames = [...]string{
 	OpInterfaceExtends:  "INTERFACEEXTENDS",
 	OpVarPtr:            "VARPTR",
 	OpAddrOfIndex:       "ADDROFINDEX",
+	OpMakeTypeUnionMeta: "MAKETYPEUNIONMETA",
 }
 
 // OpcodeOperands is the number of operands.
@@ -310,6 +312,7 @@ var OpcodeOperands = [...][]int{
 	OpInterfaceExtends:  {2},    // n; pop n parent values (interfaces or arrays of them) + the interface, push it extending them
 	OpVarPtr:            {},     // pop a variable cell (from OpGetLocalPtr/OpGetFreePtr), push a `ptr` to it (`&x`)
 	OpAddrOfIndex:       {},     // pop key and target, push a `ptr` to target[key] (`&a.b`, `&a[i]`)
+	OpMakeTypeUnionMeta: {1},    // number of member types on the stack, under the metadata
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

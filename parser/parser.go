@@ -1824,7 +1824,10 @@ func (p *Parser) ParseFuncStmt() (stmt node.Stmt) {
 	meta := p.takeMeta()
 	e := p.ParseFuncExprT(p.ExpectToken(p.Token.Token))
 	if meta != nil {
-		if t, ok := e.(*node.FuncExpr); ok {
+		switch t := e.(type) {
+		case *node.FuncExpr:
+			t.Meta = meta
+		case *node.FuncWithMethodsExpr:
 			t.Meta = meta
 		}
 	}
@@ -2976,6 +2979,7 @@ func (p *Parser) parseTypeUnionDeclStmt() node.Stmt {
 		defer untracep(tracep(p, "TypeUnionDeclStmt"))
 	}
 	tokPos := p.Token.Pos
+	meta := p.takeMeta()
 	p.Next() // consume `type`
 	name := p.ParseIdent()
 	p.Expect(token.Less)
@@ -2984,7 +2988,7 @@ func (p *Parser) parseTypeUnionDeclStmt() node.Stmt {
 		p.Error(p.Token.Pos, "expected a type after `type "+name.Name+" <`")
 	}
 	greater := p.Expect(token.Greater)
-	value := &node.TypeUnionExpr{TypePos: tokPos, Types: types}
+	value := &node.TypeUnionExpr{TypePos: tokPos, Types: types, Decl: true, Meta: meta}
 	return &node.DeclStmt{Decl: &node.GenDecl{
 		TokPos: tokPos,
 		Tok:    token.Const,
@@ -5024,7 +5028,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 				p.Error(p.Token.Pos, "expected a type after `type "+name.Name+" <`")
 			}
 			p.Expect(token.Greater)
-			union := &node.TypeUnionExpr{TypePos: tokPos, Types: types}
+			union := &node.TypeUnionExpr{TypePos: tokPos, Types: types, Decl: true, Meta: p.takeMeta()}
 			p.declExport(stmt, name, p.newConstDecl(name, union))
 			return
 		case p.Token.Literal == "type" && p.isDeclBodyStart():
@@ -5095,13 +5099,16 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 		stmt.ValueExpr = p.ParseSingleParemExpr(token.LParen, token.RParen)
 	case token.Func:
 		// export func f() { … } — like `func f() { … }; export f`. A multi-
-		// signature `func f { … }` parses as a func-with-methods.
+		// signature `func f { … }` parses as a func-with-methods. Its `[k=v,
+		// …]` metadata, before `export`, is the func's.
+		meta := p.takeMeta()
 		s := p.ParseFuncExprT(p.ExpectToken(p.Token.Token))
 		if p.Failed() {
 			return
 		}
 		switch fe := s.(type) {
 		case *node.FuncExpr:
+			fe.Meta = meta
 			name, _ := fe.Type.NameExpr.(*node.IdentExpr)
 			if name == nil {
 				p.Error(fe.Pos(), "export func requires a name")
@@ -5109,6 +5116,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			}
 			p.declExport(stmt, name, &node.FuncStmt{Func: fe})
 		case *node.FuncWithMethodsExpr:
+			fe.Meta = meta
 			name, _ := fe.NameExpr.(*node.IdentExpr)
 			if name == nil {
 				p.Error(fe.Pos(), "export func requires a name")

@@ -1446,7 +1446,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		return buf, nil
 	case OpReturn, OpSetReturn, OpBinary, OpUnary, OpSelfAssign, OpGetIndex, OpGetLocal,
 		OpSetLocal, OpGetFree, OpSetFree, OpGetLocalPtr, OpGetFreePtr, OpThrow,
-		OpFinalizer, OpDefineLocal, OpKeyValue, OpMakeTypeUnion:
+		OpFinalizer, OpDefineLocal, OpKeyValue, OpMakeTypeUnion, OpMakeTypeUnionMeta:
 		buf = append(buf, byte(args[0]))
 		return buf, nil
 	case OpEqual, OpNotEqual, OpNil, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,

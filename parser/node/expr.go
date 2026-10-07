@@ -397,6 +397,10 @@ func (e *TypeExpr) Ident() *IdentExpr {
 type TypeUnionExpr struct {
 	TypePos source.Pos  // position of the `type` keyword
 	Types   []*TypeExpr // the union members (at least one)
+	// Decl marks the union of a declaration — `type Name <T1|T2>` —, written
+	// back so; Meta is its `[k=v, …]` metadata, read as `Name.@meta`.
+	Decl bool
+	Meta *KeyValueArrayLit
 }
 
 func (e *TypeUnionExpr) ExprNode() {}
@@ -808,6 +812,12 @@ func (e *ParenExpr) End() source.Pos {
 func (e *ParenExpr) String() string {
 	var s string
 	switch t := e.Expr.(type) {
+	case *CondExpr:
+		// a conditional writes its own parentheses: `(c ? a : b)` once
+		if e.LParen.Token == token.LParen {
+			return t.String()
+		}
+		s = t.String()
 	case *ParenExpr:
 		if e.LParen.Token == token.LParen {
 			s = t.Expr.String()
@@ -824,6 +834,12 @@ func (e *ParenExpr) String() string {
 
 func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
 	switch t := e.Expr.(type) {
+	case *CondExpr:
+		// a conditional writes its own parentheses: `(c ? a : b)` once
+		if e.LParen.Token == token.LParen {
+			t.WriteCode(ctx)
+			return
+		}
 	case *ParenExpr:
 		if e.LParen.Token == token.LParen {
 			e.Expr.WriteCode(ctx)
@@ -1845,6 +1861,9 @@ type FuncWithMethodsExpr struct {
 	NameExpr  Expr
 	Methods   []*FuncMethod
 	Doc       *ast.CommentGroup // doc comment preceding the func; or nil
+	// Meta is the optional `[k=v, …]` metadata block preceding the func; it
+	// is the function's, read as `fn.@meta`.
+	Meta *KeyValueArrayLit
 }
 
 func (e *FuncWithMethodsExpr) ExprNode() {}
@@ -1903,6 +1922,7 @@ func (e *FuncWithMethodsExpr) String() string {
 
 func (e *FuncWithMethodsExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	if e.FuncToken.Pos != source.NoPos {
 		ctx.WriteString(e.FuncToken.Token.String())
 		ctx.WriteString(" ")
@@ -2397,6 +2417,7 @@ func (e *FuncExpr) String() string {
 
 func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	writeMeta(ctx, e.Meta)
 	if e.Type != nil {
 		var kw string
 		if e.Type.FuncPos != 0 {

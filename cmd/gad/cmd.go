@@ -229,6 +229,9 @@ type fmtReportRecord struct {
 
 // fmtOptions holds the parsed flags (and config) of the `fmt` subcommand.
 type fmtOptions struct {
+	// checking marks the second formatting of the safety net: it is not
+	// checked again.
+	checking       bool
 	exclude        globList
 	include        globList
 	excludeRe      reList
@@ -832,7 +835,7 @@ func (o *fmtOptions) buildJobs(args []string) ([]fmtJob, error) {
 			continue
 		}
 
-		files, err := scanDir(path, recursive, o.filter())
+		files, err := scanDirOf(path, recursive, o.filter(), isFmtSource)
 		if err != nil {
 			return nil, err
 		}
@@ -848,7 +851,7 @@ func (o *fmtOptions) buildJobs(args []string) ([]fmtJob, error) {
 		if err != nil {
 			return nil, err
 		}
-		files, err := scanDir(path, recursive, filter)
+		files, err := scanDirOf(path, recursive, filter, isFmtSource)
 		if err != nil {
 			return nil, err
 		}
@@ -921,6 +924,17 @@ func isGadSource(name string) bool {
 		strings.HasSuffix(name, ".gadx")
 }
 
+// isFmtSource reports whether `gad fmt` formats name in a directory scan: a
+// Gad source (isGadSource), or a Markdown file (its fenced code blocks of
+// Gad).
+func isFmtSource(name string) bool { return isGadSource(name) || isMarkdown(name) }
+
+// isMarkdown reports whether name is a Markdown file: its fenced code blocks
+// of Gad (```gad, ```gadt, ```gadx) are formatted, the rest left as is.
+func isMarkdown(name string) bool {
+	return strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".markdown")
+}
+
 // splitRecursive strips a trailing "/..." (or a lone "...") recursion marker,
 // returning whether recursion was requested and the cleaned path.
 func splitRecursive(arg string) (recursive bool, path string) {
@@ -942,6 +956,12 @@ func splitRecursive(arg string) (recursive bool, path string) {
 // scanDir returns the .gad files of dir (recursively when requested), skipping
 // hidden files and directories and applying the file filter.
 func scanDir(dir string, recursive bool, filter *fileFilter) (files []string, err error) {
+	return scanDirOf(dir, recursive, filter, isGadSource)
+}
+
+// scanDirOf is scanDir of the files accept takes (`gad fmt`: isFmtSource,
+// the Markdown files too).
+func scanDirOf(dir string, recursive bool, filter *fileFilter, accept func(string) bool) (files []string, err error) {
 	if recursive {
 		err = filepath.WalkDir(dir, func(p string, d fs.DirEntry, e error) error {
 			if e != nil {
@@ -954,7 +974,7 @@ func scanDir(dir string, recursive bool, filter *fileFilter) (files []string, er
 				}
 				return nil
 			}
-			if !isHidden(name) && isGadSource(name) && filter.match(p) {
+			if !isHidden(name) && accept(name) && filter.match(p) {
 				files = append(files, p)
 			}
 			return nil
@@ -968,7 +988,7 @@ func scanDir(dir string, recursive bool, filter *fileFilter) (files []string, er
 	}
 	for _, d := range entries {
 		name := d.Name()
-		if d.IsDir() || isHidden(name) || !isGadSource(name) {
+		if d.IsDir() || isHidden(name) || !accept(name) {
 			continue
 		}
 		p := filepath.Join(dir, name)
@@ -1042,6 +1062,10 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 		indent = "\t"
 	}
 
+	if isMarkdown(name) {
+		return o.formatMarkdown(name, src)
+	}
+
 	// `.gadx` files are the indentation/pug-style template dialect: format them
 	// with the Gadx source formatter (tags/components/indentation), applying the
 	// same indent unit and the column-aware GAD rules to embedded code.
@@ -1103,6 +1127,20 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 	out := node.Code(file.Stmts, opts...)
 	if !strings.HasSuffix(out, "\n") {
 		out += "\n"
+	}
+	// Safety net (since `gad fmt` rewrites in place), as the Gadx path's:
+	// the output must read back, and format to itself. Else the file is left
+	// unchanged, and it says why.
+	if !o.checking && !transpile {
+		check := *o
+		check.checking = true
+		again, err := check.formatSource(name, []byte(out), transpile)
+		if err != nil {
+			return "", fmt.Errorf("%s: refusing to rewrite — the formatted source does not read back: %w", name, err)
+		}
+		if again != out {
+			return "", fmt.Errorf("%s: refusing to rewrite — the formatter does not round-trip this file", name)
+		}
 	}
 	return shebang + out, nil
 }

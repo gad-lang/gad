@@ -724,6 +724,22 @@ func (e *KeyValuePairLit) IsFunc() (ok bool) {
 	return e.Func() != nil
 }
 
+// kvFunc is Func as a key-value array writes it: a function of an
+// expression body `key(params) => expr` — the `:` of a dict's shorthand is
+// not a key-value array's.
+func (e *KeyValuePairLit) kvFunc() *FuncDefLit {
+	f := e.Func()
+	if f == nil {
+		return nil
+	}
+	if c, ok := f.Expr.(*ClosureExpr); ok && c.Lambda.Token == token.Colon {
+		cp := *c
+		cp.Lambda = Token{Token: token.Lambda}
+		return &FuncDefLit{Expr: &cp}
+	}
+	return f
+}
+
 func (e *KeyValuePairLit) String() string {
 	if e.Value == nil {
 		return e.Key.String()
@@ -731,7 +747,7 @@ func (e *KeyValuePairLit) String() string {
 
 	var (
 		sep string
-		f   = e.Func()
+		f   = e.kvFunc()
 		v   = e.Value
 	)
 
@@ -752,7 +768,7 @@ func (e *KeyValuePairLit) WriteCode(ctx *CodeWriteContext) {
 		return
 	}
 
-	fun := e.Func()
+	fun := e.kvFunc()
 
 	if e.Colon {
 		ctx.WriteString(":")

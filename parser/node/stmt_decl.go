@@ -340,8 +340,33 @@ func (d *GenDecl) String() string {
 	return sb.String()
 }
 
+// declaredUnion is the name and the union of a `type Name <T1|T2>`
+// declaration (a const of a declared union); nil when d is not one.
+func (d *GenDecl) declaredUnion() (*IdentExpr, *TypeUnionExpr) {
+	if len(d.Specs) != 1 {
+		return nil, nil
+	}
+	vs, ok := d.Specs[0].(*ValueSpec)
+	if !ok || len(vs.Idents) != 1 || len(vs.Values) != 1 {
+		return nil, nil
+	}
+	if u, ok := vs.Values[0].(*TypeUnionExpr); ok && u.Decl {
+		return vs.Idents[0], u
+	}
+	return nil, nil
+}
+
 func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(d.Doc)
+
+	// a declared union — `type Name <T1|T2>` —, written as it was
+	if name, u := d.declaredUnion(); u != nil {
+		writeMeta(ctx, u.Meta)
+		ctx.WriteString("type ")
+		name.WriteCode(ctx)
+		ctx.WriteString(" " + unionTypeSuffix(u))
+		return
+	}
 
 	// A lone `var name = value` collapses to the short form `name := value`.
 	if d.writeShortVar(ctx) {

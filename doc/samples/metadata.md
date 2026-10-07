@@ -25,7 +25,8 @@ User.id.@meta   // (;db=(;primary_key, auto))
 ```
 
 Supported on **interfaces** — array interfaces included — (and their fields,
-accessors and methods), **enums** (and their items), **functions**, **classes** /
+accessors and methods), **enums** (and their items), **functions** — of one
+body or of several methods —, **declared unions** (`type T <A|B>`), **classes** /
 marker `type`s / **mixins** and [typed array types](typed_arrays.gad) (and their
 fields, properties and methods). `X.@meta` is an empty key-value array when the
 element has none, so it never errors.
@@ -136,6 +137,106 @@ u := Account()
 ]
 // => ["(;table=\"users\", version=2)", "(;db=(;primary_key))", "(;computed)", "(;route=\"/save\", method=\"POST\")", 0, "anon"]
 ```
+
+## A function of several methods
+
+A function written with several signatures — `func f { (x) …; (x, y) … }` —
+carries the block as a function of one body does: it is the function's, read
+with `@meta`; each of its methods answers its own reflection (`@methods`).
+
+```gad
+/// the sum of two numbers, or two texts joined
+[kind="sum", pure]
+func add {
+	(a int, b int) => a + b
+	(a str, b str) => a + b
+}
+
+[
+	str(add.@meta), // the function's block
+	add(1, 2),      // a method by the types of its arguments
+	add("a", "b"),
+]
+// => ["(;kind=\"sum\", pure)", 3, "ab"]
+```
+
+## A declared union
+
+`type Name <T1|T2|…>` declares a union of types (the constant of a
+`type <T1|T2>` value). Its block is the union's, read with `@meta`; its member
+types are `@types`. A union with a block is built by one instruction of the
+VM (`MAKETYPEUNIONMETA`), as one without is (`MAKETYPEUNION`).
+
+```gad
+/// a size, as a letter or as a number
+[label="Size", options=["S", "M", "L"]]
+type Size <str|int>
+
+[
+	str(Size.@meta), // the union's block
+	len(Size.@types), // its member types: str, int
+	"M" :: Size,      // a value of one of them
+]
+// => ["(;label=\"Size\", options=[\"S\", \"M\", \"L\"])", 2, "M"]
+```
+
+## A function as a value
+
+A value of a block may be any expression — a function too, which is how an
+application gives a field something to run (a check, a formatter): the
+function is in the block, called by whoever reads it. Write it `key=func(…)
+=> …` (or `key=func(…) { … }`).
+
+```gad
+class Contact {
+	/// a check: nil when fine, else why not
+	[validation=func(v) => len(v) >= 3 ? nil : "too short"]
+	name str
+}
+
+// the block as a dict, to take a value by its key
+check := dict(Contact.name.@meta).validation
+[check("Ana"), check("Al")]
+// => [nil, "too short"]
+```
+
+## Formatting: `gad fmt`
+
+`gad fmt` writes each block **on its own line**, just before its element — a
+declaration, a field, a member, an item:
+
+```gad
+[label="Contact"]
+class ContactForm {
+	[label="Full Name"]
+	name str
+}
+```
+
+A block before `export` stays before it (`[m]` then `export class C …`). The
+formatter puts the fields of a class — and the fields of an interface — in
+its canonical order (grouped, then by name), unless the order means something:
+the class (or interface) is `[ordered]`, or its body has groups (`{ … }`).
+Write `[ordered]` where the order is the reader's — a form, its fields in the
+order they are filled in:
+
+```gad
+/// the fields in the order they are filled in: gad fmt keeps it
+[ordered]
+class Quote {
+	name str
+	phone str
+	details str
+}
+
+// a flag of the class's block, as any other: gad fmt reads it
+str(Quote.@meta)
+// => (;ordered)
+```
+
+`gad fmt` also formats the fenced code blocks of Gad in Markdown files —
+` ```gad `, ` ```gadt `, ` ```gadx ` —, leaving the text, and a block that does
+not read (a fragment), as they are.
 
 ## Metadata written outside the code: `parser.ParseMetadata`
 
@@ -248,4 +349,48 @@ u := Account()
     str(Account.save.@meta),  // a method's
     u.id, u.label,            // field defaults are preserved alongside metadata
 ]
+
+/// the sum of two numbers, or two texts joined
+[kind="sum", pure]
+func add {
+	(a int, b int) => a + b
+	(a str, b str) => a + b
+}
+
+[
+	str(add.@meta), // the function's block
+	add(1, 2),      // a method by the types of its arguments
+	add("a", "b"),
+]
+
+/// a size, as a letter or as a number
+[label="Size", options=["S", "M", "L"]]
+type Size <str|int>
+
+[
+	str(Size.@meta), // the union's block
+	len(Size.@types), // its member types: str, int
+	"M" :: Size,      // a value of one of them
+]
+
+class Contact {
+	/// a check: nil when fine, else why not
+	[validation=func(v) => len(v) >= 3 ? nil : "too short"]
+	name str
+}
+
+// the block as a dict, to take a value by its key
+check := dict(Contact.name.@meta).validation
+[check("Ana"), check("Al")]
+
+/// the fields in the order they are filled in: gad fmt keeps it
+[ordered]
+class Quote {
+	name str
+	phone str
+	details str
+}
+
+// a flag of the class's block, as any other: gad fmt reads it
+str(Quote.@meta)
 ```
