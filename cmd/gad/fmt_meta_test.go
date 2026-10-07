@@ -158,12 +158,12 @@ class C {
 }
 
 // A comment after `nil` stays on its line: nil ended 9 characters after
-// its start — past the comment, which went down a line. A unary or a
-// ternary in parentheses is written in one pair of them, not two (each
-// writes its own): formatting it again changed it.
+// its start — past the comment, which went down a line. The parentheses
+// are the source's, once each: none added around a binary, a unary or a
+// conditional (`if x > 0`, not `if (x > 0)`), none dropped that groups.
 func TestFormatNilCommentAndParens(t *testing.T) {
 	src := "a := nil // nothing yet\nb := 1\nc := (-b) + 2\nd := (!a) && b\ne := (a ? 1 : 2) + 3\n"
-	want := "a := nil // nothing yet\n\nvar (b = 1, c = ((-b) + 2), d = ((!a) && b), e = ((a ? 1 : 2) + 3))\n"
+	want := "a := nil // nothing yet\n\nvar (b = 1, c = (-b) + 2, d = (!a) && b, e = (a ? 1 : 2) + 3)\n"
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
 	out, err := o.formatSource("x.gad", []byte(src), false)
 	require.NoError(t, err)
@@ -192,4 +192,18 @@ func TestFormatDocClosedByStarSlash(t *testing.T) {
 	out, err := o.formatSource("x.gad", []byte("/** What a page tells. */\nclass P { a int }\n"), false)
 	require.NoError(t, err)
 	require.Equal(t, "/// What a page tells.\nclass P {\n\ta int\n}\n", out)
+}
+
+// Formatted, a source keeps its parentheses and gets no others: what groups
+// is as written, and reads back the same (the safety net checks the meaning
+// too). A `for` writes a space before its body.
+func TestFormatMinimalParens(t *testing.T) {
+	src := "for i := 0; i < len(v); i++ {\n\tif c >= '0' && c <= '9' {\n\t\td = append(d, int(c) - int('0'))\n\t}\n}\n" +
+		"x := (a + b) * c\ny := a - (b - c)\nz := m ? m[0] : \"\"\nw := !(a && b)\nu := a == nil || b\nfor q {\n\tbreak\n}\n"
+	want := "for i := 0; i < len(v); i++ {\n\tif c >= '0' && c <= '9' {\n\t\td = append(d, int(c) - int('0'))\n\t}\n}\n\n" +
+		"var (\n\tu = a == nil || b\n\tw = !(a && b)\n\tx = (a + b) * c\n\ty = a - (b - c)\n\tz = m ? m[0] : \"\"\n)\n\nfor q {\n\tbreak\n}\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
 }

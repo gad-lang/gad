@@ -92,6 +92,13 @@ func (e *BinaryExpr) WriteCodeWithParen(ctx *CodeWriteContext, paren bool) {
 		e.RHS.WriteCode(ctx)
 		return
 	}
+	if ctx.MinimalParens {
+		prec := e.Token.Precedence()
+		writeOperand(ctx, e.LHS, prec, false)
+		ctx.WriteString(" " + e.Token.String() + " ")
+		writeOperand(ctx, e.RHS, prec, true)
+		return
+	}
 	if paren {
 		ctx.WriteSingleByte('(')
 	}
@@ -101,6 +108,40 @@ func (e *BinaryExpr) WriteCodeWithParen(ctx *CodeWriteContext, paren bool) {
 	if paren {
 		ctx.WriteSingleByte(')')
 	}
+}
+
+// exprPrecedence is how tightly x binds as an operand, written with minimal
+// parentheses: a binary its operator's, a conditional the loosest of all, a
+// `x == nil` unary a comparison's; anything else binds tighter than any
+// operator (0 when it needs none).
+func exprPrecedence(x Expr) int {
+	switch t := x.(type) {
+	case *BinaryExpr:
+		return t.Token.Precedence()
+	case *CondExpr:
+		return 1
+	case *UnaryExpr:
+		if t.Token == token.Null || t.Token == token.NotNull {
+			return token.Equal.Precedence()
+		}
+	}
+	return 0
+}
+
+// writeOperand writes x, an operand of an operator of precedence prec, in
+// parentheses only when it would not group as it is without them: a looser
+// operand, or one as loose on the right (the operators group to the left).
+// From the source this never happens — its parentheses are ParenExprs —; it
+// keeps a tree made by code right.
+func writeOperand(ctx *CodeWriteContext, x Expr, prec int, rhs bool) {
+	p := exprPrecedence(x)
+	if p != 0 && (p < prec || p == prec && rhs) {
+		ctx.WriteSingleByte('(')
+		x.WriteCode(ctx)
+		ctx.WriteSingleByte(')')
+		return
+	}
+	x.WriteCode(ctx)
 }
 
 // colonBaseNeedsParen reports whether x renders as a bare `::` expression (a
@@ -270,6 +311,16 @@ func (e *CondExpr) String() string {
 }
 
 func (e *CondExpr) WriteCode(ctx *CodeWriteContext) {
+	if ctx.MinimalParens {
+		// the condition groups tighter than a conditional; the branches
+		// take one as they are (`a ? b : c ? d : e`)
+		writeOperand(ctx, e.Cond, 2, false)
+		ctx.WriteString(" ? ")
+		e.True.WriteCode(ctx)
+		ctx.WriteString(" : ")
+		e.False.WriteCode(ctx)
+		return
+	}
 	ctx.WriteSingleByte('(')
 	e.Cond.WriteCode(ctx)
 	ctx.WriteString(" ? ")
@@ -834,6 +885,18 @@ func (e *ParenExpr) String() string {
 }
 
 func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
+	if ctx.MinimalParens {
+		// the parentheses of the source, once: what they hold does not wrap
+		// itself
+		if _, nested := e.Expr.(*ParenExpr); nested && e.LParen.Token == token.LParen {
+			e.Expr.WriteCode(ctx)
+			return
+		}
+		ctx.WriteString(e.LParen.Token.String())
+		e.Expr.WriteCode(ctx)
+		ctx.WriteString(e.RParen.Token.String())
+		return
+	}
 	switch t := e.Expr.(type) {
 	case *CondExpr:
 		// a conditional writes its own parentheses: `(c ? a : b)` once
@@ -1375,6 +1438,28 @@ func (e *UnaryExpr) String() string {
 }
 
 func (e *UnaryExpr) WriteCode(ctx *CodeWriteContext) {
+	if ctx.MinimalParens {
+		switch e.Token {
+		case token.Null:
+			writeOperand(ctx, e.Expr, token.Equal.Precedence(), false)
+			ctx.WriteString(" == nil")
+		case token.NotNull:
+			writeOperand(ctx, e.Expr, token.Equal.Precedence(), false)
+			ctx.WriteString(" != nil")
+		default:
+			ctx.WriteString(e.Token.String())
+			// an operand of an operator, or a unary itself (`- -x` is not
+			// `--x`), is parenthesized
+			if _, un := e.Expr.(*UnaryExpr); un || exprPrecedence(e.Expr) != 0 {
+				ctx.WriteSingleByte('(')
+				e.Expr.WriteCode(ctx)
+				ctx.WriteSingleByte(')')
+			} else {
+				e.Expr.WriteCode(ctx)
+			}
+		}
+		return
+	}
 	ctx.WriteSingleByte('(')
 
 	switch e.Token {

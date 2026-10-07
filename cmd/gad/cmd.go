@@ -1116,6 +1116,7 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 		node.CodeWithFlags(o.codeFlags),
 		node.CodeWithPrefix(indent),
 		node.CodeWithComments(srcFile, file.Comments),
+		node.CodeWithMinimalParens(),
 	}
 	if o.maxColumns > 0 {
 		opts = append(opts, node.CodeWithMaxColumns(o.maxColumns))
@@ -1141,8 +1142,32 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 		if again != out {
 			return "", fmt.Errorf("%s: refusing to rewrite — the formatter does not round-trip this file", name)
 		}
+		// and it must mean what the source means: both trees, written fully
+		// parenthesized, the same — a parenthesis the minimal form dropped
+		// that grouped something would change it
+		if canon, err := o.canonicalCode(name, []byte(out)); err != nil || canon != node.Code(file.Stmts, node.CodeWithFlags(o.codeFlags)) {
+			return "", fmt.Errorf("%s: refusing to rewrite — the formatted source does not mean what the source does", name)
+		}
 	}
 	return shebang + out, nil
+}
+
+// canonicalCode is src parsed as formatSource parses it, written back fully
+// parenthesized, with no comments: what it means, for comparing two sources.
+func (o *fmtOptions) canonicalCode(name string, src []byte) (string, error) {
+	fileSet := source.NewFileSet()
+	srcFile := fileSet.AddFileData(name, -1, src)
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
+	var so *parser.ScannerOptions
+	if strings.HasSuffix(name, ".gadt") {
+		po.Mode |= parser.ParseMixed
+		so = &parser.ScannerOptions{Mode: parser.ScanMixed | parser.ScanConfigDisabled}
+	}
+	file, err := parser.NewParserWithOptions(srcFile, po, so).ParseFile()
+	if err != nil {
+		return "", err
+	}
+	return node.Code(file.Stmts, node.CodeWithFlags(o.codeFlags)), nil
 }
 
 // formatTarget formats a single target and writes the result to its

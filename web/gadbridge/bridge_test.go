@@ -11,7 +11,7 @@ func TestFormat(t *testing.T) {
 	if !r.OK {
 		t.Fatalf("expected ok, got diagnostics: %v", r.Diagnostics)
 	}
-	if !strings.Contains(r.Source, "if (x > 0) {\n") {
+	if !strings.Contains(r.Source, "if x > 0 {\n") {
 		t.Fatalf("unexpected format output:\n%s", r.Source)
 	}
 }

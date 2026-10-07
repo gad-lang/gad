@@ -14,7 +14,7 @@ func TestParseTestStmt(t *testing.T) {
 	test.ExpectParseString(t, `test "x is one" { t.true(x == 1) }`, `test "x is one" {t.true((x == 1))}`)
 	// bench form
 	test.ExpectParseString(t, `bench loop { for i := 0; i < t.n; i++ {} }`,
-		`bench loop {for i := 0; (i < t.n); i++{}}`)
+		`bench loop {for i := 0; (i < t.n); i++ {}}`)
 	// an identifier name that is not a bare ident is round-tripped quoted anyway
 	test.ExpectParseString(t, `bench "the loop" {}`, `bench "the loop" {}`)
 

@@ -196,9 +196,24 @@ type CodeWriteContext struct {
 	// declaration merges and reordering. Only lead docs are claimed; trailing/
 	// inline docs stay with the position machinery.
 	docClaim map[*ast.Comment]bool
+
+	// MinimalParens writes the parentheses of the source and no others: a
+	// binary, a unary, a conditional do not wrap themselves (each written
+	// parenthesis is a ParenExpr of the parse). It is for code formatted from
+	// its source (`gad fmt`); a tree made by code keeps the safe, fully
+	// parenthesized form.
+	MinimalParens bool
 }
 
 type CodeOption func(ctx *CodeWriteContext)
+
+// CodeWithMinimalParens writes only the parentheses of the source (see
+// CodeWriteContext.MinimalParens).
+func CodeWithMinimalParens() CodeOption {
+	return func(ctx *CodeWriteContext) {
+		ctx.MinimalParens = true
+	}
+}
 
 func CodeWithPrefix(prefix string) CodeOption {
 	return func(ctx *CodeWriteContext) {

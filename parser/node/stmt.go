@@ -442,6 +442,10 @@ func (s *ForStmt) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteStmts(s.Post)
 	}
 
+	// `for {`, else `for x {` — not `for x{`
+	if s.Init != nil || s.Cond != nil || s.Post != nil {
+		ctx.WriteString(" ")
+	}
 	s.Body.WriteCode(ctx)
 }
 

@@ -136,6 +136,7 @@ func formatGad(src string, mixed bool) FormatResult {
 		node.CodeWithFlags(node.CodeWriteContextFlagFormat),
 		node.CodeWithPrefix("\t"),
 		node.CodeWithComments(srcFile, file.Comments),
+		node.CodeWithMinimalParens(),
 	)
 	if len(out) == 0 || out[len(out)-1] != '\n' {
 		out += "\n"

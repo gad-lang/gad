@@ -110,7 +110,7 @@ func TestFormatTargetInPlace(t *testing.T) {
 
 	formatted, err := os.ReadFile(p)
 	require.NoError(t, err)
-	require.Contains(t, string(formatted), "if (x > 0) {\n")
+	require.Contains(t, string(formatted), "if x > 0 {\n")
 	require.Contains(t, out.String(), p)
 
 	// Idempotent: a second pass reports no change.
@@ -423,7 +423,7 @@ func TestFormatTargetNoSave(t *testing.T) {
 
 	// the formatted result is returned (for --report-contents) but nothing is
 	// written or echoed.
-	require.Contains(t, formatted, "if (x > 0) {\n")
+	require.Contains(t, formatted, "if x > 0 {\n")
 	require.Empty(t, out.String())
 	in, err := os.ReadFile(p)
 	require.NoError(t, err)
@@ -468,7 +468,7 @@ func TestFormatTargetOutDir(t *testing.T) {
 	// formatted copy written under out, mirroring the path relative to root
 	got, err := os.ReadFile(filepath.Join(outDir, "a.gad"))
 	require.NoError(t, err)
-	require.Contains(t, string(got), "if (z > 0) {\n")
+	require.Contains(t, string(got), "if z > 0 {\n")
 }
 
 // newFmtFlagSet registers the fmt flags on a fresh FlagSet bound to o, mirroring
