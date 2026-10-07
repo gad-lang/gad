@@ -93,15 +93,26 @@ func (e *EnumExpr) WriteCode(ctx *CodeWriteContext) {
 		e.NameExpr.WriteCode(ctx)
 	}
 	ctx.WriteString(" {")
-	writeEnumFields(ctx, e.Fields)
+	writeEnumFields(ctx, e.Fields, e.LBrace, e.RBrace)
 	ctx.WriteString("}")
 }
 
 // writeEnumFields emits the enum fields one per indented line when formatting
 // with a prefix and `, `-separated inline otherwise.
-func writeEnumFields(ctx *CodeWriteContext, fields []*EnumFieldExpr) {
+func writeEnumFields(ctx *CodeWriteContext, fields []*EnumFieldExpr, lbrace, rbrace source.Pos) {
+	var comments []*itemComments
+	if ctx.HasPrefix() {
+		// each item's comments, on its lines
+		comments = ctx.claimBodyComments(len(fields), lbrace, rbrace, func(i int) Node { return fields[i] })
+	}
 	ctx.WriteItemsSep(ctx.HasPrefix(), len(fields), ", ", "", func(i int) {
+		if comments == nil {
+			fields[i].WriteCode(ctx)
+			return
+		}
+		comments[i].writeLead(ctx)
 		fields[i].WriteCode(ctx)
+		comments[i].writeTrail(ctx)
 	}, func(newLine bool) {
 		if newLine {
 			ctx.WriteSecondLine()

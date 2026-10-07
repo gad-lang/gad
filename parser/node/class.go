@@ -294,9 +294,19 @@ func writeTypeLitBody(ctx *CodeWriteContext, e *TypeLitExpr) {
 			ctx.Depth--
 		})
 	}
+	// each field's comments — above it, at the end of its line — claimed in
+	// the order written, so they follow it wherever it is put
+	fieldComments := map[*ClassFieldExpr]*itemComments{}
+	for i, ic := range ctx.claimBodyComments(len(e.Fields), e.LBrace, e.RBrace, func(i int) Node { return e.Fields[i] }) {
+		fieldComments[e.Fields[i]] = ic
+	}
 	for _, f := range formatClassFields(e) {
 		f := f
-		items = append(items, func() { f.WriteCode(ctx) })
+		items = append(items, func() {
+			fieldComments[f].writeLead(ctx)
+			f.WriteCode(ctx)
+			fieldComments[f].writeTrail(ctx)
+		})
 	}
 	for _, sp := range e.Spreads {
 		sp := sp

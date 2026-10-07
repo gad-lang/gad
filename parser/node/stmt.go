@@ -1573,10 +1573,12 @@ func (s *ExportStmt) exportedMeta() **KeyValueArrayLit {
 
 func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
 	if mp := s.exportedMeta(); mp != nil && *mp != nil {
-		m := *mp
-		writeMeta(ctx, m)
-		*mp = nil
-		defer func() { *mp = m }()
+		// the block before `export`; the declaration keeps it (its `[ordered]`
+		// read as ever), only not written again
+		writeMeta(ctx, *mp)
+		was := ctx.metaWritten
+		ctx.metaWritten = *mp
+		defer func() { ctx.metaWritten = was }()
 	}
 	// `export prop name = init` renders in its concise source form (the Prelude
 	// var + synthesized getter/setter are an internal desugaring).

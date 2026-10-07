@@ -551,8 +551,14 @@ func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		}
 		ctx.WriteLine(inline)
 	} else {
-		// Overflow: wrap the merged attribute group one item per line.
-		ctx.writeWrappedTag(t.Name, groups)
+		// Overflow: wrap the merged attribute group one item per line — the
+		// tag's classes and id (its shorthand) kept on its head, its `(N)`
+		// after the group.
+		repeat := ""
+		if t.Repeat != nil {
+			repeat = "(" + ctx.gadExpr(t.Repeat) + ")"
+		}
+		ctx.writeWrappedTag(t.Name+shorthand, groups, repeat)
 	}
 	ctx.Depth++
 	if IsPreserveWhitespace(t.Name) {
@@ -762,22 +768,22 @@ func (c *GadxCodeWriteContext) attrGroups(attrs []*TagAttribute) []attrGroup {
 //
 // A tag that also has non-mergeable groups is emitted inline (accepting the
 // overflow) rather than reordered.
-func (c *GadxCodeWriteContext) writeWrappedTag(name string, groups []attrGroup) {
+func (c *GadxCodeWriteContext) writeWrappedTag(head string, groups []attrGroup, tail string) {
 	if len(groups) == 1 && groups[0].merged {
-		c.WriteLine(name + "[")
+		c.WriteLine(head + "[")
 		c.Depth++
 		for _, it := range groups[0].items {
 			c.WriteLine(it)
 		}
 		c.Depth--
-		c.WriteLine("]")
+		c.WriteLine("]" + tail)
 		return
 	}
-	line := name
+	line := head
 	for _, g := range groups {
 		line += g.inline()
 	}
-	c.WriteLine(line)
+	c.WriteLine(line + tail)
 }
 
 // overflows reports whether the line (at the current indent) exceeds the column

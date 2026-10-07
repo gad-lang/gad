@@ -410,7 +410,7 @@ func metaElementCode(el Expr) string {
 // writeMeta emits a `[k=v, …]` metadata block on its own line before a
 // doc-commentable element (declared between the doc comment and the element).
 func writeMeta(ctx *CodeWriteContext, meta *KeyValueArrayLit) {
-	if meta == nil || len(meta.Elements) == 0 {
+	if meta == nil || len(meta.Elements) == 0 || meta == ctx.metaWritten {
 		return
 	}
 	ctx.WriteString("[")
@@ -549,13 +549,23 @@ func writeInterfaceBodyLines(ctx *CodeWriteContext, e *InterfaceExpr) {
 			})
 		}
 	}
+	// each member's comments, claimed in the order written: they follow it
+	// wherever it is put
+	memberComments := map[*InterfaceMemberExpr]*itemComments{}
+	for i, ic := range ctx.claimBodyComments(len(e.Members), e.LBrace, e.RBrace, func(i int) Node { return e.Members[i] }) {
+		memberComments[e.Members[i]] = ic
+	}
 	for _, m := range formatInterfaceMembers(e) {
 		m := m
 		// the spreads right after the fields, as in a class
 		if m.Kind != IfaceField {
 			addSpreads()
 		}
-		items = append(items, func() { m.WriteCode(ctx) })
+		items = append(items, func() {
+			memberComments[m].writeLead(ctx)
+			m.WriteCode(ctx)
+			memberComments[m].writeTrail(ctx)
+		})
 	}
 	addSpreads()
 	for _, m := range sortedInterfaceMethods(e.Methods) {

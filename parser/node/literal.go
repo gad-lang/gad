@@ -603,7 +603,7 @@ func (e *NilLit) Pos() source.Pos {
 
 // End returns the position of first character immediately after the node.
 func (e *NilLit) End() source.Pos {
-	return e.TokenPos + 9 // len(nil) == 9
+	return e.TokenPos + 3 // len("nil") == 3
 }
 
 func (e *NilLit) String() string {

@@ -812,8 +812,9 @@ func (e *ParenExpr) End() source.Pos {
 func (e *ParenExpr) String() string {
 	var s string
 	switch t := e.Expr.(type) {
-	case *CondExpr:
-		// a conditional writes its own parentheses: `(c ? a : b)` once
+	case *CondExpr, *UnaryExpr:
+		// a conditional, a unary expression write their own parentheses:
+		// `(c ? a : b)`, `(!x)` once
 		if e.LParen.Token == token.LParen {
 			return t.String()
 		}
@@ -838,7 +839,10 @@ func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
 		// a conditional writes its own parentheses: `(c ? a : b)` once
 		if e.LParen.Token == token.LParen {
 			t.WriteCode(ctx)
-			return
+		} else {
+			ctx.WriteString(e.LParen.Token.String())
+			t.WriteCode(ctx)
+			ctx.WriteString(e.RParen.Token.String())
 		}
 	case *ParenExpr:
 		if e.LParen.Token == token.LParen {

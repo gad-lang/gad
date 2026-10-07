@@ -182,9 +182,12 @@ type CodeWriteContext struct {
 	// formatting. comments is flattened and sorted by position; commentIdx is
 	// the cursor into it, advanced (across nested statement lists) as comments
 	// are emitted in position order.
-	srcFile    *source.File
-	comments   []*ast.Comment
-	commentIdx int
+	srcFile  *source.File
+	comments []*ast.Comment
+	// metaWritten is a metadata block already written — before `export` —:
+	// its element does not write it again.
+	metaWritten *KeyValueArrayLit
+	commentIdx  int
 
 	// docClaim holds the doc comments (`/?`, `/??`, `/???`) that are emitted by
 	// their owning AST node (via its Doc field) rather than by position. Claimed
@@ -1031,4 +1034,82 @@ func CodeW(w io.Writer, n Coder, opt ...CodeOption) {
 	if ctx.hasComments() {
 		ctx.flushRemainingComments()
 	}
+}
+
+// itemComments are the comments of a member of a body — a field of a class
+// or an interface, an item of an enum —: those on the lines just above it
+// (after the member before it) and those at the end of its line. They are
+// taken out of the position stream (claimItemComments) and written with the
+// member wherever the formatter puts it (the members of a body may be
+// reordered), never left behind.
+type itemComments struct {
+	lead, trail []*ast.Comment
+}
+
+// claimItemComments takes out of the stream the comments of the member
+// spanning [start, end): the lead ones after prev, the trailing ones on the
+// line it ends on, before next.
+func (ctx *CodeWriteContext) claimItemComments(prev, start, end, next source.Pos) *itemComments {
+	if ctx.srcFile == nil || ctx.commentIdx >= len(ctx.comments) || !start.IsValid() || !end.IsValid() {
+		return nil
+	}
+	ic := &itemComments{}
+	endLine := ctx.lineOf(end - 1)
+	rest := make([]*ast.Comment, 0, len(ctx.comments)-ctx.commentIdx)
+	for _, c := range ctx.comments[ctx.commentIdx:] {
+		p := c.Pos()
+		switch {
+		case p > prev && p < start:
+			ic.lead = append(ic.lead, c)
+		case p >= end && (!next.IsValid() || p < next) && ctx.lineOf(p) == endLine:
+			ic.trail = append(ic.trail, c)
+		default:
+			rest = append(rest, c)
+		}
+	}
+	if len(ic.lead) == 0 && len(ic.trail) == 0 {
+		return nil
+	}
+	ctx.comments = append(ctx.comments[:ctx.commentIdx:ctx.commentIdx], rest...)
+	return ic
+}
+
+// writeLead writes the comments above the member, each on its own line.
+func (ic *itemComments) writeLead(ctx *CodeWriteContext) {
+	if ic == nil {
+		return
+	}
+	for _, c := range ic.lead {
+		ctx.markMultiline()
+		ctx.WriteString(normalizeDocFence(c.Text)+"\n", ctx.CurrentPrefix())
+	}
+}
+
+// writeTrail writes the comments at the end of the member's line.
+func (ic *itemComments) writeTrail(ctx *CodeWriteContext) {
+	if ic == nil {
+		return
+	}
+	for _, c := range ic.trail {
+		ctx.markMultiline()
+		ctx.WriteString(" " + c.Text)
+	}
+}
+
+// claimBodyComments claims the comments of each of the n members of a body
+// between lbrace and rbrace, in the order written (see claimItemComments).
+func (ctx *CodeWriteContext) claimBodyComments(n int, lbrace, rbrace source.Pos, member func(i int) Node) []*itemComments {
+	out := make([]*itemComments, n)
+	for i := 0; i < n; i++ {
+		prev, next := lbrace, rbrace
+		if i > 0 {
+			prev = member(i - 1).End()
+		}
+		if i+1 < n {
+			next = member(i + 1).Pos()
+		}
+		m := member(i)
+		out[i] = ctx.claimItemComments(prev, m.Pos(), m.End(), next)
+	}
+	return out
 }

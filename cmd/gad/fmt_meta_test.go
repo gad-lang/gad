@@ -81,3 +81,94 @@ class F {
 	require.NoError(t, err)
 	require.Equal(t, out, again, "formatting must be idempotent")
 }
+
+// The comments of a member of a body — above it, at the end of its line —
+// go with it wherever the formatter puts it: a class's fields sorted, kept
+// in order by `[ordered]` (before `export` too), an interface's members, an
+// enum's items. None is left behind the body.
+func TestFormatMemberComments(t *testing.T) {
+	src := `export class Form {
+	name str           // required
+	company? str       // optional
+}
+
+[ordered]
+export class F2 {
+	name str // required
+	// the company
+	company? str // optional
+}
+
+interface I {
+	zeta str // last
+	// alpha doc
+	alpha int // first
+}
+
+enum E {
+	a // the a
+	b // the b
+}
+
+class C {
+	// doc of z
+	[label="Z"]
+	z str // z trail
+	/* a block */ a int
+}
+`
+	want := `export class Form {
+	company? str // optional
+	name str // required
+}
+
+[ordered]
+export class F2 {
+	name str // required
+	// the company
+	company? str // optional
+}
+
+interface I {
+	// alpha doc
+	alpha int // first
+	zeta str // last
+}
+
+enum E {
+	a // the a
+	b // the b
+}
+
+class C {
+	/* a block */
+	a int
+	// doc of z
+	[label="Z"]
+	z str // z trail
+}
+`
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
+	again, err := o.formatSource("x.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, again, "formatting must be idempotent")
+}
+
+// A comment after `nil` stays on its line: nil ended 9 characters after
+// its start — past the comment, which went down a line. A unary or a
+// ternary in parentheses is written in one pair of them, not two (each
+// writes its own): formatting it again changed it.
+func TestFormatNilCommentAndParens(t *testing.T) {
+	src := "a := nil // nothing yet\nb := 1\nc := (-b) + 2\nd := (!a) && b\ne := (a ? 1 : 2) + 3\n"
+	want := "a := nil // nothing yet\n\nvar (b = 1, c = ((-b) + 2), d = ((!a) && b), e = ((a ? 1 : 2) + 3))\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
+	again, err := o.formatSource("x.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, again, "formatting must be idempotent")
+}
