@@ -203,9 +203,22 @@ type CodeWriteContext struct {
 	// its source (`gad fmt`); a tree made by code keeps the safe, fully
 	// parenthesized form.
 	MinimalParens bool
+	// ParenMarks writes each parenthesis of the tree marked (`⟨(…)⟩`) beside
+	// those every operation is written in: not code, a form for telling
+	// whether two trees are the same — one with a ParenExpr where the other
+	// has none differs.
+	ParenMarks bool
 }
 
 type CodeOption func(ctx *CodeWriteContext)
+
+// CodeWithParenMarks writes the tree's own parentheses marked (see
+// CodeWriteContext.ParenMarks), for comparing two trees.
+func CodeWithParenMarks() CodeOption {
+	return func(ctx *CodeWriteContext) {
+		ctx.ParenMarks = true
+	}
+}
 
 // CodeWithMinimalParens writes only the parentheses of the source (see
 // CodeWriteContext.MinimalParens).

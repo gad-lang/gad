@@ -1143,9 +1143,10 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 			return "", fmt.Errorf("%s: refusing to rewrite — the formatter does not round-trip this file", name)
 		}
 		// and it must mean what the source means: both trees, written fully
-		// parenthesized, the same — a parenthesis the minimal form dropped
-		// that grouped something would change it
-		if canon, err := o.canonicalCode(name, []byte(out)); err != nil || canon != node.Code(file.Stmts, node.CodeWithFlags(o.codeFlags)) {
+		// parenthesized with their own parentheses marked, the same — a
+		// parenthesis dropped or added (`Range[int|float]`, a union of types,
+		// is not `Range[(int | float)]`) changes it
+		if canon, err := o.canonicalCode(name, []byte(out)); err != nil || canon != node.Code(file.Stmts, node.CodeWithFlags(o.codeFlags), node.CodeWithParenMarks()) {
 			return "", fmt.Errorf("%s: refusing to rewrite — the formatted source does not mean what the source does", name)
 		}
 	}
@@ -1167,7 +1168,7 @@ func (o *fmtOptions) canonicalCode(name string, src []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return node.Code(file.Stmts, node.CodeWithFlags(o.codeFlags)), nil
+	return node.Code(file.Stmts, node.CodeWithFlags(o.codeFlags), node.CodeWithParenMarks()), nil
 }
 
 // formatTarget formats a single target and writes the result to its

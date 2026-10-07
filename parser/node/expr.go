@@ -629,6 +629,12 @@ func (e *TypedIdentExpr) writeInlineUnion(ctx *CodeWriteContext) {
 			lit.WriteCode(ctx)
 			continue
 		}
+		if ctx.MinimalParens {
+			// the source's parentheses: `Range[int|float]` is a union of
+			// types; `Range[(int | float)]` an operation on two values
+			t.Expr.WriteCode(ctx)
+			continue
+		}
 		ctx.WriteString(t.String())
 	}
 }
@@ -885,6 +891,12 @@ func (e *ParenExpr) String() string {
 }
 
 func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
+	if ctx.ParenMarks {
+		ctx.WriteString("⟨" + e.LParen.Token.String())
+		e.Expr.WriteCode(ctx)
+		ctx.WriteString(e.RParen.Token.String() + "⟩")
+		return
+	}
 	if ctx.MinimalParens {
 		// the parentheses of the source, once: what they hold does not wrap
 		// itself

@@ -207,3 +207,15 @@ func TestFormatMinimalParens(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, out)
 }
+
+// A union of types as a type argument — `Range[int|float]` — is written
+// without parentheses: in them it is an operation on two values
+// (`Range[(int | float)]`), which the program fails at.
+func TestFormatTypeArgUnion(t *testing.T) {
+	src := "class F {\n\tb? Range[int|float]\n\tc? int|float\n}\n"
+	want := "class F {\n\tb? Range[int | float]\n\tc? int | float\n}\n"
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	out, err := o.formatSource("x.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Equal(t, want, out)
+}
