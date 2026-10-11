@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -80,6 +81,14 @@ type Render struct {
 	// imports via FileImporter. Defaults to the directory of the
 	// rendered file if empty.
 	workDir string
+
+	// Fallback is the template tree a template is read from when it is not
+	// in workDir: the rendered file, a module it imports (a name, a glob),
+	// at the same path below workDir (importers.FileImporter.Fallback). A
+	// file in workDir always wins, file by file — an application overrides a
+	// library's templates by writing its own, and one written later
+	// recompiles the templates that read the library's. It needs workDir.
+	Fallback fs.FS
 
 	// TranspilePath returns the output path for transpiled .gad files.
 	// If nil, transpilation is skipped.
@@ -188,7 +197,7 @@ func (r *Render) HandlerFunc(filePath string, model func(*http.Request) (gad.Dic
 // bytecode, and executes it with the keys of globals available as global
 // variables, writing the output to out.
 func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error {
-	src, err := os.ReadFile(filePath)
+	src, _, err := importers.ReadFallback(r.Fallback, r.workDir, filePath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", filePath, err)
 	}
@@ -350,6 +359,7 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		FileReader:    tr.Read,
 		TranspilePath: r.TranspilePath,
 		Inspect:       r.Inspect,
+		Fallback:      r.Fallback,
 	})
 
 	if r.ModuleMapFunc != nil {
@@ -410,15 +420,16 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 
 	files := make(map[string]time.Time)
 
-	// Track imported files.
+	// Track imported files — and the main template file. One read from the
+	// Fallback is tracked at no time: never changed, until a file of
+	// workDir takes its place.
+	tr.files[filePath] = struct{}{}
 	for p := range tr.files {
 		if fi, err := os.Stat(p); err == nil {
 			files[p] = fi.ModTime()
+		} else if _, ok := importers.FallbackPath(r.Fallback, root, p); ok {
+			files[p] = time.Time{}
 		}
-	}
-	// Also track the main template file.
-	if fi, err := os.Stat(filePath); err == nil {
-		files[filePath] = fi.ModTime()
 	}
 
 	return &templateCacheEntry{
@@ -436,6 +447,10 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 func changedPaths(files map[string]time.Time, base string) (out []string, newest time.Time) {
 	for p, mod := range files {
 		fi, err := os.Stat(p)
+		if mod.IsZero() && err != nil {
+			// the Fallback's, still not overridden
+			continue
+		}
 		if err != nil || !fi.ModTime().Equal(mod) {
 			rel, err := filepath.Rel(base, p)
 			if err != nil {

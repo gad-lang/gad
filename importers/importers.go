@@ -52,7 +52,14 @@ type FileImporter struct {
 	// an application may look at what the sources say (the calls they make,
 	// where) while they compile. An error it returns fails the import.
 	Inspect InspectFunc
-	name    string
+	// Fallback is the tree a module is read from when it is not on disk: a
+	// name resolves under Root as ever, and what Root lacks — the file, or
+	// the file of a name without an extension, or a match of a glob — is
+	// read from Fallback at the same path below Root. A file on disk always
+	// wins, file by file: an application overrides what a library embeds
+	// by writing its own. It needs a Root (or WorkDir) to be relative to.
+	Fallback fs.FS
+	name     string
 }
 
 // InspectFunc looks at a source a compilation reads: srcPath is its path, file
@@ -107,7 +114,7 @@ func (m *FileImporter) Name() (string, error) {
 			}
 		}
 		if err == nil {
-			name = withSourceExt(name, exts)
+			name = m.withSourceExt(name, exts)
 		}
 		return name, err
 	}
@@ -128,7 +135,7 @@ func (m *FileImporter) Name() (string, error) {
 	if p, err := filepath.Abs(pth); err == nil {
 		pth = p
 	}
-	pth = withSourceExt(pth, gad.SourceExtensionsFor(m.SourceKind))
+	pth = m.withSourceExt(pth, gad.SourceExtensionsFor(m.SourceKind))
 
 	if root != "" {
 		absRoot, err := filepath.Abs(root)
@@ -145,21 +152,83 @@ func (m *FileImporter) Name() (string, error) {
 }
 
 // withSourceExt resolves a module path written without an extension: when p
-// has none and is not an existing file, the first p+ext of exts that exists is
-// returned; otherwise p itself.
-func withSourceExt(p string, exts []string) string {
+// has none and is not an existing file — on disk, or missing there in the
+// Fallback —, the first p+ext of exts that exists is returned; otherwise p
+// itself.
+func (m *FileImporter) withSourceExt(p string, exts []string) string {
 	if filepath.Ext(p) != "" {
 		return p
 	}
-	if st, err := os.Stat(p); err == nil && !st.IsDir() {
+	if m.isFile(p) {
 		return p
 	}
 	for _, ext := range exts {
-		if st, err := os.Stat(p + ext); err == nil && !st.IsDir() {
+		if m.isFile(p + ext) {
 			return p + ext
 		}
 	}
 	return p
+}
+
+// isFile says p is a file on disk or, missing there, in the Fallback.
+func (m *FileImporter) isFile(p string) bool {
+	if st, err := os.Stat(p); err == nil {
+		return !st.IsDir()
+	}
+	rel, ok := m.fallbackPath(p)
+	if !ok {
+		return false
+	}
+	st, err := fs.Stat(m.Fallback, rel)
+	return err == nil && !st.IsDir()
+}
+
+// fallbackPath is p's path in the Fallback: below Root, slash-separated;
+// false when there is no Fallback or p is not below Root.
+func (m *FileImporter) fallbackPath(p string) (string, bool) {
+	return FallbackPath(m.Fallback, m.root(), p)
+}
+
+// FallbackPath is the path in fallback of the file p of the tree root: p
+// below root, slash-separated; false when fallback is nil or p is not below
+// root.
+func FallbackPath(fallback fs.FS, root, p string) (string, bool) {
+	if fallback == nil || root == "" {
+		return "", false
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", false
+	}
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(absRoot, abs)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	rel = filepath.ToSlash(rel)
+	return rel, fs.ValidPath(rel)
+}
+
+// ReadFallback reads the file p of the tree root from disk or, missing
+// there, from fallback (FallbackPath): its bytes, and its uri — "file:" of
+// its path either way, the path its errors are told by.
+func ReadFallback(fallback fs.FS, root, p string) ([]byte, string, error) {
+	data, err := os.ReadFile(p)
+	if err == nil || !errors.Is(err, fs.ErrNotExist) {
+		return data, "file:" + filepath.ToSlash(p), err
+	}
+	rel, ok := FallbackPath(fallback, root, p)
+	if !ok {
+		return nil, "", err
+	}
+	data, ferr := fs.ReadFile(fallback, rel)
+	if ferr != nil {
+		return nil, "", err
+	}
+	return data, "file:" + filepath.ToSlash(p), nil
 }
 
 var _ gad.GlobExtImporter = (*FileImporter)(nil)
@@ -200,15 +269,17 @@ func (m *FileImporter) Glob() ([]gad.GlobMatch, error) {
 		}
 	}
 
+	onDisk := true
 	info, err := os.Stat(baseDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil // nothing to match
+	switch {
+	case err == nil:
+		if !info.IsDir() {
+			return nil, nil
 		}
+	case os.IsNotExist(err):
+		onDisk = false
+	default:
 		return nil, err
-	}
-	if !info.IsDir() {
-		return nil, nil
 	}
 
 	depth := gad.GlobDepth(glob)
@@ -216,15 +287,9 @@ func (m *FileImporter) Glob() ([]gad.GlobMatch, error) {
 	exts := gad.SourceExtensionsFor(m.SourceKind)
 	byStem := map[string]stemMatch{}
 	var out []gad.GlobMatch
-	err = filepath.WalkDir(baseDir, func(p string, d fs.DirEntry, werr error) error {
-		if werr != nil {
-			return werr
-		}
-		if p == baseDir {
-			return nil
-		}
-		rel, _ := filepath.Rel(baseDir, p)
-		rel = filepath.ToSlash(rel)
+	// what is on disk, then what of the Fallback is not
+	seen := map[string]bool{}
+	visit := func(p, rel string, d fs.DirEntry) error {
 		if d.IsDir() {
 			// A fixed-depth pattern never matches below its own depth.
 			if depth >= 0 && strings.Count(rel, "/")+1 >= depth {
@@ -250,9 +315,43 @@ func (m *FileImporter) Glob() ([]gad.GlobMatch, error) {
 			out = append(out, gad.GlobMatch{Name: p, Rel: rel})
 		}
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}
+	if onDisk {
+		err = filepath.WalkDir(baseDir, func(p string, d fs.DirEntry, werr error) error {
+			if werr != nil {
+				return werr
+			}
+			if p == baseDir {
+				return nil
+			}
+			rel, _ := filepath.Rel(baseDir, p)
+			rel = filepath.ToSlash(rel)
+			seen[rel] = true
+			return visit(p, rel, d)
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	if fbase, ok := m.fallbackPath(baseDir); ok {
+		if st, serr := fs.Stat(m.Fallback, fbase); serr == nil && st.IsDir() {
+			err = fs.WalkDir(m.Fallback, fbase, func(p string, d fs.DirEntry, werr error) error {
+				if werr != nil {
+					return werr
+				}
+				if p == fbase {
+					return nil
+				}
+				rel := strings.TrimPrefix(p, fbase+"/")
+				if seen[rel] {
+					return nil
+				}
+				return visit(filepath.Join(baseDir, filepath.FromSlash(rel)), rel, d)
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	// Of the same module name in several dialects the first extension of the
 	// resolution order wins (see gad.SourceExtensionsFor).
@@ -283,14 +382,22 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 
 	var src []byte
 	if m.FileReader == nil {
-		if src, err = os.ReadFile(module.Name); err != nil {
-			return
-		}
 		// Gad addresses modules with forward slashes; normalise so uris are
 		// consistent across OSes (Windows filepath.Join yields backslashes).
-		uri = "file:" + filepath.ToSlash(module.Name)
+		if src, uri, err = ReadFallback(m.Fallback, m.root(), module.Name); err != nil {
+			return
+		}
 	} else if src, uri, err = m.FileReader(module.Name); err != nil {
-		return
+		// not on disk: the Fallback's
+		rel, ok := m.fallbackPath(module.Name)
+		if !ok || !errors.Is(err, fs.ErrNotExist) {
+			return
+		}
+		var ferr error
+		if src, ferr = fs.ReadFile(m.Fallback, rel); ferr != nil {
+			return
+		}
+		uri, err = "file:"+filepath.ToSlash(module.Name), nil
 	}
 
 	kind := gad.SourceKindForExt(module.Name)
@@ -330,6 +437,7 @@ func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 		NameResolver:  m.NameResolver,
 		TranspilePath: m.TranspilePath,
 		Inspect:       m.Inspect,
+		Fallback:      m.Fallback,
 	}
 }
 
