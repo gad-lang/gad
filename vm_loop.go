@@ -388,15 +388,21 @@ VMLoop:
 				vm.stack[vm.sp-numFree+i] = nil
 			}
 			vm.sp -= numFree
+			// a closure is its function with what it captured: its name
+			// too (a closure may be a class's method, registered by it)
 			newFn := &CompiledFunction{
-				Instructions: fn.Instructions,
-				NumLocals:    fn.NumLocals,
-				SourceMap:    fn.SourceMap,
-				Free:         free,
-				Params:       fn.Params,
-				NamedParams:  fn.NamedParams,
-				module:       fn.module,
-				LocalNames:   fn.LocalNames,
+				FuncName:       fn.FuncName,
+				AllowMethods:   fn.AllowMethods,
+				ReturnVars:     fn.ReturnVars,
+				NamedParamsMap: fn.NamedParamsMap,
+				Instructions:   fn.Instructions,
+				NumLocals:      fn.NumLocals,
+				SourceMap:      fn.SourceMap,
+				Free:           free,
+				Params:         fn.Params,
+				NamedParams:    fn.NamedParams,
+				module:         fn.module,
+				LocalNames:     fn.LocalNames,
 			}
 			vm.stack[vm.sp] = newFn
 			vm.sp++

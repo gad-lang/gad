@@ -89,6 +89,28 @@ func (e *Enum) Iterate(_ *VM, na *NamedArgs) Iterator {
 
 // Names returns the member names in declaration (Index) order, matching the
 // order of iteration, ToArray and the `@values`/`@pairs` accessors.
+// Member is the member of e v names: v a member of e already, its name (a
+// str), else its value; false when none is.
+func (e *Enum) Member(v Object) (*EnumValue, bool) {
+	switch x := v.(type) {
+	case *EnumValue:
+		if x.Enum == e {
+			return x, true
+		}
+		return nil, false
+	case Str:
+		if m, ok := e.Values[string(x)]; ok {
+			return m, true
+		}
+	}
+	for _, m := range e.Values {
+		if m.Value != nil && m.Value.Equal(v) {
+			return m, true
+		}
+	}
+	return nil, false
+}
+
 func (e *Enum) Names() (ret []string) {
 	ret = make([]string, len(e.Values))
 	for _, v := range e.Values {

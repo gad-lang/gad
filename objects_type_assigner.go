@@ -122,6 +122,11 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 		}
 	}
 	switch t := to.(type) {
+	case *Enum:
+		// `"Name" ::: Enum` (or its value): the member
+		if m, ok := t.Member(obj); ok {
+			return m, nil
+		}
 	case *TypedArrayType:
 		// `arr ::: T` converts an array into a TypedArray of T (each leaf
 		// transformed by the element type's own `:::`).

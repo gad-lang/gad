@@ -158,22 +158,97 @@ func acceptFieldValue(vm *VM, field *ClassField, v Object) (Object, error) {
 		}
 	}
 
-	// Not directly assignable: a key/value source (a dict, key-value array or any
-	// item-getter) for a single class-typed field builds the nested instance,
+	// Not directly assignable: built into one of the declared types — a
+	// key/value source (a dict, key-value array or any item-getter) into an
+	// instance of a class, an array into an array of classes item by item —,
 	// recursively (github.com/gad-lang/gad issue #4).
-	if len(field.Types) == 1 {
-		if cls, ok := field.Types[0].(*Class); ok {
-			if src, ok := asTransformDict(vm, v); ok {
-				clone := make(Dict, len(src))
-				for k, val := range src {
-					clone[k] = val
-				}
-				return cls.NewInstanceWithFields(vm, clone)
-			}
+	for _, t := range field.Types {
+		out, ok, err := buildFieldValue(vm, t, v)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return out, nil
 		}
 	}
 	return nil, ErrType.NewErrorf("field %q expects %s, got %s",
 		field.Name, field.Types.String(), v.Type().Name())
+}
+
+// buildFieldValue builds v into a value of the type t, when it can: a
+// key/value source into an instance of a class (its fields built the same
+// way, recursively), an array into an array of the array type t — each item
+// by the element types, nested to its depth. ok is false when t takes no such
+// value.
+func buildFieldValue(vm *VM, t TypeAssigner, v Object) (out Object, ok bool, err error) {
+	switch tt := t.(type) {
+	case *Class:
+		src, isDict := asTransformDict(vm, v)
+		if !isDict {
+			return nil, false, nil
+		}
+		clone := make(Dict, len(src))
+		for k, val := range src {
+			clone[k] = val
+		}
+		inst, err := tt.NewInstanceWithFields(vm, clone)
+		if err != nil {
+			return nil, false, err
+		}
+		return inst, true, nil
+	case *ArrayType:
+		return buildArray(vm, tt, v, tt.Depth)
+	case *Enum:
+		// a member by its name, or its value
+		if m, ok := tt.Member(v); ok {
+			return m, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+// buildArray builds v, an array nested depth levels, into one of the array
+// type t: each leaf as it is when an element type takes it, else built into
+// one (a class from a dict).
+func buildArray(vm *VM, t *ArrayType, v Object, depth int) (Object, bool, error) {
+	if depth == 0 {
+		resolve := elemResolver(vm, t.Elem, t.Bound)
+		var types []TypeAssigner
+		for _, sym := range t.Elem {
+			o, err := resolve(sym)
+			if err != nil {
+				return nil, false, err
+			}
+			if ta, ok := o.(TypeAssigner); ok {
+				types = append(types, ta)
+			}
+		}
+		for _, et := range types {
+			if _, err := AssignToType(vm, v, et); err == nil {
+				return v, true, nil
+			}
+		}
+		for _, et := range types {
+			out, ok, err := buildFieldValue(vm, et, v)
+			if err != nil || ok {
+				return out, ok, err
+			}
+		}
+		return nil, false, nil
+	}
+	arr, ok := v.(Array)
+	if !ok {
+		return nil, false, nil
+	}
+	out := make(Array, len(arr))
+	for i, item := range arr {
+		built, ok, err := buildArray(vm, t, item, depth-1)
+		if err != nil || !ok {
+			return nil, ok, err
+		}
+		out[i] = built
+	}
+	return out, true, nil
 }
 
 // applyInitFields runs an initFields callable (nil is a no-op) and applies the
@@ -226,7 +301,25 @@ func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 		return
 	}
 
+	// [autoGroupKeys]: the fields of a group (`{ … }` in the body: the field
+	// $N, its class anonymous) given flat — the record's own keys —, not
+	// under $N: they go to it (MetaAutoGroupKeys)
+	auto := o.class.AutoGroupKeys()
+	var groupFields map[string]Dict
+
 	for name, v := range fields {
+		if _, declaredHere := o.class.fieldsMap[name]; auto && !declaredHere {
+			if g := o.class.groupDeclaring(name); g != nil {
+				if groupFields == nil {
+					groupFields = map[string]Dict{}
+				}
+				if groupFields[g.Name] == nil {
+					groupFields[g.Name] = Dict{}
+				}
+				groupFields[g.Name][name] = v
+				continue
+			}
+		}
 		// Go-style promoted (anonymous-field) routing: a passed field that this
 		// class does not declare itself, but a parent does, is set on that
 		// embedded parent instance so the promoted accessor and the parent's
@@ -248,6 +341,30 @@ func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 			return err
 		}
 		o.fields[name] = v
+	}
+
+	// [autoGroupKeys]: each group an instance of its class — its fields
+	// given, else their defaults —, unless it was given whole; an optional
+	// one (`? { … }`) none of whose fields is given, none
+	for name, field := range o.class.fieldsMap {
+		if !auto || !IsGroupFieldName(name) || len(field.Types) != 1 {
+			continue
+		}
+		if _, given := o.fields[name]; given {
+			continue
+		}
+		if field.Nullable && len(groupFields[name]) == 0 {
+			continue
+		}
+		if cls, ok := field.Types[0].(*Class); ok {
+			// (a group's class resolves its own groups' keys as its owner)
+			if !cls.AutoGroupKeys() {
+				cls.SetAutoGroupKeys(true)
+			}
+			if o.fields[name], err = cls.NewInstanceWithFields(vm, groupFields[name]); err != nil {
+				return
+			}
+		}
 	}
 
 	for name, field := range o.class.fieldsMap {
@@ -395,6 +512,49 @@ func (o *ClassInstance) ResolveField(name string) (inst *ClassInstance) {
 	for inst = range o.Instances() {
 		if _, ok := inst.fields[name]; ok {
 			return inst
+		}
+	}
+	// [autoGroupKeys]: a field of a group (`{ … }`: $N) is the record's own
+	if o.class.AutoGroupKeys() {
+		for gname, v := range o.fields {
+			if !IsGroupFieldName(gname) {
+				continue
+			}
+			if g, ok := v.(*ClassInstance); ok {
+				if inst := g.ResolveField(name); inst != nil {
+					return inst
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// IsGroupFieldName says name is a group's: `$N`, the field a `{ … }` of a
+// class's body is (its class anonymous).
+func IsGroupFieldName(name string) bool {
+	if len(name) < 2 || name[0] != '$' {
+		return false
+	}
+	for _, r := range name[1:] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// groupDeclaring is the group field ($N) of t whose class declares the field
+// name — or a group of it does —; nil when none does.
+func (t *Class) groupDeclaring(name string) *ClassField {
+	for gname, f := range t.fieldsMap {
+		if !IsGroupFieldName(gname) || len(f.Types) != 1 {
+			continue
+		}
+		if cls, ok := f.Types[0].(*Class); ok {
+			if _, declared := cls.fieldsMap[name]; declared || cls.groupDeclaring(name) != nil {
+				return f
+			}
 		}
 	}
 	return nil
