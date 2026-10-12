@@ -7,3 +7,6 @@
 *.gadt  text eol=lf
 *.gadx  text eol=lf
 *.md    text eol=lf
+# What the samples embed (embed("…"): .txt, .json, .yaml) is checked byte for
+# byte by their docs: LF too.
+samples/** text eol=lf
