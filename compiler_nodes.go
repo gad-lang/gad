@@ -3470,6 +3470,9 @@ func (c *Compiler) compileSliceExpr(nd *node.SliceExpr) error {
 }
 
 func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
+	if done, err := c.compileUUIDConstant(nd); done || err != nil {
+		return err
+	}
 	var (
 		selExpr    *node.SelectorExpr
 		isSelector bool
@@ -3491,6 +3494,53 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 	}
 
 	return c.compileCallArgs(nd.CallPos(), op, &nd.CallArgs, selExpr)
+}
+
+// compileUUIDConstant compiles `uuid("…")` — the builtin uuid (no name that
+// shadows it, nor one an application set in its place: Builtins.Set gives
+// that another index) called with a text literal alone — as the UUID
+// constant: read once, when the code compiles, never again as it runs. A text
+// that is no UUID stays the call it is written as — its error the run's, as
+// ever (a `try` catches it) —; so does any other call of uuid: no argument, a
+// value not literal, bytes. It reports whether it compiled nd.
+func (c *Compiler) compileUUIDConstant(nd *node.CallExpr) (bool, error) {
+	id, ok := nd.Func.(*node.IdentExpr)
+	if !ok || id.Name != "uuid" {
+		return false, nil
+	}
+	args := &nd.CallArgs
+	if len(args.Args.Values) != 1 || args.Args.Var != nil || len(args.NamedArgs.Names) != 0 {
+		return false, nil
+	}
+	text, ok := textLiteral(args.Args.Values[0])
+	if !ok {
+		return false, nil
+	}
+	if sym, ok := c.symbolTable.Resolve(id.Name); !ok || sym.Scope != ScopeBuiltin || BuiltinType(sym.Index) != BuiltinUUID {
+		return false, nil
+	}
+	u, err := ParseUUID(text)
+	if err != nil {
+		return false, nil
+	}
+	c.emit(nd, OpConstant, c.addConstant(u))
+	return true, nil
+}
+
+// textLiteral is the text of a literal of one — "…", `…`, a heredoc —, and
+// whether e is one (an interpolated one is not: its text is the run's).
+func textLiteral(e node.Expr) (string, bool) {
+	switch t := e.(type) {
+	case *node.StrLit:
+		return t.Value(), true
+	case *node.RawStrLit:
+		return t.Value(), true
+	case *node.HeredocLit:
+		return t.Value(), true
+	case *node.RawHeredocLit:
+		return t.Value(), true
+	}
+	return "", false
 }
 
 // compileNullishCallExpr compiles `x?.(args)`: evaluate x once, and call it only

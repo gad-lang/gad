@@ -1037,7 +1037,7 @@ func (c *Compiler) addConstant(obj Object) (index int) {
 	}()
 
 	switch obj.(type) {
-	case Int, Uint, Str, RawStr, Bool, Flag, Float, Char, *NilType, Decimal:
+	case Int, Uint, Str, RawStr, Bool, Flag, Float, Char, *NilType, Decimal, UUID:
 		i, ok := c.constsCache[obj]
 		if ok {
 			index = i

@@ -20,6 +20,18 @@ canonical lower-case `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 ## As a type
 
 @snippet uuid_type
+
+## A constant
+
+`uuid("…")` — the builtin, a text literal alone — is a **constant**: the
+compiler reads the text, once, and the bytecode holds the UUID (its 16
+bytes); nothing is called as the code runs, and the same UUID written twice
+is one constant. A text that is no UUID stays a call — its error the run's,
+which a `try` catches, as ever. Any other call — `uuid()`, a text not literal (`uuid(s)`, an
+interpolated one), bytes — runs as it is written, and so does a `uuid` of
+the code's own (a variable, a parameter) or of the application's.
+
+@snippet uuid_constant
 **/
 
 //snippet uuid_basics
@@ -41,4 +53,15 @@ r := Record(; id = uuid("01a0a1686707748fb487c0ab78e25c11"), name = "a")
 refused := func() { try { Record(; id = "not one", name = "b"); return false } catch { return true } }()
 [typeName(r.id), str(r.id), refused]
 /**= ["uuid", "01a0a168-6707-748f-b487-c0ab78e25c11", true] **/
+//endsnippet
+
+//snippet uuid_constant
+const ADMIN = uuid("01a0a168-6707-748f-b487-c0ab78e25c11")  // read when compiled
+text := "01a0a168-6707-748f-b487-c0ab78e25c11"
+[
+    ADMIN == uuid(text),                               // the same as one read at run time
+    uuid("01A0A1686707748FB487C0AB78E25C11") == ADMIN, // any form uuid("…") reads
+    func(uuid) { return uuid("x") }(func(s) => s),     // a uuid of its own: a call
+]
+/**= [true, true, "x"] **/
 //endsnippet

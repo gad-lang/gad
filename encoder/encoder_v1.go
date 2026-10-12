@@ -47,6 +47,7 @@ var (
 	PtrTypeV1              EncDec
 	KeyValueV1             EncDec
 	KeyValueArrayV1        EncDec
+	UUIDV1                 EncDec
 )
 
 const (
@@ -91,6 +92,8 @@ const (
 	typeKeyValueArray
 	typeArrayType
 	typePtrType
+	// (new types after the others: a type's number is in the bytecode)
+	typeUUID
 )
 
 const versionV1 byte = 1
@@ -137,4 +140,5 @@ func init() {
 	Register[gad.KeyValueArray](typeKeyValueArray, versionV1, &KeyValueArrayV1)
 	Register[gad.ArrayType](typeArrayType, versionV1, &ArrayTypeV1)
 	Register[gad.PtrType](typePtrType, versionV1, &PtrTypeV1)
+	Register[gad.UUID](typeUUID, versionV1, &UUIDV1)
 }

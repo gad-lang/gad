@@ -547,3 +547,15 @@ func TestEncDecObjects(t *testing.T) {
 
 	}
 }
+
+func TestEncDecUUID(t *testing.T) {
+	for _, s := range []string{"01a0a168-6707-748f-b487-c0ab78e25c11", "00000000-0000-0000-0000-000000000000"} {
+		u, err := gad.ParseUUID(s)
+		require.NoError(t, err)
+		data, err := encode(u)
+		require.NoError(t, err)
+		got, err := decode[gad.UUID](data)
+		require.NoError(t, err)
+		require.Equal(t, u, got)
+	}
+}

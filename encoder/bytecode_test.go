@@ -390,3 +390,31 @@ func TestStructuralTypesBytecodeRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantRet, gotRet)
 }
+
+// A UUID constant (`uuid("…")`, compiled to one) is encoded and decoded with
+// the bytecode: its 16 bytes, the same UUID.
+func TestUUIDConstantBytecodeRoundtrip(t *testing.T) {
+	src := `a := uuid("01a0a168-6707-748f-b487-c0ab78e25c11"); return [a, a.version, uuid("{01a0a168-6707-748f-b487-c0ab78e25c11}") == a]`
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{})
+	require.NoError(t, err)
+	var found bool
+	for _, c := range bc.Constants {
+		if _, ok := c.(gad.UUID); ok {
+			found = true
+		}
+	}
+	require.True(t, found, "no UUID constant")
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}
