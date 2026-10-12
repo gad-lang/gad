@@ -227,7 +227,8 @@ func TestOsDirsNameResolverEmptyResolvesAgainstCwd(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, filepath.Join("samples", "modules", "mathx.gad"), got)
 
-	abs := filepath.Join(string(filepath.Separator), "x", "y.gad")
+	// absolute on every OS (on Windows, `\x\y.gad` is not: no drive)
+	abs := filepath.Join(t.TempDir(), "x", "y.gad")
 	got, err = resolve("samples", abs)
 	require.NoError(t, err)
 	require.Equal(t, abs, got)

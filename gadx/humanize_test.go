@@ -36,11 +36,11 @@ func TestHumanizeWrappedRuntimeError(t *testing.T) {
 	(&gad.ErrorHumanizing{}).Humanize(&b, err)
 	out := b.String()
 	for _, want := range []string{
-		"render " + filepath.Join(dir, "main.gad") + ":", // what wraps it
-		"NotIndexableError: nil",                         // what it is
-		"layouts/page.gadx:5:17",                         // where: the component
-		"span {= a.y }",                                  // … its line
-		"(main):2:28",                                    // the call in the template
+		"render " + filepath.Join(dir, "main.gad") + ":",  // what wraps it
+		"NotIndexableError: nil",                          // what it is
+		filepath.FromSlash("layouts/page.gadx") + ":5:17", // where: the component (the OS's separator)
+		"span {= a.y }", // … its line
+		"(main):2:28",   // the call in the template
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("no %q in\n%s", want, out)
