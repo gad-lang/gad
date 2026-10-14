@@ -4,6 +4,7 @@ import (
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
+	"strconv"
 )
 
 // compileClassStmt compiles the statement form `class Name [extends …] { … }`
@@ -125,6 +126,11 @@ func (c *Compiler) classCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 	if len(nd.Spreads) > 0 {
 		// `**Expr`: the members EXPR gives, added last (Class.Define)
 		inner.AppendS("spread", &node.ArrayExpr{Elements: nd.Spreads})
+	}
+	if nd.OrderedBody() {
+		// the body's fields, parents, mixins and spreads in the order
+		// written — what `Class.@flat` lists the fields by
+		inner.AppendS("order", classOrderExpr(nd))
 	}
 
 	// (cls, define) => define(; …)
@@ -596,4 +602,27 @@ func nameFieldClasses(cls *node.TypeLitExpr, name string) {
 			}
 		}
 	}
+}
+
+// classOrderExpr is the order of the body of nd (node.TypeLitExpr.Order) as
+// Class takes it: an array of "f:<field>", "p:<parent>", "u:<mixin>" and
+// "s:<spread>" — a parent, a mixin, a spread by its index in its list.
+func classOrderExpr(nd *node.TypeLitExpr) *node.ArrayExpr {
+	pos := nd.Pos()
+	out := &node.ArrayExpr{}
+	for _, it := range nd.Order {
+		var v string
+		switch it.Kind {
+		case node.ClassBodyField:
+			v = "f:" + node.ClassBodyFieldName(nd.Fields[it.Index])
+		case node.ClassBodyParent:
+			v = "p:" + strconv.Itoa(it.Index)
+		case node.ClassBodyUse:
+			v = "u:" + strconv.Itoa(it.Index)
+		case node.ClassBodySpread:
+			v = "s:" + strconv.Itoa(it.Index)
+		}
+		out.Elements = append(out.Elements, &node.StrLit{ValuePos: pos, Literal: strconv.Quote(v)})
+	}
+	return out
 }

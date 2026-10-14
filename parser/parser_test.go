@@ -3182,15 +3182,15 @@ func TestParseClass(t *testing.T) {
 
 	// statement form with parent spreads (`*Base`), fields (typed + default), props
 	// (incl. the `name = expr` getter shortcut), a constructor and a method.
-	// Canonical formatting orders the body: parents, then fields by group (untyped
-	// with-default `legs` before typed with-default `name str`), props, new, methods.
+	// The formatting keeps the fields, parents, mixins and spreads as declared
+	// (a class is ordered), then props, new, methods.
 	cls := `class Animal { *Base; name str = "?"; legs = 4; props { kind = "animal" }; new { (n) => this(; name=n) }; methods { speak() => this.name } }`
 	test.New(t, cls).
-		Code(`class Animal {*Base; legs = 4; name str = "?"; props {kind() => "animal"}; new {(n) => this(; name=n)}; methods {speak() => this.name}}`).
+		Code(`class Animal {*Base; name str = "?"; legs = 4; props {kind() => "animal"}; new {(n) => this(; name=n)}; methods {speak() => this.name}}`).
 		IndentedCode("class Animal {\n" +
 			"\t*Base\n" +
-			"\tlegs = 4\n" +
 			"\tname str = \"?\"\n" +
+			"\tlegs = 4\n" +
 			"\tprops {\n\t\tkind() => \"animal\"\n\t}\n" +
 			"\tnew {\n\t\t(n) => this(; name=n)\n\t}\n" +
 			"\tmethods {\n\t\tspeak() => this.name\n\t}\n" +

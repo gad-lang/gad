@@ -116,7 +116,7 @@ func TestFormatGroups(t *testing.T) {
 	// `[ordered]`: the fields as declared
 	test.New(t, "[ordered] class O { b str; a str }").
 		FormattedCode("[ordered]\nclass O {\n\tb str\n\ta str\n}")
-	// otherwise the canonical order, as always
+	// a class is always ordered: without `[ordered]` too
 	test.New(t, "class O { b str; a str }").
-		FormattedCode("class O {\n\ta str\n\tb str\n}")
+		FormattedCode("class O {\n\tb str\n\ta str\n}")
 }

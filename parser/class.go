@@ -196,6 +196,7 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 		p.SkipSpace()
 		if e := p.ParseExpr(); e != nil {
 			cls.Spreads = append(cls.Spreads, e)
+			cls.Order = append(cls.Order, node.ClassBodyItem{Kind: node.ClassBodySpread, Index: len(cls.Spreads) - 1})
 		}
 		return
 	}
@@ -209,6 +210,7 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 				cls.ExtendsDoc = doc
 			}
 			cls.Parents = append(cls.Parents, parent)
+			cls.Order = append(cls.Order, node.ClassBodyItem{Kind: node.ClassBodyParent, Index: len(cls.Parents) - 1})
 		}
 		return
 	}
@@ -229,6 +231,7 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 				}
 				for {
 					cls.Use = append(cls.Use, p.ParsePrimaryExpr())
+					cls.Order = append(cls.Order, node.ClassBodyItem{Kind: node.ClassBodyUse, Index: len(cls.Use) - 1})
 					p.SkipSpace()
 					if p.Token.Token != token.Comma {
 						break
@@ -285,12 +288,14 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 	if f := p.parseClassGroup(cls); f != nil {
 		f.Doc = doc
 		cls.Fields = append(cls.Fields, f)
+		cls.Order = append(cls.Order, node.ClassBodyItem{Kind: node.ClassBodyField, Index: len(cls.Fields) - 1})
 		return
 	}
 
 	if f := p.parseClassField(); f != nil {
 		f.Doc = doc
 		cls.Fields = append(cls.Fields, f)
+		cls.Order = append(cls.Order, node.ClassBodyItem{Kind: node.ClassBodyField, Index: len(cls.Fields) - 1})
 	}
 }
 

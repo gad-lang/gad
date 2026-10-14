@@ -200,6 +200,11 @@ type TypeLitExpr struct {
 	// time, EXPR evaluating to `{fields: …, methods: …, props: …}` (a dict or a
 	// key-value array), added after the declared ones.
 	Spreads []Expr
+	// Order is the body's fields, parents (`*P`), mixins (`use M`) and
+	// spreads (`**E`) in the order written — each its kind and its index in
+	// Fields, Parents, Use or Spreads —: what a class keeps (the formatter
+	// writes them so; the class's `@flat` lists its fields so).
+	Order []ClassBodyItem
 	// This is a mixin's optional `this { … }` interface block: it declares the
 	// interface the `this` parameter of the mixin's props/methods must satisfy.
 	// Parsed as an anonymous interface body; mixin-only.
@@ -224,6 +229,35 @@ type TypeLitExpr struct {
 	// Group marks the body of a group (`{ … }` in a body): its fields are in
 	// the order written — its columns —, never sorted by the formatter.
 	Group bool
+}
+
+// ClassBodyKind is the kind of an item of a class body kept in its order
+// (TypeLitExpr.Order).
+type ClassBodyKind uint8
+
+const (
+	ClassBodyField ClassBodyKind = iota
+	ClassBodyParent
+	ClassBodyUse
+	ClassBodySpread
+)
+
+// ClassBodyItem is an item of a class body in its order: its kind and its
+// index in the list of its kind (Fields, Parents, Use, Spreads).
+type ClassBodyItem struct {
+	Kind  ClassBodyKind
+	Index int
+}
+
+// ClassBodyFieldName is the name of the field f of a class body ("" when it
+// has none).
+func ClassBodyFieldName(f *ClassFieldExpr) string { return classFieldName(f) }
+
+// OrderedBody says the order of the body of e is known (Order): it is
+// written, and its class's fields listed, as declared. A class is always
+// ordered.
+func (e *TypeLitExpr) OrderedBody() bool {
+	return len(e.Order) > 0
 }
 
 // keyword returns "mixin", "type" (marker) or "class" for formatting/diagnostics.
@@ -268,31 +302,31 @@ func (e *TypeLitExpr) WriteCode(ctx *CodeWriteContext) {
 // caller wrote the opening `{`). Shared by class/mixin/type literals and the
 // member block of a typed array type (`type T []int { … }`).
 func writeTypeLitBody(ctx *CodeWriteContext, e *TypeLitExpr) {
-	// Body items in canonical order: the parent spreads (`*Parent`), the `use`
-	// clause (class), fields, the `this` interface block (mixin), then the `props`,
-	// `new` and `methods` groups.
 	var items []func()
-	for i, parent := range e.Parents {
-		i, parent := i, parent
-		items = append(items, func() {
+	parentItem := func(i int) func() {
+		parent := e.Parents[i]
+		return func() {
 			if i == 0 {
 				ctx.WriteLeadDoc(e.ExtendsDoc)
 			}
 			ctx.WriteString("*")
 			parent.WriteCode(ctx)
-		})
+		}
 	}
-	if len(e.Use) > 0 {
-		items = append(items, func() {
-			ctx.WriteLeadDoc(e.UseDoc)
+	// a `use` clause of the mixins uses (indexes of e.Use)
+	useItem := func(uses []int, first bool) func() {
+		return func() {
+			if first {
+				ctx.WriteLeadDoc(e.UseDoc)
+			}
 			ctx.WriteString("use ")
 			// The mixin list wraps greedily: when the next name would overflow the
 			// line it breaks after a comma onto a new line indented one level under
 			// `use`. Short lists stay inline (`use A, B`).
 			ctx.Depth++
-			ctx.WriteGreedy(len(e.Use), ", ", ",", func(i int) { e.Use[i].WriteCode(ctx) })
+			ctx.WriteGreedy(len(uses), ", ", ",", func(i int) { e.Use[uses[i]].WriteCode(ctx) })
 			ctx.Depth--
-		})
+		}
 	}
 	// each field's comments — above it, at the end of its line — claimed in
 	// the order written, so they follow it wherever it is put
@@ -300,20 +334,60 @@ func writeTypeLitBody(ctx *CodeWriteContext, e *TypeLitExpr) {
 	for i, ic := range ctx.claimBodyComments(len(e.Fields), e.LBrace, e.RBrace, func(i int) Node { return e.Fields[i] }) {
 		fieldComments[e.Fields[i]] = ic
 	}
-	for _, f := range formatClassFields(e) {
-		f := f
-		items = append(items, func() {
+	fieldItem := func(f *ClassFieldExpr) func() {
+		return func() {
 			fieldComments[f].writeLead(ctx)
 			f.WriteCode(ctx)
 			fieldComments[f].writeTrail(ctx)
-		})
+		}
 	}
-	for _, sp := range e.Spreads {
-		sp := sp
-		items = append(items, func() {
+	spreadItem := func(sp Expr) func() {
+		return func() {
 			ctx.WriteString("**")
 			sp.WriteCode(ctx)
-		})
+		}
+	}
+	if e.OrderedBody() {
+		// `[ordered]`: fields, parents, mixins and spreads as declared — the
+		// mixins of a `use` in a row, one clause
+		for i := 0; i < len(e.Order); i++ {
+			it := e.Order[i]
+			switch it.Kind {
+			case ClassBodyField:
+				items = append(items, fieldItem(e.Fields[it.Index]))
+			case ClassBodyParent:
+				items = append(items, parentItem(it.Index))
+			case ClassBodySpread:
+				items = append(items, spreadItem(e.Spreads[it.Index]))
+			case ClassBodyUse:
+				uses := []int{it.Index}
+				for i+1 < len(e.Order) && e.Order[i+1].Kind == ClassBodyUse {
+					i++
+					uses = append(uses, e.Order[i].Index)
+				}
+				items = append(items, useItem(uses, uses[0] == 0))
+			}
+		}
+	} else {
+		// Body items in canonical order: the parent spreads (`*Parent`), the
+		// `use` clause (class), fields, the spreads, the `this` interface block
+		// (mixin), then the `props`, `new` and `methods` groups.
+		for i := range e.Parents {
+			items = append(items, parentItem(i))
+		}
+		if len(e.Use) > 0 {
+			uses := make([]int, len(e.Use))
+			for i := range uses {
+				uses[i] = i
+			}
+			items = append(items, useItem(uses, true))
+		}
+		for _, f := range formatClassFields(e) {
+			items = append(items, fieldItem(f))
+		}
+		for _, sp := range e.Spreads {
+			items = append(items, spreadItem(sp))
+		}
 	}
 	if e.This != nil {
 		items = append(items, func() {
@@ -387,39 +461,10 @@ func classFieldName(f *ClassFieldExpr) string {
 	return ""
 }
 
-// classFieldGroup ranks a field for the canonical body order: untyped no-default
-// (0), typed no-default (1), untyped with-default (2), typed with-default (3).
-func classFieldGroup(f *ClassFieldExpr) int {
-	typed := f.Name != nil && len(f.Name.Type) > 0
-	hasDefault := f.Value != nil
-	switch {
-	case !typed && !hasDefault:
-		return 0
-	case typed && !hasDefault:
-		return 1
-	case !typed && hasDefault:
-		return 2
-	default:
-		return 3
-	}
-}
-
-// formatClassFields are the fields of e in the order they are written: the
-// canonical one (sortedClassFields), unless their order means something —
-// the class is `[ordered]`, or it has groups, whose names (`$N`) are their
-// order, or it is anonymous (`address class { … }`, the type of a field,
-// written in its place like a group's body, with no `[ordered]` of its
-// own) — and then as declared.
+// formatClassFields are the fields of e in the order they are written: a
+// class keeps the order it declares them in.
 func formatClassFields(e *TypeLitExpr) []*ClassFieldExpr {
-	if e.Group || e.NameExpr == nil || hasMetaKey(e.Meta, "ordered") {
-		return e.Fields
-	}
-	for _, f := range e.Fields {
-		if f.Group {
-			return e.Fields
-		}
-	}
-	return sortedClassFields(e.Fields)
+	return e.Fields
 }
 
 // hasMetaKey says the metadata m has the key name.
@@ -433,21 +478,6 @@ func hasMetaKey(m *KeyValueArrayLit, name string) bool {
 		}
 	}
 	return false
-}
-
-// sortedClassFields returns the fields in the canonical formatting order: the
-// four field groups (untyped no-default, typed no-default, untyped with-default,
-// typed with-default), each sorted by name. The input slice is not mutated.
-func sortedClassFields(fields []*ClassFieldExpr) []*ClassFieldExpr {
-	out := make([]*ClassFieldExpr, len(fields))
-	copy(out, fields)
-	sort.SliceStable(out, func(i, j int) bool {
-		if gi, gj := classFieldGroup(out[i]), classFieldGroup(out[j]); gi != gj {
-			return gi < gj
-		}
-		return classFieldName(out[i]) < classFieldName(out[j])
-	})
-	return out
 }
 
 // sortedClassMembers returns props/methods sorted by name (declaration order is

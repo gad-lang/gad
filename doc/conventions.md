@@ -116,21 +116,15 @@ var ( a, b, c
 
 ### Class bodies
 
-A class body has one canonical order, and `gad fmt` writes it: whatever order
-the members were declared in, the formatter rewrites the body into it.
+A class is **ordered**: `gad fmt` keeps its fields, parents (`*Parent`,
+`*Parent: Alias`), mixins (`use A, B`) and spreads (`**Expr`) in the order
+they are declared — several of each, in any order —, and the class's
+`@flat` lists its fields in that order. After them, in this order:
 
-1. the parents (`*Parent`, `*Parent: Alias`), as declared;
-2. `use A, B` — the mixins;
-3. the **fields**, in four groups, each in **alphabetical order** of the name:
-   1. untyped, without a default — `a`;
-   2. typed, without a default — `b int`, `c? str`;
-   3. untyped, with a default — `d = 1`;
-   4. typed, with a default — `e int = 3`;
-4. `**Expr` — members given at run time, as declared;
-5. `this { … }` — a mixin's interface;
-6. `props { … }`, by name;
-7. `new { … }`;
-8. `methods { … }`, by name.
+1. `this { … }` — a mixin's interface;
+2. `props { … }`, by name;
+3. `new { … }`;
+4. `methods { … }`, by name.
 
 A member's `[k=v, …]` metadata is written on the line **above** it, and the
 member on its own line; so is a class's, above the class:

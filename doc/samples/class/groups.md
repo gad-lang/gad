@@ -37,8 +37,8 @@ w := Written(; $1={b: 2})
   group's own body counts its own: groups nest without limit (`$1` inside
   `$1`).
 - The field is **where the block is**, among the others: the order of the
-  fields is the order written (`[ordered]` instances keep it, and the
-  formatter does not reorder a class that has groups).
+  fields is the order written (a class keeps it: its instances, its
+  `@flat`, the formatter).
 - **`? { … }`** makes the field nullable, as `name? Type` does.
 - The **metadata** written before the block (`[width=2] { … }`) is the
   field's.

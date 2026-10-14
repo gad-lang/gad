@@ -12,7 +12,12 @@ name is dynamic (a variable or computed string).
 Each returns a live view of the class:
 
 - `MyClass.@name`    — the class name (a `str`).
-- `MyClass.@fields`  — a dict of `name -> classField`.
+- `MyClass.@fields`  — a dict of `name -> classField`: its own fields (with
+  its mixins' and its spreads'), not its parents'.
+- `MyClass.@flat`    — every field, its parents' too, flat: a key-value array
+  of `name -> classField` in the order the body declares them — a parent's
+  (`*Parent`), a mixin's (`use M`), a spread's (`**E`) where it is written;
+  a name once, the nearest class's.
 - `MyClass.@props`   — a dict of `name -> classProperty`.
 - `MyClass.@methods` — a dict of `name -> classMethod`.
 - `MyClass.@parents` — the parent classes (from `*Parent` spreads / `extends`).
@@ -77,12 +82,13 @@ Each `@`-attribute is a dict/array; iterate `k, v` to read the member names
 [
     Circle.@name,
     [k for k, v in Circle.@fields],
+    [k for k, v in Circle.@flat],
     [k for k, v in Circle.@props],
     [k for k, v in Circle.@methods],
     len(Circle.@parents),
     typeName(Circle.@module),
 ]
-// => ["Circle", ["r"], ["area"], ["scaled"], 1, "Module"]
+// => ["Circle", ["r"], ["kind", "r"], ["area"], ["scaled"], 1, "Module"]
 ```
 
 ### Members by name, attribute vs item
@@ -141,6 +147,7 @@ class Circle {
 [
     Circle.@name,
     [k for k, v in Circle.@fields],
+    [k for k, v in Circle.@flat],
     [k for k, v in Circle.@props],
     [k for k, v in Circle.@methods],
     len(Circle.@parents),

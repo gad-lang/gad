@@ -118,8 +118,8 @@ class C {
 }
 `
 	want := `export class Form {
-	company? str // optional
 	name str // required
+	company? str // optional
 }
 
 [ordered]
@@ -141,11 +141,11 @@ enum E {
 }
 
 class C {
-	/* a block */
-	a int
 	// doc of z
 	[label="Z"]
 	z str // z trail
+	/* a block */
+	a int
 }
 `
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
@@ -174,11 +174,11 @@ func TestFormatNilCommentAndParens(t *testing.T) {
 }
 
 // An anonymous class — the type of a field, written in its place — keeps
-// the order of its fields, as a group's body does: it has no `[ordered]` of
-// its own. A declared class is sorted.
+// the order of its fields, as a declared class does: a class is always
+// ordered.
 func TestFormatAnonymousClassKeepsOrder(t *testing.T) {
 	src := "class F { x class { b int; a int }; c str; a str }\n"
-	want := "class F {\n\ta str\n\tc str\n\tx class {\n\t\tb int\n\t\ta int\n\t}\n}\n"
+	want := "class F {\n\tx class {\n\t\tb int\n\t\ta int\n\t}\n\tc str\n\ta str\n}\n"
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
 	out, err := o.formatSource("x.gad", []byte(src), false)
 	require.NoError(t, err)

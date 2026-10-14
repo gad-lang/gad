@@ -6,9 +6,10 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
-// TestClassOrderedFields covers `[ordered]` before a class: its instances
-// print their fields in the order declared — the parents' first —, whatever
-// the names; without it, sorted by name.
+// TestClassOrderedFields covers the order of the fields of a class's
+// instances: printed in the order declared — a parent's where it is
+// declared —, whatever the names; `[ordered]` or not (a class is always
+// ordered).
 func TestClassOrderedFields(t *testing.T) {
 	testExpectRun(t, `
 		class P { pz = 1; pa = 2 }
@@ -17,7 +18,7 @@ func TestClassOrderedFields(t *testing.T) {
 		return [str(C(; a=5)), str(D())]`,
 		nil, Array{
 			Str("‹class instance of ‹(main).C›: {pz: 1, pa: 2, z: 3, a: 5}›"),
-			Str("‹class instance of ‹(main).D›: {a: 4, pa: 2, pz: 1, z: 3}›"),
+			Str("‹class instance of ‹(main).D›: {pz: 1, pa: 2, z: 3, a: 4}›"),
 		})
 	testExpectRun(t, `[ordered] class C { a = 1 }; class D { a = 1 }; return [len(C.@meta), len(D.@meta)]`,
 		nil, Array{Int(1), Int(0)})
@@ -56,5 +57,5 @@ func TestClassInstanceWalkParents(t *testing.T) {
 		class P { *G; p = 1 }
 		class D { *P; d = 2 }
 		return str(D())`,
-		nil, Str("‹class instance of ‹(main).D›: {d: 2, g: 0, p: 1}›"))
+		nil, Str("‹class instance of ‹(main).D›: {g: 0, p: 1, d: 2}›"))
 }

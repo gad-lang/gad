@@ -213,12 +213,13 @@ class ContactForm {
 }
 ```
 
-A block before `export` stays before it (`[m]` then `export class C …`). The
-formatter puts the fields of a class — and the fields of an interface — in
-its canonical order (grouped, then by name), unless the order means something:
-the class (or interface) is `[ordered]`, or its body has groups (`{ … }`).
-Write `[ordered]` where the order is the reader's — a form, its fields in the
-order they are filled in:
+A block before `export` stays before it (`[m]` then `export class C …`). A
+class keeps the order of its fields as declared — the formatter never
+reorders them —; the formatter puts the fields of an interface in its
+canonical order (grouped, then by name), unless the order means something:
+the interface is `[ordered]`, or its body has groups (`{ … }`). `[ordered]`
+on a class says it to the reader — a form, its fields in the order they are
+filled in:
 
 ```gad
 /// the fields in the order they are filled in: gad fmt keeps it

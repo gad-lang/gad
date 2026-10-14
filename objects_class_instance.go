@@ -691,7 +691,7 @@ func (o *ClassInstance) Items(vm *VM, cb ItemsGetterCallback) (err error) {
 	if !o.class.OrderedFields {
 		return o.fields.Items(vm, cb)
 	}
-	for i, name := range o.class.FieldNames() {
+	for i, name := range o.fieldNames() {
 		if err = cb(i, &KeyValue{Str(name), o.fields[name]}); err != nil {
 			return
 		}
@@ -699,11 +699,29 @@ func (o *ClassInstance) Items(vm *VM, cb ItemsGetterCallback) (err error) {
 	return
 }
 
+// fieldNames are the names of its fields in its class's order (FieldNames),
+// then the ones its class does not declare (set at run time), by name.
+func (o *ClassInstance) fieldNames() []string {
+	names := o.class.FieldNames()
+	declared := make(map[string]bool, len(names))
+	for _, n := range names {
+		declared[n] = true
+	}
+	var extra []string
+	for n := range o.fields {
+		if !declared[n] {
+			extra = append(extra, n)
+		}
+	}
+	sort.Strings(extra)
+	return append(names, extra...)
+}
+
 func (o *ClassInstance) Keys() Array {
 	if !o.class.OrderedFields {
 		return o.fields.Keys()
 	}
-	names := o.class.FieldNames()
+	names := o.fieldNames()
 	arr := make(Array, len(names))
 	for i, name := range names {
 		arr[i] = Str(name)
@@ -715,7 +733,7 @@ func (o *ClassInstance) Values() Array {
 	if !o.class.OrderedFields {
 		return o.fields.Values()
 	}
-	names := o.class.FieldNames()
+	names := o.fieldNames()
 	arr := make(Array, len(names))
 	for i, name := range names {
 		arr[i] = o.fields[name]
@@ -730,7 +748,14 @@ func (o *ClassInstance) orderedEntries() (entries PrintStateDictEntries) {
 	seen := map[string]bool{}
 	var walk func(inst *ClassInstance)
 	walk = func(inst *ClassInstance) {
-		for _, p := range inst.class.parents {
+		// in the order of the class's @flat (Class.walkFlat)
+		inst.class.walkFlat(func(name string) {
+			if v, ok := inst.fields[name]; ok && !seen[name] {
+				seen[name] = true
+				entries = append(entries, &PrintStateDictEntry{name, v})
+			}
+		}, func(i int) {
+			p := inst.class.parents[i]
 			name := p.Alias
 			if name == "" {
 				name = p.Type.Name()
@@ -738,15 +763,20 @@ func (o *ClassInstance) orderedEntries() (entries PrintStateDictEntries) {
 			if pi := inst.parents[name]; pi != nil {
 				walk(pi)
 			}
-		}
-		for _, name := range inst.class.FieldNames() {
-			if !seen[name] {
-				seen[name] = true
-				entries = append(entries, &PrintStateDictEntry{name, inst.fields[name]})
-			}
-		}
+		})
 	}
 	walk(o)
+	// what no class declares (set at run time): after, by name
+	var extra []string
+	for n := range o.fields {
+		if !seen[n] {
+			extra = append(extra, n)
+		}
+	}
+	sort.Strings(extra)
+	for _, n := range extra {
+		entries = append(entries, &PrintStateDictEntry{n, o.fields[n]})
+	}
 	// a name its own and a parent's: the value is its own, placed where the
 	// parent declares it
 	for _, e := range entries {

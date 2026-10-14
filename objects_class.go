@@ -541,10 +541,18 @@ type Class struct {
 	// Meta is the class's `[k=v, …]` metadata (or nil); read as `Class.@meta`.
 	Meta KeyValueArray
 	// OrderedFields makes its instances give their fields in the order the
-	// class declares them — keys, values, items, printing, the parents' fields
-	// first —; else a dict's order, none. Set by `[ordered]` before the class,
-	// or by the application on a class it reads (a form's).
+	// class declares them — keys, values, items, printing (as `@flat`) —;
+	// else a dict's order, none. A class is ordered (NewClass): an
+	// application may turn it off.
 	OrderedFields bool
+	// order is an `[ordered]` class's body as it declares it — "f:<field>",
+	// "p:<parent>", "u:<mixin>", "s:<spread>", a parent, a mixin, a spread by
+	// its index —: what `@flat` lists its fields by. mixinFields and
+	// spreadFields are the fields each mixin of its `use` and each `**Expr`
+	// added, in order.
+	order        []string
+	mixinFields  [][]string
+	spreadFields [][]string
 	// TParams are a generic's instance's type parameters, each and the type
 	// it is there (an array of them, a union), read as `Class.@tparams`; nil
 	// for a class that is not generic.
@@ -556,6 +564,7 @@ type Class struct {
 // AddField/AddMethod/AddProperty helpers.
 func NewClass(name string, module *ModuleSpec) (t *Class) {
 	t = &Class{
+		OrderedFields: true,
 		module:        module,
 		name:          name,
 		fieldsMap:     make(map[string]*ClassField),
@@ -780,16 +789,32 @@ func (t *Class) Define(c Call) (err error) {
 			TypeAssertion: TypeAssertionFromTypes(TArray),
 			Do: func(value Object) error {
 				for _, item := range value.(Array) {
+					n := len(t.fieldsMap)
 					if err := t.addSpread(c.VM, item); err != nil {
 						return err
 					}
+					t.spreadFields = append(t.spreadFields, t.fieldNamesFrom(n))
 				}
+				return nil
+			},
+		}
+
+		// order is an `[ordered]` class's body as written (the compiler's
+		// classOrderExpr): what `@flat` lists its fields by.
+		order = &NamedArgVar{
+			Name:          "order",
+			TypeAssertion: TypeAssertionFromTypes(TArray),
+			Do: func(value Object) error {
+				for _, it := range value.(Array) {
+					t.order = append(t.order, it.ToString())
+				}
+				t.OrderedFields = true
 				return nil
 			},
 		}
 	)
 
-	if err = c.NamedArgs.GetDo(meta, tparams, mixins, constructor, fields, methods, properties, extends, initFields, spread); err != nil {
+	if err = c.NamedArgs.GetDo(meta, tparams, mixins, constructor, fields, methods, properties, extends, initFields, spread, order); err != nil {
 		return
 	}
 	// With every member registered, validate the class against the contract each
@@ -1621,22 +1646,129 @@ func (t *Class) extendsAliased(argName string, kv *KeyValue) error {
 // (see ClassInstance.Init).
 func (t *Class) useMixins(vm *VM, arr Array) (err error) {
 	seen := map[*Mixin]bool{}
-	var flat []*Mixin
+	var (
+		flat []*Mixin
+		// each mixin of the use, with its lineage: the fields it adds
+		each [][]*Mixin
+	)
 	for i, v := range arr {
 		m, ok := v.(*Mixin)
 		if !ok {
 			return NewArgumentTypeError(strconv.Itoa(i)+"st (use)", "Mixin", v.Type().Name())
 		}
 		t.mixins = append(t.mixins, m)
-		m.lineage(seen, &flat)
+		var own []*Mixin
+		m.lineage(seen, &own)
+		flat = append(flat, own...)
+		each = append(each, own)
 	}
 	t.mixinsFlat = flat
-	for _, m := range flat {
-		if err = t.mergeMixinMembers(vm, m); err != nil {
-			return
+	for _, own := range each {
+		n := len(t.fieldsMap)
+		for _, m := range own {
+			if err = t.mergeMixinMembers(vm, m); err != nil {
+				return
+			}
 		}
+		t.mixinFields = append(t.mixinFields, t.fieldNamesFrom(n))
 	}
 	return
+}
+
+// fieldNamesFrom are the names of its fields of index n on — the ones added
+// since it had n —, in order.
+func (t *Class) fieldNamesFrom(n int) []string {
+	names := t.FieldNames()
+	if n > len(names) {
+		return nil
+	}
+	return append([]string(nil), names[n:]...)
+}
+
+// walkFlat calls own with each name of its fields and parent with the index
+// of each of its parents, in the order of `@flat`: an `[ordered]` class's as
+// its body declares them — its fields, parents, mixins and spreads where
+// written —, else its parents' first, then its fields. A name may come more
+// than once (the callers keep the first).
+func (t *Class) walkFlat(own func(name string), parent func(i int)) {
+	if t.order != nil {
+		for _, it := range t.order {
+			kind, v, _ := strings.Cut(it, ":")
+			i, _ := strconv.Atoi(v)
+			switch kind {
+			case "f":
+				own(v)
+			case "p":
+				if i < len(t.parents) {
+					parent(i)
+				}
+			case "u":
+				if i < len(t.mixinFields) {
+					for _, n := range t.mixinFields[i] {
+						own(n)
+					}
+				}
+			case "s":
+				if i < len(t.spreadFields) {
+					for _, n := range t.spreadFields[i] {
+						own(n)
+					}
+				}
+			}
+		}
+	} else {
+		for i := range t.parents {
+			parent(i)
+		}
+	}
+	// what the order did not place (added otherwise), after
+	for _, n := range t.FieldNames() {
+		own(n)
+	}
+}
+
+// FlatFields are its fields and its parents', flat — `@flat` —: in the order
+// of walkFlat, a name once, where it is first declared; a field the class (or
+// a nearer parent) declares again, its own.
+func (t *Class) FlatFields() []*ClassField {
+	seen := map[string]bool{}
+	var out []*ClassField
+	var walk func(c *Class)
+	walk = func(c *Class) {
+		c.walkFlat(func(name string) {
+			if seen[name] || c.fieldsMap[name] == nil {
+				return
+			}
+			seen[name] = true
+			out = append(out, t.nearestField(name))
+		}, func(i int) { walk(c.parents[i].Type) })
+	}
+	walk(t)
+	return out
+}
+
+// nearestField is the field name of the nearest class declaring it: its own,
+// else its parents', in their order.
+func (t *Class) nearestField(name string) *ClassField {
+	if f := t.fieldsMap[name]; f != nil {
+		return f
+	}
+	for _, p := range t.parents {
+		if f := p.Type.nearestField(name); f != nil {
+			return f
+		}
+	}
+	return nil
+}
+
+// Flat is FlatFields by name: `Class.@flat`.
+func (t *Class) Flat() KeyValueArray {
+	fields := t.FlatFields()
+	out := make(KeyValueArray, len(fields))
+	for i, f := range fields {
+		out[i] = &KeyValue{K: Str(f.Name), V: f}
+	}
+	return out
 }
 
 // mergeMixinMembers registers the mixin's own fields, properties and methods on
@@ -1820,6 +1952,8 @@ func (t *Class) IndexGet(vm *VM, index Object) (value Object, err error) {
 	switch key {
 	case "@fields":
 		return t.Fields(), nil
+	case "@flat":
+		return t.Flat(), nil
 	case "@groups":
 		return t.Groups(), nil
 	case "@props":
