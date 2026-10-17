@@ -312,3 +312,22 @@ func TestFormatDetachedModuleDoc(t *testing.T) {
 		t.Fatalf("attached collapse: %q", f.Source)
 	}
 }
+
+// A symbol is written bare when its value is an identifier (or digits), in
+// parentheses as written when it is not.
+func TestFormatSymbols(t *testing.T) {
+	got := Format("x := [#abc, #(label), #(a b c), #1, #(1)]").Source
+	if want := "x := [\n\t#abc\n\t#label\n\t#(a b c)\n\t#1\n\t#1\n]\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	// a symbol and a selector of it (`(#1).abc`): written as it was
+	for _, src := range []string{"x := #1.abc", "x := #x.abc"} {
+		if got := Format(src).Source; got != src+"\n" {
+			t.Errorf("%s: got %q", src, got)
+		}
+	}
+	got = Format(`[cols=[#abc, #(label), #(a b c)]] export class default { a str }`).Source
+	if want := "[cols=[#abc, #label, #(a b c)]]\nexport class default {\n\ta str\n}\n"; got != want {
+		t.Errorf("meta: got %q, want %q", got, want)
+	}
+}

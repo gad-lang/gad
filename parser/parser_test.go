@@ -1979,7 +1979,7 @@ z=
 	5 + 
 		7
 )`).
-		String(`(;a=1, b=2, "c"=3, 4=5, "true"=false, my_closure() => 1, my_func() { i++ }, myflag, d=#(dVal), e=#(e val), x A, x1 A1=10, y B|C=11, y1 B|C=12, z=(5 + 7))`).
+		String(`(;a=1, b=2, "c"=3, 4=5, "true"=false, my_closure() => 1, my_func() { i++ }, myflag, d=#dVal, e=#(e val), x A, x1 A1=10, y B|C=11, y1 B|C=12, z=(5 + 7))`).
 		FormattedCode(`(;
 	a=1
 	b=2
@@ -2055,7 +2055,7 @@ myflag)`).
 	test.ExpectParseString(t, `(;a=1,b=2,"c"=3,4=5,true=false
 myflag
 d=#dVal,e=#(e val)
-)`, `(;a=1, b=2, "c"=3, 4=5, "true"=false, myflag, d=#(dVal), e=#(e val))`)
+)`, `(;a=1, b=2, "c"=3, 4=5, "true"=false, myflag, d=#dVal, e=#(e val))`)
 
 	kva := &KeyValueArrayLit{}
 	test.ExpectParseStringT(t, `(;**a)`, `(;**a)`, kva)
@@ -4614,7 +4614,7 @@ func TestParseDict(t *testing.T) {
 
 	test.New(t, `({ "key1": 1, #key2:2, #(key 3): #3, #(key 4): #(value	4), true: 5, false:6, yes:7, no:8`+
 		"\n1:9, u2:10, 3d:11, 4.56:12, [x+1]:2})").
-		String(`({key1: 1, #(key2): 2, #(key 3): #(3), #(key 4): #(value	4), true: 5, false: 6, yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 4.56: 12, [x + 1]: 2})`).
+		String(`({key1: 1, #key2: 2, #(key 3): #3, #(key 4): #(value	4), true: 5, false: 6, yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 4.56: 12, [x + 1]: 2})`).
 		FormattedCode(`({
 	"key1": 1
 	#key2: 2

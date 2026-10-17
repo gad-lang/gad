@@ -1949,14 +1949,28 @@ func (s *SymbolLit) End() source.Pos {
 }
 
 func (s *SymbolLit) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(s.Lit.Literal)
+	ctx.WriteString(s.Code())
+}
+
+// Code is the symbol as `gad fmt` writes it: bare when its value is an
+// identifier (`#label`, `#(label)` too), in parentheses as written when it
+// is not (`#(a b c)`).
+func (s *SymbolLit) Code() string {
+	lit := s.Lit.Literal
+	if !strings.HasPrefix(lit, "#(") {
+		return lit
+	}
+	if v := s.Value(); v != "" && runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
+		return "#" + v
+	}
+	return lit
 }
 
 func (s *SymbolLit) ExprNode() {
 }
 
 func (s *SymbolLit) String() string {
-	return "#(" + s.Value() + ")"
+	return s.Code()
 }
 
 func (s *SymbolLit) Value() string {
