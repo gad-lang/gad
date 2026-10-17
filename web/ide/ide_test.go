@@ -886,3 +886,26 @@ func TestDebugSessionOverHTTP(t *testing.T) {
 		t.Fatalf("expected terminated result 3, got %+v", end)
 	}
 }
+
+// The structure of a source (the Structure panel): its declarations as a
+// tree, an exported class with its fields; by the dialect its path or type
+// says; empty for nothing.
+func TestSymbols(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	w := do(t, h, "POST", "/api/ide/symbols", symbolsRequest{Source: "enum Kind { A }\nexport class default { kind Kind }\n", Path: "form.gad"})
+	got := decode[[]map[string]any](t, w)
+	if len(got) != 2 || got[1]["name"] != "default" || got[1]["kind"] != "class" {
+		t.Fatalf("symbols: %+v", got)
+	}
+	if kids, _ := got[1]["children"].([]any); len(kids) != 1 || kids[0].(map[string]any)["line"] != float64(2) {
+		t.Errorf("the fields: %+v", got[1]["children"])
+	}
+	w = do(t, h, "POST", "/api/ide/symbols", symbolsRequest{Source: "~ x := 1\ndiv {= x }\n", SourceType: "gadx"})
+	if w.Code != 200 {
+		t.Errorf("gadx: %d %s", w.Code, w.Body.String())
+	}
+	w = do(t, h, "POST", "/api/ide/symbols", symbolsRequest{})
+	if strings.TrimSpace(w.Body.String()) != "[]" {
+		t.Errorf("nothing: %s", w.Body.String())
+	}
+}

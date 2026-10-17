@@ -79,3 +79,34 @@ func TestOutlinePositions(t *testing.T) {
 	require.Equal(t, "f", syms[1].Name)
 	require.Equal(t, 2, syms[1].Line)
 }
+
+// What a module exports is outlined as what it is: an exported class, type,
+// enum or function as the declaration; an exported value by its name.
+func TestOutlineExports(t *testing.T) {
+	f, sf := parse(t, `
+class Link { href str }
+export class default { links []Link; title str }
+export type Links []Link
+export enum Kind { A; B }
+export func greet(name) => "hi"
+export const Max = 10
+export x = 1
+`)
+	var lines []string
+	flatten(langsym.Outline(f, sf), 0, &lines)
+	require.Equal(t, []string{
+		"class Link",
+		"  field href",
+		"class default",
+		"  field links",
+		"  field title",
+		"type Links",
+		"enum Kind",
+		"  value A",
+		"  value B",
+		"func greet",
+		"const Max",
+		// (the parser declares an exported value a const in its prelude)
+		"const x",
+	}, lines)
+}

@@ -61,8 +61,36 @@ func outlineStmt(sf *source.File, stmt node.Stmt) (OutlineSym, bool) {
 		return sym, true
 	case *node.ExprStmt:
 		return outlineExpr(sf, s.Expr)
+	case *node.ExportStmt:
+		return outlineExport(sf, s)
 	}
 	return OutlineSym{}, false
+}
+
+// outlineExport maps an `export` to what it exports: a declaration
+// (`export class default { … }`, `export type T []Item`, `export enum E …`,
+// `export func f() …` — in its prelude), a type literal or a function as its
+// value, or else the name exported, a var (a const for `export const`).
+func outlineExport(sf *source.File, s *node.ExportStmt) (OutlineSym, bool) {
+	if s.Prelude != nil {
+		if sym, ok := outlineStmt(sf, s.Prelude); ok {
+			return sym, true
+		}
+	}
+	if s.ValueExpr != nil {
+		if sym, ok := outlineExpr(sf, s.ValueExpr); ok {
+			return sym, true
+		}
+	}
+	id, _ := s.KeyExpr.(*node.IdentExpr)
+	if id == nil || id.Empty {
+		return OutlineSym{}, false
+	}
+	kind := "var"
+	if s.Const {
+		kind = "const"
+	}
+	return leaf(sf, id.Name, kind, id.Pos()), true
 }
 
 // outlineExpr maps an expression statement (a `met`, or an anonymous type literal

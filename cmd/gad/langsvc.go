@@ -3,11 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	gad "github.com/gad-lang/gad"
-	gadxnode "github.com/gad-lang/gad/gadx/node"
-	gadxparser "github.com/gad-lang/gad/gadx/parser"
 	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/langsym"
 	"github.com/gad-lang/gad/parser"
@@ -52,41 +49,5 @@ func init() {
 //
 // name comes from the PATH argument or --stdin-name; data is the buffer.
 func langsymParse(name string, data []byte) (*parser.File, *source.File, error) {
-	fs := source.NewFileSet()
-	sf := fs.AddFileData(name, -1, data)
-
-	if strings.HasSuffix(name, ".gadx") {
-		gf, err := gadxparser.NewParser(sf).ParseFile()
-		if gf == nil {
-			return nil, sf, err
-		}
-		// Lower the Gadx AST to Gad statements (params, locals, interpolations
-		// keep their original source positions), then present them as a gad File
-		// so the scope resolver works on real identifiers. err is returned (may be
-		// non-nil for mid-edit source) alongside the partial file so the language
-		// service can still offer completions/definitions from what parsed.
-		file := &parser.File{InputFile: sf, Stmts: gadxnode.Convert(gf.Stmts)}
-		return file, sf, err
-	}
-
-	po := &parser.ParserOptions{Mode: parser.ParseComments}
-	var so *parser.ScannerOptions
-	if strings.HasSuffix(name, ".gadt") {
-		// A `.gadt` template is mixed source: literal text with `{% … %}` code
-		// islands. Parse it in mixed mode so the code resolves (plain-Gad parsing
-		// chokes on the leading literal text).
-		po.Mode |= parser.ParseMixed
-		so = &parser.ScannerOptions{
-			Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
-			MixedDelimiter: parser.DefaultMixedDelimiter,
-		}
-	}
-	// ParseFileTolerant returns a partial AST even on error (mid-edit source), so
-	// the language service can still resolve completions and definitions from the
-	// statements that did parse instead of failing outright.
-	file, err := parser.NewParserWithOptions(sf, po, so).ParseFileTolerant()
-	if file == nil {
-		return nil, sf, err
-	}
-	return file, sf, err
+	return langsym.ParseFile(name, data, nil)
 }

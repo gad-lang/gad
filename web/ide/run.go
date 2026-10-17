@@ -12,6 +12,7 @@ import (
 	"github.com/gad-lang/gad/gadconfig"
 	"github.com/gad-lang/gad/gadx"
 	"github.com/gad-lang/gad/importers"
+	"github.com/gad-lang/gad/langsym"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/stdlib/helper"
@@ -196,6 +197,46 @@ func (s *Server) handleFormat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, gadbridge.Format(req.Source))
+}
+
+// symbolsRequest is the source whose structure is asked: Path (or SourceType:
+// "gadx", "gadTemplate") says its dialect.
+type symbolsRequest struct {
+	Source     string `json:"source"`
+	Path       string `json:"path"`
+	SourceType string `json:"sourceType"`
+}
+
+// handleSymbols answers the structure of a source (the Structure panel): its
+// declarations as a tree — `gad symbols` —, what parsed of a source being
+// edited.
+func (s *Server) handleSymbols(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req symbolsRequest
+	if err := decodeBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	name := req.Path
+	switch req.SourceType {
+	case "gadx":
+		name = "source.gadx"
+	case "gadTemplate", "gadt", "template":
+		name = "source.gadt"
+	}
+	if name == "" {
+		name = "source.gad"
+	}
+	syms := []langsym.OutlineSym{}
+	if file, sf, _ := langsym.ParseFile(name, []byte(req.Source), nil); file != nil {
+		if o := langsym.Outline(file, sf); o != nil {
+			syms = o
+		}
+	}
+	writeJSON(w, syms)
 }
 
 // transpileRequest carries source to transpile. Mixed selects template
