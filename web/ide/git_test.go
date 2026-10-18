@@ -165,3 +165,178 @@ func TestGitBranchesLogCommit(t *testing.T) {
 		t.Fatalf("a file out of the workspace: %d", w.Code)
 	}
 }
+
+func TestGitDefaultFileHistoryCompare(t *testing.T) {
+	repo, h := gitRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repo
+		cmd.Env = append(gitEnv(), "GIT_AUTHOR_NAME=Ann", "GIT_AUTHOR_EMAIL=ann@example.com",
+			"GIT_COMMITTER_NAME=Ann", "GIT_COMMITTER_EMAIL=ann@example.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	// the default branch: main, though feature is checked out
+	run("checkout", "-q", "feature")
+	res := decode[struct {
+		Branches []GitBranch
+		Default  string
+	}](t, do(t, h, "GET", "/api/ide/git/branches", nil))
+	if res.Default != "main" {
+		t.Fatalf("default = %q", res.Default)
+	}
+	run("checkout", "-q", "main")
+
+	// a.gad renamed to b.gad, then changed: its history follows the rename
+	run("mv", "src/a.gad", "src/b.gad")
+	run("commit", "-q", "-m", "rename")
+	if err := os.WriteFile(filepath.Join(repo, "src", "b.gad"), []byte("x := 10\ny := 2\nz := 3\nreturn y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("commit", "-q", "-am", "third")
+	cs := decode[struct{ Commits []GitCommit }](t, do(t, h, "GET", "/api/ide/git/log?ref=main&path=b.gad", nil)).Commits
+	if len(cs) != 4 || cs[0].Subject != "third" || cs[0].Path != "b.gad" ||
+		cs[1].Subject != "rename" || cs[1].Path != "b.gad" || cs[1].From != "a.gad" ||
+		cs[2].Path != "a.gad" || cs[3].Subject != "first" || cs[3].Path != "a.gad" {
+		t.Fatalf("history = %+v", cs)
+	}
+	if w := do(t, h, "GET", "/api/ide/git/log?ref=main&path=../README", nil); w.Code != http.StatusBadRequest {
+		t.Fatalf("a file out of the workspace: %d", w.Code)
+	}
+
+	// a branch with another: what changed, of the workspace (README not)
+	files := decode[struct{ Files []GitFile }](t, do(t, h, "GET", "/api/ide/git/compare?a=feature&b=main", nil)).Files
+	if len(files) != 2 || files[0].Path != "a.gad" || files[0].Status != "D" || files[1].Path != "b.gad" || files[1].Status != "A" {
+		t.Fatalf("compare = %+v", files)
+	}
+	// a commit with another: the rename
+	files = decode[struct{ Files []GitFile }](t, do(t, h, "GET", "/api/ide/git/compare?a="+cs[2].Hash+"&b="+cs[1].Hash, nil)).Files
+	if len(files) != 1 || files[0].Status != "R" || files[0].From != "a.gad" || files[0].Path != "b.gad" {
+		t.Fatalf("compare commits = %+v", files)
+	}
+	f := decode[GitFile](t, do(t, h, "GET", "/api/ide/git/compare/diff?a=feature&b=main&path=b.gad&from=a.gad", nil))
+	if !strings.HasPrefix(f.Old, "x := 1\n") || !strings.HasSuffix(f.New, "return y\n") {
+		t.Fatalf("compare diff = %+v", f)
+	}
+	// a commit with another, by their hashes
+	f = decode[GitFile](t, do(t, h, "GET", "/api/ide/git/compare/diff?a="+cs[3].Hash+"&b="+cs[2].Hash+"&path=a.gad", nil))
+	if !strings.HasPrefix(f.Old, "x := 1\n") || !strings.HasPrefix(f.New, "x := 10\n") {
+		t.Fatalf("commits diff = %+v", f)
+	}
+	// a ref with the working files
+	if err := os.WriteFile(filepath.Join(repo, "src", "b.gad"), []byte("working\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f = decode[GitFile](t, do(t, h, "GET", "/api/ide/git/compare/diff?a=main&path=b.gad", nil))
+	if !strings.HasSuffix(f.Old, "return y\n") || f.New != "working\n" {
+		t.Fatalf("working diff = %+v", f)
+	}
+	if w := do(t, h, "GET", "/api/ide/git/compare?a=--output=/tmp/x&b=main", nil); w.Code != http.StatusInternalServerError {
+		t.Fatalf("an option as ref: %d", w.Code)
+	}
+}
+
+func TestGitLogFiltersAuthorsBlame(t *testing.T) {
+	repo, h := gitRepo(t)
+	commit := func(name, email, date, msg string, files map[string]string) {
+		t.Helper()
+		for p, c := range files {
+			if err := os.WriteFile(filepath.Join(repo, filepath.FromSlash(p)), []byte(c), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		cmd := exec.Command("git", "commit", "-q", "-am", msg)
+		cmd.Dir = repo
+		cmd.Env = append(gitEnv(), "GIT_AUTHOR_NAME="+name, "GIT_AUTHOR_EMAIL="+email, "GIT_AUTHOR_DATE="+date,
+			"GIT_COMMITTER_NAME="+name, "GIT_COMMITTER_EMAIL="+email, "GIT_COMMITTER_DATE="+date)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("commit: %v: %s", err, out)
+		}
+	}
+	// main: first, second (Ann, now); then Bob's two, dated
+	commit("Bob", "bob@example.com", "2020-01-10T10:00:00Z", "Fix the Parser\n\nIt broke on tabs.",
+		map[string]string{"src/old.gad": "one\ntwo\nthree\nfour\nneedle here\n"})
+	commit("Bob", "bob@example.com", "2020-03-01T10:00:00Z", "tune a",
+		map[string]string{"src/a.gad": "x := 10\ny := 20\nz := 3\nreturn x\n"})
+	logOf := func(query string) []GitCommit {
+		t.Helper()
+		w := do(t, h, "GET", "/api/ide/git/log?ref=main&"+query, nil)
+		if w.Code != http.StatusOK {
+			t.Fatalf("log %s: %d %s", query, w.Code, w.Body)
+		}
+		return decode[struct{ Commits []GitCommit }](t, w).Commits
+	}
+	subjects := func(cs []GitCommit) string {
+		var s []string
+		for _, c := range cs {
+			s = append(s, c.Subject)
+		}
+		return strings.Join(s, ",")
+	}
+	for _, c := range []struct{ query, want string }{
+		{"author=Bob+%3Cbob%40example.com%3E", "tune a,Fix the Parser"},
+		{"author=bob&author=ann", "tune a,Fix the Parser,second,first"},
+		{"q=parser", "Fix the Parser"},
+		{"message=BROKE+ON", "Fix the Parser"},
+		{"q=fix&message=tabs", "Fix the Parser"},
+		{"q=fix&message=nothing", ""},
+		{"name=OLD", "Fix the Parser,first"},
+		{"name=*.gad&author=Ann", "second,first"},
+		{"content=needle", "Fix the Parser"},
+		{"content=y+%3A%3D+20", "tune a"},
+		{"since=2020-01-01&until=2020-02-01", "Fix the Parser"},
+		{"until=2020-02-01", "Fix the Parser"},
+		{"author=Bob&since=2020-02-01", "tune a"},
+	} {
+		if got := subjects(logOf(c.query)); got != c.want {
+			t.Errorf("log %s = %q, want %q", c.query, got, c.want)
+		}
+	}
+	// a hash: its commit first
+	all := logOf("")
+	if cs := logOf("q=" + all[3].Hash[:8]); len(cs) != 1 || cs[0].Hash != all[3].Hash {
+		t.Errorf("by hash = %q", subjects(cs))
+	}
+	// a file's history, filtered
+	if got := subjects(logOf("path=a.gad&author=Bob")); got != "tune a" {
+		t.Errorf("history by Bob = %q", got)
+	}
+	if got := subjects(logOf("path=a.gad&content=x+%3A%3D+10")); got != "second" {
+		t.Errorf("history by content = %q", got)
+	}
+	for _, q := range []string{"since=yesterday", "path=a.gad&name=x", "q=a%0Ab"} {
+		if w := do(t, h, "GET", "/api/ide/git/log?ref=main&"+q, nil); w.Code == http.StatusOK {
+			t.Errorf("log %s: %d, want an error", q, w.Code)
+		}
+	}
+
+	// the authors, of the workspace and of a file
+	as := decode[struct{ Authors []GitAuthor }](t, do(t, h, "GET", "/api/ide/git/authors?ref=main", nil)).Authors
+	if len(as) != 2 || as[0].Commits != 2 || as[1].Commits != 2 || as[0].Email == "" {
+		t.Errorf("authors = %+v", as)
+	}
+	as = decode[struct{ Authors []GitAuthor }](t, do(t, h, "GET", "/api/ide/git/authors?ref=main&path=old.gad", nil)).Authors
+	if len(as) != 2 {
+		t.Errorf("authors of old.gad = %+v", as)
+	}
+
+	// the blame: of a commit, of the working file
+	b := decode[GitBlame](t, do(t, h, "GET", "/api/ide/git/blame?ref=main&path=a.gad", nil))
+	if len(b.Lines) != 4 || b.Lines[1].Content != "y := 20" || b.Commits[b.Lines[1].Hash].Author != "Bob" ||
+		b.Commits[b.Lines[0].Hash].Summary != "second" || b.Commits[b.Lines[2].Hash].Summary != "first" ||
+		!strings.HasPrefix(b.Commits[b.Lines[1].Hash].Date, "2020-03-01") {
+		t.Errorf("blame = %+v", b)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "src", "a.gad"), []byte("x := 10\nnew\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b = decode[GitBlame](t, do(t, h, "GET", "/api/ide/git/blame?path=a.gad", nil))
+	if len(b.Lines) != 2 || b.Lines[1].Hash != notCommitted || b.Lines[1].Content != "new" {
+		t.Errorf("working blame = %+v", b)
+	}
+	if w := do(t, h, "GET", "/api/ide/git/blame?ref=main&path=../README", nil); w.Code != http.StatusBadRequest {
+		t.Errorf("blame out of the workspace: %d", w.Code)
+	}
+}

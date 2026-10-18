@@ -396,6 +396,55 @@ func (s *Server) handleDoc(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"docs": gadbridge.DocComments(req.Source)})
 }
 
+// docGenRequest asks the documentation generated (`gad doc`) of a source in a
+// mode: render-html / html, render-md / md, or an encoding (DocEncode's).
+type docGenRequest struct {
+	Source     string `json:"source"`
+	SourceType string `json:"sourceType"`
+	Mode       string `json:"mode"`
+}
+
+// handleDocGen answers IdeApi.docGen: {ok, mode, html|markdown|text} or
+// {ok: false, error} — the same the browser's (WASM) backend does.
+func (s *Server) handleDocGen(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req docGenRequest
+	if err := decodeBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	typ := req.SourceType
+	if typ == "" {
+		typ = "gad"
+	}
+	res := map[string]any{"ok": true, "mode": req.Mode}
+	var err error
+	switch req.Mode {
+	case "", "render-html", "html":
+		var out string
+		if out, err = gadbridge.DocHTML(req.Source, typ); err == nil {
+			res["html"] = out
+		}
+	case "render-md", "md":
+		var out string
+		if out, err = gadbridge.Doc(req.Source, typ); err == nil {
+			res["markdown"] = out
+		}
+	default:
+		var out string
+		if out, err = gadbridge.DocEncode(req.Source, typ, req.Mode); err == nil {
+			res["text"] = out
+		}
+	}
+	if err != nil {
+		res = map[string]any{"ok": false, "mode": req.Mode, "error": err.Error()}
+	}
+	writeJSON(w, res)
+}
+
 func (s *Server) handleDiagnose(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")

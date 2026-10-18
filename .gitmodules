@@ -18,3 +18,7 @@
 	path = web/ide-vuetify
 	url = git@github.com:gad-lang/ide-vuetify.git
 	branch = main
+[submodule "web/git-vuetify"]
+	path = web/git-vuetify
+	url = git@github.com:gad-lang/git-vuetify.git
+	branch = main

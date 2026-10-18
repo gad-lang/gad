@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -313,6 +314,21 @@ func TestDoc(t *testing.T) {
 	}
 	if docs[1]["kind"] != "block" {
 		t.Fatalf("second doc should be a block: %+v", docs[1])
+	}
+}
+
+func TestDocGen(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	src := "/// the answer\nexport func Answer() { return 42 }\n"
+	w := do(t, h, "POST", "/api/ide/doc-gen", docGenRequest{Source: src, SourceType: "gad", Mode: "render-html"})
+	res := decode[map[string]any](t, w)
+	if res["ok"] != true || !strings.Contains(fmt.Sprint(res["html"]), "Answer") {
+		t.Fatalf("render-html: %+v", res)
+	}
+	w = do(t, h, "POST", "/api/ide/doc-gen", docGenRequest{Source: src, Mode: "render-md"})
+	res = decode[map[string]any](t, w)
+	if res["ok"] != true || !strings.Contains(fmt.Sprint(res["markdown"]), "Answer") {
+		t.Fatalf("render-md: %+v", res)
 	}
 }
 

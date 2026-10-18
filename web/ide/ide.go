@@ -151,6 +151,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/ide/symbols", s.handleSymbols)     // POST
 	mux.HandleFunc("/api/ide/transpile", s.handleTranspile) // POST
 	mux.HandleFunc("/api/ide/doc", s.handleDoc)             // POST
+	mux.HandleFunc("/api/ide/doc-gen", s.handleDocGen)      // POST
 	mux.HandleFunc("/api/ide/diagnose", s.handleDiagnose)   // POST
 	mux.HandleFunc("/api/ide/run", s.handleRun)             // POST
 	mux.HandleFunc("/api/ide/eval", s.handleEval)           // POST

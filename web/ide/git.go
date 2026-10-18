@@ -26,8 +26,18 @@ import (
 //	GET  git/changes                  {"files": [summary]}
 //	GET  git/diff?path&from           a change's diff ({path, from, old, new, binary})
 //	POST git/save {path, content}     the file written
-//	GET  git/branches                 {"branches": [{name, hash, remote, current, subject}]}
-//	GET  git/log?ref&skip&limit       {"commits": [{hash, parents, author, email, date, subject, refs}]}
+//	GET  git/branches                 {"branches": [{name, hash, remote, current, subject}], "default": name}
+//	GET  git/log?ref&skip&limit[&path]  {"commits": [{hash, parents, author, email, date, subject, refs}]}
+//	                                  — of a file (path): its history, renames followed, each
+//	                                  commit with the file's path there (path, from) —;
+//	                                  filtered (LogFilter): q, author (repeated), name,
+//	                                  content, message, since, until
+//	GET  git/authors?ref[&path]       {"authors": [{name, email, commits}]}
+//	GET  git/blame?ref&path           {"lines": [{hash, content}], "commits": {hash: {…}}}:
+//	                                  who changed each line last (ref empty: the working file)
+//	GET  git/compare?a&b              {"files": [summary]}: what changed from a to b (two
+//	                                  refs: branches, commits; b empty, the working files)
+//	GET  git/compare/diff?a&b&path&from  a file's diff from a to b
 //	GET  git/commit?hash              the commit, its full message and files (from its first parent)
 //	GET  git/commit/diff?hash&path&from  a file's diff in the commit
 //	GET  git/file?hash&path           the file as the commit has it (a download)
@@ -63,6 +73,10 @@ type GitCommit struct {
 	Date    string   `json:"date"`
 	Subject string   `json:"subject"`
 	Refs    []string `json:"refs,omitempty"`
+	// Path and From are, in a file's history, its path in the commit and
+	// the one it had before, when the commit renamed it.
+	Path string `json:"path,omitempty"`
+	From string `json:"from,omitempty"`
 }
 
 // GitCommitDetail is a commit, its full message and the files it changed.
@@ -346,6 +360,49 @@ func (s *Server) GitBranches(ctx context.Context) ([]GitBranch, error) {
 	return branches, nil
 }
 
+// GitDefaultBranch is the repository's default branch: its remote's (origin's
+// HEAD, the local branch of its name when there is one), else the one
+// init.defaultBranch names, main or master; else the current one.
+func (s *Server) GitDefaultBranch(ctx context.Context, branches []GitBranch) string {
+	has := func(name string) bool {
+		for _, b := range branches {
+			if b.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+	if out, err := s.gitCmd(ctx, "symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD"); err == nil {
+		if r := strings.TrimSpace(string(out)); r != "" {
+			if local := strings.TrimPrefix(r, "origin/"); has(local) {
+				return local
+			}
+			if has(r) {
+				return r
+			}
+		}
+	}
+	if out, err := s.gitCmd(ctx, "config", "--get", "init.defaultBranch"); err == nil {
+		if name := strings.TrimSpace(string(out)); name != "" && has(name) {
+			return name
+		}
+	}
+	for _, name := range []string{"main", "master"} {
+		if has(name) {
+			return name
+		}
+	}
+	for _, b := range branches {
+		if b.Current {
+			return b.Name
+		}
+	}
+	if len(branches) > 0 {
+		return branches[0].Name
+	}
+	return "HEAD"
+}
+
 const logFormat = "%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%D"
 
 func parseCommit(fields []string) GitCommit {
@@ -375,9 +432,153 @@ func validRef(ref string) bool {
 // GitLog are limit commits of ref after skip, each before its parents; in a
 // folder of the repository, those that changed it.
 func (s *Server) GitLog(ctx context.Context, ref string, skip, limit int) ([]GitCommit, error) {
+	return s.GitFileLog(ctx, ref, "", skip, limit, nil)
+}
+
+// LogFilter chooses the commits of a log: those whose message has Query (or
+// whose hash starts with it), by one of Authors ("Name <email>"), that
+// changed a file whose name has Name (a log of the whole workspace only),
+// whose changes added or took out a line with Content, whose message has
+// Message, made from Since to Until (dates, YYYY-MM-DD) — case aside, the
+// texts as they are (no patterns). An empty one chooses none out.
+type LogFilter struct {
+	Query, Name, Content, Message, Since, Until string
+	Authors                                     []string
+}
+
+var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+
+// maxFilterText bounds a text of a filter; maxAuthors, its authors.
+const (
+	maxFilterText = 200
+	maxAuthors    = 50
+)
+
+// empty says whether f chooses none out.
+func (f *LogFilter) empty() bool {
+	return f == nil || (f.Query == "" && f.Name == "" && f.Content == "" && f.Message == "" &&
+		f.Since == "" && f.Until == "" && len(f.Authors) == 0)
+}
+
+// args are git log's options of f; an error, of a filter invalid.
+func (f *LogFilter) args() ([]string, error) {
+	if f.empty() {
+		return nil, nil
+	}
+	for _, t := range append([]string{f.Query, f.Name, f.Content, f.Message}, f.Authors...) {
+		if len(t) > maxFilterText || strings.ContainsAny(t, "\x00\n\r") {
+			return nil, fmt.Errorf("invalid filter %q", t)
+		}
+	}
+	if len(f.Authors) > maxAuthors {
+		return nil, fmt.Errorf("too many authors")
+	}
+	// texts, not patterns; case aside
+	args := []string{"--regexp-ignore-case", "--fixed-strings"}
+	greps := 0
+	for _, t := range []string{f.Query, f.Message} {
+		if t != "" {
+			args = append(args, "--grep="+t)
+			greps++
+		}
+	}
+	if greps > 1 {
+		args = append(args, "--all-match")
+	}
+	for _, a := range f.Authors {
+		if a != "" {
+			args = append(args, "--author="+a)
+		}
+	}
+	if f.Content != "" {
+		// a pattern (-G is one): the text quoted
+		args = append(args, "-G"+regexp.QuoteMeta(f.Content))
+	}
+	for _, d := range []struct{ v, opt, at string }{{f.Since, "--since=", " 00:00:00"}, {f.Until, "--until=", " 23:59:59"}} {
+		if d.v == "" {
+			continue
+		}
+		if !dateRe.MatchString(d.v) {
+			return nil, fmt.Errorf("invalid date %q", d.v)
+		}
+		args = append(args, d.opt+d.v+d.at)
+	}
+	return args, nil
+}
+
+// pathspec is the files whose name has the filter's Name: a glob of the
+// workspace's folder, case aside (Name's own * and ? kept).
+func (f *LogFilter) pathspec() string {
+	if f == nil || f.Name == "" {
+		return ""
+	}
+	n := strings.ReplaceAll(f.Name, "\\", "/")
+	if !strings.ContainsAny(n, "*?") {
+		n = "*" + n + "*"
+	}
+	return ":(icase,glob)**/" + strings.TrimPrefix(n, "/")
+}
+
+// GitFileLog are, with a file (p, of the workspace), the commits of ref that
+// changed it — its history, renames followed: each with the file's path in
+// it (Path, and From when it renamed it) —; with none, GitLog's. filter
+// (may be nil) chooses among them; a hash in its Query, its commit first.
+func (s *Server) GitFileLog(ctx context.Context, ref, p string, skip, limit int, filter *LogFilter) ([]GitCommit, error) {
 	if !validRef(ref) {
 		return nil, fmt.Errorf("invalid ref %q", ref)
 	}
+	fargs, err := filter.args()
+	if err != nil {
+		return nil, err
+	}
+	var commits []GitCommit
+	if p != "" {
+		commits, err = s.gitFileLog(ctx, ref, p, skip, limit, fargs)
+	} else {
+		commits, err = s.gitLog(ctx, ref, skip, limit, fargs, filter.pathspec())
+	}
+	if err != nil || skip > 0 || filter == nil {
+		return commits, err
+	}
+	return s.withHash(ctx, ref, p, filter.Query, commits), nil
+}
+
+// withHash is commits with the commit of ref whose hash starts with q first,
+// when there is one and it is not among them (a file's: one that changed p).
+func (s *Server) withHash(ctx context.Context, ref, p, q string, commits []GitCommit) []GitCommit {
+	if !regexp.MustCompile(`^[0-9a-fA-F]{4,40}$`).MatchString(q) {
+		return commits
+	}
+	out, err := s.gitCmd(ctx, "rev-parse", "--verify", "-q", q+"^{commit}")
+	if err != nil {
+		return commits
+	}
+	hash := strings.TrimSpace(string(out))
+	for _, c := range commits {
+		if c.Hash == hash {
+			return commits
+		}
+	}
+	if _, err := s.gitCmd(ctx, "merge-base", "--is-ancestor", hash, ref); err != nil {
+		return commits
+	}
+	var found []GitCommit
+	if p != "" {
+		found, _ = s.gitFileLog(ctx, hash, p, 0, 1, nil)
+		if len(found) == 0 || found[0].Hash != hash {
+			return commits
+		}
+	} else {
+		if found, _ = s.gitLog(ctx, hash, 0, 1, nil, ""); len(found) == 0 {
+			return commits
+		}
+	}
+	return append([]GitCommit{found[0]}, commits...)
+}
+
+// gitLog is GitFileLog of the whole workspace: of the files of spec (a
+// pathspec) when given.
+func (s *Server) gitLog(ctx context.Context, ref string, skip, limit int, fargs []string, spec string) ([]GitCommit, error) {
 	prefix, err := s.gitPrefix(ctx)
 	if err != nil {
 		return nil, err
@@ -387,8 +588,12 @@ func (s *Server) GitLog(ctx context.Context, ref string, skip, limit int) ([]Git
 	if prefix != "" {
 		args = append(args, "--parents")
 	}
+	args = append(args, fargs...)
 	args = append(args, ref, "--")
-	if prefix != "" {
+	switch {
+	case spec != "":
+		args = append(args, spec)
+	case prefix != "":
 		args = append(args, ".")
 	}
 	out, err := s.gitCmd(ctx, args...)
@@ -404,6 +609,224 @@ func (s *Server) GitLog(ctx context.Context, ref string, skip, limit int) ([]Git
 		commits = append(commits, parseCommit(f))
 	}
 	return commits, nil
+}
+
+// gitFileLog is GitFileLog of the file p.
+func (s *Server) gitFileLog(ctx context.Context, ref, p string, skip, limit int, fargs []string) ([]GitCommit, error) {
+	args := []string{"log", "--follow", "-M", "--relative", "--name-status", "-z",
+		"--format=%x1e" + logFormat + "%x00",
+		"--skip=" + strconv.Itoa(skip), "-n", strconv.Itoa(limit)}
+	args = append(args, fargs...)
+	out, err := s.gitCmd(ctx, append(args, ref, "--", p)...)
+	if err != nil {
+		return nil, err
+	}
+	commits := []GitCommit{}
+	for _, rec := range strings.Split(string(out), "\x1e") {
+		f := strings.Split(rec, "\x00")
+		if len(f) < 8 {
+			continue
+		}
+		c := parseCommit(f[:7])
+		files := parseNameStatus(strings.Join(f[7:], "\x00"))
+		if len(files) > 0 {
+			c.Path, c.From = files[0].Path, files[0].From
+		} else {
+			c.Path = p
+		}
+		commits = append(commits, c)
+	}
+	return commits, nil
+}
+
+// parseNameStatus are the files of a diff's `--name-status -z`: renames and
+// copies as R, their origin in From.
+func parseNameStatus(out string) []GitFile {
+	files := []GitFile{}
+	parts := strings.Split(out, "\x00")
+	for i := 0; i < len(parts); i++ {
+		st := strings.TrimLeft(parts[i], "\n")
+		if st == "" || i+1 >= len(parts) {
+			continue
+		}
+		file := GitFile{Status: st[:1]}
+		if file.Status == "R" || file.Status == "C" {
+			if i+2 >= len(parts) {
+				break
+			}
+			file.From, file.Path = parts[i+1], parts[i+2]
+			file.Status = "R"
+			i += 2
+		} else {
+			file.Path = parts[i+1]
+			i++
+		}
+		files = append(files, file)
+	}
+	return files
+}
+
+// GitCompare are the files of the workspace that changed from the ref a to
+// the ref b (b empty: to the working files).
+func (s *Server) GitCompare(ctx context.Context, a, b string) ([]GitFile, error) {
+	if !validRef(a) || (b != "" && !validRef(b)) {
+		return nil, fmt.Errorf("invalid ref %q / %q", a, b)
+	}
+	args := []string{"diff", "-M", "--relative", "--name-status", "-z", a}
+	if b != "" {
+		args = append(args, b)
+	}
+	out, err := s.gitCmd(ctx, append(args, "--", ".")...)
+	if err != nil {
+		return nil, err
+	}
+	return parseNameStatus(string(out)), nil
+}
+
+// GitCompareDiff is the diff of the file p from the ref a (where it is from,
+// when given: renamed) to the ref b (b empty: the working file). A side the
+// file is not in is empty.
+func (s *Server) GitCompareDiff(ctx context.Context, a, b, p, from string) (*GitFile, error) {
+	if !validRef(a) || (b != "" && !validRef(b)) {
+		return nil, fmt.Errorf("invalid ref %q / %q", a, b)
+	}
+	f := &GitFile{Path: p, From: from}
+	src := p
+	if from != "" {
+		src = from
+	}
+	var oldBin, newBin bool
+	f.Old, oldBin, _ = s.gitShow(ctx, a, src)
+	if b != "" {
+		f.New, newBin, _ = s.gitShow(ctx, b, p)
+	} else if data, err := os.ReadFile(filepath.Join(s.Root, filepath.FromSlash(p))); err == nil {
+		f.New, newBin, _ = contentOf(data)
+	}
+	if f.Binary = oldBin || newBin; f.Binary {
+		f.Old, f.New = "", ""
+	}
+	return f, nil
+}
+
+// GitAuthor is an author of commits: their count.
+type GitAuthor struct {
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Commits int    `json:"commits"`
+}
+
+var shortlogRe = regexp.MustCompile(`^\s*(\d+)\t(.*?)(?: <([^>]*)>)?$`)
+
+// GitAuthors are the authors of the commits of ref — of the file p's, when
+// given; of the workspace's folder —, the most commits first.
+func (s *Server) GitAuthors(ctx context.Context, ref, p string) ([]GitAuthor, error) {
+	if !validRef(ref) {
+		return nil, fmt.Errorf("invalid ref %q", ref)
+	}
+	spec := "."
+	if p != "" {
+		spec = p
+	}
+	out, err := s.gitCmd(ctx, "shortlog", "-sne", ref, "--", spec)
+	if err != nil {
+		return nil, err
+	}
+	authors := []GitAuthor{}
+	for _, line := range strings.Split(string(out), "\n") {
+		m := shortlogRe.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		n, _ := strconv.Atoi(m[1])
+		authors = append(authors, GitAuthor{Name: m[2], Email: m[3], Commits: n})
+	}
+	return authors, nil
+}
+
+// GitBlameLine is a line of a file and the commit that changed it last.
+type GitBlameLine struct {
+	Hash    string `json:"hash"`
+	Content string `json:"content"`
+}
+
+// GitBlameCommit is a commit of a blame.
+type GitBlameCommit struct {
+	Author  string `json:"author"`
+	Email   string `json:"email"`
+	Date    string `json:"date"`
+	Summary string `json:"summary"`
+	// Path is the file's path in it (renamed since)
+	Path string `json:"path,omitempty"`
+}
+
+// GitBlame is who changed each line of a file last.
+type GitBlame struct {
+	Lines   []GitBlameLine            `json:"lines"`
+	Commits map[string]GitBlameCommit `json:"commits"`
+	Binary  bool                      `json:"binary,omitempty"`
+}
+
+// notCommitted is blame's hash of a line not committed yet.
+const notCommitted = "0000000000000000000000000000000000000000"
+
+// GitBlame is the blame of the file p as ref has it (ref empty: the working
+// file, its lines not committed of the hash 0…0).
+func (s *Server) GitBlame(ctx context.Context, ref, p string) (*GitBlame, error) {
+	if ref != "" && !validRef(ref) {
+		return nil, fmt.Errorf("invalid ref %q", ref)
+	}
+	args := []string{"blame", "--porcelain", "-M"}
+	if ref != "" {
+		args = append(args, ref)
+	}
+	out, err := s.gitCmd(ctx, append(args, "--", p)...)
+	if err != nil {
+		return nil, err
+	}
+	b := &GitBlame{Lines: []GitBlameLine{}, Commits: map[string]GitBlameCommit{}}
+	if len(out) > 4*maxDiffSize {
+		b.Binary = true
+		return b, nil
+	}
+	cur, info := "", GitBlameCommit{}
+	for _, line := range strings.Split(string(out), "\n") {
+		switch {
+		case strings.HasPrefix(line, "\t"):
+			b.Lines = append(b.Lines, GitBlameLine{Hash: cur, Content: line[1:]})
+			if _, ok := b.Commits[cur]; !ok {
+				b.Commits[cur] = info
+			}
+		case cur == "" || len(line) >= 40 && hashRe.MatchString(line[:40]) && (len(line) == 40 || line[40] == ' '):
+			if f := strings.Fields(line); len(f) >= 3 && hashRe.MatchString(f[0]) {
+				if f[0] != cur {
+					info = b.Commits[f[0]]
+				}
+				cur = f[0]
+			}
+		default:
+			k, v, _ := strings.Cut(line, " ")
+			switch k {
+			case "author":
+				info.Author = v
+			case "author-mail":
+				info.Email = strings.Trim(v, "<>")
+			case "author-time":
+				if t, err := strconv.ParseInt(v, 10, 64); err == nil {
+					info.Date = time.Unix(t, 0).UTC().Format(time.RFC3339)
+				}
+			case "summary":
+				info.Summary = v
+			case "filename":
+				info.Path = v
+			}
+		}
+	}
+	for _, l := range b.Lines {
+		if strings.IndexByte(l.Content, 0) >= 0 {
+			return &GitBlame{Lines: []GitBlameLine{}, Commits: map[string]GitBlameCommit{}, Binary: true}, nil
+		}
+	}
+	return b, nil
 }
 
 // GitCommitOf is the commit hash: its full message and the files it changed
@@ -431,27 +854,7 @@ func (s *Server) GitCommitOf(ctx context.Context, hash string) (*GitCommitDetail
 	if err != nil {
 		return nil, err
 	}
-	d.Files = []GitFile{}
-	parts := strings.Split(string(out), "\x00")
-	for i := 0; i < len(parts); i++ {
-		st := parts[i]
-		if st == "" || i+1 >= len(parts) {
-			continue
-		}
-		file := GitFile{Status: st[:1]}
-		if file.Status == "R" || file.Status == "C" {
-			if i+2 >= len(parts) {
-				break
-			}
-			file.From, file.Path = parts[i+1], parts[i+2]
-			file.Status = "R"
-			i += 2
-		} else {
-			file.Path = parts[i+1]
-			i++
-		}
-		d.Files = append(d.Files, file)
-	}
+	d.Files = parseNameStatus(string(out))
 	return d, nil
 }
 
@@ -562,7 +965,7 @@ func (s *Server) serveGit(w http.ResponseWriter, r *http.Request) {
 			fail(err)
 			return
 		}
-		writeJSON(w, map[string]any{"branches": bs})
+		writeJSON(w, map[string]any{"branches": bs, "default": s.GitDefaultBranch(ctx, bs)})
 	case "git/log":
 		skip, _ := strconv.Atoi(q.Get("skip"))
 		limit, _ := strconv.Atoi(q.Get("limit"))
@@ -573,7 +976,20 @@ func (s *Server) serveGit(w http.ResponseWriter, r *http.Request) {
 		if ref == "" {
 			ref = "HEAD"
 		}
-		cs, err := s.GitLog(ctx, ref, max(skip, 0), limit)
+		p := ""
+		if q.Get("path") != "" {
+			var ok bool
+			if p, ok = cleanPath("path"); !ok {
+				return
+			}
+		}
+		filter := &LogFilter{Query: q.Get("q"), Name: q.Get("name"), Content: q.Get("content"),
+			Message: q.Get("message"), Since: q.Get("since"), Until: q.Get("until"), Authors: q["author"]}
+		if p != "" && filter.Name != "" {
+			writeError(w, http.StatusBadRequest, "a file's history has no name filter")
+			return
+		}
+		cs, err := s.GitFileLog(ctx, ref, p, max(skip, 0), limit, filter)
 		if err != nil {
 			fail(err)
 			return
@@ -598,6 +1014,59 @@ func (s *Server) serveGit(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		f, err := s.GitCommitDiff(ctx, q.Get("hash"), p, from)
+		if err != nil {
+			fail(err)
+			return
+		}
+		writeJSON(w, f)
+	case "git/authors":
+		p := ""
+		if q.Get("path") != "" {
+			var ok bool
+			if p, ok = cleanPath("path"); !ok {
+				return
+			}
+		}
+		ref := q.Get("ref")
+		if ref == "" {
+			ref = "HEAD"
+		}
+		as, err := s.GitAuthors(ctx, ref, p)
+		if err != nil {
+			fail(err)
+			return
+		}
+		writeJSON(w, map[string]any{"authors": as})
+	case "git/blame":
+		p, ok := cleanPath("path")
+		if !ok {
+			return
+		}
+		b, err := s.GitBlame(ctx, q.Get("ref"), p)
+		if err != nil {
+			fail(err)
+			return
+		}
+		writeJSON(w, b)
+	case "git/compare":
+		files, err := s.GitCompare(ctx, q.Get("a"), q.Get("b"))
+		if err != nil {
+			fail(err)
+			return
+		}
+		writeJSON(w, map[string]any{"files": files})
+	case "git/compare/diff":
+		p, ok := cleanPath("path")
+		if !ok {
+			return
+		}
+		from := ""
+		if q.Get("from") != "" {
+			if from, ok = cleanPath("from"); !ok {
+				return
+			}
+		}
+		f, err := s.GitCompareDiff(ctx, q.Get("a"), q.Get("b"), p, from)
 		if err != nil {
 			fail(err)
 			return

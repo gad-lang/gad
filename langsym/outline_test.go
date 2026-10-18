@@ -110,3 +110,69 @@ export x = 1
 		"const x",
 	}, lines)
 }
+
+// flattenDetail is flatten with each symbol's detail.
+func flattenDetail(syms []langsym.OutlineSym, depth int, out *[]string) {
+	for _, s := range syms {
+		line := ""
+		for i := 0; i < depth; i++ {
+			line += "  "
+		}
+		line += s.Kind + " " + s.Name
+		if s.Detail != "" {
+			line += " : " + s.Detail
+		}
+		*out = append(*out, line)
+		flattenDetail(s.Children, depth+1, out)
+	}
+}
+
+// A field's type is its detail; a field typed by a class or an interface
+// written in place is `class`/`interface`, its members under it; a function
+// of one signature has it as its detail, of several each as a child.
+func TestOutlineTypesAndOverloads(t *testing.T) {
+	f, sf := parse(t, `
+class Link { href str }
+export class default {
+	title str
+	link? Link
+	kind int|str
+	lead class {
+		name str
+		phone? str
+	}
+	contact interface { email str }
+	props { size => 1 }
+	methods {
+		m(a int) <str> => ""
+		n { (a) => 1; (a, b) => 2 }
+	}
+}
+func f(a, b) => 1
+func g { (a) => 1; (a, b) => 2 }
+`)
+	var lines []string
+	flattenDetail(langsym.Outline(f, sf), 0, &lines)
+	require.Equal(t, []string{
+		"class Link",
+		"  field href : str",
+		"class default",
+		"  field title : str",
+		"  field link : ?Link",
+		"  field kind : int|str",
+		"  field lead : class",
+		"    field name : str",
+		"    field phone : ?str",
+		"  field contact : interface",
+		"    field email : str",
+		"  property size",
+		"  method m : (a int) <str>",
+		"  method n",
+		"    overload (a)",
+		"    overload (a, b)",
+		"func f : (a, b)",
+		"func g",
+		"  overload (a)",
+		"  overload (a, b)",
+	}, lines)
+}

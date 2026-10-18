@@ -1,6 +1,8 @@
 package langsym
 
 import (
+	"strings"
+
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
@@ -11,7 +13,7 @@ import (
 // members (a class's fields/props/methods, an enum's values, …).
 type OutlineSym struct {
 	Name     string       `json:"name"`
-	Kind     string       `json:"kind"` // const|var|func|class|mixin|type|interface|enum|method|property|field|new|met|value
+	Kind     string       `json:"kind"` // const|var|func|class|mixin|type|interface|enum|method|property|field|new|met|value|overload
 	Detail   string       `json:"detail,omitempty"`
 	Offset   int          `json:"offset"`
 	Line     int          `json:"line"`
@@ -61,6 +63,8 @@ func outlineStmt(sf *source.File, stmt node.Stmt) (OutlineSym, bool) {
 		return sym, true
 	case *node.ExprStmt:
 		return outlineExpr(sf, s.Expr)
+	case *node.FuncWithMethodsStmt:
+		return outlineFuncWithMethods(sf, &s.FuncWithMethodsExpr), true
 	case *node.ExportStmt:
 		return outlineExport(sf, s)
 	}
@@ -104,6 +108,10 @@ func outlineExpr(sf *source.File, e node.Expr) (OutlineSym, bool) {
 	case *node.FuncExpr:
 		if named := funcName(x); named != "" {
 			return outlineFunc(sf, x, "func"), true
+		}
+	case *node.FuncWithMethodsExpr:
+		if x.NameExpr != nil {
+			return outlineFuncWithMethods(sf, x), true
 		}
 	case *node.TypeLitExpr:
 		if x.NameExpr != nil {
@@ -203,24 +211,26 @@ func outlineClass(sf *source.File, c *node.TypeLitExpr) OutlineSym {
 	sym := leaf(sf, className(c), kind, c.Pos())
 	for _, f := range c.Fields {
 		if f.Name != nil && f.Name.Ident != nil {
-			sym.Children = append(sym.Children, leaf(sf, f.Name.Ident.Name, "field", f.Pos()))
+			sym.Children = append(sym.Children, typedMember(sf, f.Name, "field", f.Pos()))
 		}
 	}
 	for _, p := range c.Props {
 		if id, _ := p.NameExpr.(*node.IdentExpr); id != nil {
-			sym.Children = append(sym.Children, leaf(sf, id.Name, "property", p.Pos()))
+			prop := leaf(sf, id.Name, "property", p.Pos())
+			prop.Detail = propType(p.Methods)
+			sym.Children = append(sym.Children, prop)
 		}
 	}
-	for _, m := range c.New {
-		sym.Children = append(sym.Children, leaf(sf, "new", "new", m.Pos()))
+	if len(c.New) > 0 {
+		sym.Children = append(sym.Children, overloaded(sf, "new", "new", c.New[0].Pos(), c.New))
 	}
 	// A marker type's `call(…)` factory overloads.
-	for _, m := range c.Call {
-		sym.Children = append(sym.Children, leaf(sf, "call", "new", m.Pos()))
+	if len(c.Call) > 0 {
+		sym.Children = append(sym.Children, overloaded(sf, "call", "new", c.Call[0].Pos(), c.Call))
 	}
 	for _, m := range c.Methods {
 		if id, _ := m.NameExpr.(*node.IdentExpr); id != nil {
-			sym.Children = append(sym.Children, leaf(sf, id.Name, "method", m.Pos()))
+			sym.Children = append(sym.Children, overloaded(sf, id.Name, "method", m.Pos(), m.Methods))
 		}
 	}
 	return sym
@@ -230,15 +240,120 @@ func outlineInterface(sf *source.File, i *node.InterfaceExpr) OutlineSym {
 	sym := leaf(sf, interfaceName(i), "interface", i.Pos())
 	for _, m := range i.Members {
 		if m.Name != nil && m.Name.Ident != nil {
-			sym.Children = append(sym.Children, leaf(sf, m.Name.Ident.Name, "field", m.Pos()))
+			sym.Children = append(sym.Children, typedMember(sf, m.Name, "field", m.Pos()))
 		}
 	}
 	for _, m := range i.Methods {
-		if m.NameExpr != nil {
-			sym.Children = append(sym.Children, leaf(sf, m.NameExpr.Name, "method", m.Pos()))
+		if m.NameExpr == nil {
+			continue
+		}
+		meth := leaf(sf, m.NameExpr.Name, "method", m.Pos())
+		switch len(m.Headers) {
+		case 0:
+		case 1:
+			meth.Detail = signature(&m.Headers[0].FuncHeader.Params, m.Headers[0].FuncHeader.Return)
+		default:
+			for _, h := range m.Headers {
+				meth.Children = append(meth.Children,
+					leaf(sf, signature(&h.FuncHeader.Params, h.FuncHeader.Return), "overload", h.Pos()))
+			}
+		}
+		sym.Children = append(sym.Children, meth)
+	}
+	return sym
+}
+
+// typedMember is a field (of a class, of an interface) with its type as its
+// detail — `str`, `?Link`, `int|str` —; a field typed by a class or an
+// interface written in place is `class` or `interface`, its members under it.
+func typedMember(sf *source.File, ti *node.TypedIdentExpr, kind string, p source.Pos) OutlineSym {
+	sym := leaf(sf, ti.Ident.Name, kind, p)
+	if len(ti.Type) == 1 {
+		switch t := ti.Type[0].Expr.(type) {
+		case *node.TypeLitExpr:
+			inner := outlineClass(sf, t)
+			sym.Detail, sym.Children = nullable(ti, inner.Kind), inner.Children
+			return sym
+		case *node.InterfaceExpr:
+			inner := outlineInterface(sf, t)
+			sym.Detail, sym.Children = nullable(ti, "interface"), inner.Children
+			return sym
+		}
+	}
+	names := make([]string, 0, len(ti.Type))
+	for _, t := range ti.Type {
+		names = append(names, typeText(t))
+	}
+	if len(names) > 0 || ti.Nullable {
+		sym.Detail = nullable(ti, strings.Join(names, "|"))
+	}
+	return sym
+}
+
+// nullable is typ marked `?` when the field accepts nil.
+func nullable(ti *node.TypedIdentExpr, typ string) string {
+	if ti.Nullable {
+		return "?" + typ
+	}
+	return typ
+}
+
+// typeText is a type as written; a class or an interface written in place is
+// its kind.
+func typeText(t *node.TypeExpr) string {
+	switch t.Expr.(type) {
+	case *node.TypeLitExpr:
+		return "class"
+	case *node.InterfaceExpr:
+		return "interface"
+	}
+	return t.Expr.String()
+}
+
+// propType is the type a property gives: the return of its getter (the
+// accessor without parameters), "" when it says none.
+func propType(methods []*node.FuncMethod) string {
+	for _, m := range methods {
+		if len(m.Return) > 0 && m.Params.Args.NumFields() == 0 {
+			return strings.TrimSpace(strings.Trim(strings.TrimSpace(node.FormatFuncReturn(m.Return)), "<>"))
+		}
+	}
+	return ""
+}
+
+// overloaded is a function of several signatures — a method, `new`, `call`,
+// a func with methods —: one signature its detail; several, each a child
+// (an "overload") where it is written.
+func overloaded(sf *source.File, name, kind string, p source.Pos, methods []*node.FuncMethod) OutlineSym {
+	sym := leaf(sf, name, kind, p)
+	switch len(methods) {
+	case 0:
+	case 1:
+		sym.Detail = signature(&methods[0].Params, methods[0].Return)
+	default:
+		for _, m := range methods {
+			sym.Children = append(sym.Children, leaf(sf, signature(&m.Params, m.Return), "overload", m.Pos()))
 		}
 	}
 	return sym
+}
+
+// signature is the header of a function as written: its parameters and its
+// return types (`(a int; b=1) <str>`).
+func signature(params *node.FuncParams, ret []*node.TypedIdentExpr) string {
+	return params.String() + node.FormatFuncReturn(ret)
+}
+
+func outlineFuncWithMethods(sf *source.File, f *node.FuncWithMethodsExpr) OutlineSym {
+	name := "func"
+	if f.NameExpr != nil {
+		if id, _ := f.NameExpr.(*node.IdentExpr); id != nil {
+			name = id.Name
+		} else {
+			name = node.Code(f.NameExpr)
+		}
+	}
+	return overloaded(sf, name, "func", f.Pos(), f.Methods)
 }
 
 func outlineEnum(sf *source.File, e *node.EnumExpr) OutlineSym {
@@ -256,7 +371,11 @@ func outlineFunc(sf *source.File, fn *node.FuncExpr, kind string) OutlineSym {
 	if name == "" {
 		name = "func"
 	}
-	return leaf(sf, name, kind, fn.Pos())
+	sym := leaf(sf, name, kind, fn.Pos())
+	if fn.Type != nil {
+		sym.Detail = signature(&fn.Type.Params, fn.Type.Return)
+	}
+	return sym
 }
 
 // --- helpers ---
