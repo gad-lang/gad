@@ -1169,11 +1169,10 @@ var (
 // useful when reusing one instance in a loop and mutating a backing Dict
 // between calls (Dict.ToNamedArgs keeps a live reference to that Dict in m).
 type NamedArgs struct {
-	ro      bool            // when true, reads do not consume values
-	sources KeyValueArrays  // original name=value pairs (last wins on duplicate)
-	m       Dict            // materialised, not-yet-consumed values
-	ready   Dict            // keys already consumed
-	gone    map[string]bool // keys reset (`key=no`): not given
+	ro      bool           // when true, reads do not consume values
+	sources KeyValueArrays // original name=value pairs (last wins on duplicate)
+	m       Dict           // materialised, not-yet-consumed values
+	ready   Dict           // keys already consumed — a reset one (`key=no`, not given) as `no`
 }
 
 // NewNamedArgs returns a NamedArgs from the given name=value pair lists. Later
@@ -1402,16 +1401,17 @@ func (o *NamedArgs) check() {
 			for _, v := range o.sources[i] {
 				k := v.K.ToString()
 				if IsReset(v.V) {
-					// `key=no`: not given — the default of a param applies
+					// `key=no`: not given — the default of a param applies;
+					// out of the rest (`**na`) as a key read. (In ready, not a
+					// field of its own: a NamedArgs is in every frame of the VM.)
 					delete(o.m, k)
-					if o.gone == nil {
-						o.gone = map[string]bool{}
-					}
-					o.gone[k] = true
+					o.ready[k] = No
 					continue
 				}
 				o.m[k] = v.V
-				delete(o.gone, k)
+				if IsReset(o.ready[k]) {
+					delete(o.ready, k)
+				}
 			}
 		}
 	}
@@ -1445,10 +1445,6 @@ func (o *NamedArgs) GetValueOrNil(key string) (val Object) {
 			o.ready[key] = nil
 		}
 		return
-	}
-	if o.gone[key] && !o.ro {
-		// a reset key is read (as not given): out of the rest (`**na`)
-		o.ready[key] = nil
 	}
 	return nil
 }
