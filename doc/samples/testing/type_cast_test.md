@@ -1,36 +1,37 @@
 # type_cast_test
 
-type_cast_test.gad — the transforming cast `:::` beyond bool.
+type_cast_test.gad — the converting cast `::>` beyond bool.
 
-`src ::: T` **converts** src to the target T — where the checked cast `src :: T`
+`src ::> T` **converts** src to the target T — where the checked cast `src :: T`
 only *verifies* and errors on a mismatch. The target may be:
 
-  * a **builtin type** — `5 ::: str` -> "5", `"5" ::: int` -> 5, `65 ::: char` ->
+  * a **builtin type** — `5 ::> str` -> "5", `"5" ::> int` -> 5, `65 ::> char` ->
     'A'. The cast calls T's constructor, so the typed overloads registered with
     `AddMethod` pick the right conversion for each source shape (a string parses,
     a float truncates, a char yields its code, …).
 
-  * **`any`** — identity: `value ::: any` returns value unchanged.
+  * **`any`** — identity: `value ::> any` returns value unchanged.
 
-  * a **function** — a transformer applied to the value: `5 ::: ((v) => v * 10)`
+  * a **function** — a transformer applied to the value: `5 ::> ((v) => v * 10)`
     -> 50. The transformer ALWAYS receives the value as its single argument, so it
     is written `(v) => …`. Casts chain left-to-right.
 
 (`bool` is a special, call-free truthiness case — see bool_cast_test.gad. Casts to
-an interface or class coerce nested dicts — see samples/transform_cast_test.gad.)
+an interface, a class or an enum value — which the transforming cast `:>` does too,
+without converting anything else — see samples/transform_cast_test.gad.)
 
-Unlike `::: bool` (which skips the call entirely), a `::: T` conversion or a
-`::: fn` transformer *does* call — but the VM dispatches it through the same
+Unlike `::> bool` (which skips the call entirely), a `::> T` conversion or a
+`::> fn` transformer *does* call — but the VM dispatches it through the same
 stack-based call path a direct call uses, reusing the operand already on the
 stack as the argument, so no argument array is allocated and the cost matches the
 equivalent call. Benchmark (ns per single conversion; representative, run with
 `gad test -bench=. samples/testing`):
 
-| conversion    | ::: cast   | direct call | result   |
+| conversion    | ::> cast   | direct call | result   |
 |---------------|------------|-------------|----------|
-| `x ::: str`   | 2062 ns/op | `str(x)`  2108 ns/op | on par |
-| `"5" ::: int` |  442 ns/op | `int(x)`   465 ns/op | on par |
-| `x ::: fn`    |  209 ns/op | `fn(x)`    209 ns/op | on par |
+| `x ::> str`   | 2062 ns/op | `str(x)`  2108 ns/op | on par |
+| `"5" ::> int` |  442 ns/op | `int(x)`   465 ns/op | on par |
+| `x ::> fn`    |  209 ns/op | `fn(x)`    209 ns/op | on par |
 
 Run:
     gad test samples/testing
@@ -45,58 +46,58 @@ A builtin type converts via its constructor; each source shape hits the
 matching overload.
 **/
 test "convert to builtin types" {
-	t.equal("5", 5 ::: str)
-	t.equal("3.14", 3.14 ::: str)
-	t.equal("true", true ::: str)
-	t.equal(5, "5" ::: int)
-	t.equal(3, 3.9 ::: int)        // float truncates
-	t.equal(65, 'A' ::: int)       // char -> code point
-	t.equal('A', 65 ::: char)      // code point -> char
-	t.equal(3.14, "3.14" ::: float)
-	t.equal(5u, 5 ::: uint)
+	t.equal("5", 5 ::> str)
+	t.equal("3.14", 3.14 ::> str)
+	t.equal("true", true ::> str)
+	t.equal(5, "5" ::> int)
+	t.equal(3, 3.9 ::> int)        // float truncates
+	t.equal(65, 'A' ::> int)       // char -> code point
+	t.equal('A', 65 ::> char)      // code point -> char
+	t.equal(3.14, "3.14" ::> float)
+	t.equal(5u, 5 ::> uint)
 }
 
 /**
 The cast is exactly the constructor call — same value, no wrapper.
 **/
 test "cast equals the constructor" {
-	t.true((5 ::: str) == str(5))
-	t.true(("5" ::: int) == int("5"))
-	t.true((65 ::: char) == char(65))
+	t.true((5 ::> str) == str(5))
+	t.true(("5" ::> int) == int("5"))
+	t.true((65 ::> char) == char(65))
 }
 
 /**
 `any` is identity: the value passes through unchanged.
 **/
 test "any is identity" {
-	t.equal(5, 5 ::: any)
+	t.equal(5, 5 ::> any)
 	d := {a: 1}
-	t.true((d ::: any) == d)
+	t.true((d ::> any) == d)
 }
 
 /**
 A function target transforms the value; it always takes the value as `(v)`.
 **/
 test "function transformer" {
-	t.equal(50, 5 ::: ((v) => v * 10))
-	t.equal("hi!", "hi" ::: ((v) => v + "!"))
+	t.equal(50, 5 ::> ((v) => v * 10))
+	t.equal("hi!", "hi" ::> ((v) => v + "!"))
 
 	// A named function works the same; casts chain left-to-right.
 	double := (v) => v * 2
 	inc := (v) => v + 1
-	t.equal(11, 5 ::: double ::: inc)
+	t.equal(11, 5 ::> double ::> inc)
 
 	// The transformer may change the type: int -> str -> its length.
-	t.equal(5, 12345 ::: ((v) => str(v)) ::: ((v) => len(v)))
+	t.equal(5, 12345 ::> ((v) => str(v)) ::> ((v) => len(v)))
 }
 
 /**
 An invalid conversion surfaces the constructor's own error (unlike a silent
-coercion): `int("abc")` raises, so `"abc" ::: int` does too.
+coercion): `int("abc")` raises, so `"abc" ::> int` does too.
 **/
 test "invalid conversion errors" {
 	ok := false
-	try { "abc" ::: int } catch { ok = true }
+	try { "abc" ::> int } catch { ok = true }
 	t.true(ok)
 }
 
@@ -106,11 +107,11 @@ test "invalid conversion errors" {
 // `gad test -bench=. samples/testing`.
 
 /**
-`x ::: str` — converts via str()'s constructor.
+`x ::> str` — converts via str()'s constructor.
 **/
-bench "x ::: str" {
+bench "x ::> str" {
 	acc := ""
-	for i := 0; i < t.n; i++ { acc = i ::: str }
+	for i := 0; i < t.n; i++ { acc = i ::> str }
 }
 
 /**
@@ -122,11 +123,11 @@ bench "str(x)" {
 }
 
 /**
-`"5" ::: int` — converts via int()'s constructor.
+`"5" ::> int` — converts via int()'s constructor.
 **/
-bench "x ::: int" {
+bench "x ::> int" {
 	acc := 0
-	for i := 0; i < t.n; i++ { acc = "5" ::: int }
+	for i := 0; i < t.n; i++ { acc = "5" ::> int }
 }
 
 /**
@@ -138,12 +139,12 @@ bench "int(x)" {
 }
 
 /**
-`x ::: fn` — applies a transformer function.
+`x ::> fn` — applies a transformer function.
 **/
-bench "x ::: fn" {
+bench "x ::> fn" {
 	f := (v) => v * 2
 	acc := 0
-	for i := 0; i < t.n; i++ { acc = i ::: f }
+	for i := 0; i < t.n; i++ { acc = i ::> f }
 }
 
 /**

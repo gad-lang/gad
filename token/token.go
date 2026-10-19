@@ -209,15 +209,24 @@ const (
 	// a keyword nor shifts any existing token value; its operator behaviour comes
 	// from Precedence and an explicit compiler case, not group membership.
 	DoubleColon // ::
-	// TripleColon is the transforming cast operator `obj ::: Type`. Like `::` it
-	// checks assignability, but for a dict cast to an interface it also COERCES:
-	// each field typed by a class/interface is built from its nested dict, and a
-	// `**name` rest member gathers the interface's unnamed keys. Placed after
-	// DoubleColon so no existing token value shifts.
+	// TripleColon is the former transforming cast `obj ::: Type`, replaced by
+	// `:>` (into a class, an enum value or an interface) and `::>` (any
+	// conversion). It is still scanned, so the compiler can say which to use.
 	TripleColon // :::
+	// ColonGreater is the transforming cast `obj :> Type`: into a class, an enum
+	// value or an interface only — a dict builds an instance or the interface's
+	// shape (its class/enum/interface-typed fields transformed the same way, the
+	// others checked), a value of an enum member is that member. Any other target
+	// is an error that points to `::>`. Placed after TripleColon so no existing
+	// token value shifts.
+	ColonGreater // :>
+	// DoubleColonGreater is the converting cast `obj ::> Type`: everything `:>`
+	// does, plus a builtin type's constructor (`1 ::> str`), a typed or sized
+	// array's items, a transformer function (`x ::> ((v) => v*2)`).
+	DoubleColonGreater // ::>
 )
 
-const NumTokens = int(TripleColon) + 1
+const NumTokens = int(DoubleColonGreater) + 1
 
 var keywords map[string]Token
 
@@ -401,6 +410,8 @@ var tokens = [...]string{
 	Mixin:               "mixin",
 	DoubleColon:         "::",
 	TripleColon:         ":::",
+	ColonGreater:        ":>",
+	DoubleColonGreater:  "::>",
 }
 
 var tokenNames = [...]string{
@@ -572,6 +583,8 @@ var tokenNames = [...]string{
 	GroupKeywordEnd:              "GroupKeywordEnd",
 	DoubleColon:                  "DoubleColon",
 	TripleColon:                  "TripleColon",
+	ColonGreater:                 "ColonGreater",
+	DoubleColonGreater:           "DoubleColonGreater",
 }
 
 // FromName return a Token from name
@@ -612,7 +625,7 @@ func (tok Token) Precedence() int {
 		return 9
 	case Raw:
 		return 10
-	case DoubleColon, TripleColon:
+	case DoubleColon, TripleColon, ColonGreater, DoubleColonGreater:
 		// the assign-to-type operators bind tighter than arithmetic so that
 		// `x + y :: int` groups as `x + (y :: int)`; parenthesise to cast a whole
 		// expression (`(x + y) :: int`).

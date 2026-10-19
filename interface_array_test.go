@@ -61,20 +61,20 @@ func TestInterfaceArrayParam(t *testing.T) {
 		return f([{x: 1, y: 2}, {x: 3, y: 4}])`, nil, Int(2))
 }
 
-// TestInterfaceArrayTransform covers `:::` on an array interface: each leaf is
+// TestInterfaceArrayTransform covers `::>` on an array interface: each leaf is
 // transformed (its class-typed fields are built), at any nesting depth.
 func TestInterfaceArrayTransform(t *testing.T) {
 	base := "class Point { x int; y int }\n"
 
 	// Each element's `p` dict becomes a Point.
 	testExpectRun(t, base+`
-		wrapped := [{p: {x: 1, y: 2}}, {p: {x: 3, y: 4}}] ::: interface[] { p Point }
+		wrapped := [{p: {x: 1, y: 2}}, {p: {x: 3, y: 4}}] ::> interface[] { p Point }
 		return [typeName(wrapped[0].p), wrapped[1].p.y]`,
 		nil, Array{Str("Point"), Int(4)})
 
 	// Nested arrays coerce their leaves too.
 	testExpectRun(t, base+`
-		deep := [[[{p: {x: 9, y: 8}}]]] ::: interface[][][] { p Point }
+		deep := [[[{p: {x: 9, y: 8}}]]] ::> interface[][][] { p Point }
 		return [typeName(deep[0][0][0].p), deep[0][0][0].p.x]`,
 		nil, Array{Str("Point"), Int(9)})
 }
@@ -107,11 +107,11 @@ func TestInterfaceSliceElemTypes(t *testing.T) {
 			str(numerics)[-13:]]`,
 		nil, Array{Int(1), Int(2), Str(`(;kind="nums")`), Nil, Str("[]<int|float>")})
 
-	// `:::` converts an array (checking each leaf) and passes a typed array through.
+	// `::>` converts an array (checking each leaf) and passes a typed array through.
 	testExpectRun(t, `
 		interface nums []<int|float>
-		return str([1, 2.5] ::: nums)`, nil, Str("[1, 2.5]"))
+		return str([1, 2.5] ::> nums)`, nil, Str("[1, 2.5]"))
 	testExpectRun(t, `
 		interface nums []<int|float>
-		try { [1, "x"] ::: nums; return "ok" } catch { return "no" }`, nil, Str("no"))
+		try { [1, "x"] ::> nums; return "ok" } catch { return "no" }`, nil, Str("no"))
 }

@@ -72,7 +72,7 @@ for f in Contact.@groups { names += f.@name }
 ## A group's keys: under `$N`, or `[autoGroupKeys]`
 
 By default a group's keys are **required under it**: a dict that builds the
-class — the constructor, `:::` — gives the group whole, `$1: {…}`, and a
+class — the constructor, `:>` — gives the group whole, `$1: {…}`, and a
 field of the group is read through it, `c.$1.phone`. A key of a group given
 flat is no field of the class.
 
@@ -81,8 +81,8 @@ class Contact {
     name str
     { phone str }
 }
-c := {name: "Ana", phone: "555-0100"} ::: Contact
-d := {name: "Ana", $1: {phone: "555-0100"}} ::: Contact
+c := {name: "Ana", phone: "555-0100"} :> Contact
+d := {name: "Ana", $1: {phone: "555-0100"}} :> Contact
 [c.$1, d.$1.phone]                  // flat keys are no group's
 // => [nil, "555-0100"]
 ```
@@ -92,7 +92,7 @@ record's own keys — the way a form (a schema form) posts a group's fields,
 with no name of the group in their path. Both forms are taken then:
 
 - a key of a group given flat goes to it — `Contact(; phone="…")`,
-  `{phone: "…"} ::: Contact` —, and so does the group given whole, `$1: {…}`;
+  `{phone: "…"} :> Contact` —, and so does the group given whole, `$1: {…}`;
 - a field of a group is read flat, `c.phone`, and through it, `c.$1.phone`;
 - each group is an instance of its class even when none of its fields is
   given (its defaults); an optional one, `? { … }`, stays nil then;
@@ -109,8 +109,8 @@ class Contact {
     { phone str; email? str }
     ? { note str }
 }
-c := {name: "Ana", phone: "555-0100"} ::: Contact
-d := {name: "Bob", $1: {phone: "555-0101"}} ::: Contact
+c := {name: "Ana", phone: "555-0100"} :> Contact
+d := {name: "Bob", $1: {phone: "555-0101"}} :> Contact
 e := Contact(; name="Eve", phone="555-0102")
 [c.phone, c.$1.phone, c.$2, d.phone, e.phone]
 // => ["555-0100", "555-0100", nil, "555-0101", "555-0102"]
@@ -198,8 +198,8 @@ class Contact {
     name str
     { phone str }
 }
-c := {name: "Ana", phone: "555-0100"} ::: Contact
-d := {name: "Ana", $1: {phone: "555-0100"}} ::: Contact
+c := {name: "Ana", phone: "555-0100"} :> Contact
+d := {name: "Ana", $1: {phone: "555-0100"}} :> Contact
 [c.$1, d.$1.phone]                  // flat keys are no group's
 
 [autoGroupKeys]
@@ -208,8 +208,8 @@ class Contact {
     { phone str; email? str }
     ? { note str }
 }
-c := {name: "Ana", phone: "555-0100"} ::: Contact
-d := {name: "Bob", $1: {phone: "555-0101"}} ::: Contact
+c := {name: "Ana", phone: "555-0100"} :> Contact
+d := {name: "Bob", $1: {phone: "555-0101"}} :> Contact
 e := Contact(; name="Eve", phone="555-0102")
 [c.phone, c.$1.phone, c.$2, d.phone, e.phone]
 

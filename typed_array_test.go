@@ -64,17 +64,17 @@ func TestTypedArrayBehavesAsArray(t *testing.T) {
 }
 
 // TestTypedArrayCasts covers `::` (nominal: only a value of the type) and the
-// transforming `:::` both ways — array ⇄ typed array ⇄ interface array — with
+// transforming `::>` both ways — array ⇄ typed array ⇄ interface array — with
 // the items validated.
 func TestTypedArrayCasts(t *testing.T) {
 	testExpectRun(t, `
 		type numerics []<int|float>
 		interface nums [] <int|float>
 		sat := func(v, T) { try { v :: T; return true } catch { return false } }
-		n := [1, 2.5] ::: numerics         // array -> typed array
-		a := n ::: array                   // typed array -> array
-		i := n ::: nums                    // typed array -> interface array
-		back := i ::: numerics             // interface array -> typed array
+		n := [1, 2.5] ::> numerics         // array -> typed array
+		a := n ::> array                   // typed array -> array
+		i := n ::> nums                    // typed array -> interface array
+		back := i ::> numerics             // interface array -> typed array
 		return [typeName(n), typeName(a), str(a), typeName(i), sat(n, nums),
 			typeName(back), sat([1], numerics), sat(n, numerics)]`,
 		nil, Array{Str("numerics"), Str("array"), Str("[1, 2.5]"), Str("array"), True,
@@ -82,14 +82,14 @@ func TestTypedArrayCasts(t *testing.T) {
 
 	// Conversion validates each item.
 	testExpectRun(t, `type numerics []<int|float>
-		try { [1, "x"] ::: numerics; return "ok" } catch { return "no" }`, nil, Str("no"))
+		try { [1, "x"] ::> numerics; return "ok" } catch { return "no" }`, nil, Str("no"))
 	testExpectRun(t, `type numerics []<int|float>; interface pts [] { x int }
-		try { numerics(1) ::: pts; return "ok" } catch { return "no" }`, nil, Str("no"))
+		try { numerics(1) ::> pts; return "ok" } catch { return "no" }`, nil, Str("no"))
 
-	// A typed-array parameter accepts only a value of the type (convert with :::).
+	// A typed-array parameter accepts only a value of the type (convert with ::>).
 	testExpectRun(t, `type numerics []<int|float>
 		f := func(xs numerics) => len(xs)
-		try { f([1, 2]); return "ok" } catch { return f([1, 2] ::: numerics) }`, nil, Int(2))
+		try { f([1, 2]); return "ok" } catch { return f([1, 2] ::> numerics) }`, nil, Int(2))
 }
 
 // TestTypedArrayReflection covers the type's reflection keys and metadata.

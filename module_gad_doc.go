@@ -88,7 +88,7 @@ package gad
 // Rewrites a JSON-like `value` — nested dicts and arrays — by mapping yq-style
 // path patterns to transformer functions. Each named arg is a `".path" = fn` rule:
 // `fn` receives a matched node and returns its replacement. It is the imperative,
-// path-driven sibling of the `:::` transforming cast — where `:::` coerces by an
+// path-driven sibling of the `:>` transforming cast — where `:>` coerces by an
 // interface's declared shape, `transform` names exactly which nodes to rewrite.
 //
 // The rewrite is a single BOTTOM-UP pass: a node's children are transformed and

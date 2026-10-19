@@ -16,7 +16,7 @@ var TTypedArrayType = NewType("typedArrayType", TBase)
 //
 // It is a first-class type: calling it (`numerics(1, 2.5)`) builds a TypedArray
 // whose items are checked against the element type; it is a cast target
-// (`x :: numerics` checks it is a numerics; `[1, 2] ::: numerics` converts an
+// (`x :: numerics` checks it is a numerics; `[1, 2] ::> numerics` converts an
 // array to one, validating each item) and a parameter/field type.
 type TypedArrayType struct {
 	// TypeName is the declared name (`numerics`).
@@ -300,7 +300,7 @@ func typedArraySource(obj Object) (Array, bool) {
 // CanAssign reports whether obj is a TypedArray of this type. Like a class, a
 // typed array type is nominal: `v :: numerics` and a `numerics` parameter accept
 // only a numerics value; convert a plain array (or another typed array, or an
-// interface array's value) with the transforming cast `arr ::: numerics`.
+// interface array's value) with the transforming cast `arr ::> numerics`.
 func (t *TypedArrayType) CanAssign(obj Object) (bool, error) {
 	ta, ok := obj.(*TypedArray)
 	return ok && ta.ArrayType == t, nil
@@ -330,7 +330,7 @@ func (t *TypedArrayType) AssignTo(vm *VM, obj Object, to TypeAssigner) (Object, 
 }
 
 // From converts an array (or another typed array) into a TypedArray of this
-// type, converting each leaf with the transforming cast (`arr ::: T`).
+// type, converting each leaf with the transforming cast (`arr ::> T`).
 func (t *TypedArrayType) From(vm *VM, obj Object) (*TypedArray, error) {
 	if ta, ok := obj.(*TypedArray); ok && ta.ArrayType == t {
 		return ta, nil

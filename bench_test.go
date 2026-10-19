@@ -50,13 +50,13 @@ func BenchmarkVMSmallInts(b *testing.B) {
 }
 
 // BenchmarkTransformCastBool and BenchmarkBoolBuiltin are a pair: both convert a
-// value to a boolean by truthiness in a tight loop, the first via the `::: bool`
+// value to a boolean by truthiness in a tight loop, the first via the `::> bool`
 // transforming cast (a direct IsFalsy check in the VM) and the second via the
 // bool() builtin (a function call). The cast should be the faster of the two.
 func BenchmarkTransformCastBool(b *testing.B) {
 	bc := benchBytecode(b, `
 	acc := false
-	for i := 0; i < 100000; i++ { acc = i ::: bool }
+	for i := 0; i < 100000; i++ { acc = i ::> bool }
 	return acc`)
 	builtins := NewBuiltins().Build()
 	b.ReportAllocs()
@@ -97,7 +97,7 @@ func runVMBench(b *testing.B, src string) {
 	}
 }
 
-// A `::: T` conversion (non-bool builtin type) or a `::: fn` transformer calls,
+// A `::> T` conversion (non-bool builtin type) or a `::> fn` transformer calls,
 // but the VM routes it through the same stack-based call path as a direct call —
 // reusing the stack operand as the argument, no argument array allocated — so each
 // pair below runs on par (equal ns/op and allocs/op). The arguments are the loop
@@ -106,7 +106,7 @@ func runVMBench(b *testing.B, src string) {
 
 func BenchmarkTransformCastStr(b *testing.B) {
 	runVMBench(b, `acc := ""
-	for i := 0; i < 100000; i++ { acc = i ::: str }
+	for i := 0; i < 100000; i++ { acc = i ::> str }
 	return acc`)
 }
 
@@ -118,7 +118,7 @@ func BenchmarkStrBuiltin(b *testing.B) {
 
 func BenchmarkTransformCastInt(b *testing.B) {
 	runVMBench(b, `acc := 0
-	for i := 0; i < 100000; i++ { acc = i ::: int }
+	for i := 0; i < 100000; i++ { acc = i ::> int }
 	return acc`)
 }
 
@@ -131,7 +131,7 @@ func BenchmarkIntBuiltin(b *testing.B) {
 func BenchmarkTransformCastFunc(b *testing.B) {
 	runVMBench(b, `f := (v) => v * 2
 	acc := 0
-	for i := 0; i < 100000; i++ { acc = i ::: f }
+	for i := 0; i < 100000; i++ { acc = i ::> f }
 	return acc`)
 }
 

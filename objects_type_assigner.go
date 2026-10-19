@@ -102,20 +102,45 @@ func AssignToType(vm *VM, obj, to Object) (Object, error) {
 		ReprQuote(obj.Type().Name()), ReprQuote(TypeAssignerName(to.(TypeAssigner))))
 }
 
-// AssignToTypeTransform implements the `obj ::: to` transforming cast. For a dict
+// AssignToTypeTransformStrict implements the `obj :> to` transforming cast: into
+// a class, an enum value or an interface only. A class or an interface is built
+// from a key/value source (its class/enum/interface-typed fields transformed the
+// same way, the others checked); an enum takes the member of the value (or of
+// the name). Any other target is an error that points to `::>`.
+func AssignToTypeTransformStrict(vm *VM, obj, to Object) (Object, error) {
+	switch t := to.(type) {
+	case *Enum:
+		if m, ok := t.Member(obj); ok {
+			return m, nil
+		}
+		return nil, ErrIncompatibleAssign.NewErrorf("%s is not a member of %s",
+			ReprQuote(obj.ToString()), ReprQuote(t.Name()))
+	case *Interface, *Class:
+		return AssignToTypeTransform(vm, obj, to)
+	}
+	name := to.Type().Name()
+	if ta, ok := to.(TypeAssigner); ok {
+		name = TypeAssignerName(ta)
+	}
+	return nil, ErrIncompatibleAssign.NewErrorf(
+		"`:>` transforms only into a class, an enum value or an interface, not %s: use `::>` to convert",
+		ReprQuote(name))
+}
+
+// AssignToTypeTransform implements the `obj ::> to` converting cast. For a dict
 // cast to an interface it coerces: fields typed by a class/interface are built
 // from their nested dicts and a `**name` rest member gathers the interface's
 // unnamed keys (see Interface.coerceDict). For every other combination it behaves
 // exactly like AssignToType (a checked cast that returns obj unchanged).
 func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
-	// `expr ::: bool` converts to a boolean by truthiness — the same result as
+	// `expr ::> bool` converts to a boolean by truthiness — the same result as
 	// bool(expr), but without the builtin function call (a direct IsFalsy check).
 	// Compared by TypeKey (not pointer identity): the `bool` referenced in code and
 	// BuiltinObjects[BuiltinBool] can be distinct *BuiltinObjType instances.
 	if bt, ok := to.(*BuiltinObjType); ok && bt.TypeKey() == TBool {
 		return Bool(!obj.IsFalsy()), nil
 	}
-	// `typedArray ::: array` converts back to a plain array (a copy of the items).
+	// `typedArray ::> array` converts back to a plain array (a copy of the items).
 	if bt, ok := to.(*BuiltinObjType); ok && bt.TypeKey() == TArray {
 		if ta, ok := obj.(*TypedArray); ok {
 			return ta.Items.Copy(), nil
@@ -123,13 +148,13 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 	}
 	switch t := to.(type) {
 	case *Enum:
-		// `"Name" ::: Enum` (or its value): the member
+		// `"Name" :> Enum` (or its value): the member
 		if m, ok := t.Member(obj); ok {
 			return m, nil
 		}
 	case *TypedArrayType:
-		// `arr ::: T` converts an array into a TypedArray of T (each leaf
-		// transformed by the element type's own `:::`).
+		// `arr ::> T` converts an array into a TypedArray of T (each leaf
+		// transformed by the element type's own `::>`).
 		return t.From(vm, obj)
 	case *Interface:
 		if t.ArrayDepth > 0 {
@@ -139,7 +164,7 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 			return t.coerceDict(vm, d)
 		}
 	case *Class:
-		// `src ::: Class` builds an instance of the target class from the source's
+		// `src :> Class` builds an instance of the target class from the source's
 		// members, keeping only the fields the class declares — a conversion between
 		// class shapes. An instance already of the class is returned unchanged.
 		if _, err := AssignToType(vm, obj, t); err == nil {
@@ -149,15 +174,15 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 			return t.coerceFrom(vm, d)
 		}
 	case *BuiltinObjType:
-		// `src ::: T` for a builtin type T (other than bool, handled above) converts
+		// `src ::> T` for a builtin type T (other than bool, handled above) converts
 		// by calling T's constructor, so the typed overloads registered with
-		// AddMethod apply — `5 ::: str` -> str(5), `"5" ::: int` -> int("5"),
-		// `65 ::: char` -> char(65).
+		// AddMethod apply — `5 ::> str` -> str(5), `"5" ::> int` -> int("5"),
+		// `65 ::> char` -> char(65).
 		return vm.CallBuiltin(t.BuiltinType(), nil, obj)
 	case CallerObject:
-		// `src ::: fn` applies a transformer function: it calls fn(src) and returns
+		// `src ::> fn` applies a transformer function: it calls fn(src) and returns
 		// the result, so any expression can post-process the value inline, e.g.
-		// `5 ::: ((v) => v * 10)` -> 50. The transformer always receives src as its
+		// `5 ::> ((v) => v * 10)` -> 50. The transformer always receives src as its
 		// single argument, so it is written `(v) => …`. Only a plain callable is a
 		// transformer: a type target that also happens to be callable (`any`, a
 		// *Class/*BuiltinObjType/*Interface — the latter matched above) is not called
@@ -169,10 +194,10 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 	return AssignToType(vm, obj, to)
 }
 
-// transformCallee reports whether `obj ::: to` is a plain "call to(obj)" transform
+// transformCallee reports whether `obj ::> to` is a plain "call to(obj)" transform
 // and returns the callable to invoke. Two targets are call-transforms: a builtin
 // type other than bool (its constructor converts, honouring AddMethod overloads —
-// `5 ::: str` -> str(5)) and a transformer function (`5 ::: ((v) => v*10)`). bool
+// `5 ::> str` -> str(5)) and a transformer function (`5 ::> ((v) => v*10)`). bool
 // (call-free truthiness), any (identity) and the structural coercions (*Interface,
 // *Class) are handled in AssignToTypeTransform and are not call-targets. The VM's
 // OpAssignTransform handler uses this to invoke the callee through the stack-based
@@ -195,8 +220,8 @@ func transformCallee(to Object) (CallerObject, bool) {
 	return nil, false
 }
 
-// typedArrayToArray reports whether `obj ::: to` converts a TypedArray back to a
-// plain array (`ta ::: array`): that cast unwraps the items (handled by
+// typedArrayToArray reports whether `obj ::> to` converts a TypedArray back to a
+// plain array (`ta ::> array`): that cast unwraps the items (handled by
 // AssignToTypeTransform) instead of calling the `array` constructor, which would
 // wrap the typed array as one element.
 func typedArrayToArray(obj, to Object) bool {
@@ -207,7 +232,7 @@ func typedArrayToArray(obj, to Object) bool {
 	return ok && bt.TypeKey() == TArray
 }
 
-// asTransformDict materialises obj as a Dict for the `:::` transform. Besides a
+// asTransformDict materialises obj as a Dict for the `:>` and `::>` transforms. Besides a
 // plain Dict it accepts any key/value source that can enumerate its members — a
 // KeyValueArray (and any other ToDictConverter) or a class instance — so the
 // transform works for "any item getter", not only dict literals. Reports false

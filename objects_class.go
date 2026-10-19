@@ -1018,7 +1018,7 @@ func (t *Class) NewInstanceWithFields(vm *VM, fields Dict) (*ClassInstance, erro
 
 // MetaAutoGroupKeys is the metadata of a class whose groups' keys resolve
 // by themselves: `[autoGroupKeys] class C { a str; { b int } }` takes `b`
-// given flat — `C(; b=1)`, `{b: 1} ::: C` — into its group `$1`, reads it
+// given flat — `C(; b=1)`, `{b: 1} :> C` — into its group `$1`, reads it
 // flat (`c.b`), and makes each group an instance of its class even when
 // none of its fields is given (an optional one, `? { … }`, stays nil then).
 // Without it (the default), a group's keys are required under it: `$1`
@@ -1055,7 +1055,7 @@ func (t *Class) SetAutoGroupKeys(on bool) {
 	}
 }
 
-// coerceFrom implements `src ::: Class`: it builds an instance of t taking, for
+// coerceFrom implements `src :> Class`: it builds an instance of t taking, for
 // each field t declares (its own or a parent's), the matching value from src (a
 // dict of the source's members). Source keys t does not declare are dropped, and
 // t's own field types/coercions/defaults apply — so it converts between shapes,

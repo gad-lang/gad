@@ -44,5 +44,5 @@ func TestVMInterfaceSpread(t *testing.T) {
 	expectErrHas(t, `interface P { **{methods: {m: 1}} }; return P`, nil, `method m: a func header or a list of them`)
 
 	// the rest capture is `**<name>`
-	testExpectRun(t, `d := {a: 1, b: 2}; return (d ::: interface { a int; **<rest> }).rest`, nil, Dict{"b": Int(2)})
+	testExpectRun(t, `d := {a: 1, b: 2}; return (d ::> interface { a int; **<rest> }).rest`, nil, Dict{"b": Int(2)})
 }

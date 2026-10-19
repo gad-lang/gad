@@ -6,7 +6,7 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
-// TestClassCastRecursive verifies that `dict ::: Class` builds the instance
+// TestClassCastRecursive verifies that `dict ::> Class` builds the instance
 // whole: a class field from its dict, an array of classes item by item (of
 // any depth), a group (`{ … }`: its field $N, in the dict's path) from its
 // dict, an enum
@@ -38,7 +38,7 @@ func TestClassCastRecursive(t *testing.T) {
 			}
 		}
 		f := {name: "Ana", home: {street: "Main"}, links: [{href: "x"}, {href: "y"}],
-			grid: [[{href: "g"}]], kind: "Bathroom", kinds: ["Kitchen", "Bathroom"], $1: {a: 1}} ::: Form
+			grid: [[{href: "g"}]], kind: "Bathroom", kinds: ["Kitchen", "Bathroom"], $1: {a: 1}} ::> Form
 		return [
 			f.home.city, f.home.street, f.links[1].href, f.grid[0][0].href,
 			f.kind == Kind.Bathroom, f.kinds[0] == Kind.Kitchen,
@@ -53,7 +53,7 @@ func TestClassCastRecursiveRefused(t *testing.T) {
 		class Link { href str }
 		class Form { links []Link }
 		try {
-			x := {links: [1]} ::: Form
+			x := {links: [1]} ::> Form
 		} catch e {
 			return "refused"
 		}
@@ -62,7 +62,7 @@ func TestClassCastRecursiveRefused(t *testing.T) {
 }
 
 // [autoGroupKeys]: a group's keys given flat go to it (the constructor and
-// `:::`), are read flat, and each group is an instance even when none of its
+// `::>`), are read flat, and each group is an instance even when none of its
 // fields is given (an optional one stays nil); a group in a group too.
 // Without it, a group's keys are required under it ($1).
 func TestClassAutoGroupKeys(t *testing.T) {
@@ -77,7 +77,7 @@ func TestClassAutoGroupKeys(t *testing.T) {
 			}
 			? { d str }
 		}
-		f := {name: "Ana", a: 1, c: 3} ::: Form
+		f := {name: "Ana", a: 1, c: 3} ::> Form
 		g := Form(; name="x", a=2)
 		g.b = "set"
 		return [f.a, f.b, f.c, f.$1.a, f.$2, g.a, g.b, g.$1.$1 != nil]`,
@@ -89,8 +89,8 @@ func TestClassAutoGroupKeys(t *testing.T) {
 			name str
 			{ a int }
 		}
-		f := {name: "x", a: 1} ::: Form
-		g := {name: "x", $1: {a: 2}} ::: Form
+		f := {name: "x", a: 1} ::> Form
+		g := {name: "x", $1: {a: 2}} ::> Form
 		return [f.$1, g.$1.a]`,
 		nil, Array{Nil, Int(2)})
 }

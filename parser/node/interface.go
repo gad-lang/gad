@@ -219,7 +219,7 @@ type InterfaceExpr struct {
 	Methods      []*InterfaceMethodExpr      // required methods (one or more signatures each)
 	ContextFuncs []*InterfaceContextFuncExpr // context-function checks (`funcs { … }`)
 	// Rest is the `**<name>` rest-capture field: when the interface is used to
-	// cast a dict (`d ::: I`), keys not named by the interface are collected into
+	// cast a dict (`d :> I`), keys not named by the interface are collected into
 	// a dict bound to this name in the result. Nil when the interface has none.
 	Rest    *IdentExpr
 	RestDoc *ast.CommentGroup

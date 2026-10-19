@@ -118,7 +118,7 @@ interface Tagged { name str; tag? int|str }
 ```
 
 A `**<name>` member is a **rest capture** used with the transforming cast
-[`:::`](transform_cast_test.gad): `d ::: interface { … }` coerces the source's
+[`:>`](transform_cast_test.gad): `d :> interface { … }` coerces the source's
 class/interface-typed fields into their declared shape and gathers the keys not
 named by the interface into a dict bound to `name`. (A `**Expr` member — any
 expression, a bare name included — is something else: members given at run

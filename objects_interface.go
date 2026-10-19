@@ -130,7 +130,7 @@ type Interface struct {
 	// captured value (bound at run time, see OpInterfaceBind) must have a
 	// signature matching each header, with `@self` standing for this interface.
 	ContextFuncs []*InterfaceContextFunc
-	// Rest is the `**<name>` rest-capture field name: on a dict cast (`d ::: I`) the
+	// Rest is the `**<name>` rest-capture field name: on a dict cast (`d :> I`) the
 	// keys not named by the interface are gathered into a dict bound to this name
 	// in the result. Empty when the interface has no `**` member.
 	Rest string
@@ -637,7 +637,7 @@ func ifaceFieldTypeOK(vm *VM, f *InterfaceField, v Object) (bool, error) {
 
 // resolveAssigners returns the field's declared types as TypeAssigners — a plain
 // ObjectType (a class, int, …) or a structural type such as a nested interface —
-// resolving compile-time symbols against vm. Used by the `:::` transforming cast
+// resolving compile-time symbols against vm. Used by the `:>` transforming cast
 // to coerce a nested dict into the field's declared shape.
 func (f *InterfaceField) resolveAssigners(vm *VM) []TypeAssigner {
 	var out []TypeAssigner
@@ -674,7 +674,7 @@ func (i *Interface) declaredNames() map[string]bool {
 
 // coerceFieldToInterface converts v to satisfy an interface field's declared
 // type: a dict for a class field becomes an instance of that class, a dict for a
-// nested-interface field is transformed recursively (`:::`), and any other value
+// nested-interface field is transformed recursively (`:>`), and any other value
 // must already be assignable. Returns the coerced value.
 func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Object) (Object, error) {
 	if len(assigners) == 0 {
@@ -685,6 +685,14 @@ func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Obj
 	for _, a := range assigners {
 		if _, lastErr = AssignToType(vm, v, a); lastErr == nil {
 			return v, nil
+		}
+	}
+	// An enum field takes the member of the value (or of the name).
+	if len(assigners) == 1 {
+		if e, ok := assigners[0].(*Enum); ok {
+			if m, ok := e.Member(v); ok {
+				return m, nil
+			}
 		}
 	}
 	// Not directly assignable — coerce a key/value source into the declared shape:
@@ -704,11 +712,11 @@ func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Obj
 	return nil, ErrType.NewErrorf("field %q: %v", name, lastErr)
 }
 
-// coerceDict implements `dict ::: interface`: it returns a NEW dict whose fields
+// coerceDict implements `dict :> interface`: it returns a NEW dict whose fields
 // typed by a class/interface are built from their nested dicts (recursively), and
 // whose keys not named by the interface are gathered under the `**name` rest
 // field when one is declared. A missing non-nullable field is an error.
-// coerceArray implements `array ::: interface P [] { … }`: it returns a NEW array
+// coerceArray implements `array :> interface P [] { … }`: it returns a NEW array
 // nested to depth whose leaf elements are each transformed by coerceDict (so
 // their class/interface-typed fields are built) — or, for an array-of-types
 // interface, checked/coerced against its Elem types. A non-array at a non-zero

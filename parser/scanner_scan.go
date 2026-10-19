@@ -493,12 +493,21 @@ do:
 				t.Token = token.RawHeredoc
 			}
 		case ':':
-			if s.Ch == ':' {
+			if s.Ch == '>' {
+				// `:>` the converting cast
 				s.Next()
-				if s.Ch == ':' {
+				t.Token = token.ColonGreater
+			} else if s.Ch == ':' {
+				s.Next()
+				switch s.Ch {
+				case ':':
 					s.Next()
 					t.Token = token.TripleColon
-				} else {
+				case '>':
+					// `::>` the converting cast
+					s.Next()
+					t.Token = token.DoubleColonGreater
+				default:
 					t.Token = token.DoubleColon
 				}
 			} else {

@@ -3174,6 +3174,9 @@ func rangeCallExpr(from, to, step node.Expr) *node.CallExpr {
 }
 
 func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
+	if nd.Token == token.TripleColon {
+		return c.Errorf(nd, "`:::` was replaced: `:>` transforms into a class, an enum value or an interface; `::>` converts to any type")
+	}
 	// `from .. to` is sugar for `Range(from, to)`; `(from .. to) / step` (and the
 	// equivalent `from .. to / step`) is `Range(from, to; step=step)`.
 	if nd.Token == token.DotDot {
@@ -3216,9 +3219,14 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 	case token.DoubleColon:
 		// `obj :: Type` yields obj when it is assignable to Type, else throws.
 		c.emit(nd, OpAssign)
-	case token.TripleColon:
-		// `obj ::: Type` also coerces: a dict cast to an interface builds its
-		// class/interface-typed fields and gathers `**name` rest keys.
+	case token.ColonGreater:
+		// `obj :> Type` transforms into a class, an enum value or an interface:
+		// a dict cast to an interface builds its class/interface-typed fields and
+		// gathers `**name` rest keys; any other target is `::>`.
+		c.emit(nd, OpAssignTransformStrict)
+	case token.DoubleColonGreater:
+		// `obj ::> Type` converts: everything `:>` does, plus a builtin type's
+		// constructor, a typed array's items, a transformer function.
 		c.emit(nd, OpAssignTransform)
 	case token.Equal:
 		c.emit(nd, OpEqual)
@@ -3973,10 +3981,10 @@ func (c *Compiler) compileGlobImport(nd *node.ImportExpr, pattern string, filter
 	return nil
 }
 
-// globImportDictCast reports whether nd is `import(glob…) :: dict` (or `:::`),
+// globImportDictCast reports whether nd is `import(glob…) :: dict` (or `:>`, `::>`),
 // returning the import: such a cast compiles straight to a dict of the modules.
 func (c *Compiler) globImportDictCast(nd *node.BinaryExpr) *node.ImportExpr {
-	if nd.Token != token.DoubleColon && nd.Token != token.TripleColon {
+	if nd.Token != token.DoubleColon && nd.Token != token.ColonGreater && nd.Token != token.DoubleColonGreater {
 		return nil
 	}
 	lhs := nd.LHS

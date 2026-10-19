@@ -195,7 +195,7 @@ func TestImportGlobDict(t *testing.T) {
 		{`d := import("./plugins/**/*.gad")::dict; return sort(collect(keys(d)))`,
 			gad.Array{gad.Str("a"), gad.Str("b"), gad.Str("sub/c")}},
 		{`d := import("./plugins/*"; tag="T")::dict; return d.b.label`, gad.Str("T")},
-		{`d := import("./plugins/*"; @excludes=["b.gad"]):::dict; return collect(keys(d))`, gad.Array{gad.Str("a")}},
+		{`d := import("./plugins/*"; @excludes=["b.gad"])::>dict; return collect(keys(d))`, gad.Array{gad.Str("a")}},
 		{`return typeName(import("./plugins/*"))`, gad.Str("array")}, // without the cast
 	} {
 		got, err := runGlob(t, dir, c.src)

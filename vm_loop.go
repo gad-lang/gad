@@ -75,11 +75,25 @@ VMLoop:
 				vm.err = err
 				return
 			}
+		case OpAssignTransformStrict:
+			// `obj :> type` -> obj transformed into a class, an enum value or an
+			// interface, else throw.
+			value, err := AssignToTypeTransformStrict(vm, vm.stack[vm.sp-2], vm.stack[vm.sp-1])
+			if err == nil {
+				vm.stack[vm.sp-2] = value
+				vm.sp--
+				vm.stack[vm.sp] = nil
+				continue
+			}
+			if err = vm.throwGenErr(err); err != nil {
+				vm.err = err
+				return
+			}
 		case OpAssignTransform:
-			// `obj ::: type` -> coerced obj when assignable, else throw.
+			// `obj ::> type` -> converted obj, else throw.
 			obj, typ := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 			if callee, ok := transformCallee(typ); ok && !typedArrayToArray(obj, typ) {
-				// `obj ::: typ` == typ(obj), dispatched through the stack-based call
+				// `obj ::> typ` == typ(obj), dispatched through the stack-based call
 				// path so no argument array is allocated — the cost equals a direct
 				// call. A compiled transformer goes through xOpCallCompiled: rearrange
 				// the stack [obj, typ] into the call layout [callee, arg] and push its

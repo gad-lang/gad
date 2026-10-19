@@ -117,7 +117,7 @@ test "type and signature" {
 /**
 `inv()` — typed two-arg function through the invoker.
 **/
-bench "typed ::: invoker" {
+bench "typed: invoker" {
 	f(a int, b int) => a + b
 	args := [int, int]
 	inv := gad.invoker(f, args)
@@ -127,7 +127,7 @@ bench "typed ::: invoker" {
 /**
 `f(i, i)` — the same typed function called directly.
 **/
-bench "typed ::: direct" {
+bench "typed: direct" {
 	f(a int, b int) => a + b
 	for i := 0; i < t.n; i++ { _ := f(i, i) }
 }

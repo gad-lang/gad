@@ -195,7 +195,7 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		return
 	}
 
-	// `**<name>` — a rest-capture field: on a dict cast (`d ::: I`) the keys not
+	// `**<name>` — a rest-capture field: on a dict cast (`d :> I`) the keys not
 	// named by the interface are collected into a dict bound to `name` in the
 	// result. `**Expr` — members given at run time: EXPR is `{fields: …,
 	// methods: …}`, added where the interface is declared.

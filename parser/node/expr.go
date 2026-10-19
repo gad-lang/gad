@@ -75,6 +75,10 @@ func (e *BinaryExpr) String() string {
 	if e.Token == token.DoubleColon {
 		return e.LHS.String() + e.Token.String() + e.RHS.String()
 	}
+	// the transforming casts `:>`/`::>` bind as tightly, spaced
+	if isSpacedCast(e.Token) {
+		return e.LHS.String() + " " + e.Token.String() + " " + e.RHS.String()
+	}
 	return "(" + e.LHS.String() + " " + e.Token.String() +
 		" " + e.RHS.String() + ")"
 }
@@ -89,6 +93,14 @@ func (e *BinaryExpr) WriteCodeWithParen(ctx *CodeWriteContext, paren bool) {
 	if e.Token == token.DoubleColon {
 		e.LHS.WriteCode(ctx)
 		ctx.WriteString(e.Token.String())
+		e.RHS.WriteCode(ctx)
+		return
+	}
+	// the transforming casts `:>`/`::>` bind as tightly as `::`: no wrapping
+	// parens, but spaced
+	if isSpacedCast(e.Token) {
+		e.LHS.WriteCode(ctx)
+		ctx.WriteString(" " + e.Token.String() + " ")
 		e.RHS.WriteCode(ctx)
 		return
 	}
@@ -154,9 +166,15 @@ func colonBaseNeedsParen(x Expr) bool {
 	case *ParenExpr:
 		return colonBaseNeedsParen(t.Expr)
 	case *BinaryExpr:
-		return t.Token == token.DoubleColon
+		return t.Token == token.DoubleColon || isSpacedCast(t.Token)
 	}
 	return false
+}
+
+// isSpacedCast reports whether tok is a transforming cast, `:>` or `::>`:
+// written spaced, but as unparenthesised as `::`.
+func isSpacedCast(tok token.Token) bool {
+	return tok == token.ColonGreater || tok == token.DoubleColonGreater
 }
 
 // writeColonBase writes the base of a postfix expression, wrapping a bare `::`

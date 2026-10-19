@@ -1454,7 +1454,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule, OpGlobals,
 		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpExtendModuleConst, OpSetReturnModule, OpToRawStr,
-		OpAssign, OpAssignTransform, OpEnv, OpEnvGet, OpDelete,
+		OpAssign, OpAssignTransform, OpAssignTransformStrict, OpEnv, OpEnvGet, OpDelete,
 		OpPopSource, OpFiles, OpVarPtr, OpAddrOfIndex:
 		return buf, nil
 	default:
