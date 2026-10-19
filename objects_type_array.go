@@ -337,3 +337,62 @@ func (t *ArrayType) transformLeaf(vm *VM, v Object, resolve func(*SymbolInfo) (O
 	}
 	return nil, first
 }
+
+// coerceItems is arr as t takes it, each leaf coerced into an element type as
+// a field's value is (coerceValue: an enum's member by its name or value…),
+// the sizes of the levels checked. Every item that fails is said, by index.
+func (t *ArrayType) coerceItems(vm *VM, arr Array) (Object, error) {
+	bounds, err := t.bounds(vm)
+	if err != nil {
+		return nil, err
+	}
+	resolve := elemResolver(vm, t.Elem, t.Bound)
+	leaf := make([]TypeAssigner, 0, len(t.Elem))
+	for _, s := range t.Elem {
+		v, err := resolve(s)
+		if err != nil {
+			return nil, err
+		}
+		if ta, ok := v.(TypeAssigner); ok {
+			leaf = append(leaf, ta)
+		}
+	}
+	var reasons []string
+	var walk func(o Object, level int, path string) Object
+	walk = func(o Object, level int, path string) Object {
+		if level == t.Depth {
+			out, err := coerceValue(vm, leaf, o)
+			if err != nil {
+				reasons = append(reasons, "item "+path+": "+err.Error())
+				return o
+			}
+			return out
+		}
+		a, ok := o.(Array)
+		if !ok {
+			reasons = append(reasons, "item "+path+": not an array")
+			return o
+		}
+		if level < len(bounds) && !bounds[level].accepts(len(a)) {
+			reasons = append(reasons, "level "+strconv.Itoa(level+1)+" has "+strconv.Itoa(len(a))+" items, wants "+bounds[level].want())
+		}
+		out := make(Array, len(a))
+		for i, item := range a {
+			p := strconv.Itoa(i)
+			if path != "" {
+				p = path + "." + p
+			}
+			out[i] = walk(item, level+1, p)
+		}
+		return out
+	}
+	out := walk(arr, 0, "")
+	if len(reasons) > 0 {
+		return nil, reasonError(strings.Join(reasons, "; "))
+	}
+	return out, nil
+}
+
+// assignMismatch says why obj is refused (mismatchSayer): a level not of its
+// size.
+func (t *ArrayType) assignMismatch(vm *VM, obj Object) string { return t.sizeMismatch(vm, obj) }

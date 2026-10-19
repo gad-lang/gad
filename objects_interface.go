@@ -710,6 +710,17 @@ func (i *Interface) declaredNames() map[string]bool {
 // nested-interface field is transformed recursively (`:>`), and any other value
 // must already be assignable. Returns the coerced value.
 func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Object) (Object, error) {
+	out, reason := coerceValue(vm, assigners, v)
+	if reason != nil {
+		return nil, ErrType.NewErrorf("field %q: %v", name, reason)
+	}
+	return out, nil
+}
+
+// coerceValue is v as one of assigners takes it — kept when one does, else
+// transformed (an enum's member, a class built, a nested interface's shape) —,
+// or why none does (the reason, with no name: the caller says whose it is).
+func coerceValue(vm *VM, assigners []TypeAssigner, v Object) (Object, error) {
 	if len(assigners) == 0 {
 		return v, nil // untyped field: keep as-is
 	}
@@ -731,14 +742,23 @@ func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Obj
 			}
 			names[i] = TypeAssignerName(a)
 		}
-		return nil, ErrType.NewErrorf("field %q: given without a value (yes); want a value of %s",
-			name, ReprQuote(strings.Join(names, "|")))
+		return nil, reasonError("given without a value (yes); want a value of " + ReprQuote(strings.Join(names, "|")))
 	}
 	// An enum field takes the member of the value (or of the name).
 	if len(assigners) == 1 {
 		if e, ok := assigners[0].(*Enum); ok {
 			if m, ok := e.Member(v); ok {
 				return m, nil
+			}
+			return nil, enumMemberError(v, e)
+		}
+	}
+	// a list of an array type (`[]Service`): each item coerced the same way,
+	// the sizes checked
+	if len(assigners) == 1 {
+		if at, ok := assigners[0].(*ArrayType); ok {
+			if arr, ok := v.(Array); ok {
+				return at.coerceItems(vm, arr)
 			}
 		}
 	}
@@ -756,8 +776,13 @@ func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Obj
 			return t.coerceDict(vm, src)
 		}
 	}
-	return nil, ErrType.NewErrorf("field %q: %v", name, lastErr)
+	return nil, lastErr
 }
+
+// reasonError is why a value is refused, in words (coerceValue).
+type reasonError string
+
+func (e reasonError) Error() string { return string(e) }
 
 // coerceDict implements `dict :> interface`: it returns a NEW dict whose fields
 // typed by a class/interface are built from their nested dicts (recursively), and
@@ -1413,6 +1438,12 @@ func (f *InterfaceField) IndexGet(vm *VM, index Object) (Object, error) {
 			v, err := f.typeValue(vm, i)
 			if err != nil {
 				return nil, err
+			}
+			if mt, ok := v.(MetaType); ok {
+				// `type<X>` as the type it is: X resolved
+				if v, err = mt.resolveWith(vm.GetSymbolValue); err != nil {
+					return nil, err
+				}
 			}
 			out[i] = v
 		}

@@ -1635,6 +1635,10 @@ func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString("export ")
 		d.WriteCode(ctx)
 		return
+	case *ContractStmt:
+		ctx.WriteString("export ")
+		d.WriteCode(ctx)
+		return
 	case *EnumStmt:
 		ctx.WriteString("export ")
 		d.WriteCode(ctx)

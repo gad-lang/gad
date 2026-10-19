@@ -326,6 +326,11 @@ const (
 	// writing it compiles to (TypeCellsFunc). Appended after every earlier
 	// builtin, so existing builtin indexes do not shift.
 	BuiltinTypeCells
+	// BuiltinContract is `Contract(name, parents, targetIface, metaFactory;
+	// meta=…)`, what a `contract NAME { … }` declaration lowers to
+	// (NewContractFunc). Appended after every earlier builtin, so existing
+	// builtin indexes do not shift.
+	BuiltinContract
 
 	BuiltinEnd_
 )
@@ -378,6 +383,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"InterfaceTypeParams": BuiltinInterfaceTypeParams,
 	"InterfaceTypes":      BuiltinInterfaceTypes,
 	"TypeCells":           BuiltinTypeCells,
+	"Contract":            BuiltinContract,
 	"StaticType":          BuiltinNewStaticType,
 	"TypedArrayType":      BuiltinNewTypedArrayType,
 	"Mixin":               BuiltinNewMixin,
@@ -950,6 +956,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinTypeCells: &BuiltinFunction{
 		FuncName:              "TypeCells",
 		Value:                 TypeCellsFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinContract: &BuiltinFunction{
+		FuncName:              "Contract",
+		Value:                 NewContractFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinNewClass: &BuiltinFunction{

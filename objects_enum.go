@@ -148,6 +148,7 @@ func (e *Enum) Names() (ret []string) {
 // EnumValue) and the following virtual accessors, all in declaration order:
 //
 //	@names    Array of member names (Str)
+//	@members  Array of the members (EnumValue)
 //	@values   Array of the underlying int/uint values
 //	@dict     Dict of name -> value
 //	@pairs    KeyValueArray of {name, value} in declaration order
@@ -181,6 +182,12 @@ func (e *Enum) IndexGet(vm *VM, index Object) (value Object, err error) {
 		ret := make(Array, len(names))
 		for i, name := range names {
 			ret[i] = Str(name)
+		}
+		return ret, nil
+	case "@members":
+		ret := make(Array, len(names))
+		for i, name := range names {
+			ret[i] = e.Values[name]
 		}
 		return ret, nil
 	case "@values":

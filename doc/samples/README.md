@@ -7,6 +7,7 @@
 - [builtins](builtins.md)
 - [collections](collections.md)
 - [comprehensions](comprehensions.md)
+- [contracts](contracts.md)
 - [control_flow](control_flow.md)
 - [destructuring](destructuring.md)
 - [doc_comments](doc_comments.md)

@@ -283,6 +283,13 @@ test("class/mixin/interface are contextual: keywords only in declaration positio
   expect(isKeyword("return class", "class")).toBe(false);
 });
 
+test("`contract` is contextual: a keyword only before `NAME {`", () => {
+  expect(isKeyword("contract TField { target any }", "contract")).toBe(true);
+  expect(isKeyword("export contract T { meta { a? int } }", "contract")).toBe(true);
+  expect(isKeyword("contract := 1", "contract")).toBe(false);
+  expect(isKeyword("x.contract", "contract")).toBe(false);
+});
+
 test("`type` is contextual: a keyword only in its declaration/expression forms", () => {
   // type union, marker type, typed array type (all shapes), and export.
   expect(isKeyword("type num <int|uint>", "type")).toBe(true);

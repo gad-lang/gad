@@ -215,6 +215,8 @@ func TextMateGrammar() ([]byte, error) {
 			// `NAME {` body, `interface` also before `[` (an array interface,
 			// `interface [] { … }` / `interface NAME [] …`).
 			{Name: "keyword.control.gad", Match: `\b(?:class|mixin)\b(?=\s*\{|\s+[A-Za-z_]\w*\s*\{)`},
+			// `contract NAME { … }`: a keyword only before a NAME and its body
+			{Name: "keyword.control.gad", Match: `\bcontract\b(?=\s+[A-Za-z_]\w*\s*\{)`},
 			{Name: "keyword.control.gad", Match: `\binterface\b(?=\s*[\{\[]|\s+[A-Za-z_]\w*\s*[\{\[])`},
 			// `type` is contextual too: a keyword only in its declaration/expression
 			// forms — a type union `type <T1|T2>` / `type NAME <…>`, a marker type

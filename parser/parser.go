@@ -3405,6 +3405,11 @@ do:
 			if p.isInterfaceDeclStart() {
 				return p.ParseInterfaceStmt()
 			}
+		case "contract":
+			// `contract NAME { … }`
+			if p.isContractDeclStart() {
+				return p.parseContractStmt()
+			}
 		}
 	}
 	switch p.Token.Token {
@@ -5231,6 +5236,14 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			}
 			ta.Doc = doc
 			p.declExport(stmt, ta.NameExpr, ta)
+			return
+		case p.isContractDeclStart():
+			c := p.parseContractStmt()
+			if c == nil || p.Failed() {
+				return
+			}
+			c.Doc = doc
+			p.declExport(stmt, c.NameExpr, c)
 			return
 		case p.Token.Literal == "interface" && p.isInterfaceDeclStart():
 			meta := p.takeMeta() // before the body: a member must not steal it

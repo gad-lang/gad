@@ -152,7 +152,7 @@ func metaTargetStart(t PToken) bool {
 		return true
 	case token.Ident:
 		switch t.Literal {
-		case "interface", "class", "mixin", "type":
+		case "interface", "class", "mixin", "type", "contract":
 			return true
 		}
 	}

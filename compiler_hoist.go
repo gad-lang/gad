@@ -155,6 +155,10 @@ func (c *Compiler) hoistCollect(stmts []node.Stmt) (*hoistScope, error) {
 			if t.NameExpr != nil {
 				it = &hoistItem{name: t.NameExpr, decl: t, unit: t}
 			}
+		case *node.ContractStmt:
+			if t.NameExpr != nil {
+				it = &hoistItem{name: t.NameExpr, decl: t, unit: t}
+			}
 		}
 		if it != nil {
 			if err := add(s, it); err != nil {

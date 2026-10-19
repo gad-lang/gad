@@ -80,8 +80,12 @@ func (m MetaType) FullName() string {
 }
 
 func (m MetaType) ToString() string { return m.Name() }
-func (m MetaType) String() string   { return m.Name() }
-func (m MetaType) IsFalsy() bool    { return false }
+
+// Print writes the meta type's name: as a value of an array (`C.@target`) it
+// would otherwise be printed by a dispatch that takes it for a type value.
+func (m MetaType) Print(state *PrinterState) error { return state.WriteString(m.Name()) }
+func (m MetaType) String() string                  { return m.Name() }
+func (m MetaType) IsFalsy() bool                   { return false }
 
 func (m MetaType) Equal(right Object) bool {
 	r, ok := right.(MetaType)

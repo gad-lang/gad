@@ -102,16 +102,16 @@ func AssignToType(vm *VM, obj, to Object) (Object, error) {
 }
 
 // mismatchSayer is a type that says why a value is refused (an array type:
-// the level not of its size).
+// the level not of its size; a contract: what does not fit).
 type mismatchSayer interface {
-	sizeMismatch(vm *VM, obj Object) string
+	assignMismatch(vm *VM, obj Object) string
 }
 
 // incompatibleAssign is the error of obj refused by to, saying why when to
 // can.
 func incompatibleAssign(vm *VM, obj Object, to TypeAssigner) error {
 	if m, ok := to.(mismatchSayer); ok {
-		if why := m.sizeMismatch(vm, obj); why != "" {
+		if why := m.assignMismatch(vm, obj); why != "" {
 			return ErrIncompatibleAssign.NewErrorf("%s is not assignable to %s: %s",
 				ReprQuote(obj.Type().Name()), ReprQuote(TypeAssignerName(to)), why)
 		}
@@ -138,6 +138,9 @@ func AssignToTypeTransformStrict(vm *VM, obj, to Object) (Object, error) {
 		return nil, enumMemberError(obj, t)
 	case *Interface, *Class:
 		return AssignToTypeTransform(vm, obj, to)
+	case *Contract:
+		// the instance of the contract
+		return t.Instance(vm, obj, nil)
 	}
 	// a value already of the type is itself — not a copy: `[1, 2] :> array`,
 	// `[1, 2] :> []int`; `[1, 2] :> []str` converts nothing, so it fails
@@ -190,6 +193,9 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 		if _, isMember := obj.(*EnumValue); !isMember {
 			return nil, enumMemberError(obj, t)
 		}
+	case *Contract:
+		// the instance of the contract
+		return t.Instance(vm, obj, nil)
 	case *TypedArrayType:
 		// `arr ::> T` converts an array into a TypedArray of T (each leaf
 		// transformed by the element type's own `::>`).
