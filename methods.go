@@ -623,7 +623,7 @@ func (at *MethodArgType) Add(types ParamsTypes, m *CallerMethod, override bool, 
 		}
 	}()
 	if len(types) == 0 {
-		return at.add(nil, m, override, onAdd)
+		return at.add(nil, m, override, onAdd, nil)
 	}
 
 	var root *ObjectTypeNode
@@ -631,13 +631,16 @@ func (at *MethodArgType) Add(types ParamsTypes, m *CallerMethod, override bool, 
 		return
 	}
 
+	// the nodes this method is put at: a union of types keyed alike
+	// (`type<class|enum>`, both structural) reaches one twice, in one Add
+	done := map[*MethodArgType]bool{}
 	err = root.WalkE(func(types ObjectTypeArray) any {
-		return at.add(types, m, override, onAdd)
+		return at.add(types, m, override, onAdd, done)
 	})
 	return
 }
 
-func (at *MethodArgType) add(types ObjectTypeArray, m *CallerMethod, override bool, onAdd func(tcm *TypedCallerMethod) error) (err error) {
+func (at *MethodArgType) add(types ObjectTypeArray, m *CallerMethod, override bool, onAdd func(tcm *TypedCallerMethod) error, done map[*MethodArgType]bool) (err error) {
 	var (
 		getOrAdd = func(dst *Methods, t ObjectType) (cur *MethodArgType, added bool) {
 			if *dst == nil {
@@ -660,6 +663,17 @@ func (at *MethodArgType) add(types ObjectTypeArray, m *CallerMethod, override bo
 			return
 		}
 		set = func(cur *MethodArgType, added bool, types ObjectTypeArray, raise bool) {
+			if done[cur] {
+				// this Add put the method here already
+				return
+			}
+			if done != nil {
+				defer func() {
+					if err == nil {
+						done[cur] = true
+					}
+				}()
+			}
 			if added || override || cur.Method == nil {
 				cur.Method = &TypedCallerMethod{
 					CallerMethod:  m,

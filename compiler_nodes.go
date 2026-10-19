@@ -4978,6 +4978,18 @@ func (c *Compiler) typeExprSymbolsV(t *node.TypeExpr, visiting map[string]bool) 
 			if id == nil {
 				return nil, c.Errorf(mt, "type<…>: expected a type reference")
 			}
+			// a category — `type<class>`, `type<enum>`, `type<interface>`,
+			// `type<typedArray>` —, unless a variable of that name says otherwise
+			if _, isKind := MetaKinds[id.Name]; isKind {
+				if _, found := c.symbolTable.Resolve(id.Name); !found {
+					symbols = append(symbols, &SymbolInfo{
+						Name:  "type<" + id.Name + ">",
+						Index: c.addConstant(MetaType{Kind: id.Name}),
+						Scope: ScopeConstant,
+					})
+					continue
+				}
+			}
 			var sym *Symbol
 			if sym, err = c.requireSymbol(id, id.Name); err != nil {
 				return
@@ -5350,6 +5362,17 @@ func (c *Compiler) captureStructuralType(sym *SymbolInfo, capture func(*SymbolIn
 	}
 	var obj Object
 	switch t := c.constants[sym.Index].(type) {
+	case MetaType:
+		// `type<X>`: X read from the closure
+		if t.TargetSym == nil {
+			return sym
+		}
+		n := capture(t.TargetSym)
+		if n == t.TargetSym {
+			return sym
+		}
+		t.TargetSym = n
+		obj = t
 	case *ArrayType:
 		elem, ok1 := mapSyms(t.Elem)
 		sizes, ok2 := mapSyms(t.SizeSyms)

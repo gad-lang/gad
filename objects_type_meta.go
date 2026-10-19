@@ -31,7 +31,23 @@ type MetaType struct {
 	Target ObjectType
 	// TargetSym is set on the compiled constant; resolve turns it into Target.
 	TargetSym *SymbolInfo
+	// Kind is a CATEGORY of type values — `type<class>`, `type<enum>`,
+	// `type<interface>`, `type<typedArray>` —: any class, any enum… (the type
+	// of the type values: MetaKinds); "" for a type of its own.
+	Kind string
 }
+
+// MetaKinds are the categories a `type<…>` names: a type value of the
+// category is one whose type is it (a class's type is TClass).
+var MetaKinds = map[string]ObjectType{
+	"class":      TClass,
+	"enum":       TEnum,
+	"interface":  TInterface,
+	"typedArray": TTypedArrayType,
+}
+
+// IsKind reports whether m is a category (`type<class>`…), not one type.
+func (m MetaType) IsKind() bool { return m.Kind != "" }
 
 var (
 	_ Object       = MetaType{}
@@ -45,6 +61,8 @@ func (m MetaType) Type() ObjectType { return TMetaType }
 
 func (m MetaType) Name() string {
 	switch {
+	case m.Kind != "":
+		return "type<" + m.Kind + ">"
 	case m.Target != nil:
 		return "type<" + m.Target.Name() + ">"
 	case m.TargetSym != nil:
@@ -55,7 +73,7 @@ func (m MetaType) Name() string {
 }
 
 func (m MetaType) FullName() string {
-	if m.Target != nil {
+	if m.Target != nil && m.Kind == "" {
 		return "type<" + m.Target.FullName() + ">"
 	}
 	return m.Name()
@@ -70,6 +88,9 @@ func (m MetaType) Equal(right Object) bool {
 	if !ok {
 		return false
 	}
+	if m.Kind != r.Kind {
+		return false
+	}
 	if m.Target != nil && r.Target != nil {
 		return m.Target.Equal(r.Target)
 	}
@@ -80,6 +101,16 @@ func (m MetaType) Equal(right Object) bool {
 // itself be an ObjectType, equal to (or a subtype of) Target. A nil Target (the
 // bare `type`) accepts any type value.
 func (m MetaType) CanAssign(obj Object) (bool, error) {
+	if m.Kind != "" {
+		// a category: a type value whose type IS it — a class (not an
+		// instance of one: its type is the class); an interface is a type
+		// value too, though not an ObjectType
+		k := m.Target
+		if k == nil {
+			k = MetaKinds[m.Kind]
+		}
+		return k != nil && obj.Type() != nil && obj.Type().Equal(k), nil
+	}
 	ot, ok := obj.(ObjectType)
 	if !ok {
 		return false, nil
@@ -100,14 +131,20 @@ func (m MetaType) Call(Call) (Object, error) {
 	return nil, ErrNotCallable.NewError(m.Name())
 }
 
-// resolve returns the dispatch-key / validation form of the meta type: a MetaType
-// whose Target is resolved from TargetSym against vm. The compiled constant
-// carries only the symbol; a MetaType that already has a Target is returned as is.
-func (m MetaType) resolve(vm *VM) (MetaType, error) {
+// resolveWith returns the dispatch-key / validation form of the meta type: a
+// MetaType whose Target is resolved — from TargetSym, read by get (a compiled
+// function reads its free variables from its closure), or the category of
+// Kind. The compiled constant carries only the symbol; a MetaType that already
+// has a Target is returned as is.
+func (m MetaType) resolveWith(get func(*SymbolInfo) (Object, error)) (MetaType, error) {
+	if m.Kind != "" && m.Target == nil {
+		m.Target = MetaKinds[m.Kind]
+		return m, nil
+	}
 	if m.Target != nil || m.TargetSym == nil {
 		return m, nil
 	}
-	v, err := vm.GetSymbolValue(m.TargetSym)
+	v, err := get(m.TargetSym)
 	if err != nil {
 		return m, err
 	}

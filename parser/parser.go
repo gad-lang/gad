@@ -3269,12 +3269,34 @@ func (p *Parser) parseMetaTypeExpr() node.Expr {
 	typePos := p.Token.Pos
 	p.Next()             // consume `type`
 	p.Expect(token.Less) // consume `<`
-	targets := p.ParseTypes()
+	targets := p.parseMetaTargets()
 	if len(targets) == 0 {
 		p.Error(p.Token.Pos, "expected a type after `type<`")
 	}
 	gt := p.Expect(token.Greater) // consume `>`
 	return &node.MetaTypeExpr{TypePos: typePos, Targets: targets, Gt: gt}
+}
+
+// parseMetaTargets parses the targets of `type<…>`: types, or a category
+// written as its keyword — `type<enum>`, `type<class|enum>` (the compiler
+// reads the categories: MetaKinds).
+func (p *Parser) parseMetaTargets() (types []*node.TypeExpr) {
+	for {
+		switch {
+		case p.Token.Token == token.Enum && p.Peek().Token != token.LBrace:
+			// the category, not an inline `enum { … }`
+			types = append(types, &node.TypeExpr{Expr: &node.IdentExpr{Name: "enum", NamePos: p.Token.Pos}})
+			p.Next()
+		case p.isTypeStart():
+			types = append(types, p.parseType())
+		default:
+			return
+		}
+		if p.Token.Token != token.Or {
+			return
+		}
+		p.Next()
+	}
 }
 
 func (p *Parser) ParseTypes() (types []*node.TypeExpr) {

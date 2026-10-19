@@ -22,6 +22,17 @@ A type value and an instance of that type dispatch **separately** — a plain
 `type<X>` parameter is rejected: the path a value takes is decided by whether it
 *is* a type or is *of* a type.
 
+## Categories: `type<class>`, `type<enum>`, `type<interface>`, `type<typedArray>`
+
+A `type<…>` may name a **category** instead of one type: `type<class>` matches
+any class (the type value — never an instance of one), `type<enum>` any enum,
+`type<interface>` any interface, `type<typedArray>` any typed array type. They
+take a union like any type (`type<class|enum>`), and overloads are told apart by
+them (checked by value). A variable of that name, when there is one, is what
+the name means.
+
+A `type<X>` in a closure reads `X` where the closure was made.
+
 ## `type<X>` vs. `type <X>`
 
 Mind the space. In a **parameter** position `type<X>` is this meta type. At an
@@ -109,5 +120,34 @@ test "a union meta type matches any listed type value" {
     t.equal("Base", accept(bool))
 
     t.raises(() => accept(str))     // str is not in the union
+}
+
+/**
+A category matches the type values of its kind: any class, any enum, any
+interface, any typed array type — never an instance.
+**/
+test "categories" {
+    enum E { x }
+    type ints []int
+    interface I { a int }
+    ok := func(f) { try { f(); return true } catch { return false } }
+    gc := (v type<class>) => 1
+    t.equal([true, false, false], [ok(() => gc(Rect)), ok(() => gc(E)), ok(() => gc(Rect()))])
+    ge := (v type<enum|interface>) => 1
+    t.equal([true, true, false], [ok(() => ge(E)), ok(() => ge(I)), ok(() => ge(Rect))])
+    gt := (v type<typedArray>) => 1
+    t.true(ok(() => gt(ints)))
+
+    // overloads told apart by the category
+    d := func { (v type<class>) => "class"; (v type<enum>) => "enum" }
+    t.equal(["class", "enum"], [d(Rect), d(E)])
+}
+
+/**
+A `type<X>` in a closure reads X where the closure was made.
+**/
+test "type<X> in a closure" {
+    k := (T) => { return (v type<T>) => typeName(v) }
+    t.equal("Class", k(Rect)(Rect))
 }
 ```

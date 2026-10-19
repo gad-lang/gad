@@ -58,3 +58,13 @@ func TestEncDecInterfaceFieldDefault(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, v.(*gad.InterfaceField).Default)
 }
+
+// A category of a meta type survives the encoding (MetaTypeV2).
+func TestEncDecMetaTypeKind(t *testing.T) {
+	var buf bytes.Buffer
+	require.NoError(t, MetaTypeV2.Encode(NewWriteContext(context.Background(), NewWriter(&buf)), gad.MetaType{Kind: "enum"}))
+	v, err := MetaTypeV2.Decode(NewReadContext(NewReader(bytes.NewReader(buf.Bytes()))))
+	require.NoError(t, err)
+	require.Equal(t, "enum", v.(gad.MetaType).Kind)
+	require.Equal(t, "type<enum>", v.(gad.MetaType).Name())
+}

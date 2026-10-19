@@ -32,4 +32,23 @@ func init() {
 		}
 		return m, nil
 	}
+
+	// V2: V1, then the category (`type<class>`…, "" for none)
+	MetaTypeV2.Encode = func(ctx *WriteContext, o any) (err error) {
+		if err = MetaTypeV1.Encode(ctx, o); err != nil {
+			return
+		}
+		return writeString(ctx, o.(gad.MetaType).Kind)
+	}
+	MetaTypeV2.Decode = func(ctx *ReadContext) (_ any, err error) {
+		var v any
+		if v, err = MetaTypeV1.Decode(ctx); err != nil {
+			return
+		}
+		m := v.(gad.MetaType)
+		if m.Kind, err = readString(ctx); err != nil {
+			return
+		}
+		return m, nil
+	}
 }

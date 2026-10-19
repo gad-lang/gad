@@ -537,6 +537,11 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 						return nil, err
 					}
 					ot, ok := typ.(ObjectType)
+					if mt, isMeta := typ.(MetaType); isMeta && mt.IsKind() {
+						// a category (`type<class>`): no key of its own —
+						// structural, checked by value (CanAssign)
+						ok = false
+					}
 					if !ok {
 						// A structural type (meti/interface literal): permissive at
 						// the ParamsTypes/dispatch level — the real check is
@@ -588,7 +593,14 @@ func (o *CompiledFunction) paramTypeSymbolValue(vm *VM, symbol *SymbolInfo) (Obj
 	// validation form (MetaType{Target}) so both the ParamsTypes key and
 	// CanAssign see the real target.
 	if mt, ok := v.(MetaType); ok {
-		return mt.resolve(vm)
+		// X of a `type<X>` read as the other type symbols: a free variable from
+		// this function's closure
+		return mt.resolveWith(func(s *SymbolInfo) (Object, error) {
+			if s.Scope == ScopeFree && s.Index < len(o.Free) {
+				return *o.Free[s.Index].Value, nil
+			}
+			return vm.GetSymbolValue(s)
+		})
 	}
 	if symbol.Scope == ScopeConstant && len(o.Free) > 0 {
 		return o.bindFreeTypeCells(v), nil
