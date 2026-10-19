@@ -38,3 +38,23 @@ func TestDecArrayTypeV1(t *testing.T) {
 	require.Equal(t, "[][]int", got.Name())
 	require.Nil(t, got.Levels)
 }
+
+// The default of an interface field survives the encoding (InterfaceFieldV2),
+// and V1 (no default) is still read.
+func TestEncDecInterfaceFieldDefault(t *testing.T) {
+	for _, def := range []gad.Object{gad.Str("table"), gad.Nil, gad.Int(3), nil} {
+		f := &gad.InterfaceField{Name: "layout", Nullable: true, Default: def}
+		var buf bytes.Buffer
+		require.NoError(t, InterfaceFieldV2.Encode(NewWriteContext(context.Background(), NewWriter(&buf)), f))
+		v, err := InterfaceFieldV2.Decode(NewReadContext(NewReader(bytes.NewReader(buf.Bytes()))))
+		require.NoError(t, err)
+		got := v.(*gad.InterfaceField)
+		require.Equal(t, "layout", got.Name)
+		require.Equal(t, def, got.Default)
+	}
+	var buf bytes.Buffer
+	require.NoError(t, InterfaceFieldV1.Encode(NewWriteContext(context.Background(), NewWriter(&buf)), &gad.InterfaceField{Name: "x"}))
+	v, err := InterfaceFieldV1.Decode(NewReadContext(NewReader(bytes.NewReader(buf.Bytes()))))
+	require.NoError(t, err)
+	require.Nil(t, v.(*gad.InterfaceField).Default)
+}

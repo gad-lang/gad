@@ -560,6 +560,20 @@ VMLoop:
 				vm.stack[ifaceIdx] = iface.BindContextFuncs(fns)
 			}
 			vm.ip += 2
+		case OpInterfaceDefaults:
+			// Stack: [iface, idx0, d0, …]. Pop the pairs and the interface below
+			// them; push the interface with those defaults bound to its fields.
+			numPairs := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			pairs := make([]Object, 2*numPairs)
+			copy(pairs, vm.stack[vm.sp-2*numPairs:vm.sp])
+			for i := vm.sp - 2*numPairs; i < vm.sp; i++ {
+				vm.stack[i] = nil
+			}
+			vm.sp -= 2 * numPairs
+			if iface, _ := vm.stack[vm.sp-1].(*Interface); iface != nil {
+				vm.stack[vm.sp-1] = iface.BindDefaults(pairs)
+			}
+			vm.ip += 2
 		case OpVarPtr:
 			// Stack: [cell]. `&x`: wrap the variable's cell (the slot OpGetLocalPtr
 			// / OpGetFreePtr promoted) into a ptr — a distinct value, so reading the

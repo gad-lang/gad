@@ -129,6 +129,11 @@ const (
 	// (keeping it), else it pops it and goes on to b. Appended so no opcode
 	// value shifts.
 	OpJumpNotNo
+	// OpInterfaceDefaults binds the defaults of an interface's fields that are
+	// no constant, computed where it is declared: the stack holds the
+	// interface, then pairs of a field's index and its default. Appended so no
+	// opcode value shifts.
+	OpInterfaceDefaults
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -227,6 +232,7 @@ var OpcodeNames = [...]string{
 	OpMakeTypeUnionMeta:     "MAKETYPEUNIONMETA",
 	OpAssignTransformStrict: "ASSIGNTS",
 	OpJumpNotNo:             "JUMPNOTNO",
+	OpInterfaceDefaults:     "INTERFACEDEFAULTS",
 }
 
 // OpcodeOperands is the number of operands.
@@ -325,6 +331,7 @@ var OpcodeOperands = [...][]int{
 	OpMakeTypeUnionMeta:     {1},    // number of member types on the stack, under the metadata
 	OpAssignTransformStrict: {},     // obj :> type -> obj transformed into a class/enum value/interface (or throw)
 	OpJumpNotNo:             {2},    // position
+	OpInterfaceDefaults:     {2},    // number of pairs (field index, default) above the interface
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

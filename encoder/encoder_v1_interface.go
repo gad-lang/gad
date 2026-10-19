@@ -38,6 +38,35 @@ func init() {
 		return f, nil
 	}
 
+	// V2: V1, then the field's default (`= expr`): whether it has one, and it
+	InterfaceFieldV2.Encode = func(ctx *WriteContext, o any) (err error) {
+		f := o.(*gad.InterfaceField)
+		if err = InterfaceFieldV1.Encode(ctx, o); err != nil {
+			return
+		}
+		if err = writeBool(ctx, f.Default != nil); err != nil || f.Default == nil {
+			return
+		}
+		return EncodeObject(ctx, f.Default)
+	}
+	InterfaceFieldV2.Decode = func(ctx *ReadContext) (_ any, err error) {
+		var v any
+		if v, err = InterfaceFieldV1.Decode(ctx); err != nil {
+			return
+		}
+		f := v.(*gad.InterfaceField)
+		var has bool
+		if has, err = readBool(ctx); err != nil || !has {
+			return f, err
+		}
+		var d any
+		if d, err = Decode(ctx); err != nil {
+			return
+		}
+		f.Default, _ = d.(gad.Object)
+		return f, nil
+	}
+
 	InterfacePropV1.Encode = func(ctx *WriteContext, o any) (err error) {
 		p := o.(*gad.InterfaceProp)
 		if err = writeString(ctx, p.Name); err != nil {

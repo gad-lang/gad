@@ -52,6 +52,26 @@ an **array** of satisfying elements: `interface P [] { … }` a flat array,
 an array of the given element types (see [array interfaces](interface_arrays_test.gad);
 for a nominal, constructible array type see [typed arrays](typed_arrays.gad)).
 
+## Field defaults (`name? T = expr`)
+
+A field may have a **default**: the value the transforming cast
+[`:>`](transform_cast_test.gad) gives it when it is **not given** — absent,
+or `no` (a [reset](key_value_array.gad)). A given `nil` is a value: kept in a
+nullable field, refused by one that is not. `::` only checks, so it gives no
+default.
+
+The default goes through the field's type as a given value would: an enum
+field takes the member of a name (`= #w`) or a value. A constant default is
+part of the interface; any other — an expression, a function, a closure — is
+computed where the interface is declared, and a computed value
+(`= (= expr)`) is called on every cast. An interface written as a type (a
+parameter's `interface { … }`) is a constant: so are its defaults.
+
+The field answers `field.default` (as written; `nil` when none) and
+`field.hasDefault`.
+
+@snippet iface_defaults
+
 ## Nested and array fields (`name: { … }`)
 
 A field whose type is a nested interface has a **short form** `name: { … }`,
@@ -388,6 +408,29 @@ NotRenderable := interface { funcs { noObj <(indent int, @self)> } }
 r := {name: "Ada"}
 [(r :: Renderable).name, r :: NotRenderable or "no renderer"]
 /**= ["Ada", "no renderer"] **/
+//endsnippet
+
+//snippet iface_defaults
+enum mode { r; w }
+k := 5
+interface Opts {
+    layout? str = "table"
+    n int = 1 + 2              // computed where the interface is declared
+    m? mode = #w               // through the type: the member w
+    note? str = nil            // nil is a default too
+    twice? int = (= k * 2)     // a computed value: called on every cast
+}
+
+a := {} :> Opts
+b := {layout: "cards", n: 9, m: 1} :> Opts
+c := {layout: no, note: no} :> Opts      // reset: not given, the default
+d := {layout: nil} :> Opts                // nil is a value: kept
+k = 7
+[a.layout, a.n, a.m == mode.w, a.note, a.twice,
+ b.layout, b.n, b.m == mode.r,
+ c.layout, c.note, d.layout, ({} :> Opts).twice,
+ Opts.fields[0].default, Opts.fields[0].hasDefault]
+/**= ["table", 3, true, nil, 10, "cards", 9, true, "table", nil, nil, 14, "table", true] **/
 //endsnippet
 
 //snippet iface_nullable

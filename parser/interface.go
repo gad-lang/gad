@@ -326,10 +326,11 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 			nested.ArrayDepth = depth
 		}
 		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
-			Kind: node.IfaceField,
-			Name: &node.TypedIdentExpr{Ident: name, Type: []*node.TypeExpr{{Expr: nested}}, Nullable: nullable},
-			Doc:  doc,
-			Meta: meta,
+			Kind:    node.IfaceField,
+			Name:    &node.TypedIdentExpr{Ident: name, Type: []*node.TypeExpr{{Expr: nested}}, Nullable: nullable},
+			Doc:     doc,
+			Meta:    meta,
+			Default: p.parseFieldDefault(),
 		})
 	case token.LParen:
 		h := p.parseInterfaceMethodHeader()
@@ -358,13 +359,26 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		m.RBrace = p.Expect(token.RBrace)
 		iface.Methods = append(iface.Methods, m)
 	default:
+		typ := p.ParseTypes()
 		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
-			Kind: node.IfaceField,
-			Name: &node.TypedIdentExpr{Ident: name, Type: p.ParseTypes(), Nullable: nullable},
-			Doc:  doc,
-			Meta: meta,
+			Kind:    node.IfaceField,
+			Name:    &node.TypedIdentExpr{Ident: name, Type: typ, Nullable: nullable},
+			Doc:     doc,
+			Meta:    meta,
+			Default: p.parseFieldDefault(),
 		})
 	}
+}
+
+// parseFieldDefault parses a field's `= expr` — on the line of the field —,
+// nil when it has none.
+func (p *Parser) parseFieldDefault() node.Expr {
+	if p.Token.Token != token.Assign {
+		return nil
+	}
+	p.Next()
+	p.SkipSpace()
+	return p.ParseExpr()
 }
 
 // parseContextFuncHeaders parses the signature part of a context-function member

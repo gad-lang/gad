@@ -190,6 +190,39 @@ type InterfaceField struct {
 	Nullable bool
 	// Meta is the field's `[k=v, …]` metadata (or nil); read as `Iface.name.@meta`.
 	Meta KeyValueArray
+	// Default is the field's `= expr` (nil: none; Nil is the default nil):
+	// what a transforming cast (`d :> I`) gives the field when it is not
+	// given — absent, or `no` (IsReset). A given `nil` is a value: kept. A
+	// computed value (`= (= expr)`) is called on each cast.
+	Default Object
+}
+
+// defaultValue is the value the field takes when it is not given: its
+// default, a computed one called now.
+func (f *InterfaceField) defaultValue(vm *VM) (Object, error) {
+	if cv, ok := f.Default.(*ComputedValue); ok {
+		return vm.Call(cv, Args{}, nil)
+	}
+	return f.Default, nil
+}
+
+// BindDefaults is i with the defaults of its fields computed where it is
+// declared — pairs: the index of a field (Int), its default — (the defaults
+// that are no constant: OpInterfaceDefaults).
+func (i *Interface) BindDefaults(pairs []Object) *Interface {
+	cp := *i
+	cp.Fields = append([]*InterfaceField(nil), i.Fields...)
+	for k := 0; k+1 < len(pairs); k += 2 {
+		idx, ok := pairs[k].(Int)
+		if !ok || int(idx) < 0 || int(idx) >= len(cp.Fields) {
+			continue
+		}
+		f := *cp.Fields[idx]
+		f.Iface = &cp
+		f.Default = pairs[k+1]
+		cp.Fields[idx] = &f
+	}
+	return &cp
 }
 
 // InterfaceProp is a getter and/or setter property of an interface.
@@ -759,8 +792,24 @@ func (i *Interface) coerceDict(vm *VM, d Dict) (Object, error) {
 
 	for _, f := range i.Fields {
 		v, has := out[f.Name]
+		if has && IsReset(v) {
+			// `no`: not given
+			delete(out, f.Name)
+			has = false
+		}
+		if !has && f.Default != nil {
+			// not given: the default — a given nil is a value, kept
+			dv, err := f.defaultValue(vm)
+			if err != nil {
+				return nil, err
+			}
+			v, has = dv, true
+		}
 		if !has || v == Nil {
 			if f.Nullable {
+				if has {
+					out[f.Name] = v
+				}
 				continue
 			}
 			return nil, ErrType.NewErrorf("field %q is required", f.Name)
@@ -1285,10 +1334,18 @@ func (i *Interface) WithMethod(name string, headers ...*FuncHeaderObject) *Inter
 func (f *InterfaceField) Type() ObjectType { return TInterfaceField }
 func (f *InterfaceField) IsFalsy() bool    { return f.Name == "" }
 func (f *InterfaceField) ToString() string {
+	s := f.Name
 	if names := f.typeNames(); len(names) > 0 {
-		return f.Name + " " + strings.Join(names, "|")
+		s += " " + strings.Join(names, "|")
 	}
-	return f.Name
+	if f.Default != nil {
+		if str, ok := f.Default.(Str); ok {
+			s += " = " + str.Quoted()
+		} else {
+			s += " = " + f.Default.ToString()
+		}
+	}
+	return s
 }
 
 // typesString renders the field's types as an array element: one type bare
@@ -1348,6 +1405,14 @@ func (f *InterfaceField) IndexGet(vm *VM, index Object) (Object, error) {
 		return out, nil
 	case "@meta":
 		return metaObject(f.Meta), nil
+	case "default":
+		// the default, as written (a computed one not called); nil when none
+		if f.Default == nil {
+			return Nil, nil
+		}
+		return f.Default, nil
+	case "hasDefault":
+		return Bool(f.Default != nil), nil
 	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }

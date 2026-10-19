@@ -45,6 +45,7 @@ var (
 	MetaTypeV1             EncDec
 	ArrayTypeV1            EncDec
 	ArrayTypeV2            EncDec
+	InterfaceFieldV2       EncDec
 	PtrTypeV1              EncDec
 	KeyValueV1             EncDec
 	KeyValueArrayV1        EncDec
@@ -137,6 +138,7 @@ func init() {
 	Register[gad.MethodInterface](typeMethodInterface, versionV1, &MethodInterfaceV1)
 	Register[gad.Interface](typeInterface, versionV1, &InterfaceV1)
 	Register[gad.InterfaceField](typeInterfaceField, versionV1, &InterfaceFieldV1)
+	Register[gad.InterfaceField](typeInterfaceField, versionV2, &InterfaceFieldV2)
 	Register[gad.InterfaceProp](typeInterfaceProp, versionV1, &InterfacePropV1)
 	Register[gad.InterfaceMethod](typeInterfaceMethod, versionV1, &InterfaceMethodV1)
 	Register[gad.InterfaceContextFunc](typeInterfaceContextFunc, versionV1, &InterfaceContextFuncV1)

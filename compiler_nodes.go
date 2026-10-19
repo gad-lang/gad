@@ -2578,7 +2578,19 @@ func (c *Compiler) buildInterfaceParents(nd *node.InterfaceExpr, symParents bool
 		}
 		switch m.Kind {
 		case node.IfaceField:
-			iface.Fields = append(iface.Fields, &InterfaceField{Iface: iface, Name: mname, TypesSymbols: syms, Nullable: m.Name.Nullable, Meta: meta})
+			f := &InterfaceField{Iface: iface, Name: mname, TypesSymbols: syms, Nullable: m.Name.Nullable, Meta: meta}
+			if m.Default != nil {
+				// a constant goes in the constant; another is computed where
+				// the interface is declared (compileInterfaceExpr) — one
+				// written as a type is a constant, so its defaults are too
+				if v, err := c.metaValue(nd, m.Default); err == nil {
+					f.Default = v
+				} else if symParents {
+					return nil, c.Errorf(m.Default, "interface %s: field %s: the default of an interface written as a type is a constant (declare the interface to compute it)",
+						name, mname)
+				}
+			}
+			iface.Fields = append(iface.Fields, f)
 		case node.IfaceGet:
 			iface.Props = append(iface.Props, &InterfaceProp{Iface: iface, Name: mname, Getter: getter(mname, syms), Meta: meta})
 		case node.IfaceSet:
@@ -2779,6 +2791,26 @@ func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) (err error) {
 			}
 		}
 		c.emit(nd, OpInterfaceBind, n)
+	}
+	// the defaults of fields that are no constant — a function, a computed
+	// value, an expression —, computed here, where the interface is declared,
+	// and bound to its fields (OpInterfaceDefaults)
+	n, idx := 0, 0
+	for _, m := range nd.Members {
+		if m.Kind != node.IfaceField {
+			continue
+		}
+		if m.Default != nil && idx < len(iface.Fields) && iface.Fields[idx].Default == nil {
+			c.emit(m.Default, OpConstant, c.addConstant(Int(idx)))
+			if err = c.Compile(m.Default); err != nil {
+				return err
+			}
+			n++
+		}
+		idx++
+	}
+	if n > 0 {
+		c.emit(nd, OpInterfaceDefaults, n)
 	}
 	return nil
 }

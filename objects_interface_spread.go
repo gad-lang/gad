@@ -146,8 +146,10 @@ func (i *Interface) spreadField(name string, v Object) error {
 				f.Nullable = !kv.V.IsFalsy()
 			case "meta":
 				f.Meta, _ = kv.V.(KeyValueArray)
+			case "default":
+				f.Default = kv.V
 			default:
-				return i.spreadErr("field %s: no %q in its spec (types, nullable, meta)", name, kv.K.ToString())
+				return i.spreadErr("field %s: no %q in its spec (types, nullable, meta, default)", name, kv.K.ToString())
 			}
 		}
 	default:

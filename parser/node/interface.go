@@ -129,6 +129,10 @@ type InterfaceMemberExpr struct {
 	// `$N` (N its count in the body), typed by the anonymous interface of the
 	// block; it is written back as the block.
 	Group bool
+	// Default is a field's `= expr` (`layout? str = "table"`): the value a
+	// transforming cast (`d :> I`) gives the field when it is not given —
+	// absent, or `no`. Nil when the field has none.
+	Default Expr
 }
 
 func (e *InterfaceMemberExpr) ExprNode() {}
@@ -176,10 +180,22 @@ func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteString("{")
 			writeInterfaceBody(ctx, iface)
 			ctx.WriteString("}")
+			e.writeDefault(ctx)
 			return
 		}
 	}
 	e.Name.WriteCode(ctx)
+	e.writeDefault(ctx)
+}
+
+// writeDefault writes the field's ` = default`, when it has one.
+func (e *InterfaceMemberExpr) writeDefault(ctx *CodeWriteContext) {
+	if e.Default != nil {
+		// as its own code: a statement inside it (`(= …)`) must not leave
+		// the body a separator to write
+		ctx.WriteString(" = ")
+		ctx.WriteString(e.Default.String())
+	}
 }
 
 // InterfaceExpr is an interface literal describing a structural contract:
