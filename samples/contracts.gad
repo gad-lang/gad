@@ -62,6 +62,17 @@ meta of each target is built for it. An enum's options are its members:
 
 @snippet target
 
+## Plugins: overloads by contract
+
+A plugin is a function of several methods whose params are contracts: a field
+(a type, an instance) fits the param when it fits the contract. The call takes,
+of the methods it fits, the contract with **more required keys** of its meta
+(a select's `options`), then the one **deeper** in its parents — whatever the
+order the methods are written in. Two of the same rank that both fit are an
+**ambiguity**, an error.
+
+@snippet plugins
+
 ## Reflection
 
 `C.@name`, `C.@meta` (the `[k=v]` before the declaration), `C.@parents`,
@@ -154,6 +165,36 @@ class Form {
  len(TEnumField.check(Form.bad).errors),
  TEnumField.check(Form.service).errors]
 /**= [true, true, true, 1, []] **/
+//endsnippet
+
+//snippet plugins
+contract TField { meta { label? str } }
+contract TTextField { *TField; target type<str>; meta { maxlength? int } }
+contract TSelectField { *TField; target type<str|int|enum>; meta { options []str|[]int } }
+contract TEnumField { *TSelectField; target type<enum>; meta { options []target = target.@members } }
+contract TNumberField { *TField; target type<int|float>; meta { min? int } }
+
+enum Service { Kitchen, Bathroom }
+
+class Form {
+    [options=["a", "b"]] pick str   // a str with options: a select
+    service Service                 // an enum: a select of its members
+    name str                        // a str: a text
+    [min=1] rooms int
+    flag bool                       // nothing more of its own: the field
+}
+
+// the component each field is drawn with
+draw := func {
+    (f TField) => "field"
+    (f TTextField) => "text"
+    (f TNumberField) => "number"
+    (f TSelectField) => "select"
+    (f TEnumField) => "enum"
+}
+
+[draw(Form.pick), draw(Form.service), draw(Form.name), draw(Form.rooms), draw(Form.flag)]
+/**= ["select", "enum", "text", "number", "field"] **/
 //endsnippet
 
 //snippet reflection

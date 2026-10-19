@@ -73,3 +73,46 @@ func TestContract(t *testing.T) {
 	// contract as a name elsewhere
 	testExpectRun(t, `contract := 1; return contract + 1`, nil, Int(2))
 }
+
+// A plugin: overloads whose params are contracts. The call takes the contract
+// with more required keys of its meta, then the deeper in its parents —
+// whatever the order of declaration —; two of the same rank that fit are an
+// ambiguity.
+func TestContractOverloads(t *testing.T) {
+	const decls = `
+	contract TField { meta { label? str } }
+	contract TTextField { *TField; target type<str>; meta { maxlength? int } }
+	contract TSelectField { *TField; target type<str|int|enum>; meta { options []str|[]int } }
+	contract TEnumField { *TSelectField; target type<enum>; meta { options []target = target.@members } }
+	contract TNumberField { *TField; target type<int|float>; meta { min? int } }
+	enum Service { Kitchen, Bathroom }
+	class Form {
+	    [options=["a", "b"]] pick str
+	    service Service
+	    name str
+	    [min=1] rooms int
+	    flag bool
+	}
+	`
+	want := Array{Str("select"), Str("enum"), Str("text"), Str("number"), Str("field")}
+	testExpectRun(t, decls+`draw := func {
+	    (f TField) => "field"
+	    (f TTextField) => "text"
+	    (f TNumberField) => "number"
+	    (f TSelectField) => "select"
+	    (f TEnumField) => "enum"
+	}
+	return [draw(Form.pick), draw(Form.service), draw(Form.name), draw(Form.rooms), draw(Form.flag)]`, nil, want)
+	// a param of a contract alone: a subject that fits, or an error
+	testExpectRun(t, decls+`one := (f TSelectField) => (f :> TSelectField).meta.options; return one(Form.pick)`,
+		nil, Array{Str("a"), Str("b")})
+	expectErrHas(t, decls+`one := (f TSelectField) => 1; return one(Form.name)`, newOpts(), "expected TSelectField")
+	// an instance fits its contract and its parents'
+	testExpectRun(t, decls+`d := func { (f TEnumField) => "enum"; (f TField) => "field" }; return d(Form.service :> TEnumField)`,
+		nil, Str("enum"))
+	// two of the same rank that fit: ambiguous
+	expectErrHas(t, `contract TA { target type<str> }; contract TB { target type<str> }; class F { name str }
+	d := func { (f TA) => 1; (f TB) => 2 }; return d(F.name)`, newOpts(), "ambiguous")
+	// the candidates are the function's methods
+	testExpectRun(t, decls+`d := func { (f TTextField) => 1; (f TNumberField) => 2 }; return len(d.@methods)`, nil, Int(2))
+}

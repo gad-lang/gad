@@ -542,6 +542,13 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 						// structural, checked by value (CanAssign)
 						ok = false
 					}
+					if _, isContract := typ.(*Contract); isContract {
+						// a contract: a field, a type, an instance fits it —
+						// structural, checked by value, its overloads told
+						// apart by the contract (TypedCallerMethod.Select)
+						ok = false
+						atomic.StoreInt32(&o.structuralParams, 2)
+					}
 					if !ok {
 						// A structural type (meti/interface literal): permissive at
 						// the ParamsTypes/dispatch level — the real check is

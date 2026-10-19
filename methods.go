@@ -324,8 +324,9 @@ type TypedCallerMethod struct {
 	// first whose params accept the arguments is called; nil with one method.
 	cands []*TypedCallerMethod
 	// ranked orders cands, once, on the first call (the sizes are read from
-	// the VM's constants).
+	// the VM's constants); ranks are their ranks (sizeRank).
 	ranked *sync.Once
+	ranks  map[*TypedCallerMethod][]int64
 }
 
 // paramsValidator is a callable that validates arguments against its params
@@ -336,31 +337,60 @@ type paramsValidator interface {
 
 // Select is the method of the candidates (cands) whose params accept args:
 // o itself without candidates; the first when none does (its call says why).
-func (o *TypedCallerMethod) Select(vm *VM, args Args) *TypedCallerMethod {
+// Two of the same rank that accept args are an ambiguity (the overloads of
+// contracts of the same depth and required keys).
+func (o *TypedCallerMethod) Select(vm *VM, args Args) (*TypedCallerMethod, error) {
 	if len(o.cands) == 0 || vm == nil {
-		return o
+		return o, nil
 	}
 	o.ranked.Do(func() {
-		ranks := make(map[*TypedCallerMethod][]int64, len(o.cands))
+		o.ranks = make(map[*TypedCallerMethod][]int64, len(o.cands))
 		for _, c := range o.cands {
-			ranks[c] = sizeRank(vm, c.CallerObject)
+			o.ranks[c] = sizeRank(vm, c.CallerObject)
 		}
 		slices.SortStableFunc(o.cands, func(a, b *TypedCallerMethod) int {
-			if sizeRankLess(ranks[a], ranks[b]) {
+			if sizeRankLess(o.ranks[a], o.ranks[b]) {
 				return -1
 			}
-			if sizeRankLess(ranks[b], ranks[a]) {
+			if sizeRankLess(o.ranks[b], o.ranks[a]) {
 				return 1
 			}
 			return 0
 		})
 	})
-	for _, c := range o.cands {
-		if pv, ok := c.CallerObject.(paramsValidator); ok && pv.ValidateParamTypes(vm, args) == nil {
-			return c
+	accepts := func(c *TypedCallerMethod) bool {
+		pv, ok := c.CallerObject.(paramsValidator)
+		return ok && pv.ValidateParamTypes(vm, args) == nil
+	}
+	for i, c := range o.cands {
+		if !accepts(c) {
+			continue
+		}
+		if hasContractRank(o.ranks[c]) {
+			for _, d := range o.cands[i+1:] {
+				if sizeRankLess(o.ranks[c], o.ranks[d]) {
+					break // ranked after: no tie
+				}
+				if accepts(d) {
+					return nil, ErrMethodDuplication.NewErrorf("ambiguous: %s and %s both take the arguments",
+						c.CallerMethod.StringTarget(false), d.CallerMethod.StringTarget(false))
+				}
+			}
+		}
+		return c, nil
+	}
+	return o.cands[0], nil
+}
+
+// hasContractRank reports whether a rank is of a param typed by a contract
+// (negative: sizeRank).
+func hasContractRank(rank []int64) bool {
+	for _, r := range rank {
+		if r < 0 {
+			return true
 		}
 	}
-	return o.cands[0]
+	return false
 }
 
 // addCand adds n to the candidates of o (o the first of them): an error when
@@ -428,11 +458,17 @@ func sizeRank(vm *VM, co CallerObject) (rank []int64) {
 	for _, p := range cf.Params.Items {
 		r := unsized
 		for _, s := range p.TypesSymbols {
-			if s == nil || s.Scope != ScopeConstant {
+			if s == nil {
 				continue
 			}
 			v, err := cf.paramTypeSymbolValue(vm, s)
 			if err != nil {
+				continue
+			}
+			if ct, ok := v.(*Contract); ok {
+				// a contract: the more keys of its meta required, then the
+				// deeper in its parents, the sooner (a rank below any size's)
+				r = min(r, -(int64(ct.required())*1_000_000 + int64(ct.depth()) + 1))
 				continue
 			}
 			at, ok := v.(*ArrayType)
@@ -574,10 +610,8 @@ func (at MethodArgType) Copy() *MethodArgType {
 }
 
 func (at *MethodArgType) Walk(cb func(m *TypedCallerMethod) any) (v any) {
-	if at.Method != nil {
-		if v = cb(at.Method); v != nil {
-			return
-		}
+	if v = at.walkMethod(cb); v != nil {
+		return
 	}
 
 	if at.Next != nil {
@@ -594,11 +628,26 @@ func (at *MethodArgType) Walk(cb func(m *TypedCallerMethod) any) (v any) {
 	return
 }
 
-func (at *MethodArgType) WalkSorted(cb func(m *TypedCallerMethod) any) (v any) {
-	if at.Method != nil {
-		if v = cb(at.Method); v != nil {
-			return
+// walkMethod calls cb with the method of at — each of its candidates, when
+// it has some (overloads told apart by value: TypedCallerMethod.cands).
+func (at *MethodArgType) walkMethod(cb func(m *TypedCallerMethod) any) any {
+	if at.Method == nil {
+		return nil
+	}
+	if len(at.Method.cands) == 0 {
+		return cb(at.Method)
+	}
+	for _, c := range at.Method.cands {
+		if v := cb(c); v != nil {
+			return v
 		}
+	}
+	return nil
+}
+
+func (at *MethodArgType) WalkSorted(cb func(m *TypedCallerMethod) any) (v any) {
+	if v = at.walkMethod(cb); v != nil {
+		return
 	}
 	if at.Next != nil {
 		if v = at.Next.WalkSorted(cb); v != nil {
@@ -1069,7 +1118,10 @@ func (c *candsCaller) Equal(r Object) bool { return r == Object(c) }
 func (c *candsCaller) Name() string        { return c.first.Name() }
 
 func (c *candsCaller) Call(call Call) (Object, error) {
-	chosen := c.m.Select(call.VM, call.Args)
+	chosen, err := c.m.Select(call.VM, call.Args)
+	if err != nil {
+		return nil, err
+	}
 	// the arguments checked by the params of the one chosen
 	call.SkipValidation = false
 	return YieldCall(chosen.CallerObject, &call), nil

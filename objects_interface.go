@@ -680,6 +680,13 @@ func (f *InterfaceField) resolveAssigners(vm *VM) []TypeAssigner {
 	if len(out) == 0 && vm != nil {
 		for k := range f.TypesSymbols {
 			if tv, err := f.typeValue(vm, k); err == nil {
+				if mt, ok := tv.(MetaType); ok {
+					// `type<X>`: X resolved — unresolved it is the bare
+					// `type`, any type value
+					if tv, err = mt.resolveWith(vm.GetSymbolValue); err != nil {
+						continue
+					}
+				}
 				if ta, _ := tv.(TypeAssigner); ta != nil {
 					out = append(out, ta)
 				}

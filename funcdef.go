@@ -54,7 +54,13 @@ func (t ParamType) AcceptResolve(vm *VM, obj Object, resolve func(*SymbolInfo) (
 		if st == TAny {
 			return true, nil
 		}
-		if mt, isMeta := st.(MetaType); isMeta {
+		if c, isContract := st.(*Contract); isContract {
+			// a contract: an instance of it, or a subject that fits it — by
+			// value, as a structural type (Contract is an ObjectType)
+			if ok, err = c.CanAssignVM(vm, obj); err != nil || ok {
+				return
+			}
+		} else if mt, isMeta := st.(MetaType); isMeta {
 			// A `type<X>` parameter matches on the argument VALUE (the argument must
 			// itself be the type X), not on the argument's type — MetaType is an
 			// ObjectType, so it must be checked before the type-level branch below.

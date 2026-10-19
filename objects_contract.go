@@ -43,6 +43,18 @@ type Contract struct {
 	// MetaFactory is `(target) => interface { … }`, the keys of the meta of a
 	// target; nil: no keys of its own.
 	MetaFactory CallerObject
+	// Required is how many keys of its own meta are required (no `?`, no
+	// default): what tells overloads apart first (a select's `options`).
+	Required int
+}
+
+// required is how many keys of the meta of c and its parents are required.
+func (c *Contract) required() int {
+	n := 0
+	for _, x := range c.chain() {
+		n += x.Required
+	}
+	return n
 }
 
 var (
@@ -468,6 +480,9 @@ func NewContractFunc(c Call) (Object, error) {
 	}
 	if m := c.NamedArgs.GetValueOrNil("meta"); m != nil {
 		ct.Meta, _ = m.(KeyValueArray)
+	}
+	if n, ok := c.NamedArgs.GetValueOrNil("required").(Int); ok {
+		ct.Required = int(n)
 	}
 	return ct, nil
 }

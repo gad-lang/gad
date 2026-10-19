@@ -42,6 +42,19 @@ func (c *Compiler) compileContractStmt(nd *node.ContractStmt) error {
 	if m := metaArgExpr(nd.Meta); m != nil {
 		named.AppendS("meta", m)
 	}
+	// the keys of its meta required — no `?`, no default —: the overloads
+	// of contracts are told apart by them first
+	required := 0
+	if nd.MetaIface != nil {
+		for _, m := range nd.MetaIface.Members {
+			if m.Kind == node.IfaceField && !m.Name.Nullable && m.Default == nil {
+				required++
+			}
+		}
+	}
+	if required > 0 {
+		named.AppendS("required", &node.IntLit{Value: int64(required), ValuePos: pos})
+	}
 	call := &node.CallExpr{
 		Func: node.EIdent(BuiltinContract.String(), pos),
 		CallArgs: node.CallArgs{
