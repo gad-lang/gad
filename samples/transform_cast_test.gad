@@ -6,13 +6,14 @@ Three casts, by how much they may change a value:
 | Cast | Does |
 |---|---|
 | `obj :: Type` | **checks**: `obj` unchanged when it is assignable to `Type`, else a type error |
-| `obj :> Type` | **transforms** into a **class**, an **enum value** or an **interface** — and only those |
+| `obj :> Type` | **transforms** into a **class**, an **enum value**, an **interface**, a **dict** or a **key-value array** — and only those; a value already of `Type` is itself |
 | `obj ::> Type` | **converts** to any type: a builtin type by its constructor (`1 ::> str`), a typed array's items, a transformer function (see [type casts](testing/type_cast_test.gad)) |
 
 `obj :> Type` is the **transforming** cast: for a dict (or any item-getter) cast
 to an [interface](interfaces.gad) it **coerces** the value into the interface's
-declared shape; any other target than a class, an enum or an interface is an
-error that points to `::>`.
+declared shape; into a dict or a key-value array it takes the pairs of the
+source; a value already of the target type is itself, not a copy; any other
+target is an error that points to `::>`.
 
 Two things happen on `dict :> interface { … }`:
 
@@ -30,9 +31,11 @@ The source need not be a dict literal: any item-getter works — a key-value arr
 of the target class from the source's members, keeping only the fields that class
 declares — e.g. a `User{name, isAdmin}` becomes a `Tag{name}`.
 
-`:> Enum` takes the member of a value — `int` (negative ones too) or `uint`,
-whatever the integer type of the members — or of a name; a field typed by an enum
-takes its member the same way. A field of another type is **checked**, not
+`:> Enum` takes the member of a name, or of a value — an `int` (a negative one
+finds a negative member, never a `uint` one) or a `uint`, whatever the integer
+type of the members; never a `float`, a `decimal` or a `bool` (`2.0 :> mode`
+fails, though `2.0 == 2`). `::>` takes them the same way. A field typed by an
+enum takes its member the same way. A field of another type is **checked**, not
 converted: `{x: "1"} :> P` with `x int` fails (`::>` would convert it).
 
 Run it: `gad test samples/transform_cast_test.gad`
@@ -161,7 +164,8 @@ test "transform from one class to another" {
 /**
 `:> Enum` takes the member of a value or of a name — a value of no member fails.
 The members' values may be `int` (negative ones too) or `uint`: the number is
-what matches.
+what matches, given as an `int` or a `uint` — not a `float`, a `decimal` or a
+`bool`.
 **/
 test "enum value" {
     enum mode { r; w }      // r = 1, w = 2 (uint)
@@ -173,6 +177,16 @@ test "enum value" {
     enum sign { neg = -1; neg2 }   // int values: neg2 = -2
     t.equal("neg", (-1 :> sign).name)
     t.equal("neg2", (-2 :> sign).name)
+
+    // a uint finds it too; a float, a decimal, a bool do not
+    t.equal("w", (2u :> mode).name)
+    fails := func(f) { try { f(); return false } catch { return true } }
+    t.true(fails(func() { 2.0 :> mode }))
+    t.true(fails(func() { 2d :> mode }))
+    t.true(fails(func() { true :> mode }))
+    t.true(fails(func() { 2.0 ::> mode }))
+    // a negative int never finds a uint member
+    t.true(fails(func() { -1 :> mode }))
 
     // `::` only checks: an int is not a mode
     t.true(!(bool(1 :: mode) or false))

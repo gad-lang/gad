@@ -18,6 +18,13 @@ func TestCastOperators(t *testing.T) {
 	testExpectRun(t, `enum u { x = 5; y }; return [(6 :> u).name, (uint(6) :> u).name]`,
 		nil, Array{Str("y"), Str("y")})
 	expectErrHas(t, `enum mode { r; w }; return 3 :> mode`, newOpts(), "‹3› is not a member of ‹mode›")
+	// an int or a uint value only: not a float, a decimal or a bool (for :> and ::>)
+	testExpectRun(t, `enum mode { r; w }; enum sign { a = -1; b }; return [(2u :> mode).name, (-1 :> sign).name, (2u ::> mode).name]`,
+		nil, Array{Str("w"), Str("a"), Str("w")})
+	for _, src := range []string{`return 2.0 :> mode`, `return 2d :> mode`, `return true :> mode`, `return 2.0 ::> mode`} {
+		expectErrHas(t, `enum mode { r; w }; `+src, newOpts(), "is not a member of ‹mode›: a member is found by its name or its int or uint value")
+	}
+	expectErrHas(t, `enum mode { r; w }; return -1 :> mode`, newOpts(), "‹-1› is not a member of ‹mode›")
 	// :: never converts
 	expectErrHas(t, `enum mode { r; w }; return 1 :: mode`, newOpts(), "is not assignable to ‹mode›")
 

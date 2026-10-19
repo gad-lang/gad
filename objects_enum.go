@@ -111,22 +111,26 @@ func (e *Enum) Member(v Object) (*EnumValue, bool) {
 	return nil, false
 }
 
-// enumValueIs reports whether v is the value of a member: equal, or the same
-// number whatever its integer type — a member's value is an int (negative ones
-// too) or a uint, and `1 :> mode` finds the uint member 1 (a negative never
-// matches a uint member).
+// enumValueIs reports whether v is the value of a member: the same number of
+// an integer type — a member's value is an int (negative ones too) or a uint,
+// and v an int (a negative one finds a negative member, never a uint one) or a
+// uint. Nothing else is a member's value: not a float nor a decimal (`2.0 :>
+// mode` is no member, though `2.0 == 2`), not a bool.
 func enumValueIs(member, v Object) bool {
-	if member.Equal(v) {
-		return true
-	}
 	switch m := member.(type) {
 	case Int:
-		if u, ok := v.(Uint); ok {
-			return m >= 0 && uint64(m) == uint64(u)
+		switch x := v.(type) {
+		case Int:
+			return m == x
+		case Uint:
+			return m >= 0 && uint64(m) == uint64(x)
 		}
 	case Uint:
-		if i, ok := v.(Int); ok {
-			return i >= 0 && uint64(i) == uint64(m)
+		switch x := v.(type) {
+		case Uint:
+			return m == x
+		case Int:
+			return x >= 0 && uint64(x) == uint64(m)
 		}
 	}
 	return false

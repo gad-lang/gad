@@ -135,8 +135,7 @@ func AssignToTypeTransformStrict(vm *VM, obj, to Object) (Object, error) {
 		if m, ok := t.Member(obj); ok {
 			return m, nil
 		}
-		return nil, ErrIncompatibleAssign.NewErrorf("%s is not a member of %s",
-			ReprQuote(obj.ToString()), ReprQuote(t.Name()))
+		return nil, enumMemberError(obj, t)
 	case *Interface, *Class:
 		return AssignToTypeTransform(vm, obj, to)
 	}
@@ -183,9 +182,13 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 	}
 	switch t := to.(type) {
 	case *Enum:
-		// `"Name" :> Enum` (or its value): the member
+		// `"Name" :> Enum` (or its value): the member — an int or a uint
+		// value only, never a float, a decimal or a bool
 		if m, ok := t.Member(obj); ok {
 			return m, nil
+		}
+		if _, isMember := obj.(*EnumValue); !isMember {
+			return nil, enumMemberError(obj, t)
 		}
 	case *TypedArrayType:
 		// `arr ::> T` converts an array into a TypedArray of T (each leaf
@@ -298,4 +301,17 @@ func assignerAcceptsType(a TypeAssigner, t ObjectType) bool {
 		return IsAssignableTo(t, aot)
 	}
 	return true
+}
+
+// enumMemberError is the error of obj that is no member of e: a name, an int
+// or a uint that names none — or a value of another type, said with its type
+// (`2.0` is a float: no member's value, though `2.0 == 2`).
+func enumMemberError(obj Object, e *Enum) error {
+	switch obj.(type) {
+	case Str, Int, Uint, *EnumValue:
+		return ErrIncompatibleAssign.NewErrorf("%s is not a member of %s",
+			ReprQuote(obj.ToString()), ReprQuote(e.Name()))
+	}
+	return ErrIncompatibleAssign.NewErrorf("%s %s is not a member of %s: a member is found by its name or its int or uint value",
+		ReprQuote(obj.Type().Name()), ReprQuote(obj.ToString()), ReprQuote(e.Name()))
 }
