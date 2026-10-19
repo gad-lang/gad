@@ -720,6 +720,20 @@ func coerceFieldToInterface(vm *VM, name string, assigners []TypeAssigner, v Obj
 			return v, nil
 		}
 	}
+	// `yes` — a key given WITHOUT a value — where the types take no flag: a
+	// bool field takes it as true (a transform: `::` refuses it); any other
+	// wants a value
+	if f, ok := v.(Flag); ok && bool(f) {
+		names := make([]string, len(assigners))
+		for i, a := range assigners {
+			if bt, ok := a.(*BuiltinObjType); ok && bt.TypeKey() == TBool {
+				return True, nil
+			}
+			names[i] = TypeAssignerName(a)
+		}
+		return nil, ErrType.NewErrorf("field %q: given without a value (yes); want a value of %s",
+			name, ReprQuote(strings.Join(names, "|")))
+	}
 	// An enum field takes the member of the value (or of the name).
 	if len(assigners) == 1 {
 		if e, ok := assigners[0].(*Enum); ok {

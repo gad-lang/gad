@@ -171,6 +171,20 @@ k = 7
 // => ["table", 3, true, nil, 10, "cards", 9, true, "table", nil, nil, 14, "table", true]
 ```
 
+A field given `yes` — a key **without a value** (`(;readonly)`, a bare `[readonly]`)
+— is checked against its type: a `flag` field takes it; a `bool` field takes it
+as `true` on `:>` (`::` refuses it: `yes` is not a bool); a field of any other
+type wants a value — unless its types take a flag too (`mode? flag|str`).
+
+```gad
+interface F { required? flag; readonly? bool; layout? str; mode? flag|str }
+refused := func(f) { try { f(); return false } catch { return true } }
+[((;required, readonly) :> F), ({mode: yes} :> F).mode,
+ refused(() => ({layout: yes} :> F)),     // a str wants a value
+ refused(() => ({readonly: yes} :: F))]   // `::` converts nothing
+// => [{readonly: true, required: on}, on, true, true]
+```
+
 ## Nested and array fields (`name: { … }`)
 
 A field whose type is a nested interface has a **short form** `name: { … }`,
@@ -624,6 +638,12 @@ k = 7
  b.layout, b.n, b.m == mode.r,
  c.layout, c.note, d.layout, ({} :> Opts).twice,
  Opts.fields[0].default, Opts.fields[0].hasDefault]
+
+interface F { required? flag; readonly? bool; layout? str; mode? flag|str }
+refused := func(f) { try { f(); return false } catch { return true } }
+[((;required, readonly) :> F), ({mode: yes} :> F).mode,
+ refused(() => ({layout: yes} :> F)),     // a str wants a value
+ refused(() => ({readonly: yes} :: F))]   // `::` converts nothing
 
 interface Tagged { name str; tag? int|str }
 [

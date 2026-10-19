@@ -72,6 +72,13 @@ The field answers `field.default` (as written; `nil` when none) and
 
 @snippet iface_defaults
 
+A field given `yes` — a key **without a value** (`(;readonly)`, a bare `[readonly]`)
+— is checked against its type: a `flag` field takes it; a `bool` field takes it
+as `true` on `:>` (`::` refuses it: `yes` is not a bool); a field of any other
+type wants a value — unless its types take a flag too (`mode? flag|str`).
+
+@snippet iface_yes
+
 ## Nested and array fields (`name: { … }`)
 
 A field whose type is a nested interface has a **short form** `name: { … }`,
@@ -431,6 +438,15 @@ k = 7
  c.layout, c.note, d.layout, ({} :> Opts).twice,
  Opts.fields[0].default, Opts.fields[0].hasDefault]
 /**= ["table", 3, true, nil, 10, "cards", 9, true, "table", nil, nil, 14, "table", true] **/
+//endsnippet
+
+//snippet iface_yes
+interface F { required? flag; readonly? bool; layout? str; mode? flag|str }
+refused := func(f) { try { f(); return false } catch { return true } }
+[((;required, readonly) :> F), ({mode: yes} :> F).mode,
+ refused(() => ({layout: yes} :> F)),     // a str wants a value
+ refused(() => ({readonly: yes} :: F))]   // `::` converts nothing
+/**= [{required: yes, readonly: true}, yes, true, true] **/
 //endsnippet
 
 //snippet iface_nullable

@@ -47,3 +47,18 @@ func TestInterfaceFieldDefaults(t *testing.T) {
 	expectCompileError(t, `k := 1; f := (v interface { x int = k }) => v`, "the default of an interface written as a type is a constant")
 	testExpectRun(t, `f := (v interface { x? int = 2 }) => v :> interface { x? int = 2 }; return f({}).x`, nil, Int(2))
 }
+
+// `yes` — a key given without a value — against a field's type: a flag takes
+// it; a bool takes it as true on `:>` (`::` refuses it); any other type wants
+// a value, unless it takes a flag too.
+func TestInterfaceFieldYes(t *testing.T) {
+	const f = `interface F { required? flag; readonly? bool; layout? str; mode? flag|str }; `
+	testExpectRun(t, f+`return [({required: yes} :> F).required, ({readonly: yes} :> F).readonly, ((;readonly) :> F).readonly, ({mode: yes} :> F).mode]`,
+		nil, Array{Yes, True, True, Yes})
+	testExpectRun(t, f+`return ({required: yes} :: F).required`, nil, Yes)
+	expectErrHas(t, f+`return {readonly: yes} :: F`, newOpts(), "is not assignable to ‹F›")
+	expectErrHas(t, f+`return {layout: yes} :> F`, newOpts(), `field "layout": given without a value (yes); want a value of ‹str›`)
+	expectErrHas(t, f+`return {required: true} :> F`, newOpts(), `‹bool› is not assignable to ‹flag›`)
+	// `no` is not given (a reset), whatever the type
+	testExpectRun(t, f+`return len({required: no, readonly: no, layout: no} :> F)`, nil, Int(0))
+}
