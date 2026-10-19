@@ -7,6 +7,7 @@ package encoder
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/gad-lang/gad"
 )
@@ -54,11 +55,17 @@ func EncodeDict(ctx *WriteContext, d gad.Dict) (err error) {
 		return
 	}
 
-	for k, v := range d {
+	// in the order of the keys: the same dict encodes to the same bytes
+	keys := make([]string, 0, len(d))
+	for k := range d {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
 		if err = writeString(ctx, k); err != nil {
 			return
 		}
-		if err = EncodeObject(ctx, v); err != nil {
+		if err = EncodeObject(ctx, d[k]); err != nil {
 			return
 		}
 	}

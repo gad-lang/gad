@@ -4133,6 +4133,14 @@ func (c *Compiler) compileImportModule(nd *node.ImportExpr, moduleName string, a
 			spec.URL = url
 			spec.InitGoFunc = v.Caller(spec)
 			moduleStoreEntry = c.addModule(1, spec)
+		case *Bytecode:
+			// a module compiled on its own (encoder.BytecodeModule): linked,
+			// not compiled again (compiler_link.go)
+			spec.URL = url
+			moduleStoreEntry = c.addModule(1, spec)
+			if err = c.linkModule(nd, spec, v); err != nil {
+				return err
+			}
 		case BuiltinCompileModuleFunc:
 			var (
 				st = NewSymbolTable(c.symbolTable.builtins).

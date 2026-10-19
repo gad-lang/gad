@@ -114,6 +114,23 @@ func init() {
 				bc.Constants, err = DecodeArray[gad.Object](ctx)
 			case 3:
 				bc.Main, err = DecodeT[*gad.CompiledFunction](ctx)
+			case 4:
+				var n int
+				if n, err = readInt(ctx); err != nil {
+					return
+				}
+				bc.Builtins = make(map[string]int, n)
+				for i := 0; i < n; i++ {
+					var name string
+					var idx int
+					if name, err = readString(ctx); err != nil {
+						return
+					}
+					if idx, err = readInt(ctx); err != nil {
+						return
+					}
+					bc.Builtins[name] = idx
+				}
 			}
 			return
 		})

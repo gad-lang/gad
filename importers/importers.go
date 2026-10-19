@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/encoder"
 	"github.com/gad-lang/gad/parser"
 )
 
@@ -46,6 +47,24 @@ type FileImporter struct {
 	// path its transpiled Gad source is written to on import (see
 	// gad.TranspileGadx).
 	TranspilePath func(srcPath string) string
+	// WriteBytecode, when set, compiles a module imported from disk — a .gad,
+	// a .gadt or a .gadx — on its own and writes it beside its source as a
+	// compiled module
+	// (`name.gadb`, BytecodeExt) — as Python writes a `.pyc` —, which a later
+	// import without the extension links instead of compiling again (while
+	// it is not older than the source). The modules it imports are imported by
+	// the program that links it, by their names. A module that does not
+	// compile on its own — it names the application's builtins — is compiled
+	// from its source, as ever, and written nowhere.
+	WriteBytecode bool
+	// ModuleMap is the modules of the program — its builtin modules, this
+	// importer for the files —: what a module compiled on its own
+	// (WriteBytecode) imports from. Nil: files alone.
+	ModuleMap *gad.ModuleMap
+	// Builtins are the program's builtins (names), what a module compiled on
+	// its own (WriteBytecode) is compiled with: a program links its .gadb only
+	// when they are its own. Nil: gad's.
+	Builtins gad.BuiltinsNameSet
 	// Inspect, when set, is given every source this importer reads — each
 	// imported module and included file, and so, through Fork, those they
 	// import and include — parsed as the compiler parses it (gad.ParseSource):
@@ -106,8 +125,9 @@ func (m *FileImporter) Name() (string, error) {
 		exts := gad.SourceExtensionsFor(m.SourceKind)
 		name, err := m.NameResolver(m.WorkDir, m.name)
 		if err != nil && path.Ext(m.name) == "" {
-			// `import("./config")`: retry with each source extension.
-			for _, ext := range exts {
+			// `import("./config")`: retry with the compiled module, then
+			// each source extension.
+			for _, ext := range append([]string{BytecodeExt}, exts...) {
 				if n, e := m.NameResolver(m.WorkDir, m.name+ext); e == nil {
 					return n, nil
 				}
@@ -151,10 +171,16 @@ func (m *FileImporter) Name() (string, error) {
 	return pth, nil
 }
 
+// BytecodeExt is the extension of a module already compiled — its bytecode
+// encoded (encoder.CompileModule) —: imported, it is linked, not compiled
+// again. A path written without an extension finds it first, before the
+// sources (`import("./contracts")` takes contracts.gadb over contracts.gad).
+const BytecodeExt = ".gadb"
+
 // withSourceExt resolves a module path written without an extension: when p
 // has none and is not an existing file — on disk, or missing there in the
-// Fallback —, the first p+ext of exts that exists is returned; otherwise p
-// itself.
+// Fallback —, p+BytecodeExt when it exists, else the first p+ext of exts that
+// exists; otherwise p itself.
 func (m *FileImporter) withSourceExt(p string, exts []string) string {
 	if filepath.Ext(p) != "" {
 		return p
@@ -162,12 +188,30 @@ func (m *FileImporter) withSourceExt(p string, exts []string) string {
 	if m.isFile(p) {
 		return p
 	}
+	if m.isFile(p+BytecodeExt) && !m.sourceNewer(p, exts) {
+		return p + BytecodeExt
+	}
 	for _, ext := range exts {
 		if m.isFile(p + ext) {
 			return p + ext
 		}
 	}
 	return p
+}
+
+// sourceNewer says a source of p (p+ext, on disk) was changed after its
+// compiled module (p+BytecodeExt): the compiled one is old, not taken.
+func (m *FileImporter) sourceNewer(p string, exts []string) bool {
+	bst, err := os.Stat(p + BytecodeExt)
+	if err != nil {
+		return false
+	}
+	for _, ext := range exts {
+		if st, err := os.Stat(p + ext); err == nil && st.ModTime().After(bst.ModTime()) {
+			return true
+		}
+	}
+	return false
 }
 
 // isFile says p is a file on disk or, missing there, in the Fallback.
@@ -400,7 +444,21 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 		uri, err = "file:"+filepath.ToSlash(module.Name), nil
 	}
 
+	if filepath.Ext(module.Name) == BytecodeExt {
+		// already compiled: its bytecode, linked by the compiler
+		bc, derr := encoder.DecodeModule(src)
+		if derr != nil {
+			return nil, "", fmt.Errorf("%s: %w", module.Name, derr)
+		}
+		return bc, uri, nil
+	}
+
 	kind := gad.SourceKindForExt(module.Name)
+	if m.WriteBytecode {
+		if bc := m.writeBytecode(module, src, kind); bc != nil {
+			return bc, uri, nil
+		}
+	}
 	// A .gadx module may additionally be transpiled to readable Gad on import.
 	if kind == gad.SourceKindGadx && m.TranspilePath != nil {
 		if outPath := m.TranspilePath(module.Name); outPath != "" {
@@ -438,6 +496,9 @@ func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 		TranspilePath: m.TranspilePath,
 		Inspect:       m.Inspect,
 		Fallback:      m.Fallback,
+		WriteBytecode: m.WriteBytecode,
+		ModuleMap:     m.ModuleMap,
+		Builtins:      m.Builtins,
 	}
 }
 
@@ -517,4 +578,34 @@ func Shebang2Slashes(p []byte) {
 	if len(p) > 1 && string(p[:2]) == "#!" {
 		copy(p, "//")
 	}
+}
+
+// writeBytecode compiles src, the module of the dialect kind read from disk, on its own
+// and writes it beside its file (name.gadb): its bytecode to link, or nil
+// when it does not compile alone (it names builtins of the application) or it
+// is not on disk.
+func (m *FileImporter) writeBytecode(module *gad.ModuleSpec, src []byte, kind gad.SourceKind) *gad.Bytecode {
+	if _, err := os.Stat(module.Name); err != nil {
+		return nil // a Fallback's: nowhere to write
+	}
+	// the modules it imports: the program's, files from where it is
+	var mm *gad.ModuleMap
+	if m.ModuleMap != nil {
+		mm = m.ModuleMap.Fork(module.Name)
+	} else {
+		mm = gad.NewModuleMap().SetExtImporter(m.Fork(module.Name))
+	}
+	data, err := encoder.CompileModuleWith(module.Name, src, kind, mm, m.Builtins)
+	if err != nil {
+		return nil
+	}
+	bc, err := encoder.DecodeModule(data)
+	if err != nil {
+		return nil
+	}
+	out := strings.TrimSuffix(module.Name, filepath.Ext(module.Name)) + BytecodeExt
+	if err := os.WriteFile(out, data, 0o644); err != nil {
+		return nil // read-only: compiled from its source next time too
+	}
+	return bc
 }

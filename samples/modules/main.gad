@@ -30,6 +30,26 @@ for `include`.
 
 @snippet import_no_ext
 
+## Modules already compiled (`.gadb`)
+
+A module may be **already compiled**: its bytecode encoded in a `.gadb`
+file. Imported, it is not compiled again — it is **linked** into the program
+(its constants after the program's, every index it holds moved), and run by
+the program's VM like any module. A name without an extension finds the
+`.gadb` first — `import("./mathx")` takes `mathx.gadb` over `mathx.gad` —,
+while it is not older than its source.
+
+`gad run --write-bytecode` (or `importers.FileImporter{WriteBytecode: true}`
+when embedding) writes it, as Python writes a `.pyc`: each module imported
+from a `.gad`, `.gadt` or `.gadx` file is compiled on its own and written
+beside it as `.gadb`. The modules it imports are imported by the program that
+links it, by their names.
+
+A `.gadb` keeps the builtins it was compiled with: a program links it only
+when they are its own (else it is an error — compile it again). Embedding Go
+gives one from source with `encoder.CompileModule(name, src)`, and imports it
+with `encoder.BytecodeModule(data)` (a module of a `ModuleMap`).
+
 ## Module parameters
 
 Named import args set the module's `param (…)`. A module runs once and is then

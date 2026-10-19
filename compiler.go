@@ -395,6 +395,24 @@ func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts Comp
 	return CompileFile(st, module, pf, opts)
 }
 
+// CompileModuleKind compiles script as module, parsed in the dialect kind —
+// plain Gad, a .gadt template, a .gadx template — as an import of such a file
+// is: what a module compiled on its own (encoder.CompileModuleKind, `.gadb`)
+// is compiled with.
+func CompileModuleKind(st *SymbolTable, module *ModuleSpec, script []byte, kind SourceKind, opts CompileOptions) (*CompileResult, error) {
+	fileSet := source.NewFileSet()
+	srcFile := fileSet.AppendFileData(module.Name, script)
+	var trace io.Writer
+	if opts.TraceParser {
+		trace = opts.Trace
+	}
+	pf, err := parseSourceFile(srcFile, kind, trace)
+	if err != nil {
+		return nil, err
+	}
+	return CompileFile(st, module, pf, opts)
+}
+
 // CompileFile compiles given module file, returning a CompileResult (the input
 // File, the Bytecode and any compiler Warnings) and an error.
 func CompileFile(st *SymbolTable, module *ModuleSpec, pf *parser.File, opts CompileOptions) (*CompileResult, error) {

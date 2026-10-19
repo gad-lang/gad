@@ -22,6 +22,10 @@ type Bytecode struct {
 	Constants  Array
 	Modules    []*ModuleSpec
 	NumModules int
+	// Builtins are the builtins a module compiled on its own was compiled with
+	// — name to index —: a program links it (a `.gadb`) only when each has the
+	// same index there (linkModule). Nil for a program.
+	Builtins map[string]int
 }
 
 // Fprint writes constants and instructions to given Writer in a human readable form.

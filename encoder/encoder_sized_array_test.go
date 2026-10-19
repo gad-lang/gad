@@ -68,3 +68,21 @@ func TestEncDecMetaTypeKind(t *testing.T) {
 	require.Equal(t, "enum", v.(gad.MetaType).Kind)
 	require.Equal(t, "type<enum>", v.(gad.MetaType).Name())
 }
+
+// The same program encodes to the same bytes, compile after compile (a map
+// ranges in no order: the source maps and dicts are written by their keys).
+func TestEncodeDeterministic(t *testing.T) {
+	src := []byte(`f := func(a) { b := a + 1; return {x: b, y: [b, a], z: "s"} }; return f(1)`)
+	enc := func() []byte {
+		res, err := gad.Compile(gad.NewSymbolTable(gad.NewBuiltins().NameSet), src, gad.CompileOptions{})
+		require.NoError(t, err)
+		var buf bytes.Buffer
+		_, err = EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), res.Bytecode)
+		require.NoError(t, err)
+		return buf.Bytes()
+	}
+	first := enc()
+	for i := 0; i < 20; i++ {
+		require.Equal(t, first, enc())
+	}
+}

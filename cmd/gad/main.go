@@ -49,6 +49,7 @@ var (
 	traceOptimizer  bool
 	traceCompiler   bool
 	safe            bool
+	writeBytecode   bool
 	disabledModules map[string]bool
 
 	// Template/mixed-mode execution options (set by --template* flags).
@@ -560,13 +561,15 @@ func DefaultModuleMapFor(workdir string, sourceType gad.SourceKind, sourcePath *
 	mb := helper.NewModuleMapBuilder()
 	mb.Safe = safe
 	mb.Disabled = disabledModules
-	return mb.Build().
-		SetExtImporter(&importers.FileImporter{
-			WorkDir:      workdir,
-			SourceKind:   sourceType,
-			FileReader:   importers.ShebangReadFile,
-			NameResolver: importers.OsDirsNameResolverPtr(sourcePath),
-		})
+	mm := mb.Build()
+	return mm.SetExtImporter(&importers.FileImporter{
+		WorkDir:       workdir,
+		SourceKind:    sourceType,
+		FileReader:    importers.ShebangReadFile,
+		NameResolver:  importers.OsDirsNameResolverPtr(sourcePath),
+		WriteBytecode: writeBytecode,
+		ModuleMap:     mm,
+	})
 }
 
 // DefaultEmbedMap wires `embed("path")` to read files from disk, resolving
@@ -712,6 +715,8 @@ func registerRunFlags(flagset *flag.FlagSet) *runFlags {
 		`Comma separated units: -trace parser,optimizer,compiler`)
 	flagset.BoolVar(&noOptimizer, "no-optimizer", false, `Disable optimization`)
 	flagset.BoolVar(&safe, "safe", false, `Disable al external acess modules: "http", "os" and "filepath"`)
+	flagset.BoolVar(&writeBytecode, "write-bytecode", false,
+		`Compile each module imported from a .gad file on its own and write it beside it as .gadb (linked, not compiled again, while not older than the source)`)
 	flagset.BoolVar(&rf.module, "module", false, `if SCRIPT_FILE does not exists, check exists in GADPATH`)
 	flagset.StringVar(&rf.disabled, "disabled-modules", "", `Disable external acess modules by comma separated units: -disabled-modules http,os`)
 	flagset.DurationVar(&rf.timeout, "timeout", 0,

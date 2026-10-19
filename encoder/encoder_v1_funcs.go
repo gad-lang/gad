@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"sort"
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/parser/source"
@@ -124,6 +125,30 @@ func init() {
 			}
 			if err = EncodeObject(ctx, bc.Main); err != nil {
 				return
+			}
+		}
+
+		// Builtins (of a module compiled on its own), field #4: name, index,
+		// by name
+		if len(bc.Builtins) > 0 {
+			if err = ctx.WriteByte(4); err != nil {
+				return
+			}
+			names := make([]string, 0, len(bc.Builtins))
+			for n := range bc.Builtins {
+				names = append(names, n)
+			}
+			sort.Strings(names)
+			if err = writeInt(ctx, len(names)); err != nil {
+				return
+			}
+			for _, n := range names {
+				if err = writeString(ctx, n); err != nil {
+					return
+				}
+				if err = writeInt(ctx, bc.Builtins[n]); err != nil {
+					return
+				}
 			}
 		}
 
@@ -372,11 +397,18 @@ func init() {
 				return
 			}
 
-			for k, v := range cf.SourceMap {
+			// in the order of the keys: the same function encodes to the same
+			// bytes (a map ranges in no order)
+			keys := make([]int, 0, l)
+			for k := range cf.SourceMap {
+				keys = append(keys, k)
+			}
+			sort.Ints(keys)
+			for _, k := range keys {
 				if err = writeInt(ctx, k); err != nil {
 					return
 				}
-				if err = writeInt(ctx, v); err != nil {
+				if err = writeInt(ctx, cf.SourceMap[k]); err != nil {
 					return
 				}
 			}

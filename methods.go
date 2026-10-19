@@ -735,7 +735,7 @@ func (at *MethodArgType) add(types ObjectTypeArray, m *CallerMethod, override bo
 						return
 					}
 				}
-			} else if raise && cur.Method.forceValidate && callerHasStructuralParamTypes(m.CallerObject) &&
+			} else if raise && (cur.Method.forceValidate || callerHasStructuralParamTypes(m.CallerObject)) &&
 				cur.Method.addCand(&TypedCallerMethod{CallerMethod: m, types: types, forceValidate: true}) {
 				// the same key, told apart by value: a candidate (cands)
 				if onAdd != nil {

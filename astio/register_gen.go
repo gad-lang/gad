@@ -45,7 +45,7 @@ func init() {
 		(*node.ComputedExpr)(nil),
 		(*node.CondExpr)(nil),
 		(*node.ConfigStmt)(nil),
-		(*node.ContractStmt)(nil),
+		(*node.ContractExpr)(nil),
 		(*node.DateTimeLit)(nil),
 		(*node.DecimalLit)(nil),
 		(*node.DeferStmt)(nil),
