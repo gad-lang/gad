@@ -11,6 +11,9 @@ separate from a boolean *value* (`true` / `false`):
   `x="true"` / `x="false"`.
 - other falsy values (`nil`, `""`) omit the attribute; any other value renders
   as `x="value"`.
+
+`no` is a **reset**, as in a [key-value array](../key_value_array.gad): it takes
+back what came before it — a spread too — and a later `x` gives it again.
 **/
 
 @main
@@ -28,3 +31,8 @@ separate from a boolean *value* (`true` / `false`):
     // other values: string/number render as-is, nil/"" omit
     div[data-count=42] number
     div[data-x=nil] omitted-nil
+
+    // a reset takes back what came before it, a spread included
+    ~ base := (;checked, disabled)
+    input[type="checkbox", **base, checked=no] spread-reset
+    input[checked=no, checked] given-again

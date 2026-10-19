@@ -306,6 +306,10 @@ func NewDictFunc(c Call) (ret Object, err error) {
 		default:
 			d := Dict{}
 			if err = ItemsOfCb(c.VM, &c.NamedArgs, func(kv *KeyValue) error {
+				if IsReset(kv.V) {
+					delete(d, kv.K.ToString())
+					return nil
+				}
 				d[kv.K.ToString()] = kv.V
 				return nil
 			}, arg); err != nil {
@@ -322,6 +326,10 @@ func NewDictFunc(c Call) (ret Object, err error) {
 				return nil
 			default:
 				return ItemsOfCb(c.VM, &c.NamedArgs, func(kv *KeyValue) error {
+					if IsReset(kv.V) {
+						delete(d, kv.K.ToString())
+						return nil
+					}
 					d[kv.K.ToString()] = kv.V
 					return nil
 				}, arg)

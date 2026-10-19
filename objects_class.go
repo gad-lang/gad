@@ -1401,6 +1401,7 @@ func (t *Class) CallAddMethods(call Call) (err error) {
 
 	switch t := items.Value.(type) {
 	case KeyValueArray:
+		t = t.Normalized() // its resets applied (one built in Go may hold them)
 		elements = t
 	case Dict:
 		elements = t.ToKeyValueArray()
@@ -1483,6 +1484,7 @@ func (t *Class) CallAddFields(call Call) (err error) {
 		switch tv := value.V.(type) {
 		case *NilType, Flag:
 		case KeyValueArray:
+			tv = tv.Normalized() // its resets applied (one built in Go may hold them)
 			// The spec form `(; meta=<kva>, default=<value>)` — emitted for a field
 			// that carries `[k=v, …]` metadata (see classFieldsExpr).
 			for _, kv := range tv {
@@ -1524,6 +1526,7 @@ func (t *Class) CallAddFields(call Call) (err error) {
 func fieldItems(o Object) KeyValueArray {
 	switch v := o.(type) {
 	case KeyValueArray:
+		v = v.Normalized() // its resets applied (one built in Go may hold them)
 		return v
 	case Dict:
 		keys := make([]string, 0, len(v))
@@ -1550,6 +1553,7 @@ func (t *Class) addSpread(vm *VM, item Object) error {
 	case Dict:
 		get = func(key string) Object { return v[key] }
 	case KeyValueArray:
+		v = v.Normalized() // its resets applied (one built in Go may hold them)
 		get = func(key string) Object {
 			for _, kv := range v {
 				if kv.K.ToString() == key {
@@ -1610,6 +1614,7 @@ func (t *Class) extendsSpec(argName string, arg Object) error {
 	case *KeyValue:
 		return t.extendsAliased(argName, v)
 	case KeyValueArray:
+		v = v.Normalized() // its resets applied (one built in Go may hold them)
 		for _, kv := range v {
 			if err := t.extendsAliased(argName, kv); err != nil {
 				return err
@@ -1833,6 +1838,7 @@ func (t *Class) filterNewMethods(methods Object) (add Array) {
 			}
 		}
 	case KeyValueArray:
+		mt = mt.Normalized() // its resets applied (one built in Go may hold them)
 		for _, kv := range mt {
 			keep(kv.K.ToString(), kv.V)
 		}

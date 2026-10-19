@@ -148,7 +148,12 @@ collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)
 
 Parameters after a `;` are **named**; they may have defaults, and a trailing
 `**name` collects extra named arguments. Callers pass them after a `;` as
-`name=value` and may spread a dict with `**`.
+`name=value` and may spread a dict with `**`. A bare `name` passes the flag
+`yes` (given without a value); `name=no` resets it — not given, so the default
+applies, even over a spread before it (`f(; **opts, name=no)`) —, and
+`name=nil` passes `nil`, which the default does not replace: a parameter not
+given is `no` until its default (`name ?!= default`). See
+[key-value arrays](key_value_array.gad).
 
 ```gad
 greet := func(name; greeting = "Hello", **rest) => greeting + ", " + name

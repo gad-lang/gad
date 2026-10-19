@@ -35,7 +35,7 @@ func (c *Compiler) metaKeyValueArray(nd ast.Node, kva *node.KeyValueArrayLit) (K
 			if err != nil {
 				return nil, err
 			}
-			var v Object = Flag(true) // a bare key is a flag `k` == `k=true`
+			var v Object = Flag(true) // a bare key is the flag `k` == `k=yes`
 			if e.Value != nil {
 				if v, err = c.metaValue(nd, e.Value); err != nil {
 					return nil, err
@@ -56,7 +56,8 @@ func (c *Compiler) metaKeyValueArray(nd ast.Node, kva *node.KeyValueArrayLit) (K
 			return nil, c.Errorf(nd, "unsupported metadata element %T", el)
 		}
 	}
-	return out, nil
+	// `k=no` resets k, as in any key-value array
+	return out.Normalized(), nil
 }
 
 // metaKey resolves a metadata key expression to its Object key (a bare name or a

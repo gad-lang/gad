@@ -264,6 +264,7 @@ func applyInitFields(vm *VM, initFields CallerObject, dst Dict) error {
 	}
 	switch r := ret.(type) {
 	case KeyValueArray:
+		r = r.Normalized() // its resets applied (one built in Go may hold them)
 		for _, kv := range r {
 			dst[kv.K.ToString()] = kv.V
 		}

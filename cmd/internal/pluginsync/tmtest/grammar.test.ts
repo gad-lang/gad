@@ -227,6 +227,15 @@ test("the casts `:>` and `::>` are one operator token each", () => {
   expect(tokenize("x := a :: T").find((t) => t.text === "::")).toBeDefined();
 });
 
+test("`?!` / `?!=` (no-coalescing) and `!?` / `!?=` are one operator token each", () => {
+  for (const op of ["?!", "?!=", "!?", "!?="]) {
+    const toks = tokenize(`x := a ${op} b`);
+    const tok = toks.find((t) => t.text === op);
+    expect(tok, `no ${op} token in ${JSON.stringify(toks.map((t) => t.text))}`).toBeDefined();
+    expect(tok!.scopes.some((s) => s.includes("keyword.operator.gad"))).toBe(true);
+  }
+});
+
 test("`mixin` is a control keyword in decl position and `Mixin` a builtin", () => {
   // `mixin` is contextual: a keyword only before a `{ … }` body; `Mixin` is the
   // global builtin it lowers to.

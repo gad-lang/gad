@@ -30,15 +30,65 @@ built := keyValueArray([a=1], keyValue("b", 2))
 // => ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)", "(;a=1, b=2)"]
 ```
 
-## Flags
+## Flags: given without a value, and resets
 
-A bare key is a flag (`key` == `key=yes`); `key=no` drops the entry.
-`kva.flag(name)` reads one.
+A bare key is the flag `yes` — the key **given without a value** (`key` ==
+`key=yes`); `key=true`, `key=nil`, … give it a value (see
+[values and types](values_and_types.gad)). `kva.flag(name)` reads a key as a
+switch: true when its value is truthy.
+
+`key=no` **resets** the key: as if it had not been given. In a sequence of
+pairs a reset removes the pairs of its key that come before it — and is
+dropped itself when a pair of the key comes after it:
+
+| Pairs | Are |
+|-------|-----|
+| `(;a=1, a=2, a=no, a=3, a=4)` | `(;a=3, a=4)` |
+| `(;a=2, a=no)` | `(;a=no)` |
+| `(;a=no)` | `(;a=no)` |
+| `(;a=no, a=2)` | `(;a=2)` |
+| `(;a) + (;a=2) + (;a=no)` | `(;a=no)` |
+
+A reset that is the last pair of its key **stays**, so the array still resets
+the key when merged on another: `(;a) + (;a=2) + (;a=no)` — and
+`(;a=1) + ((;a=2) + (;a=no))` — are `(;a=no)`, `{}` as a dict; a dict holding
+`no` converts to one (`{a: no} ::> keyValueArray` is `(;a=no)`). An array
+built in Go is read the same way: its resets applied by every read. The rule is the same for
+every merge: `+`, `++`, a `**spread` in a literal, the arguments of `dict(…)`,
+the named arguments of a call.
+
+Reading a reset key finds nothing: `kva.get(k)` is `nil`, `k in kva` is false,
+`kva.values(k)` holds the values given after the last reset.
 
 ```gad
-flags := (; debug, verbose = no, level = 3)
-[str(flags), flags.flag("debug"), flags.flag("verbose")]
-// => ["(;debug, level=3)", true, false]
+flags := (; debug, verbose = no, level = 3, color = true)
+[str(flags), flags.flag("debug"), flags.flag("verbose"), flags.get("debug") == yes, typeName(flags.get("color"))]
+// => ["(;debug, verbose=no, level=3, color=true)", true, false, true, "bool"]
+```
+
+```gad
+seq := (;a=1, a=2, a=no, a=3, a=4)
+base := (;a=1, b=2)
+[str(seq), seq == (;a=3, a=4), str((;a) + (;a=2) + (;a=no)),
+ dict((;a) + (;a=2)), dict((;a) + (;a=2) + (;a=no)), dict((;a=1) + ((;a=2) + (;a=no))),
+ str((;**base, a=no)), dict(base, (;b=no))]
+// => ["(;a=3, a=4)", true, "(;a=no)", {a: 2}, {}, {}, "(;b=2, a=no)", {a: 1}]
+
+reset := (;a=1, a=no)
+["a" in reset, reset.get("a"), (;a=1, a=no, a=2, a=3).values("a")]
+// => [false, nil, [2, 3]]
+```
+
+A named argument reset is not given: its parameter is `no` until its default
+(`?!=`, see [operators](user_operators.gad)) — and one given `nil` is `nil` —,
+and the rest (`**na`) has neither it nor the reset. Resetting a name the function does
+not take is no error.
+
+```gad
+f := func(; a=1, **rest) => [a, dict(rest)]
+defaults := (;a=5)
+[f(), f(; a=2), f(; a=no), f(; a=nil), f(; a=yes), f(; **defaults), f(; **defaults, a=no), f(; b=2, b=no, c)]
+// => [[1, {}], [2, {}], [1, {}], [nil, {}], [on, {}], [5, {}], [1, {}], [1, {c: on}]]
 ```
 
 ## Function values
@@ -113,8 +163,21 @@ anyKeys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
 built := keyValueArray([a=1], keyValue("b", 2))
 [str(kva), str(anyKeys), str(built)]
 
-flags := (; debug, verbose = no, level = 3)
-[str(flags), flags.flag("debug"), flags.flag("verbose")]
+flags := (; debug, verbose = no, level = 3, color = true)
+[str(flags), flags.flag("debug"), flags.flag("verbose"), flags.get("debug") == yes, typeName(flags.get("color"))]
+
+seq := (;a=1, a=2, a=no, a=3, a=4)
+base := (;a=1, b=2)
+[str(seq), seq == (;a=3, a=4), str((;a) + (;a=2) + (;a=no)),
+ dict((;a) + (;a=2)), dict((;a) + (;a=2) + (;a=no)), dict((;a=1) + ((;a=2) + (;a=no))),
+ str((;**base, a=no)), dict(base, (;b=no))]
+
+reset := (;a=1, a=no)
+["a" in reset, reset.get("a"), (;a=1, a=no, a=2, a=3).values("a")]
+
+f := func(; a=1, **rest) => [a, dict(rest)]
+defaults := (;a=5)
+[f(), f(; a=2), f(; a=no), f(; a=nil), f(; a=yes), f(; **defaults), f(; **defaults, a=no), f(; b=2, b=no, c)]
 
 fns := (; greet() => "hi", add(a, b) => a + b, twice(x) { return x * 2 })
 [fns[0].v(), fns[1].v(2, 3), fns[2].v(4)]

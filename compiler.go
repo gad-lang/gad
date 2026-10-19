@@ -551,7 +551,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 		)
 
 		switch lastOp {
-		case OpJump, OpJumpFalsy, OpAndJump, OpOrJump, OpJumpNotNil:
+		case OpJump, OpJumpFalsy, OpAndJump, OpOrJump, OpJumpNotNil, OpJumpNotNo:
 			jumpPos[operands[0]] = struct{}{}
 		}
 
@@ -751,7 +751,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileMultiParenExpr(nt)
 	case *node.BinaryExpr:
 		switch nt.Token {
-		case token.LAnd, token.LOr, token.Nullich:
+		case token.LAnd, token.LOr, token.Nullich, token.NoCoalesce:
 			return c.compileLogical(nt)
 		case token.Absent:
 			return c.compileAbsent(nt)
@@ -1424,7 +1424,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	buf = append(buf[:0], byte(op))
 	switch op {
 	case OpGetBuiltin, OpConstant, OpDict, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
-		OpJumpFalsy, OpAndJump, OpOrJump, OpKeyValueArray, OpJumpNil, OpJumpNotNil,
+		OpJumpFalsy, OpAndJump, OpOrJump, OpKeyValueArray, OpJumpNil, OpJumpNotNil, OpJumpNotNo,
 		OpLoadModule, OpEnvSet, OpInterfaceBind, OpPushSource, OpInterfaceExtends:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))

@@ -69,9 +69,27 @@ present* (a present `nil` still counts). `a.b !? d` yields `a.b` when `b` exists
 else `d`; `a.b !?= d` assigns only when absent (auto-creating missing
 intermediate dicts). See [absent_coalescing.gad](absent_coalescing.gad).
 
+## No-coalescing (`?!` / `?!=`)
+
+The counterparts of `??`/`??=` for `no` — a key **not given**, or reset (see
+[values and types](values_and_types.gad)): `a ?! d` yields `d` only when `a` is
+`no`, else `a` (a `nil`, a `false`, a `0` are kept); `a ?!= d` assigns `d`
+only when `a` is `no`. `d` is evaluated lazily. A named parameter not given is
+`no` until its default: `func(; a=1)` takes it with `a ?!= 1`, so a call that
+passes `a=nil` keeps `nil`.
+
+```gad
+x := no
+y := no; y ?!= 7
+z := nil; z ?!= 7                      // nil is a value: kept
+f := func(; a=1) => a
+[x ?! 5, nil ?! 5, false ?! 5, y, z, f(), f(; a=no), f(; a=nil)]
+// => [5, nil, false, 7, nil, 1, 1, nil]
+```
+
 ## Assignment, increment & array append
 
-`+= -= *= /= %= **= &= |= ^= &^= <<= >>= ??=`, postfix `x++`/`x--` (statements).
+`+= -= *= /= %= **= &= |= ^= &^= <<= >>= ??= ?!=`, postfix `x++`/`x--` (statements).
 Array append has four forms: `arr + x` (append one, concatenating an iterable),
 `arr ++ it` (extend with an iterable), `arr += x` (append x as **one** element,
 in place), `arr ++= it` (extend in place). A single target with a comma list is
@@ -191,6 +209,12 @@ guest := nil
     user.bye?.("bo"),                  // nil: nothing to call
     guest?.name ?? "anonymous",        // ?? supplies the fallback
 ]
+
+x := no
+y := no; y ?!= 7
+z := nil; z ?!= 7                      // nil is a value: kept
+f := func(; a=1) => a
+[x ?! 5, nil ?! 5, false ?! 5, y, z, f(), f(; a=no), f(; a=nil)]
 
 sub := 10; sub -= 3; sub *= 2          // 14
 mask := 6; mask &= 3                   // 2

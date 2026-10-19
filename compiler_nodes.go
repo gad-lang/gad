@@ -911,10 +911,13 @@ func (c *Compiler) compileAssignStmt(
 		}
 	}
 
-	if op == token.NullichAssign || op == token.LOrAssign {
+	if op == token.NullichAssign || op == token.LOrAssign || op == token.NoCoalesceAssign {
 		op2 := OpJumpNotNil
-		if op == token.LOrAssign {
+		switch op {
+		case token.LOrAssign:
 			op2 = OpOrJump
+		case token.NoCoalesceAssign:
+			op2 = OpJumpNotNo
 		}
 		jumpPos := c.emit(nd, op2, 0)
 		// compile RHSs
@@ -3139,6 +3142,8 @@ func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
 		jumpPos = c.emit(nd, OpAndJump, 0)
 	case token.Nullich:
 		jumpPos = c.emit(nd, OpJumpNotNil, 0)
+	case token.NoCoalesce:
+		jumpPos = c.emit(nd, OpJumpNotNo, 0)
 	default:
 		jumpPos = c.emit(nd, OpOrJump, 0)
 	}
@@ -4639,26 +4644,15 @@ func (c *Compiler) compileKeyValueLit(elt *node.KeyValueLit) (err error) {
 
 func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error) {
 	length := len(nd.Elements)
-elems:
 	for _, elt := range nd.Elements {
 		switch t := elt.(type) {
+		// `key=no` is kept: it resets the key (IsReset), which a later merge
+		// must still see
 		case *node.KeyValuePairLit:
-			if flag, _ := t.Value.(*node.FlagLit); flag != nil {
-				if !flag.Value {
-					length--
-					continue elems
-				}
-			}
 			if err = c.compileKeyValuePairLit(t); err != nil {
 				return
 			}
 		case *node.KeyValueLit:
-			if flag, _ := t.Value.(*node.FlagLit); flag != nil {
-				if !flag.Value {
-					length--
-					continue elems
-				}
-			}
 			if err = c.compileKeyValueLit(t); err != nil {
 				return
 			}
@@ -4867,9 +4861,11 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name *
 		} else if cv, _ := value.(*node.ComputedExpr); cv != nil {
 			value = &node.CallExpr{Func: cv}
 		}
+		// `name ?!= default`: a named param not given (or reset) is `no`;
+		// one given `nil` keeps it
 		stmts = append(stmts, &node.AssignStmt{
 			TokenPos: name.Pos(),
-			Token:    token.NullichAssign,
+			Token:    token.NoCoalesceAssign,
 			LHS:      []node.Expr{name},
 			RHS:      []node.Expr{value},
 		})

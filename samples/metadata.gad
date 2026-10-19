@@ -7,7 +7,9 @@ doc comment and the element. It **accompanies the element in memory** and is rea
 back with the `@meta` member.
 
 Metadata is a real key-value array, so a value is any constant expression:
-strings, numbers, flags (a bare `key` is `key=true`), nested `[ … ]` / `(; … )`,
+strings, numbers, flags (a bare `key` is `key=yes`: given without a value;
+`key=no` resets it, as in a [key-value array](key_value_array.gad)), nested
+`[ … ]` / `(; … )`,
 arrays and dicts. A **symbol** is one too — `#label` is the string `"label"`, the
 constant it compiles to anywhere else — which is how a block names members
 without quoting them: `[columns=[#label, #href]]`.

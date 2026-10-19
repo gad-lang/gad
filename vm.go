@@ -434,6 +434,18 @@ func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array, namedArgs *Na
 		}
 	}
 
+	// a named param's slot not set yet: `no` when not given (a run that goes
+	// on from an Eval keeps what the slot already holds)
+	var freshNamed []bool
+	if numNamedParams > 0 {
+		freshNamed = make([]bool, numNamedParams)
+		for i := range freshNamed {
+			if j := numParams + i; j < len(locals) {
+				freshNamed[i] = locals[j] == nil
+			}
+		}
+	}
+
 	for i := 0; i < main.NumLocals; i++ {
 		if locals[i] == nil {
 			locals[i] = Nil
@@ -466,15 +478,11 @@ func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array, namedArgs *Na
 		if main.NamedParams.variadic {
 			locals[numParams+numNamedParams-1] = namedArgs
 			for i, p := range main.NamedParams.Items[:numNamedParams-1] {
-				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
-					locals[numParams+i] = v
-				}
+				setNamedLocal(locals, numParams+i, freshNamed[i], namedArgs, p.Name)
 			}
 		} else {
 			for i, p := range main.NamedParams.Items {
-				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
-					locals[numParams+i] = v
-				}
+				setNamedLocal(locals, numParams+i, freshNamed[i], namedArgs, p.Name)
 			}
 		}
 	}
@@ -1275,7 +1283,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 
 		for ; i < l; i++ {
 			np := cfunc.NamedParams.Items[i]
-			vm.stack[basePointer+numParams+i] = namedParams.GetValue(np.Name)
+			vm.stack[basePointer+numParams+i] = namedParamOf(&namedParams, np.Name)
 		}
 		// define var namedArgs
 		if cfunc.NamedParams.variadic {
@@ -1789,4 +1797,25 @@ var vmSyncPool = sync.Pool{
 			bytecode: &Bytecode{},
 		}
 	},
+}
+
+// namedParamOf is the value of the named parameter name: what the call gave
+// (`nil` included), else `no` — not given, or reset (`name=no`) —, which the
+// default of the param replaces (`name ?!= default`, helperBuildKwargsStmts).
+func namedParamOf(na *NamedArgs, name string) Object {
+	if v := na.GetValueOrNil(name); v != nil {
+		return v
+	}
+	return No
+}
+
+// setNamedLocal sets the slot i of the named param name: what the call gave,
+// else `no` when the slot is fresh (else it keeps its value: an Eval going
+// on).
+func setNamedLocal(locals []Object, i int, fresh bool, na *NamedArgs, name string) {
+	if v := na.GetValueOrNil(name); v != nil {
+		locals[i] = v
+	} else if fresh {
+		locals[i] = No
+	}
 }

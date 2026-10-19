@@ -893,7 +893,8 @@ func TestVMKeyValue(t *testing.T) {
 func TestVMKeyValueArray(t *testing.T) {
 	testExpectRun(t, `return (;flag)`, nil, KeyValueArray{&KeyValue{Str("flag"), Yes}})
 	testExpectRun(t, `return (;flag=yes)`, nil, KeyValueArray{&KeyValue{Str("flag"), Yes}})
-	testExpectRun(t, `return (;flag=no)`, nil, KeyValueArray{})
+	// `no` is a reset: kept when the last pair of its key
+	testExpectRun(t, `return (;flag=no)`, nil, KeyValueArray{&KeyValue{Str("flag"), No}})
 	testExpectRun(t, `return str((;flag))`, nil, Str("(;flag)"))
 	testExpectRun(t, `return (;disabled).flag("disabled")`, nil, True)
 	testExpectRun(t, `return (;x=1).flag("x")`, nil, True)

@@ -81,6 +81,32 @@ type written `yes`/`no` and printed `on`/`off`.
 // => ["int", "uint", "float", "decimal", 31, 15]
 ```
 
+### `yes` / `no` are not `true` / `false`
+
+A flag is truthy (`yes`) or falsy (`no`) like a bool, but it says something a
+bool does not: whether a key — of a [key-value array](key_value_array.gad), a
+named argument, a metadata block, a gadx attribute — was **given**, and how:
+
+| Written | Means |
+|---------|-------|
+| absent | not given: a default applies |
+| `key` / `key=yes` | given, **without a value** |
+| `key=no` | **reset**: as if not given, removing what came before it |
+| `key=true`, `key=false`, `key=nil`, `key=…` | given, **with that value** |
+
+So `true` is a value and `yes` is a presence: a gadx attribute `[checked]`
+renders bare (`checked`), `[aria-expanded=true]` renders `aria-expanded="true"`;
+`(;a)` holds the flag `yes`, `(;a=true)` the bool `true`. And `no` is not
+`false`: `false` is a value given, `no` takes the key back — see
+[resets](key_value_array.gad).
+
+```gad
+given := (;a, b=yes, c=true, d=nil, e=no)
+[typeName(given.get("a")), typeName(given.get("c")), "d" in given, "e" in given,
+ yes == true, !yes, str(yes)]
+// => ["flag", "bool", true, false, true, off, "on"]
+```
+
 ## Characters
 
 A `char` is a single unicode code point in single quotes. Adding an int shifts
@@ -155,6 +181,10 @@ class Point { x = 0 }
 ]
 
 [typeName(19), typeName(5u), typeName(1e10), typeName(2d), 0x1F, 017]
+
+given := (;a, b=yes, c=true, d=nil, e=no)
+[typeName(given.get("a")), typeName(given.get("c")), "d" in given, "e" in given,
+ yes == true, !yes, str(yes)]
 
 ['A' + 1, char(88), int('A'), 'ç' > '9', chars("héy"), len("héy"), len(chars("héy"))]
 

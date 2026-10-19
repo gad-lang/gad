@@ -993,6 +993,7 @@ func (it *kvArrayIterator) release(vm *VM) {
 }
 
 func (o KeyValueArray) Iterate(vm *VM, na *NamedArgs) Iterator {
+	o = o.Normalized() // an array built in Go may hold resets
 	if vm != nil {
 		return vm.acquireKvArrayIterator(o, na)
 	}

@@ -507,7 +507,7 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 			Int(1),
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
-				makeInst(OpJumpNotNil, 10),
+				makeInst(OpJumpNotNo, 10),
 				makeInst(OpConstant, 0),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpReturn, 0),
@@ -538,7 +538,7 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 			Int(2),
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 1),
-				makeInst(OpJumpNotNil, 10),
+				makeInst(OpJumpNotNo, 10),
 				makeInst(OpConstant, 0),
 				makeInst(OpSetLocal, 1),
 				makeInst(OpGetLocal, 0),
@@ -1303,7 +1303,7 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpGetLocal, 0),
-			makeInst(OpJumpNotNil, 10),
+			makeInst(OpJumpNotNo, 10),
 			makeInst(OpConstant, 0),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpReturn, 0),
@@ -4287,6 +4287,7 @@ func TestCompilerKeyValue(t *testing.T) {
 			),
 				funcLocals(0)),
 		))
+	// `d=no` is kept: a reset (IsReset)
 	expectCompile(t, `(;a=1,b=yes,c,d=no)`,
 		bytecode(
 			Array{
@@ -4294,6 +4295,7 @@ func TestCompilerKeyValue(t *testing.T) {
 				Int(1),
 				Str("b"),
 				Str("c"),
+				Str("d"),
 			},
 			compFunc(concatInsts(
 				makeInst(OpConstant, 0),
@@ -4305,7 +4307,9 @@ func TestCompilerKeyValue(t *testing.T) {
 				makeInst(OpConstant, 3),
 				makeInst(OpYes),
 				makeInst(OpKeyValue, 1),
-				makeInst(OpKeyValueArray, 3),
+				makeInst(OpConstant, 4),
+				makeInst(OpKeyValue, 0),
+				makeInst(OpKeyValueArray, 4),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			),

@@ -125,6 +125,10 @@ const (
 	// enum value or an interface only (any other target is an error that points
 	// to `::>`, which is OpAssignTransform). Appended so no opcode value shifts.
 	OpAssignTransformStrict
+	// OpJumpNotNo is `a ?! b`: when the top of the stack is not `no` it jumps
+	// (keeping it), else it pops it and goes on to b. Appended so no opcode
+	// value shifts.
+	OpJumpNotNo
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -222,6 +226,7 @@ var OpcodeNames = [...]string{
 	OpAddrOfIndex:           "ADDROFINDEX",
 	OpMakeTypeUnionMeta:     "MAKETYPEUNIONMETA",
 	OpAssignTransformStrict: "ASSIGNTS",
+	OpJumpNotNo:             "JUMPNOTNO",
 }
 
 // OpcodeOperands is the number of operands.
@@ -319,6 +324,7 @@ var OpcodeOperands = [...][]int{
 	OpAddrOfIndex:           {},     // pop key and target, push a `ptr` to target[key] (`&a.b`, `&a[i]`)
 	OpMakeTypeUnionMeta:     {1},    // number of member types on the stack, under the metadata
 	OpAssignTransformStrict: {},     // obj :> type -> obj transformed into a class/enum value/interface (or throw)
+	OpJumpNotNo:             {2},    // position
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

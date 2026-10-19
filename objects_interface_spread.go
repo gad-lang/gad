@@ -92,6 +92,7 @@ func (i *Interface) spreadErr(format string, args ...any) error {
 func spreadItems(o Object) KeyValueArray {
 	switch v := o.(type) {
 	case KeyValueArray:
+		v = v.Normalized() // its resets applied (one built in Go may hold them)
 		return v
 	case Dict:
 		keys := make([]string, 0, len(v))
@@ -132,6 +133,7 @@ func (i *Interface) spreadField(name string, v Object) error {
 	switch t := v.(type) {
 	case *NilType:
 	case KeyValueArray:
+		t = t.Normalized() // its resets applied (one built in Go may hold them)
 		for _, kv := range t {
 			switch kv.K.ToString() {
 			case "types":
@@ -193,6 +195,7 @@ func (i *Interface) spreadProp(name string, v Object) error {
 	case *FuncHeaderObject:
 		p.Getter = t
 	case KeyValueArray:
+		t = t.Normalized() // its resets applied (one built in Go may hold them)
 		for _, kv := range t {
 			switch kv.K.ToString() {
 			case "get":
@@ -234,6 +237,7 @@ func (i *Interface) spreadFunc(name string, v Object) error {
 	cf := &InterfaceContextFunc{FnName: name}
 	switch t := v.(type) {
 	case KeyValueArray:
+		t = t.Normalized() // its resets applied (one built in Go may hold them)
 		for _, kv := range t {
 			switch kv.K.ToString() {
 			case "fn":

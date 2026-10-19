@@ -167,6 +167,15 @@ So a valueless attribute `[x]` is the flag `yes` (like a named param
 A `bool` (`true`/`false`) always renders its literal value. Other falsy values
 (`nil`, `""`) omit the attribute.
 
+`no` is a **reset**, the same as in a Gad key-value array: it takes back what
+came before it — a `**spread` included —, and a later `x` gives it again:
+
+```gadx
+~ base := (;checked, disabled)
+input[**base, checked=no]  // <input disabled />
+input[checked=no, checked] // <input checked />
+```
+
 ## Inline HTML
 
 A line starting with `<` is parsed as an inline HTML region. It runs from the

@@ -224,9 +224,16 @@ const (
 	// does, plus a builtin type's constructor (`1 ::> str`), a typed or sized
 	// array's items, a transformer function (`x ::> ((v) => v*2)`).
 	DoubleColonGreater // ::>
+	// NoCoalesce is `a ?! b`: b when a is `no` — a key not given or reset —,
+	// else a; the counterpart of `??` (nil) and `!?` (absent). Appended so no
+	// token value shifts.
+	NoCoalesce // ?!
+	// NoCoalesceAssign is `a ?!= b`: assigns b when a is `no` — how a named
+	// parameter takes its default.
+	NoCoalesceAssign // ?!=
 )
 
-const NumTokens = int(DoubleColonGreater) + 1
+const NumTokens = int(NoCoalesceAssign) + 1
 
 var keywords map[string]Token
 
@@ -412,6 +419,8 @@ var tokens = [...]string{
 	TripleColon:         ":::",
 	ColonGreater:        ":>",
 	DoubleColonGreater:  "::>",
+	NoCoalesce:          "?!",
+	NoCoalesceAssign:    "?!=",
 }
 
 var tokenNames = [...]string{
@@ -585,6 +594,8 @@ var tokenNames = [...]string{
 	TripleColon:                  "TripleColon",
 	ColonGreater:                 "ColonGreater",
 	DoubleColonGreater:           "DoubleColonGreater",
+	NoCoalesce:                   "NoCoalesce",
+	NoCoalesceAssign:             "NoCoalesceAssign",
 }
 
 // FromName return a Token from name
@@ -603,7 +614,7 @@ const LowestPrec = 0
 // Precedence returns the precedence for the operator token.
 func (tok Token) Precedence() int {
 	switch tok {
-	case LOr, Nullich, Absent:
+	case LOr, Nullich, Absent, NoCoalesce:
 		return 2
 	case LAnd:
 		return 3
@@ -783,6 +794,8 @@ func Unassign(tok Token) Token {
 		return Nullich
 	case AbsentAssign:
 		return Absent
+	case NoCoalesceAssign:
+		return NoCoalesce
 	default:
 		return -1
 	}

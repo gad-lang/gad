@@ -253,6 +253,11 @@ func (o *KeyValue) Print(state *PrinterState) (err error) {
 
 	if o.V != Yes {
 		state.WriteString("=")
+		if IsReset(o.V) {
+			// as written, so it reads back as the reset it is
+			state.WriteString("no")
+			return nil
+		}
 		state.QuoteNextStr(0)
 		state.Print(o.V)
 	}
@@ -282,6 +287,9 @@ func (o *KeyValue) ToString() string {
 			sb.WriteByte('[')
 			sb.WriteString(t.ToString())
 			sb.WriteByte(']')
+		case Flag:
+			// a reset, as written (`yes` is the bare key, above)
+			sb.WriteString("no")
 		default:
 			sb.WriteString(t.ToString())
 		}
@@ -435,29 +443,106 @@ func (o *KeyValueArray) Append(vm *VM, items ...Object) (err error) {
 			return
 		}
 	}
-	*o = cp
+	*o = cp.Normalized()
 	return
 }
 
 func (o KeyValueArray) AppendObjects(vm *VM, items ...Object) (this Object, err error) {
+	// a copy: `kva + v` leaves kva as it was
+	o = append(KeyValueArray(nil), o...)
 	err = ItemsOfCb(vm, &NamedArgs{}, func(kv *KeyValue) error {
 		o = append(o, kv)
 		return nil
 	}, items...)
-	return o, err
+	return o.Normalized(), err
 }
 
 func (o KeyValueArray) Type() ObjectType {
 	return TKeyValueArray
 }
 
+// IsReset reports whether v is `no`: in a key-value array — named arguments
+// and metadata included — `key=no` RESETS the key, as if it had not been
+// given: it removes the pairs of the key before it and stays in their place
+// (Normalized), until a pair of the key after it takes its place — so the
+// array still resets the key when added to another: `(;a) + (;a=2) +
+// (;a=no) == (;a=no)`, `(;a=2, a=no) == (;a=no)`, `(;a=no, a=2) == (;a=2)`,
+// `(;a=1, a=2, a=no, a=3, a=4) == (;a=3, a=4)`. A reset is read as not given
+// (Get, `in`, dict, named args).
+//
+// `yes` (a bare `key`) is the key given WITHOUT a value; `true`, `false`,
+// `nil` and every other value are a value given.
+func IsReset(v Object) bool {
+	f, ok := v.(Flag)
+	return ok && !bool(f)
+}
+
+// Normalized is o with each reset applied: a `key=no` removes the pairs of
+// the key before it and stays in their place, until a pair of the key comes
+// after it. o itself when it has no reset (one pass, no allocation). An array built in the VM is normalized as it is built; one
+// built in Go is normalized by every read of it (its items, its length, its
+// lookups, its dict…).
+func (o KeyValueArray) Normalized() KeyValueArray {
+	has := false
+	for _, kv := range o {
+		if IsReset(kv.V) {
+			has = true
+			break
+		}
+	}
+	if !has {
+		return o
+	}
+	out := make(KeyValueArray, 0, len(o))
+	// drop removes the pairs of k (a reset of it too)
+	drop := func(k string) {
+		n := out[:0]
+		for _, kv := range out {
+			if kv.K.ToString() != k {
+				n = append(n, kv)
+			}
+		}
+		out = n
+	}
+	resets := map[string]bool{}
+	for _, kv := range o {
+		k := kv.K.ToString()
+		if IsReset(kv.V) {
+			// the pairs before it go; it stays in their place
+			drop(k)
+			out = append(out, kv)
+			resets[k] = true
+			continue
+		}
+		if resets[k] {
+			// a pair after the reset takes its place
+			drop(k)
+			delete(resets, k)
+		}
+		out = append(out, kv)
+	}
+	return out
+}
+
+// UpdateIndexSetter sets out's keys from the pairs, in order: a later pair
+// overrides an earlier one (the resets applied first: Normalized); a reset
+// that stays removes the key.
 func (o KeyValueArray) UpdateIndexSetter(out StringIndexSetter) {
-	for _, v := range o {
+	d, isDict := out.(Dict)
+	for _, v := range o.Normalized() {
+		if IsReset(v.V) {
+			// not given: out of a dict (merged on one, it takes the key back)
+			if isDict {
+				delete(d, v.K.ToString())
+			}
+			continue
+		}
 		out.Set(v.K.ToString(), v.V)
 	}
 }
 
 func (o KeyValueArray) Print(state *PrinterState) (err error) {
+	o = o.Normalized() // an array built in Go may hold resets
 	if state.IsRepr {
 		defer state.WrapRepr(o)()
 	}
@@ -473,6 +558,7 @@ func (o KeyValueArray) ToString() string {
 
 // DeepCopy implements DeepCopier interface.
 func (o KeyValueArray) DeepCopy(vm *VM) (r Object, err error) {
+	o = o.Normalized() // an array built in Go may hold resets
 	cp := make(KeyValueArray, len(o))
 	for i, v := range o {
 		if r, err = v.DeepCopy(vm); err != nil {
@@ -485,6 +571,7 @@ func (o KeyValueArray) DeepCopy(vm *VM) (r Object, err error) {
 
 // Copy implements Copier interface.
 func (o KeyValueArray) Copy() Object {
+	o = o.Normalized() // an array built in Go may hold resets
 	cp := make(KeyValueArray, len(o))
 	copy(cp, o)
 	return cp
@@ -492,6 +579,7 @@ func (o KeyValueArray) Copy() Object {
 
 // IndexGet implements Object interface.
 func (o KeyValueArray) IndexGet(_ *VM, index Object) (Object, error) {
+	o = o.Normalized() // an array built in Go may hold resets
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
@@ -515,6 +603,8 @@ func (o KeyValueArray) Equal(right Object) bool {
 	if !ok {
 		return false
 	}
+	// as read: the resets applied
+	o, v = o.Normalized(), v.Normalized()
 
 	if len(o) != len(v) {
 		return false
@@ -529,7 +619,7 @@ func (o KeyValueArray) Equal(right Object) bool {
 }
 
 // IsFalsy implements Object interface.
-func (o KeyValueArray) IsFalsy() bool { return len(o) == 0 }
+func (o KeyValueArray) IsFalsy() bool { return len(o.Normalized()) == 0 }
 
 // CanCall implements Object interface.
 func (KeyValueArray) CanCall() bool { return false }
@@ -553,7 +643,7 @@ func (o *KeyValueArray) AppendArrayOfPairs(arr Array) error {
 			return NewIndexValueTypeError(strconv.Itoa(j), "keyValue", v.Type().Name())
 		}
 	}
-	*o = kva
+	*o = kva.Normalized()
 	return nil
 }
 
@@ -590,7 +680,7 @@ func (o KeyValueArray) AppendArray(arr ...Array) (KeyValueArray, error) {
 			}
 		}
 	}
-	return o2, nil
+	return o2.Normalized(), nil
 }
 
 func (o KeyValueArray) AppendMap(m Dict) KeyValueArray {
@@ -606,12 +696,12 @@ func (o KeyValueArray) AppendMap(m Dict) KeyValueArray {
 		i++
 	}
 
-	return arr
+	return arr.Normalized()
 }
 
 func (o KeyValueArray) AddItems(arg ...*KeyValue) KeyValueArray {
 	if len(o) == 0 {
-		return arg
+		return KeyValueArray(arg).Normalized()
 	}
 	var (
 		i   = len(o)
@@ -620,7 +710,7 @@ func (o KeyValueArray) AddItems(arg ...*KeyValue) KeyValueArray {
 
 	copy(arr, o)
 	copy(arr[i:], arg)
-	return arr
+	return arr.Normalized()
 }
 
 // BinOpAdd appends right's entries (ObjectWithAddBinOperator); the comparison
@@ -657,6 +747,7 @@ func (o KeyValueArray) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
 }
 
 func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {
+	o = o.Normalized() // an array built in Go may hold resets
 	if less == nil {
 		sort.Slice(o, func(i, j int) bool {
 			return o[i].IsLess(vm, o[j])
@@ -682,6 +773,7 @@ func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 }
 
 func (o KeyValueArray) SortReverse(vm *VM) (Object, error) {
+	o = o.Normalized() // an array built in Go may hold resets
 	sort.Slice(o, func(i, j int) bool {
 		return !o[i].IsLess(vm, o[j])
 	})
@@ -689,6 +781,7 @@ func (o KeyValueArray) SortReverse(vm *VM) (Object, error) {
 }
 
 func (o KeyValueArray) Get(keys ...Object) Object {
+	o = o.Normalized() // an array built in Go may hold resets
 	if len(keys) == 0 {
 		return Array{}
 	}
@@ -701,8 +794,11 @@ func (o KeyValueArray) Get(keys ...Object) Object {
 			for l := len(o); l > 0; l-- {
 				e = o[l-1]
 				if e.K.Equal(key) {
-					arr = append(arr, e.V)
-					continue keys
+					if !IsReset(e.V) {
+						arr = append(arr, e.V)
+						continue keys
+					}
+					break
 				}
 			}
 			arr = append(arr, Nil)
@@ -712,6 +808,10 @@ func (o KeyValueArray) Get(keys ...Object) Object {
 	for l := len(o); l > 0; l-- {
 		e = o[l-1]
 		if e.K.Equal(keys[0]) {
+			if IsReset(e.V) {
+				// a reset: not given
+				return Nil
+			}
 			return e.V
 		}
 	}
@@ -721,15 +821,17 @@ func (o KeyValueArray) Get(keys ...Object) Object {
 // BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
 // whether v is a key of the key-value array (`v in kva`).
 func (o KeyValueArray) BinOpIn(_ *VM, v Object) (Object, error) {
-	for _, e := range o {
+	for _, e := range o.Normalized() {
 		if e.K.Equal(v) {
-			return True, nil
+			// a reset is not given
+			return Bool(!IsReset(e.V)), nil
 		}
 	}
 	return False, nil
 }
 
 func (o KeyValueArray) Delete(keys ...Object) Object {
+	o = o.Normalized() // an array built in Go may hold resets
 	if len(keys) == 0 {
 		return o
 	}
@@ -749,6 +851,7 @@ l:
 }
 
 func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
+	o = o.Normalized() // an array built in Go may hold resets
 	switch name {
 	case "flag":
 		if err = c.Args.CheckLen(1); err != nil {
@@ -776,7 +879,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 
 		c.Args.Walk(func(i int, arg Object) any {
 			for _, e := range o {
-				if e.K.Equal(arg) {
+				if e.K.Equal(arg) && !IsReset(e.V) {
 					ret = append(ret, e.V)
 				}
 			}
@@ -839,10 +942,11 @@ func (KeyValueArray) CanIterate() bool { return true }
 
 // Length implements LengthGetter interface.
 func (o KeyValueArray) Length() int {
-	return len(o)
+	return len(o.Normalized())
 }
 
 func (o KeyValueArray) Items(_ *VM, cb ItemsGetterCallback) (err error) {
+	o = o.Normalized() // an array built in Go may hold resets
 	for i, value := range o {
 		if err = cb(i, value); err != nil {
 			return
@@ -852,6 +956,7 @@ func (o KeyValueArray) Items(_ *VM, cb ItemsGetterCallback) (err error) {
 }
 
 func (o KeyValueArray) ToArray() (arr Array) {
+	o = o.Normalized() // an array built in Go may hold resets
 	arr = make(Array, len(o))
 	for i, value := range o {
 		arr[i] = value
@@ -860,6 +965,7 @@ func (o KeyValueArray) ToArray() (arr Array) {
 }
 
 func (o KeyValueArray) Keys() (arr Array) {
+	o = o.Normalized() // an array built in Go may hold resets
 	arr = make(Array, len(o))
 	for i, v := range o {
 		arr[i] = v.K
@@ -868,6 +974,7 @@ func (o KeyValueArray) Keys() (arr Array) {
 }
 
 func (o KeyValueArray) Values() (arr Array) {
+	o = o.Normalized() // an array built in Go may hold resets
 	arr = make(Array, len(o))
 	for i, v := range o {
 		arr[i] = v.V
@@ -1062,10 +1169,11 @@ var (
 // useful when reusing one instance in a loop and mutating a backing Dict
 // between calls (Dict.ToNamedArgs keeps a live reference to that Dict in m).
 type NamedArgs struct {
-	ro      bool           // when true, reads do not consume values
-	sources KeyValueArrays // original name=value pairs (last wins on duplicate)
-	m       Dict           // materialised, not-yet-consumed values
-	ready   Dict           // keys already consumed
+	ro      bool            // when true, reads do not consume values
+	sources KeyValueArrays  // original name=value pairs (last wins on duplicate)
+	m       Dict            // materialised, not-yet-consumed values
+	ready   Dict            // keys already consumed
+	gone    map[string]bool // keys reset (`key=no`): not given
 }
 
 // NewNamedArgs returns a NamedArgs from the given name=value pair lists. Later
@@ -1292,7 +1400,18 @@ func (o *NamedArgs) check() {
 
 		for i := len(o.sources) - 1; i >= 0; i-- {
 			for _, v := range o.sources[i] {
-				o.m[v.K.ToString()] = v.V
+				k := v.K.ToString()
+				if IsReset(v.V) {
+					// `key=no`: not given — the default of a param applies
+					delete(o.m, k)
+					if o.gone == nil {
+						o.gone = map[string]bool{}
+					}
+					o.gone[k] = true
+					continue
+				}
+				o.m[k] = v.V
+				delete(o.gone, k)
 			}
 		}
 	}
@@ -1326,6 +1445,10 @@ func (o *NamedArgs) GetValueOrNil(key string) (val Object) {
 			o.ready[key] = nil
 		}
 		return
+	}
+	if o.gone[key] && !o.ro {
+		// a reset key is read (as not given): out of the rest (`**na`)
+		o.ready[key] = nil
 	}
 	return nil
 }
@@ -1602,7 +1725,8 @@ func (o *NamedArgs) CheckNamesFromSet(set map[string]int) error {
 		return nil
 	}
 	return o.Walk(func(na *KeyValue) error {
-		if _, ok := set[na.K.ToString()]; !ok {
+		// a reset (`key=no`) gives nothing: never unexpected
+		if _, ok := set[na.K.ToString()]; !ok && !IsReset(na.V) {
 			return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.K.ToString()))
 		}
 		return nil

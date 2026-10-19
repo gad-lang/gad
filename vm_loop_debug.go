@@ -260,6 +260,14 @@ VMLoop:
 			}
 			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			vm.ip = pos - 1
+		case OpJumpNotNo:
+			if f, ok := vm.stack[vm.sp-1].(Flag); ok && !bool(f) {
+				vm.sp--
+				vm.ip += 2
+				continue
+			}
+			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			vm.ip = pos - 1
 		case OpIsNil:
 			v := vm.stack[vm.sp-1]
 			if v == Nil {

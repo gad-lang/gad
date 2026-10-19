@@ -2019,6 +2019,7 @@ func (o Dict) BinOpSub(vm *VM, right Object) (Object, error) {
 		delete(o, string(t))
 		return o, nil
 	case KeyValueArray:
+		t = t.Normalized() // its resets applied (one built in Go may hold them)
 		for _, kv := range t {
 			delete(o, kv.K.ToString())
 		}
@@ -2572,6 +2573,7 @@ func (o *IndexDeleteProxy) BinOpSub(vm *VM, right Object) (_ Object, err error) 
 		}
 		return o, nil
 	case KeyValueArray:
+		t = t.Normalized() // its resets applied (one built in Go may hold them)
 		for _, kv := range t {
 			if err = o.Del(vm, kv.K); err != nil {
 				return

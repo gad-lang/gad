@@ -235,6 +235,22 @@ func TestBooleanAttributeForms(t *testing.T) {
 			src:  "@main\n    div[data-value=\"\"] x\n",
 			want: `<div>x</div>`,
 		},
+		{
+			// `no` resets, as in a key-value array: what came before it is gone
+			name: "no resets what came before",
+			src:  "@main\n    div[data-value, data-value=no] x\n",
+			want: `<div>x</div>`,
+		},
+		{
+			name: "no resets a spread",
+			src:  "@main\n    ~ base := (;checked, disabled)\n    input[**base, checked=no] x\n",
+			want: `<input disabled />x`,
+		},
+		{
+			name: "given again after a reset",
+			src:  "@main\n    div[data-value=no, data-value] x\n",
+			want: `<div data-value>x</div>`,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

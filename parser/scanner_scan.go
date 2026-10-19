@@ -552,6 +552,16 @@ do:
 					s.Next()
 					t.Token = token.Nullich
 				}
+			case '!':
+				// `?!` / `?!=`: the default of a value that is `no`
+				if s.Peek() == '=' {
+					s.Next()
+					s.Next()
+					t.Token = token.NoCoalesceAssign
+				} else {
+					s.Next()
+					t.Token = token.NoCoalesce
+				}
 			default:
 				t.Token = token.Question
 			}
