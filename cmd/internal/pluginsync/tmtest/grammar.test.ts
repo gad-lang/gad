@@ -286,6 +286,7 @@ test("class/mixin/interface are contextual: keywords only in declaration positio
 test("`contract` is contextual: a keyword only before `NAME {`", () => {
   expect(isKeyword("contract TField { target any }", "contract")).toBe(true);
   expect(isKeyword("export contract T { meta { a? int } }", "contract")).toBe(true);
+  expect(isKeyword("const x = contract { target any }", "contract")).toBe(true);
   expect(isKeyword("contract := 1", "contract")).toBe(false);
   expect(isKeyword("x.contract", "contract")).toBe(false);
 });

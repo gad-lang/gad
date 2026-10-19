@@ -14,17 +14,31 @@ func (p *Parser) isContractDeclStart() bool {
 	return p.PeekC(2)[1].Token == token.LBrace
 }
 
+// isContractExprStart reports whether the current `contract` identifier
+// begins an anonymous contract — `contract {` — at an operand position.
+func (p *Parser) isContractExprStart() bool {
+	return p.Token.Token == token.Ident && p.Token.Literal == "contract" && p.Peek().Token == token.LBrace
+}
+
 // parseContractStmt parses `contract NAME { *P; target T; meta { … } }`; the
 // current token is the contextual `contract`.
 func (p *Parser) parseContractStmt() *node.ContractStmt {
+	return &node.ContractStmt{ContractExpr: *p.parseContractExpr(true)}
+}
+
+// parseContractExpr parses a contract, named (`contract NAME { … }`) or not
+// (`contract { … }`, a value); the current token is the contextual `contract`.
+func (p *Parser) parseContractExpr(named bool) *node.ContractExpr {
 	if p.Trace {
-		defer untracep(tracep(p, "ContractStmt"))
+		defer untracep(tracep(p, "ContractExpr"))
 	}
-	s := &node.ContractStmt{ContractPos: p.Token.Pos, Doc: p.leadComment, Meta: p.takeMeta()}
+	s := &node.ContractExpr{ContractPos: p.Token.Pos, Doc: p.leadComment, Meta: p.takeMeta()}
 	p.Next() // consume `contract`
 	p.SkipSpace()
-	s.NameExpr = p.ParseIdent()
-	p.SkipSpace()
+	if named {
+		s.NameExpr = p.ParseIdent()
+		p.SkipSpace()
+	}
 	s.LBrace = p.Expect(token.LBrace)
 	p.ExprLevel++
 	for {

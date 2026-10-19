@@ -939,6 +939,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileTypedArrayTypeStmt(nt)
 	case *node.ContractStmt:
 		return c.compileContractStmt(nt)
+	case *node.ContractExpr:
+		return c.compileContractExpr(nt)
 	case *node.TypeUnionExpr:
 		return c.compileTypeUnionExpr(nt)
 	case *node.MethodInterfaceStmt:

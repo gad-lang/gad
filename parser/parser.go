@@ -1210,6 +1210,9 @@ func (p *Parser) ParseOperand() node.Expr {
 			if p.isInterfaceDeclStart() {
 				return p.ParseInterfaceExpr()
 			}
+		} else if p.Token.Literal == "contract" && (p.isContractExprStart() || p.isContractDeclStart()) {
+			// `contract { … }` — an anonymous contract — or a named one as a value
+			return p.parseContractExpr(p.isContractDeclStart())
 		} else if p.Peek().Token == token.LBrace {
 			switch p.Token.Literal {
 			case "class":
@@ -3120,6 +3123,9 @@ func (p *Parser) parseType() (t *node.TypeExpr) {
 		// (`interface` is a contextual keyword; only `{`/`[` after it opens one).
 		case p.Token.Literal == "interface" && (p.Peek().Token == token.LBrace || p.Peek().Token == token.LBrack):
 			return &node.TypeExpr{Expr: p.ParseInterfaceExpr()}
+		// `contract { … }` — an anonymous contract as a type (a param's)
+		case p.Token.Literal == "contract" && p.Peek().Token == token.LBrace:
+			return &node.TypeExpr{Expr: p.parseContractExpr(false)}
 		// `class { … }` — an anonymous class declared where its type is used:
 		// a field whose value is a record of its own (`a class { b int }`),
 		// nested to any depth, as `interface { … }` is for an interface.

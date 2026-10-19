@@ -5,8 +5,9 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 )
 
-// ContractStmt is a contract declaration: what a type is (its target) and
-// what its metadata may say (the body of an interface):
+// ContractExpr is a contract: what a type is (its target) and what its
+// metadata may say (the body of an interface) — anonymous as a value
+// (`const x = contract { … }`), named in a declaration (ContractStmt):
 //
 //	contract TSelectField {
 //	    *TField                      // parent contracts
@@ -19,9 +20,9 @@ import (
 //
 // Inside the contract `target` is also a type and a value: the target the
 // contract is given (`options []target = target.@members`).
-type ContractStmt struct {
+type ContractExpr struct {
 	ContractPos source.Pos
-	NameExpr    *IdentExpr
+	NameExpr    *IdentExpr // nil: anonymous
 	// Parents are the `*Parent` contracts.
 	Parents []Expr
 	// Target are the types of the target (`target T|U`); nil: any.
@@ -36,21 +37,32 @@ type ContractStmt struct {
 	Meta *KeyValueArrayLit
 }
 
+// ContractStmt is a named contract declaration: `contract NAME { … }`, a
+// const NAME bound to the contract.
+type ContractStmt struct {
+	ContractExpr
+}
+
 func (s *ContractStmt) StmtNode() {}
 
-func (s *ContractStmt) Pos() source.Pos { return s.ContractPos }
+func (s *ContractExpr) ExprNode() {}
 
-func (s *ContractStmt) End() source.Pos { return s.RBrace + 1 }
+func (s *ContractExpr) Pos() source.Pos { return s.ContractPos }
 
-func (s *ContractStmt) String() string { return Code(s) }
+func (s *ContractExpr) End() source.Pos { return s.RBrace + 1 }
 
-// WriteCode renders the declaration: `contract NAME {*P; target T; meta {…}}`.
-func (s *ContractStmt) WriteCode(ctx *CodeWriteContext) {
+func (s *ContractExpr) String() string { return Code(s) }
+
+// WriteCode renders the contract: `contract [NAME] {*P; target T; meta {…}}`.
+func (s *ContractExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(s.Doc)
 	writeMeta(ctx, s.Meta)
 	ctx.WriteString("contract ")
-	s.NameExpr.WriteCode(ctx)
-	ctx.WriteString(" {")
+	if s.NameExpr != nil {
+		s.NameExpr.WriteCode(ctx)
+		ctx.WriteString(" ")
+	}
+	ctx.WriteString("{")
 	var items []func()
 	for _, p := range s.Parents {
 		p := p

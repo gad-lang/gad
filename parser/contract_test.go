@@ -21,3 +21,9 @@ func TestContractStmt(t *testing.T) {
 	test.New(t, `contract := 1`).Code(`contract := 1`)
 	test.New(t, `x := contract.a`).Code(`x := contract.a`)
 }
+
+func TestContractExpr(t *testing.T) {
+	test.New(t, `const x = contract { target any; meta { a? int } }`).Code(`const x = contract {target any; meta {a? int; }}`)
+	test.New(t, `x := contract N { target any }`).Code(`x := contract N {target any}`)
+	test.New(t, `x := contract`).Code(`x := contract`)
+}

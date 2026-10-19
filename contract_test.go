@@ -116,3 +116,18 @@ func TestContractOverloads(t *testing.T) {
 	// the candidates are the function's methods
 	testExpectRun(t, decls+`d := func { (f TTextField) => 1; (f TNumberField) => 2 }; return len(d.@methods)`, nil, Int(2))
 }
+
+// A contract is a value too: anonymous (`contract { … }`), made by a function,
+// written where a type goes.
+func TestContractExpr(t *testing.T) {
+	testExpectRun(t, `const TSel = contract { target type<str>; meta { options []str } }
+	[options=["a"]] type city <str>
+	return [(city :> TSel).meta.options, TSel.@name, typeName(TSel)]`,
+		nil, Array{Array{Str("a")}, Str("contract"), Str("contract")})
+	testExpectRun(t, `mk := (n) => contract { meta { n? int = n } }; return [(str :> mk(5)).meta.n, (str :> mk(7)).meta.n]`,
+		nil, Array{Int(5), Int(7)})
+	testExpectRun(t, `x := contract Named { target any }; return x.@name`, nil, Str("Named"))
+	testExpectRun(t, `class F { a str; b int }
+	d := func { (f contract { target type<str> }) => "s"; (f contract { target type<int> }) => "i" }
+	return [d(F.a), d(F.b)]`, nil, Array{Str("s"), Str("i")})
+}

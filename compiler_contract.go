@@ -6,7 +6,7 @@ import (
 )
 
 // compileContractStmt compiles a `contract NAME { *P…; target T; meta { … } }`
-// declaration to
+// declaration to `const NAME = <the contract>` (compileContractExpr):
 //
 //	const NAME = Contract("NAME", [P…], interface { target T },
 //	    (target) => interface { … }; meta=[…])
@@ -16,6 +16,24 @@ import (
 // `options []target = target.@members` —, its interface built for each target.
 func (c *Compiler) compileContractStmt(nd *node.ContractStmt) error {
 	pos := nd.Pos()
+	return c.Compile(&node.DeclStmt{Decl: &node.GenDecl{
+		TokPos: pos,
+		Tok:    token.Const,
+		Specs: []node.Spec{&node.ValueSpec{
+			Idents: []*node.IdentExpr{nd.NameExpr},
+			Values: []node.Expr{&nd.ContractExpr},
+		}},
+	}})
+}
+
+// compileContractExpr compiles a contract as a value — `contract { … }`, or a
+// named one — to the `Contract(…)` call that builds it (compileContractStmt).
+func (c *Compiler) compileContractExpr(nd *node.ContractExpr) error {
+	pos := nd.Pos()
+	name := "contract"
+	if nd.NameExpr != nil {
+		name = nd.NameExpr.Name
+	}
 	var targetIface node.Expr = &node.NilLit{TokenPos: pos}
 	if len(nd.Target) > 0 {
 		targetIface = &node.InterfaceExpr{
@@ -58,16 +76,9 @@ func (c *Compiler) compileContractStmt(nd *node.ContractStmt) error {
 	call := &node.CallExpr{
 		Func: node.EIdent(BuiltinContract.String(), pos),
 		CallArgs: node.CallArgs{
-			Args:      node.CallExprPositionalArgs{Values: []node.Expr{node.Str(nd.NameExpr.Name, pos), parents, targetIface, factory}},
+			Args:      node.CallExprPositionalArgs{Values: []node.Expr{node.Str(name, pos), parents, targetIface, factory}},
 			NamedArgs: named,
 		},
 	}
-	return c.Compile(&node.DeclStmt{Decl: &node.GenDecl{
-		TokPos: pos,
-		Tok:    token.Const,
-		Specs: []node.Spec{&node.ValueSpec{
-			Idents: []*node.IdentExpr{nd.NameExpr},
-			Values: []node.Expr{call},
-		}},
-	}})
+	return c.Compile(call)
 }

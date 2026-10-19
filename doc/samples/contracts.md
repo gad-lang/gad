@@ -179,6 +179,30 @@ draw := func {
 // => ["select", "enum", "text", "number", "field"]
 ```
 
+## A contract as a value
+
+`contract { … }` is a contract as a value — anonymous, or named
+(`contract NAME { … }` written where a value goes) —: bound to a constant,
+made by a function, written where a type goes (a param's).
+
+```gad
+const TSel = contract { target type<str>; meta { options []str } }
+
+// made by a function: each call, a contract of its own
+withDefault := (n) => contract { meta { n? int = n } }
+
+class F { [options=["a"]] a str; b int }
+
+// written where a type goes
+d := func {
+    (f contract { target type<str> }) => "a str"
+    (f contract { target type<int> }) => "an int"
+}
+
+[(F.a :> TSel).meta.options, (str :> withDefault(5)).meta.n, d(F.a), d(F.b)]
+// => [["a"], 5, "a str", "an int"]
+```
+
 ## Reflection
 
 `C.@name`, `C.@meta` (the `[k=v]` before the declaration), `C.@parents`,
@@ -307,6 +331,21 @@ draw := func {
 }
 
 [draw(Form.pick), draw(Form.service), draw(Form.name), draw(Form.rooms), draw(Form.flag)]
+
+const TSel = contract { target type<str>; meta { options []str } }
+
+// made by a function: each call, a contract of its own
+withDefault := (n) => contract { meta { n? int = n } }
+
+class F { [options=["a"]] a str; b int }
+
+// written where a type goes
+d := func {
+    (f contract { target type<str> }) => "a str"
+    (f contract { target type<int> }) => "an int"
+}
+
+[(F.a :> TSel).meta.options, (str :> withDefault(5)).meta.n, d(F.a), d(F.b)]
 
 contract TField {
     meta { label? str }

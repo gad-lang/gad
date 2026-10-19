@@ -5006,7 +5006,9 @@ func (c *Compiler) typeExprSymbolsV(t *node.TypeExpr, visiting map[string]bool) 
 	// `mod.Type`, `Range[int]`: a type computed — a selector or an index —,
 	// its value where the type is written (computedTypeSymbol)
 	switch t.Expr.(type) {
-	case *node.SelectorExpr, *node.IndexExpr:
+	// a contract written where a type goes (`(f contract { … })`): a value,
+	// built where it is written
+	case *node.SelectorExpr, *node.IndexExpr, *node.ContractExpr:
 		var s *SymbolInfo
 		if s, err = c.computedTypeSymbol(t.Expr); err != nil {
 			return
