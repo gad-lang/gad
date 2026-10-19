@@ -85,6 +85,12 @@ func (c *Compiler) compileTypedArrayTypeStmt(nd *node.TypedArrayTypeStmt) error 
 	if m := metaArgExpr(nd.Meta); m != nil {
 		named.AppendS("meta", m)
 	}
+	if node.HasArrayDims(nd.Dims) {
+		// the sizes of the levels: an array type of them alone (its sizes
+		// naming variables are bound where the type is declared)
+		named.AppendS("sizes", &node.ArrayTypeExpr{LBrack: pos, Depth: nd.Depth, Dims: nd.Dims,
+			Types: []*node.TypeExpr{node.EType(node.EIdent("any", pos))}})
+	}
 
 	args := []node.Expr{
 		node.Str(nd.NameExpr.Name, pos),

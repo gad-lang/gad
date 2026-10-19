@@ -44,6 +44,7 @@ var (
 	InterfaceContextFuncV1 EncDec
 	MetaTypeV1             EncDec
 	ArrayTypeV1            EncDec
+	ArrayTypeV2            EncDec
 	PtrTypeV1              EncDec
 	KeyValueV1             EncDec
 	KeyValueArrayV1        EncDec
@@ -98,6 +99,10 @@ const (
 
 const versionV1 byte = 1
 
+// versionV2 is the second format of a type (ArrayTypeV2: an array type with
+// the sizes of its levels).
+const versionV2 byte = 2
+
 func init() {
 	Register[gad.NilType](typeNil, versionV1, &NilV1)
 	Register[gad.Bool](typeBool, versionV1, &BoolV1)
@@ -139,6 +144,7 @@ func init() {
 	Register[gad.KeyValue](typeKeyValue, versionV1, &KeyValueV1)
 	Register[gad.KeyValueArray](typeKeyValueArray, versionV1, &KeyValueArrayV1)
 	Register[gad.ArrayType](typeArrayType, versionV1, &ArrayTypeV1)
+	Register[gad.ArrayType](typeArrayType, versionV2, &ArrayTypeV2)
 	Register[gad.PtrType](typePtrType, versionV1, &PtrTypeV1)
 	Register[gad.UUID](typeUUID, versionV1, &UUIDV1)
 }

@@ -216,11 +216,13 @@ test("doc-comment body styles inline Markdown (#docmarkup), guarded", () => {
   expect(scoped[3][0].scopes[scoped[3][0].scopes.length - 1]).toContain("comment.documentation.block.gad");
 });
 
-test("`:::` is one operator token (not `::` + `:`)", () => {
-  const toks = tokenize("x := a ::: T");
-  const op = toks.find((t) => t.text === ":::");
-  expect(op, `no ::: token in ${JSON.stringify(toks.map((t) => t.text))}`).toBeDefined();
-  expect(op!.scopes.some((s) => s.includes("keyword.operator.gad"))).toBe(true);
+test("the casts `:>` and `::>` are one operator token each", () => {
+  for (const op of [":>", "::>"]) {
+    const toks = tokenize(`x := a ${op} T`);
+    const tok = toks.find((t) => t.text === op);
+    expect(tok, `no ${op} token in ${JSON.stringify(toks.map((t) => t.text))}`).toBeDefined();
+    expect(tok!.scopes.some((s) => s.includes("keyword.operator.gad"))).toBe(true);
+  }
   // `::` still tokenizes on its own.
   expect(tokenize("x := a :: T").find((t) => t.text === "::")).toBeDefined();
 });
@@ -282,12 +284,19 @@ test("`type` is contextual: a keyword only in its declaration/expression forms",
   expect(isKeyword("type users []{ name; id }", "type")).toBe(true);
   expect(isKeyword("type users [] interface { name; id }", "type")).toBe(true);
   expect(isKeyword("export type ints []int", "type")).toBe(true);
+  // sized levels, and an array type value
+  expect(isKeyword("type pair [2]str", "type")).toBe(true);
+  expect(isKeyword("type options [..5][2]str", "type")).toBe(true);
+  expect(isKeyword("const t = type [2..3][2]str", "type")).toBe(true);
+  expect(isKeyword("x := typeName(type []int)", "type")).toBe(true);
 
   // an ordinary identifier elsewhere.
   expect(isKeyword("x.type", "type")).toBe(false);
   expect(isKeyword("type := 1", "type")).toBe(false);
   expect(isKeyword("d := {type: 1}", "type")).toBe(false);
   expect(isKeyword("f(type)", "type")).toBe(false);
+  expect(isKeyword("x := type[0]", "type")).toBe(false);
+  expect(isKeyword("type x[0]", "type")).toBe(false);
 });
 
 test("a `[k=v, …]` metadata block is an annotation with attribute-name keys", () => {

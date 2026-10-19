@@ -57,6 +57,84 @@ func init() {
 		return t, nil
 	}
 
+	// V2: V1, then the sizes of the levels — the levels as written, the
+	// symbols of the variables they name, and a level each: Eq, Min, Max.
+	writeRef := func(ctx *WriteContext, r gad.ArraySizeRef) (err error) {
+		if err = writeBool(ctx, r.Set); err != nil {
+			return
+		}
+		if err = writeInt64(ctx, r.N); err != nil {
+			return
+		}
+		return writeInt(ctx, r.Sym)
+	}
+	readRef := func(ctx *ReadContext) (r gad.ArraySizeRef, err error) {
+		if r.Set, err = readBool(ctx); err != nil {
+			return
+		}
+		if r.N, err = readInt64(ctx); err != nil {
+			return
+		}
+		r.Sym, err = readInt(ctx)
+		return
+	}
+	ArrayTypeV2.Encode = func(ctx *WriteContext, o any) (err error) {
+		t := o.(*gad.ArrayType)
+		if err = ArrayTypeV1.Encode(ctx, o); err != nil {
+			return
+		}
+		if err = writeString(ctx, t.LevelsText); err != nil {
+			return
+		}
+		if err = EncodeArray(ctx, []*gad.SymbolInfo(t.SizeSyms)); err != nil {
+			return
+		}
+		if err = writeInt(ctx, len(t.Levels)); err != nil {
+			return
+		}
+		for _, l := range t.Levels {
+			for _, r := range []gad.ArraySizeRef{l.Eq, l.Min, l.Max} {
+				if err = writeRef(ctx, r); err != nil {
+					return
+				}
+			}
+		}
+		return
+	}
+	ArrayTypeV2.Decode = func(ctx *ReadContext) (_ any, err error) {
+		var v any
+		if v, err = ArrayTypeV1.Decode(ctx); err != nil {
+			return
+		}
+		t := v.(*gad.ArrayType)
+		if t.LevelsText, err = readString(ctx); err != nil {
+			return
+		}
+		var syms []*gad.SymbolInfo
+		if syms, err = DecodeArray[*gad.SymbolInfo](ctx); err != nil {
+			return
+		}
+		if len(syms) > 0 {
+			t.SizeSyms = syms
+		}
+		var n int
+		if n, err = readInt(ctx); err != nil {
+			return
+		}
+		if n > 0 {
+			t.Levels = make([]gad.ArrayLevel, n)
+			for i := range t.Levels {
+				l := &t.Levels[i]
+				for _, r := range []*gad.ArraySizeRef{&l.Eq, &l.Min, &l.Max} {
+					if *r, err = readRef(ctx); err != nil {
+						return
+					}
+				}
+			}
+		}
+		return t, nil
+	}
+
 	PtrTypeV1.Encode = func(ctx *WriteContext, o any) (err error) {
 		t := o.(*gad.PtrType)
 		if err = EncodeArray(ctx, []*gad.SymbolInfo(t.Elem)); err != nil {

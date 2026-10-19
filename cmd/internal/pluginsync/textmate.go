@@ -218,9 +218,11 @@ func TextMateGrammar() ([]byte, error) {
 			{Name: "keyword.control.gad", Match: `\binterface\b(?=\s*[\{\[]|\s+[A-Za-z_]\w*\s*[\{\[])`},
 			// `type` is contextual too: a keyword only in its declaration/expression
 			// forms — a type union `type <T1|T2>` / `type NAME <…>`, a marker type
-			// `type [NAME] { … }` and a typed array type `type NAME []…` — and an
-			// ordinary identifier elsewhere (`x.type`, `type := 1`, `{type: 1}`).
-			{Name: "keyword.control.gad", Match: `\btype\b(?=\s*[<{]|\s+[A-Za-z_]\w*\s*(?:[{<]|\[\s*\]))`},
+			// `type [NAME] { … }`, a typed array type `type NAME []…` (its levels
+			// sized too, `type pair [2]str`) and an array type value `type [2]int`
+			// — and an ordinary identifier elsewhere (`x.type`, `type := 1`,
+			// `{type: 1}`, `type[0]`).
+			{Name: "keyword.control.gad", Match: `\btype\b(?=\s*[<{]|\s+\[|\s+[A-Za-z_]\w*\s*(?:[{<]|\[\s*\]|\[[^\]\n]+\]\s*[\[A-Za-z_<{]))`},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Atoms)},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Constants)},
 			{Name: "support.function.gad", Match: wordRegex(lang.Builtins)},

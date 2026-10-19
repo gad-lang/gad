@@ -31,6 +31,10 @@ type TypedArrayType struct {
 	// Depth is how many `[]` were written: an item of a depth-N typed array is an
 	// array nested N-1 deep whose leaves match Elem.
 	Depth int
+	// Sizes are the sizes of the levels (`type pair [2]str`, `type rows
+	// [..10][2]int`): an array type of the levels alone — the first is the
+	// number of items, kept by append and delete —; nil when no level has one.
+	Sizes *ArrayType
 
 	// members holds the class-like members of the declaration body
 	// (`type T []int { fields; props {…}; methods {…} }`): its fieldsMap,
@@ -65,16 +69,20 @@ func NewTypedArrayTypeFunc(c Call) (_ Object, err error) {
 		depth = &Arg{Name: "depth", TypeAssertion: TypeAssertionFromTypes(TInt)}
 		elem  = &Arg{Name: "elem"}
 		meta  = &NamedArgVar{Name: "meta", TypeAssertion: TypeAssertionFromTypes(TKeyValueArray)}
+		sizes = &NamedArgVar{Name: "sizes"}
 		rest  Array
 	)
 	if rest, err = c.Args.DestructureRangeVar(1, name, depth, elem); err != nil {
 		return
 	}
-	if err = c.NamedArgs.Get(meta); err != nil {
+	if err = c.NamedArgs.Get(meta, sizes); err != nil {
 		return
 	}
 	t := NewTypedArrayType(string(name.Value.(Str)), c.VM.CurrentModuleSpec(), int(depth.Value.(Int)), elem.Value)
 	t.Meta, _ = meta.Value.(KeyValueArray)
+	if s, ok := sizes.Value.(*ArrayType); ok && len(s.Levels) > 0 {
+		t.Sizes = s
+	}
 	if len(rest) > 0 {
 		handler, ok := rest[0].(CallerObject)
 		if !ok {
@@ -141,8 +149,12 @@ func (t *TypedArrayType) FullName() string {
 // Signature renders the array shape: `[]<int|uint>`, `[][]int`, `[]interface {…}`.
 func (t *TypedArrayType) Signature() string {
 	var b strings.Builder
-	for i := 0; i < t.Depth; i++ {
-		b.WriteString("[]")
+	if t.Sizes != nil {
+		b.WriteString(t.Sizes.LevelsText)
+	} else {
+		for i := 0; i < t.Depth; i++ {
+			b.WriteString("[]")
+		}
 	}
 	if t.Elem != nil {
 		b.WriteString(typedArrayElemName(t.Elem))
@@ -177,6 +189,7 @@ func (t *TypedArrayType) Equal(right Object) bool {
 //	T.@meta    — the `[k=v, …]` metadata (a key-value array, empty when none)
 //	T.@elem    — the leaf element type
 //	T.@depth   — the number of `[]`
+//	T.@size    — the sizes of the levels: an [eq, min, max] a level
 //	T.@fields / T.@props / T.@methods — the body members (dicts by name)
 //	T.@new     — the constructor overloads (nil when none)
 //	T.NAME     — a body member (field, property or method), for `T.NAME.@meta`
@@ -198,6 +211,11 @@ func (t *TypedArrayType) IndexGet(vm *VM, index Object) (Object, error) {
 		return t.Elem, nil
 	case "@depth":
 		return Int(t.Depth), nil
+	case "@size":
+		if t.Sizes == nil {
+			return (&ArrayType{Depth: t.Depth}).sizeArray(vm)
+		}
+		return t.Sizes.sizeArray(vm)
 	case "@fields", "@props", "@methods":
 		// Member registration is optional: a type without a body has none.
 		if t.members == nil {
@@ -240,7 +258,33 @@ func (t *TypedArrayType) acceptItem(vm *VM, v Object, transform bool) (Object, e
 	if skipTypedArrayItemCheck(vm) {
 		return v, nil
 	}
-	return t.acceptNested(vm, v, t.Depth-1, transform)
+	out, err := t.acceptNested(vm, v, t.Depth-1, transform)
+	if err == nil && t.Sizes != nil && t.Depth > 1 {
+		// the levels of the item: the second of the type on
+		var bounds []arrayBound
+		if bounds, err = t.Sizes.bounds(vm); err == nil {
+			if why := t.Sizes.mismatchFrom(bounds, out, 1); why != "" {
+				err = ErrType.NewError(why)
+			}
+		}
+	}
+	return out, err
+}
+
+// checkLen says whether n items keep the size of the first level (`type pair
+// [2]str` has 2): an error when not, for building, appending and deleting.
+func (t *TypedArrayType) checkLen(vm *VM, n int) error {
+	if t.Sizes == nil || skipTypedArrayItemCheck(vm) {
+		return nil
+	}
+	bounds, err := t.Sizes.bounds(vm)
+	if err != nil {
+		return err
+	}
+	if len(bounds) > 0 && !bounds[0].accepts(n) {
+		return ErrType.NewErrorf("%s: %d items, wants %s", t.TypeName, n, bounds[0].want())
+	}
+	return nil
 }
 
 // skipTypedArrayItemCheck reports whether the run disabled the typed-array
@@ -338,6 +382,9 @@ func (t *TypedArrayType) From(vm *VM, obj Object) (*TypedArray, error) {
 	arr, ok := typedArraySource(obj)
 	if !ok {
 		return nil, ErrType.NewErrorf("%s: expected an array, got %s", t.TypeName, obj.Type().Name())
+	}
+	if err := t.checkLen(vm, len(arr)); err != nil {
+		return nil, err
 	}
 	out := make(Array, len(arr))
 	for i, v := range arr {
@@ -441,9 +488,22 @@ func (o *TypedArray) check(vm *VM, items ...Object) error {
 	if skipTypedArrayItemCheck(vm) {
 		return nil
 	}
+	return o.ArrayType.checkItems(vm, items...)
+}
+
+// checkAdded validates items appended: their types, and the size the array
+// gets.
+func (o *TypedArray) checkAdded(vm *VM, items ...Object) error {
+	if err := o.check(vm, items...); err != nil {
+		return err
+	}
+	return o.ArrayType.checkLen(vm, len(o.Items)+len(items))
+}
+
+func (t *TypedArrayType) checkItems(vm *VM, items ...Object) error {
 	for _, v := range items {
-		if _, err := o.ArrayType.acceptItem(vm, v, false); err != nil {
-			return ErrType.NewErrorf("%s: %v", o.ArrayType.TypeName, err)
+		if _, err := t.acceptItem(vm, v, false); err != nil {
+			return ErrType.NewErrorf("%s: %v", t.TypeName, err)
 		}
 	}
 	return nil
@@ -471,8 +531,9 @@ func (o *TypedArray) IndexSet(vm *VM, index, value Object) error {
 	return o.setMember(vm, index.ToString(), value)
 }
 
-// IndexDelete removes the item at index (negative counts from the end).
-func (o *TypedArray) IndexDelete(_ *VM, index Object) error {
+// IndexDelete removes the item at index (negative counts from the end); an
+// error when that leaves the size of the type.
+func (o *TypedArray) IndexDelete(vm *VM, index Object) error {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -488,12 +549,21 @@ func (o *TypedArray) IndexDelete(_ *VM, index Object) error {
 	if idx < 0 || idx >= len(o.Items) {
 		return ErrIndexOutOfBounds
 	}
+	if err := o.ArrayType.checkLen(vm, len(o.Items)-1); err != nil {
+		return err
+	}
 	o.Items = append(o.Items[:idx:idx], o.Items[idx+1:]...)
 	return nil
 }
 
-// Slice returns a TypedArray of the same type over items[low:high].
-func (o *TypedArray) Slice(low, high int) Object { return o.with(o.Items[low:high]) }
+// Slice returns a TypedArray of the same type over items[low:high] — a plain
+// array when that many items leave the size of the type (`pair[:1]`).
+func (o *TypedArray) Slice(low, high int) Object {
+	if o.ArrayType.checkLen(nil, high-low) != nil {
+		return o.Items[low:high]
+	}
+	return o.with(o.Items[low:high])
+}
 
 func (o *TypedArray) Iterate(vm *VM, na *NamedArgs) Iterator { return o.Items.Iterate(vm, na) }
 
@@ -531,7 +601,7 @@ func (o *TypedArray) BinOpGreater(vm *VM, r Object) (Object, error) {
 
 // Append appends checked items in place.
 func (o *TypedArray) Append(vm *VM, items ...Object) error {
-	if err := o.check(vm, items...); err != nil {
+	if err := o.checkAdded(vm, items...); err != nil {
 		return err
 	}
 	o.Items = append(o.Items, items...)
@@ -540,7 +610,7 @@ func (o *TypedArray) Append(vm *VM, items ...Object) error {
 
 // AppendObjects returns a new TypedArray with the checked items appended.
 func (o *TypedArray) AppendObjects(vm *VM, items ...Object) (Object, error) {
-	if err := o.check(vm, items...); err != nil {
+	if err := o.checkAdded(vm, items...); err != nil {
 		return nil, err
 	}
 	return o.with(append(o.Items.Copy().(Array), items...)), nil
@@ -554,7 +624,7 @@ func (o *TypedArray) BinOpAdd(vm *VM, right Object) (Object, error) {
 		return nil, err
 	}
 	arr := r.(Array)
-	if err = o.check(vm, arr[len(o.Items):]...); err != nil {
+	if err = o.checkAdded(vm, arr[len(o.Items):]...); err != nil {
 		return nil, err
 	}
 	return o.with(arr), nil
@@ -567,7 +637,7 @@ func (o *TypedArray) BinOpInc(vm *VM, right Object) (Object, error) {
 		return nil, err
 	}
 	arr := r.(Array)
-	if err = o.check(vm, arr[len(o.Items):]...); err != nil {
+	if err = o.checkAdded(vm, arr[len(o.Items):]...); err != nil {
 		return nil, err
 	}
 	return o.with(arr), nil

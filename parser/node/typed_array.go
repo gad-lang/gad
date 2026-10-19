@@ -18,8 +18,11 @@ import (
 type TypedArrayTypeStmt struct {
 	TypePos  source.Pos
 	NameExpr *IdentExpr
-	// Depth is the number of `[]` written (>= 1).
+	// Depth is the number of levels written (>= 1).
 	Depth int
+	// Dims are the sizes of the levels (see ArrayTypeExpr.Dims): the first
+	// is the number of items of the typed array.
+	Dims []*ArrayDim
 	// ElemTypes are the element types (`<int|uint>` or a bare `int`); nil when the
 	// element is an inline interface (ElemIface).
 	ElemTypes []*TypeExpr
@@ -64,9 +67,7 @@ func (s *TypedArrayTypeStmt) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("type ")
 	s.NameExpr.WriteCode(ctx)
 	ctx.WriteString(" ")
-	for i := 0; i < s.Depth; i++ {
-		ctx.WriteString("[]")
-	}
+	ctx.WriteString(ArrayDimsString(s.Depth, s.Dims))
 	if s.ElemIface != nil {
 		ctx.WriteString("{")
 		writeInterfaceBody(ctx, s.ElemIface)

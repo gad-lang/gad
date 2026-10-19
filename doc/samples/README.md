@@ -34,6 +34,7 @@
 - [properties](properties.md)
 - [ranges](ranges.md)
 - [raw_argv](raw_argv.md)
+- [sized_arrays](sized_arrays.md)
 - [special_keywords](special_keywords.md)
 - [static_types_test](static_types_test.md)
 - [strings_bytes_regex](strings_bytes_regex.md)

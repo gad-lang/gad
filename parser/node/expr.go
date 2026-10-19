@@ -3398,9 +3398,16 @@ func (e *OrExpr) WriteCode(ctx *CodeWriteContext) {
 // Inside the envelope the element types are read by the same parser as a
 // parameter's, so a slice of function headers is `[]<<(x int) <ret any>>`.
 type ArrayTypeExpr struct {
-	LBrack source.Pos
-	// Depth is how many `[]` were written: 1 for `[]int`, 3 for `[][][]int`.
+	// TypePos is the `type` of an array type written as a value (`type []int`,
+	// `type [2]str`); NoPos where a type goes (a parameter, a field, a cast).
+	TypePos source.Pos
+	LBrack  source.Pos
+	// Depth is how many levels were written: 1 for `[]int`, 3 for `[][][]int`.
 	Depth int
+	// Dims are the sizes of the levels, by level: nil for a `[]` level (no
+	// size), `[2]`, `[..3]`, `[2..]`, `[2..5]` otherwise; nil when no level has
+	// one.
+	Dims []*ArrayDim
 	// Types are the types the element may be: one, or several when the envelope
 	// was used.
 	Types []*TypeExpr
@@ -3413,7 +3420,12 @@ type ArrayTypeExpr struct {
 
 func (e *ArrayTypeExpr) ExprNode() {}
 
-func (e *ArrayTypeExpr) Pos() source.Pos { return e.LBrack }
+func (e *ArrayTypeExpr) Pos() source.Pos {
+	if e.TypePos.IsValid() {
+		return e.TypePos
+	}
+	return e.LBrack
+}
 
 func (e *ArrayTypeExpr) End() source.Pos {
 	if e.Enveloped && e.RAngle.IsValid() {
@@ -3427,9 +3439,10 @@ func (e *ArrayTypeExpr) End() source.Pos {
 
 func (e *ArrayTypeExpr) String() string {
 	var b strings.Builder
-	for i := 0; i < e.Depth; i++ {
-		b.WriteString("[]")
+	if e.TypePos.IsValid() {
+		b.WriteString("type ")
 	}
+	b.WriteString(ArrayDimsString(e.Depth, e.Dims))
 
 	names := make([]string, len(e.Types))
 	for i, t := range e.Types {

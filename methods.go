@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/zeroer"
@@ -317,6 +318,154 @@ type TypedCallerMethod struct {
 	// an exact type-tree match does not actually prove the structural constraint;
 	// validation (value-based CanAssign) must run even on an "exact" match.
 	forceValidate bool
+	// cands are the methods of the same dispatch key whose structural types
+	// tell them apart by value (`(a []int)`, `(a [2]int)`), in the order they
+	// are tried: the narrowest sizes first, then the order of declaration. The
+	// first whose params accept the arguments is called; nil with one method.
+	cands []*TypedCallerMethod
+	// ranked orders cands, once, on the first call (the sizes are read from
+	// the VM's constants).
+	ranked *sync.Once
+}
+
+// paramsValidator is a callable that validates arguments against its params
+// (a compiled function).
+type paramsValidator interface {
+	ValidateParamTypes(vm *VM, args Args) error
+}
+
+// Select is the method of the candidates (cands) whose params accept args:
+// o itself without candidates; the first when none does (its call says why).
+func (o *TypedCallerMethod) Select(vm *VM, args Args) *TypedCallerMethod {
+	if len(o.cands) == 0 || vm == nil {
+		return o
+	}
+	o.ranked.Do(func() {
+		ranks := make(map[*TypedCallerMethod][]int64, len(o.cands))
+		for _, c := range o.cands {
+			ranks[c] = sizeRank(vm, c.CallerObject)
+		}
+		slices.SortStableFunc(o.cands, func(a, b *TypedCallerMethod) int {
+			if sizeRankLess(ranks[a], ranks[b]) {
+				return -1
+			}
+			if sizeRankLess(ranks[b], ranks[a]) {
+				return 1
+			}
+			return 0
+		})
+	})
+	for _, c := range o.cands {
+		if pv, ok := c.CallerObject.(paramsValidator); ok && pv.ValidateParamTypes(vm, args) == nil {
+			return c
+		}
+	}
+	return o.cands[0]
+}
+
+// addCand adds n to the candidates of o (o the first of them): an error when
+// a method of the same params is there.
+func (o *TypedCallerMethod) addCand(n *TypedCallerMethod) bool {
+	if len(o.cands) == 0 {
+		o.cands = []*TypedCallerMethod{o.self()}
+	}
+	sig := structuralSignature(n.CallerObject)
+	for _, c := range o.cands {
+		if structuralSignature(c.CallerObject) == sig {
+			return false
+		}
+	}
+	o.cands = append(o.cands, n)
+	if o.ranked == nil {
+		// what the key calls now: the candidate the arguments select
+		o.ranked = &sync.Once{}
+		first := o.CallerMethod
+		o.CallerMethod = &CallerMethod{target: first.target, CallerObject: &candsCaller{m: o, first: first.CallerObject},
+			ToStringDetailFunc: first.ToStringDetailFunc}
+	}
+	return true
+}
+
+// self is a copy of o as a candidate (no candidates of its own).
+func (o *TypedCallerMethod) self() *TypedCallerMethod {
+	c := *o
+	c.cands, c.ranked = nil, nil
+	return &c
+}
+
+// structuralSignature is the types of the params of co as written
+// (`[]int, str`); "" when co is not a compiled function.
+func structuralSignature(co CallerObject) string {
+	cf, ok := co.(*CompiledFunction)
+	if !ok {
+		return ""
+	}
+	var b strings.Builder
+	for i, p := range cf.Params.Items {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		if p.Var {
+			b.WriteString("*")
+		}
+		b.WriteString(p.TypesSymbols.String())
+	}
+	return b.String()
+}
+
+// sizeRank is how narrow the sizes of the array types of the params of co
+// are, a param each: 0 exactly a size, 1+(max-min) a range, larger with one
+// bound, the largest with none (or not an array type of constant sizes).
+func sizeRank(vm *VM, co CallerObject) (rank []int64) {
+	const (
+		oneBound = int64(1) << 40
+		unsized  = int64(1) << 62
+	)
+	cf, ok := co.(*CompiledFunction)
+	if !ok {
+		return nil
+	}
+	for _, p := range cf.Params.Items {
+		r := unsized
+		for _, s := range p.TypesSymbols {
+			if s == nil || s.Scope != ScopeConstant {
+				continue
+			}
+			v, err := cf.paramTypeSymbolValue(vm, s)
+			if err != nil {
+				continue
+			}
+			at, ok := v.(*ArrayType)
+			if !ok || len(at.Levels) == 0 {
+				continue
+			}
+			var pr int64
+			for _, l := range at.Levels {
+				switch {
+				case l.Eq.Set:
+				case l.Min.Set && l.Max.Set && l.Min.Sym < 0 && l.Max.Sym < 0:
+					pr += 1 + l.Max.N - l.Min.N
+				case l.Min.Set || l.Max.Set:
+					pr += oneBound
+				default:
+					pr += unsized / 64
+				}
+			}
+			r = min(r, pr)
+		}
+		rank = append(rank, r)
+	}
+	return
+}
+
+// sizeRankLess says a ranks before b: narrower, param by param.
+func sizeRankLess(a, b []int64) bool {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		if a[i] != b[i] {
+			return a[i] < b[i]
+		}
+	}
+	return false
 }
 
 func (o *TypedCallerMethod) IndexGet(vm *VM, index Object) (value Object, err error) {
@@ -522,6 +671,12 @@ func (at *MethodArgType) add(types ObjectTypeArray, m *CallerMethod, override bo
 					if err = onAdd(cur.Method); err != nil {
 						return
 					}
+				}
+			} else if raise && cur.Method.forceValidate && callerHasStructuralParamTypes(m.CallerObject) &&
+				cur.Method.addCand(&TypedCallerMethod{CallerMethod: m, types: types, forceValidate: true}) {
+				// the same key, told apart by value: a candidate (cands)
+				if onAdd != nil {
+					err = onAdd(cur.Method.cands[len(cur.Method.cands)-1])
 				}
 			} else if raise {
 				err = ErrMethodDuplication.NewErrorf("params %s: %s. Current method is %s", types.String(), m.StringTarget(false), cur.Method.CallerMethod.StringTarget(false))
@@ -882,4 +1037,26 @@ type CallerMethodDefinition struct {
 	Handler  CallerObject
 	Types    ParamsTypes
 	Override bool
+}
+
+// candsCaller is what a dispatch key of several candidates calls: the
+// candidate whose params accept the arguments (TypedCallerMethod.Select).
+type candsCaller struct {
+	m     *TypedCallerMethod
+	first CallerObject
+}
+
+var _ CallerObject = (*candsCaller)(nil)
+
+func (c *candsCaller) Type() ObjectType    { return c.first.Type() }
+func (c *candsCaller) ToString() string    { return c.first.ToString() }
+func (c *candsCaller) IsFalsy() bool       { return false }
+func (c *candsCaller) Equal(r Object) bool { return r == Object(c) }
+func (c *candsCaller) Name() string        { return c.first.Name() }
+
+func (c *candsCaller) Call(call Call) (Object, error) {
+	chosen := c.m.Select(call.VM, call.Args)
+	// the arguments checked by the params of the one chosen
+	call.SkipValidation = false
+	return YieldCall(chosen.CallerObject, &call), nil
 }

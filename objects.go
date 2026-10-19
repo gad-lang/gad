@@ -1482,6 +1482,10 @@ func (o Array) IndexGet(_ *VM, index Object) (Object, error) {
 func (o Array) Equal(right Object) bool {
 	v, ok := right.(Array)
 	if !ok {
+		// the size of a level of an array type (@size) is an array of three
+		if s, isSize := right.(*ArraySize); isSize {
+			return o.Equal(s.Array())
+		}
 		return false
 	}
 

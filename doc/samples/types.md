@@ -84,3 +84,37 @@ Example — read-only (getter-only) property:
 const pi = Prop("pi", () => 3.14)
 pi()        // 3.14
 ```
+
+## Type ArrayType
+ArrayType is an array type written where a type goes — `[]int`, `[][2]str`,
+`[2..3]<int|str>` — or as a value, `type […]T`. A value satisfies it by being
+an array nested to its depth, each level of its size, whose leaves are of
+its element types. A level's size is `[N]` (exactly), `[..B]` (at most),
+`[A..]` (at least) or `[A..B]`; see the sized arrays sample.
+
+Members are read with indexing:
+  - `t.@depth` -> int, the number of levels
+  - `t.@elem`  -> array of the element types
+  - `t.@size`  -> array of ArraySize, a level each
+
+```gad ignore
+const t = type [2..3][2]str
+t.@depth          // 2
+t.@elem[0] == str // true
+t.@size[0]        // [nil, 2, 3]
+```
+
+## Type ArraySize
+ArraySize is the size of a level of an array type (`t.@size[i]`): an
+`[eq, min, max]`, each an int or nil where unset. It equals the array of the
+three, and indexes as one.
+
+Members are read with indexing:
+  - `s.eq`  -> int|nil, exactly that many items
+  - `s.min` -> int|nil, at least
+  - `s.max` -> int|nil, at most
+
+```gad ignore
+(type [2]int).@size[0].eq        // 2
+(type [..3]int).@size[0] == [nil, nil, 3]
+```

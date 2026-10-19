@@ -2189,7 +2189,14 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	// method. Type-only captures do not carry such state, so they must not flip
 	// AllowMethods — otherwise a method typing its own class becomes anonymous.
 	bodyFreeCount := len(st.FreeSymbols())
-	captureTypeSymbol := func(sym *SymbolInfo) *SymbolInfo {
+	var captureTypeSymbol func(sym *SymbolInfo) *SymbolInfo
+	captureTypeSymbol = func(sym *SymbolInfo) *SymbolInfo {
+		if sym != nil && sym.Scope == ScopeConstant {
+			// `[]T`, `[n]int`, `*T`: a structural type naming such variables
+			// is copied with them captured the same way (a constant of the
+			// fork: its constants are the ones c takes back)
+			return fork.captureStructuralType(sym, captureTypeSymbol)
+		}
 		if sym == nil || (sym.Scope != ScopeLocal && sym.Scope != ScopeFree) {
 			return sym
 		}
@@ -5157,6 +5164,9 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 			}
 			st.ElemNames = append(st.ElemNames, et.String())
 		}
+		if err := c.arrayTypeLevels(st, t.Depth, t.Dims); err != nil {
+			return nil, err
+		}
 		obj, name = st, st.Name()
 	default:
 		return nil, c.Errorf(e, "unsupported structural type %T", e)
@@ -5175,4 +5185,163 @@ do:
 		}
 	}
 	return e
+}
+
+// arrayTypeLevels sets the sizes of the levels of st from dims (nil: none): a
+// size is an int — a literal, or arithmetic of literals, resolved here — or the
+// name of a variable, read when a value is checked (SizeSyms).
+func (c *Compiler) arrayTypeLevels(st *ArrayType, depth int, dims []*node.ArrayDim) error {
+	if len(dims) == 0 {
+		return nil
+	}
+	st.LevelsText = node.ArrayDimsString(depth, dims)
+	st.Levels = make([]ArrayLevel, depth)
+	for i, d := range dims {
+		if d == nil {
+			continue
+		}
+		l := &st.Levels[i]
+		var err error
+		if d.Range {
+			if l.Min, err = c.ArraySizeRef(st, d.Min); err != nil {
+				return err
+			}
+			if l.Max, err = c.ArraySizeRef(st, d.Max); err != nil {
+				return err
+			}
+			if l.Min.Set && l.Max.Set && l.Min.Sym < 0 && l.Max.Sym < 0 && l.Min.N > l.Max.N {
+				return c.Errorf(d.Min, "array type %s: the minimum %d is greater than the maximum %d",
+					st.LevelsText, l.Min.N, l.Max.N)
+			}
+		} else if l.Eq, err = c.ArraySizeRef(st, d.Exact); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ArraySizeRef is a size of a level: a number (an int literal, or arithmetic
+// of them), or the variable a name is (its symbol, in st.SizeSyms).
+func (c *Compiler) ArraySizeRef(st *ArrayType, e node.Expr) (ArraySizeRef, error) {
+	if e == nil {
+		return ArraySizeRef{Sym: -1}, nil
+	}
+	if n, ok := constIntExpr(e); ok {
+		if n < 0 {
+			return ArraySizeRef{}, c.Errorf(e, "array type: the size %s is negative", e.String())
+		}
+		return ArraySizeRef{Set: true, N: n, Sym: -1}, nil
+	}
+	if id, ok := simplifyExpr(e).(*node.IdentExpr); ok {
+		sym, err := c.requireSymbol(id, id.Name)
+		if err != nil {
+			return ArraySizeRef{}, err
+		}
+		for i, s := range st.SizeSyms {
+			if s.Name == sym.Name && s.Scope == sym.Scope && s.Index == sym.Index {
+				return ArraySizeRef{Set: true, Sym: i}, nil
+			}
+		}
+		st.SizeSyms = append(st.SizeSyms, &sym.SymbolInfo)
+		return ArraySizeRef{Set: true, Sym: len(st.SizeSyms) - 1}, nil
+	}
+	return ArraySizeRef{}, c.Errorf(e,
+		"array type: a size is an int, arithmetic of ints, or the name of a variable — not %s (name it: `n := %s`, then `[n]`)",
+		e.String(), e.String())
+}
+
+// constIntExpr is the value of an int expression of literals: a literal, `-`
+// and `+` of one, and `+ - * / %` of two; false for anything else.
+func constIntExpr(e node.Expr) (int64, bool) {
+	switch t := e.(type) {
+	case *node.IntLit:
+		return t.Value, true
+	case *node.UintLit:
+		if t.Value > 1<<62 {
+			return 0, false
+		}
+		return int64(t.Value), true
+	case *node.ParenExpr:
+		return constIntExpr(t.Expr)
+	case *node.UnaryExpr:
+		n, ok := constIntExpr(t.Expr)
+		if !ok {
+			return 0, false
+		}
+		switch t.Token {
+		case token.Sub:
+			return -n, true
+		case token.Add:
+			return n, true
+		}
+	case *node.BinaryExpr:
+		a, ok1 := constIntExpr(t.LHS)
+		b, ok2 := constIntExpr(t.RHS)
+		if !ok1 || !ok2 {
+			return 0, false
+		}
+		switch t.Token {
+		case token.Add:
+			return a + b, true
+		case token.Sub:
+			return a - b, true
+		case token.Mul:
+			return a * b, true
+		case token.Quo:
+			if b != 0 {
+				return a / b, true
+			}
+		case token.Rem:
+			if b != 0 {
+				return a % b, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// captureStructuralType is the symbol of the structural type constant sym
+// (an array or a pointer type) with the symbols of the variables it names
+// mapped by capture — a copy of the constant; sym itself when it names none.
+func (c *Compiler) captureStructuralType(sym *SymbolInfo, capture func(*SymbolInfo) *SymbolInfo) *SymbolInfo {
+	mapSyms := func(syms ParamType) (ParamType, bool) {
+		var out ParamType
+		for i, s := range syms {
+			if n := capture(s); n != s {
+				if out == nil {
+					out = append(ParamType{}, syms...)
+				}
+				out[i] = n
+			}
+		}
+		if out == nil {
+			return syms, false
+		}
+		return out, true
+	}
+	var obj Object
+	switch t := c.constants[sym.Index].(type) {
+	case *ArrayType:
+		elem, ok1 := mapSyms(t.Elem)
+		sizes, ok2 := mapSyms(t.SizeSyms)
+		if !ok1 && !ok2 {
+			return sym
+		}
+		cp := *t
+		cp.Elem, cp.SizeSyms = elem, sizes
+		obj = &cp
+	case *PtrType:
+		elem, ok := mapSyms(t.Elem)
+		if !ok {
+			return sym
+		}
+		cp := *t
+		cp.Elem = elem
+		obj = &cp
+	default:
+		return sym
+	}
+	cp := *sym
+	cp.Index = c.addConstant(obj)
+	return &cp
 }

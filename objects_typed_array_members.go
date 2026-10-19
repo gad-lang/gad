@@ -115,6 +115,9 @@ func (in *TypedArrayInitiator) running(caller CallerObject) bool {
 // and field values (validated against the declared fields; the rest take their
 // defaults).
 func (t *TypedArrayType) build(vm *VM, items Array, fields Dict) (*TypedArray, error) {
+	if err := t.checkLen(vm, len(items)); err != nil {
+		return nil, err
+	}
 	out := make(Array, len(items))
 	for i, v := range items {
 		iv, err := t.acceptItem(vm, v, false)

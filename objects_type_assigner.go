@@ -98,8 +98,26 @@ func AssignToType(vm *VM, obj, to Object) (Object, error) {
 	default:
 		return nil, ErrType.NewErrorf("%s is not a type", ReprQuote(to.Type().Name()))
 	}
-	return nil, ErrIncompatibleAssign.NewErrorf("%s is not assignable to %s",
-		ReprQuote(obj.Type().Name()), ReprQuote(TypeAssignerName(to.(TypeAssigner))))
+	return nil, incompatibleAssign(vm, obj, to.(TypeAssigner))
+}
+
+// mismatchSayer is a type that says why a value is refused (an array type:
+// the level not of its size).
+type mismatchSayer interface {
+	sizeMismatch(vm *VM, obj Object) string
+}
+
+// incompatibleAssign is the error of obj refused by to, saying why when to
+// can.
+func incompatibleAssign(vm *VM, obj Object, to TypeAssigner) error {
+	if m, ok := to.(mismatchSayer); ok {
+		if why := m.sizeMismatch(vm, obj); why != "" {
+			return ErrIncompatibleAssign.NewErrorf("%s is not assignable to %s: %s",
+				ReprQuote(obj.Type().Name()), ReprQuote(TypeAssignerName(to)), why)
+		}
+	}
+	return ErrIncompatibleAssign.NewErrorf("%s is not assignable to %s",
+		ReprQuote(obj.Type().Name()), ReprQuote(TypeAssignerName(to)))
 }
 
 // AssignToTypeTransformStrict implements the `obj :> to` transforming cast: into
@@ -156,6 +174,10 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 		// `arr ::> T` converts an array into a TypedArray of T (each leaf
 		// transformed by the element type's own `::>`).
 		return t.From(vm, obj)
+	case *ArrayType:
+		// `[1, 2] ::> []str`, `rows ::> [][2]int`: the sizes checked, each
+		// leaf transformed into an element type
+		return t.transform(vm, obj)
 	case *Interface:
 		if t.ArrayDepth > 0 {
 			return t.coerceArray(vm, obj, t.ArrayDepth)

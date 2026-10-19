@@ -541,8 +541,13 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 						// A structural type (meti/interface literal): permissive at
 						// the ParamsTypes/dispatch level — the real check is
 						// value-based in ValidateParamTypes (ParamType.Accept ->
-						// TypeAssigner.CanAssign).
+						// TypeAssigner.CanAssign). An array type is an array: its
+						// overloads (`[]int`, `[2]int`) are told apart by value
+						// among the methods keyed by it (TypedCallerMethod.cands).
 						ot = TAny
+						if _, isArr := typ.(*ArrayType); isArr {
+							ot = TArray
+						}
 					}
 					ts[i2] = ot
 				}
@@ -585,7 +590,46 @@ func (o *CompiledFunction) paramTypeSymbolValue(vm *VM, symbol *SymbolInfo) (Obj
 	if mt, ok := v.(MetaType); ok {
 		return mt.resolve(vm)
 	}
+	if symbol.Scope == ScopeConstant && len(o.Free) > 0 {
+		return o.bindFreeTypeCells(v), nil
+	}
 	return v, nil
+}
+
+// bindFreeTypeCells is the structural type v (`[]T`, `[n]int`, `*T`) with
+// the free variables of this function it names bound to their cells, as
+// TypeCells binds them: the check runs before the frame of o exists. v
+// itself when it names none.
+func (o *CompiledFunction) bindFreeTypeCells(v Object) Object {
+	bind := func(syms ParamType) []Object {
+		var bound []Object
+		for i, s := range syms {
+			if s.Scope == ScopeFree && s.Index < len(o.Free) {
+				if bound == nil {
+					bound = make([]Object, len(syms))
+				}
+				bound[i] = o.Free[s.Index]
+			}
+		}
+		return bound
+	}
+	switch t := v.(type) {
+	case *ArrayType:
+		eb, sb := bind(t.Elem), bind(t.SizeSyms)
+		if eb == nil && sb == nil {
+			return v
+		}
+		cp := *t
+		cp.Bound, cp.SizeBound = eb, sb
+		return &cp
+	case *PtrType:
+		if eb := bind(t.Elem); eb != nil {
+			cp := *t
+			cp.Bound = eb
+			return &cp
+		}
+	}
+	return v
 }
 
 func (o *CompiledFunction) GetReturnVars() ReturnVars {

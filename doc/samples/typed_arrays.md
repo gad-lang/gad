@@ -10,6 +10,9 @@ type.
 - `type users []{ name; id }` — items satisfying an inline interface; the long
   form is `type users [] interface { name; id }`.
 - `type grid [][]int` — deeper nesting: each item is an array of `int`.
+- `type pair [2]str`, `type options [][2]str` — levels with a size; the first
+  is the number of items, kept by append and delete (see
+  [sized arrays](sized_arrays.gad)).
 
 Calling the type builds a value — each positional argument is an item
 (`numerics(1, 2.5)`; spread an array with `numerics(*arr)`). A typed array
@@ -145,13 +148,14 @@ A typed array type — and each of its members — carries [metadata](metadata.g
 | `T.@name` | the declared name |
 | `T.@meta` | the declaration's metadata (a key-value array) |
 | `T.@elem` / `T.@depth` | the element type / the number of `[]` |
+| `T.@size` | the sizes of the levels: an `[eq, min, max]` a level ([sized arrays](sized_arrays.gad)) |
 | `T.@fields`, `T.@props`, `T.@methods` | the body members, by name |
 | `T.@new` | the constructor overloads (nil without any) |
 | `T.NAME` | a body member, e.g. `T.total.@meta` |
 
 An anonymous array type written as a member's type — `tags [][]<int|str>` —
-answers the same two structural keys: `@depth` (2) and `@elem` (`[int, str]`, the
-element types resolved).
+answers the same structural keys: `@depth` (2), `@elem` (`[int, str]`, the
+element types resolved) and `@size`.
 
 ```gad
 /// sensor readings
@@ -170,8 +174,9 @@ type readings []float {
 }
 
 [readings.@name, str(readings.@meta), readings.@depth, readings.@elem == float,
+ readings.@size[0] == [nil, nil, nil],
  str(readings.source.@meta), str(readings.max.@meta), readings(20.5, 22.0).max()]
-// => ["readings", "(;unit=\"celsius\", version=2)", 1, true, "(;db=(;column=\"src\"))", "(;route=\"/max\")", 22]
+// => ["readings", "(;unit=\"celsius\", version=2)", 1, true, true, "(;db=(;column=\"src\"))", "(;route=\"/max\")", 22]
 ```
 
 ## Disabling the item check
@@ -283,5 +288,6 @@ type readings []float {
 }
 
 [readings.@name, str(readings.@meta), readings.@depth, readings.@elem == float,
+ readings.@size[0] == [nil, nil, nil],
  str(readings.source.@meta), str(readings.max.@meta), readings(20.5, 22.0).max()]
 ```

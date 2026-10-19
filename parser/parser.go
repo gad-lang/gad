@@ -76,6 +76,9 @@ type Parser struct {
 	// header's left-hand side, so `for x in y` keeps `in` as the for-in
 	// separator. Parentheses reset it (`for (x in y)` → `in` is the operator).
 	noInOp bool
+	// noRangeOp stops a binary expression at `..`: the minimum of a size of an
+	// array type (`[n-1..n+1]int`), whose `..` is the size's own.
+	noRangeOp bool
 
 	// leadComment is the doc comment group (`/?`, `/??`, `/???`) immediately
 	// preceding the current token, on the line directly above it; lineComment
@@ -370,6 +373,9 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 		if p.Token.Token == token.In && p.noInOp {
 			return x
 		}
+		if p.Token.Token == token.DotDot && p.noRangeOp {
+			return x
+		}
 
 		op, prec := p.Token.Token, p.Token.Precedence()
 		if prec < prec1 {
@@ -378,7 +384,13 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 
 		pos := p.Expect(op)
 
-		y := p.ParseBinaryExpr(prec + 1)
+		var y node.Expr
+		if isCastToken(op) && p.Token.Token == token.LBrack {
+			// a cast to an array type: `v :: [2]int`, `v ::> [][2]str`
+			y = p.parseArrayType()
+		} else {
+			y = p.ParseBinaryExpr(prec + 1)
+		}
 
 		if op == token.Equal || op == token.NotEqual {
 			if _, ok := x.(*node.NilLit); ok {
@@ -415,6 +427,12 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 			TokenPos: pos,
 		}
 	}
+}
+
+// isCastToken reports whether tok is a cast, whose right side is a type:
+// `::`, `:>`, `::>`.
+func isCastToken(tok token.Token) bool {
+	return tok == token.DoubleColon || tok == token.ColonGreater || tok == token.DoubleColonGreater
 }
 
 // tokenStartsOperand reports whether tok can begin an operand expression. It is
@@ -1169,6 +1187,18 @@ func (p *Parser) ParseOperand() node.Expr {
 	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.Less {
 		return p.parseTypeUnionExpr()
 	}
+	// `type []int`, `type [2..3][2]str` — an array type as a value. The space
+	// tells it from indexing a variable named type (`type[0]`).
+	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.LBrack &&
+		p.Peek().Pos > p.Token.Pos+source.Pos(len("type")) {
+		typePos := p.Token.Pos
+		p.Next() // consume `type`
+		e := p.parseArrayType()
+		if at, ok := e.(*node.ArrayTypeExpr); ok {
+			at.TypePos = typePos
+		}
+		return e
+	}
 	// `class { … }` / `mixin { … }` / `interface { … }` / `type { … }` — anonymous
 	// type literals. These are contextual keywords: only the immediate `{` (or `[`
 	// for interface's array form) makes them a literal; otherwise the bare word is
@@ -1604,7 +1634,8 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 		// A structural type (`xs []int`, `cb <(x int)>`) must be recognized
 		// BEFORE the expression parser reads its `[` as an index or its `<` as
 		// a comparison; every other type is found after the ident, below.
-		if p.Token.Token == token.Ident && p.peekStructuralTypeAfterIdent() {
+		// `(type []int)` is the array type as a value, not a param named type
+		if p.Token.Token == token.Ident && p.Token.Literal != "type" && p.peekStructuralTypeAfterIdent() {
 			ident := p.ParseIdent()
 			p.SkipSpace()
 			expr = &node.TypedIdentExpr{Ident: ident, Type: p.ParseTypes()}
@@ -2603,7 +2634,12 @@ func (p *Parser) peekStructuralTypeAfterIdent() bool {
 		}
 		return false
 	case token.LBrack:
-		return len(toks) > 1 && toks[1].Token == token.RBrack
+		if len(toks) > 1 && toks[1].Token == token.RBrack {
+			return true
+		}
+		// `v [2]int`, `v [..3]str` — a level with its size: spaced from the
+		// name (`v[2]` is an index), and a type after its `]`
+		return p.Token.Pos+source.Pos(len(p.Token.Literal)) < toks[0].Pos && sizedLevelTypeAhead(toks, nlBefore)
 	case token.Less:
 		// `<(`: a header's parameter list. Walk to the matching `>` — angle
 		// tokens inside the parameter parens belong to the parameters' own
@@ -2646,6 +2682,42 @@ func (p *Parser) peekStructuralTypeAfterIdent() bool {
 			return false
 		}
 		return false
+	}
+	return false
+}
+
+// sizedLevelTypeAhead reports whether toks, from the `[` of toks[0], are the
+// levels of an array type with a size — `[2]int`, `[..3][]str`, `[n]<int|str>`:
+// the brackets close, and on the same line a type follows (a name, another
+// level, an envelope, a pointer). `[1, 2]`, `[1]` before `)` or `,` are not.
+func sizedLevelTypeAhead(toks []PToken, nlBefore []bool) bool {
+	depth := 0
+	for i, t := range toks {
+		switch t.Token {
+		case token.LBrack, token.LParen, token.LBrace:
+			depth++
+		case token.RBrack, token.RParen, token.RBrace:
+			depth--
+			if depth > 0 {
+				continue
+			}
+			if depth < 0 || t.Token != token.RBrack || i+1 >= len(toks) || nlBefore[i+1] {
+				return false
+			}
+			switch toks[i+1].Token {
+			case token.Ident, token.Less, token.Shl, token.Mul:
+				return true
+			case token.LBrack:
+				// another level: decided by it
+				return sizedLevelTypeAhead(toks[i+1:], nlBefore[i+1:]) ||
+					(i+2 < len(toks) && toks[i+2].Token == token.RBrack)
+			}
+			return false
+		case token.Comma, token.Assign, token.Define, token.EOF:
+			if depth == 1 {
+				return false // a list or an assignment inside: not a size
+			}
+		}
 	}
 	return false
 }
@@ -2800,8 +2872,25 @@ func (p *Parser) isTypeStart() bool {
 		// array envelope plus the header's own `<`.
 		return true
 	case token.LBrack:
-		// `[]T` — an array type.
-		return p.Peek().Token == token.RBrack
+		// `[]T` — an array type; `[2]T`, `[..3]T` — one with a size: a type
+		// after its `]`, on the same line.
+		if p.Peek().Token == token.RBrack {
+			return true
+		}
+		toks := []PToken{p.Token}
+		nlBefore := []bool{false}
+		nl := false
+		p.PeekCb(func(t PToken) bool {
+			if t.IsSpace() {
+				nl = nl || strings.ContainsAny(t.Literal, "\r\n")
+				return true
+			}
+			toks = append(toks, t)
+			nlBefore = append(nlBefore, nl)
+			nl = false
+			return len(toks) < 64
+		})
+		return sizedLevelTypeAhead(toks, nlBefore)
 	case token.Mul:
 		// `*T` — a pointer type (`*int`, `*[]str`, `*<int|str>`).
 		switch p.Peek().Token {
@@ -2914,8 +3003,8 @@ func (p *Parser) isTypedArrayDeclStart() bool {
 	if p.Peek().Token != token.Ident {
 		return false
 	}
-	c := p.PeekC(3)
-	return c[1].Token == token.LBrack && c[2].Token == token.RBrack
+	// `type NAME []…`, `type NAME [2]…`, `type NAME [..3]…`
+	return p.PeekC(2)[1].Token == token.LBrack
 }
 
 // parseTypedArrayTypeStmt parses a typed-array type declaration:
@@ -2933,7 +3022,7 @@ func (p *Parser) parseTypedArrayTypeStmt() node.Stmt {
 	s := &node.TypedArrayTypeStmt{TypePos: p.Token.Pos, Doc: p.leadComment, Meta: p.takeMeta()}
 	p.Next() // consume `type`
 	s.NameExpr = p.ParseIdent()
-	s.Depth = p.parseInterfaceArrayDepth()
+	s.Depth, s.Dims = p.parseArrayDims()
 
 	switch {
 	case p.Token.Token == token.Ident && p.Token.Literal == "interface" && p.Peek().Token == token.LBrace:
@@ -3054,11 +3143,7 @@ func (p *Parser) parseArrayType() node.Expr {
 	}
 
 	e := &node.ArrayTypeExpr{LBrack: p.Token.Pos}
-	for p.Token.Token == token.LBrack && p.Peek().Token == token.RBrack {
-		p.Next()
-		p.Expect(token.RBrack)
-		e.Depth++
-	}
+	e.Depth, e.Dims = p.parseArrayDims()
 	p.SkipSpace()
 
 	// `<` opens the envelope — and so does the first half of a `<<` the scanner
@@ -3088,6 +3173,60 @@ func (p *Parser) parseArrayType() node.Expr {
 		e.Types = append(e.Types, t)
 	}
 	return e
+}
+
+// parseArrayDims consumes the levels of an array type, each `[]` or with its
+// size — `[N]` exactly N, `[..B]` at most B, `[A..]` at least A, `[A..B]` —:
+// how many, and their sizes (nil when no level has one).
+func (p *Parser) parseArrayDims() (depth int, dims []*node.ArrayDim) {
+	for p.Token.Token == token.LBrack {
+		lbrack := p.Token.Pos
+		p.Next()
+		var d *node.ArrayDim
+		if p.Token.Token != token.RBrack {
+			d = p.parseArrayDim(lbrack)
+		}
+		rbrack := p.Expect(token.RBrack)
+		if d != nil {
+			d.RBrack = rbrack
+		}
+		dims = append(dims, d)
+		depth++
+	}
+	if !node.HasArrayDims(dims) {
+		dims = nil
+	}
+	return
+}
+
+// parseArrayDim parses the size between the brackets of a level: `N`, `..B`,
+// `A..`, `A..B`; A stops at the `..` (noRangeOp), so `[n-1..n+1]` is a range.
+func (p *Parser) parseArrayDim(lbrack source.Pos) *node.ArrayDim {
+	d := &node.ArrayDim{LBrack: lbrack}
+	if p.Token.Token == token.DotDot {
+		d.Range = true
+		p.Next()
+		if p.Token.Token == token.RBrack {
+			p.Error(p.Token.Pos, "expected the maximum size after `..` (`[..3]`), or a minimum before it (`[2..]`)")
+			return d
+		}
+		d.Max = p.ParseExpr()
+		return d
+	}
+	saved := p.noRangeOp
+	p.noRangeOp = true
+	x := p.ParseExpr()
+	p.noRangeOp = saved
+	if p.Token.Token == token.DotDot {
+		d.Range, d.Min = true, x
+		p.Next()
+		if p.Token.Token != token.RBrack {
+			d.Max = p.ParseExpr()
+		}
+		return d
+	}
+	d.Exact = x
+	return d
 }
 
 // parsePtrType parses a pointer type written where a type goes: `*` then ONE

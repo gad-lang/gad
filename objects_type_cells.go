@@ -42,6 +42,7 @@ func TypeCellsFunc(c Call) (Object, error) {
 	case *ArrayType:
 		cp := *t
 		cp.Bound = bindCells(t.Elem, cells)
+		cp.SizeBound = bindCells(t.SizeSyms, cells)
 		return &cp, nil
 	case *PtrType:
 		cp := *t
@@ -97,7 +98,8 @@ func structuralCells(obj Object) (keys Array, cells []*SymbolInfo) {
 	var elem ParamType
 	switch t := obj.(type) {
 	case *ArrayType:
-		elem = t.Elem
+		// the element types, and the variables the sizes name
+		elem = append(append(ParamType{}, t.Elem...), t.SizeSyms...)
 	case *PtrType:
 		elem = t.Elem
 	default:
