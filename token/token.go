@@ -210,7 +210,8 @@ const (
 	// from Precedence and an explicit compiler case, not group membership.
 	DoubleColon // ::
 	// TripleColon is the former transforming cast `obj ::: Type`, replaced by
-	// `:>` (into a class, an enum value or an interface) and `::>` (any
+	// `:>` (into a class, an enum value, an interface, a dict or a key-value
+	// array) and `::>` (any
 	// conversion). It is still scanned, so the compiler can say which to use.
 	TripleColon // :::
 	// ColonGreater is the transforming cast `obj :> Type`: into a class, an enum

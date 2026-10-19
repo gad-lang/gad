@@ -121,10 +121,14 @@ func incompatibleAssign(vm *VM, obj Object, to TypeAssigner) error {
 }
 
 // AssignToTypeTransformStrict implements the `obj :> to` transforming cast: into
-// a class, an enum value or an interface only. A class or an interface is built
-// from a key/value source (its class/enum/interface-typed fields transformed the
-// same way, the others checked); an enum takes the member of the value (or of
-// the name). Any other target is an error that points to `::>`.
+// a class, an enum value, an interface, a dict or a key-value array only. A
+// class or an interface is built from a key/value source (its
+// class/enum/interface-typed fields transformed the same way, the others
+// checked); an enum takes the member of the value (or of the name); a dict or a
+// key-value array is the pairs of the source (`{a: no} :> keyValueArray` is
+// `(;a=no)`, `(;a=1) :> dict` is `{a: 1}`). A value already of the target type
+// is returned itself, not a copy (`[1, 2] :> array`, `[1, 2] :> []int`); any
+// other target is an error that points to `::>` (`[1, 2] :> []str`).
 func AssignToTypeTransformStrict(vm *VM, obj, to Object) (Object, error) {
 	switch t := to.(type) {
 	case *Enum:
@@ -136,12 +140,25 @@ func AssignToTypeTransformStrict(vm *VM, obj, to Object) (Object, error) {
 	case *Interface, *Class:
 		return AssignToTypeTransform(vm, obj, to)
 	}
+	// a value already of the type is itself — not a copy: `[1, 2] :> array`,
+	// `[1, 2] :> []int`; `[1, 2] :> []str` converts nothing, so it fails
+	if ta, ok := to.(TypeAssigner); ok && to != TAny {
+		if v, err := AssignToType(vm, obj, ta); err == nil {
+			return v, nil
+		}
+	}
+	if t, ok := to.(*BuiltinObjType); ok {
+		// the pairs of the source: a dict or a key-value array
+		if k := t.TypeKey(); k == TDict || k == TKeyValueArray {
+			return vm.CallBuiltin(t.BuiltinType(), nil, obj)
+		}
+	}
 	name := to.Type().Name()
 	if ta, ok := to.(TypeAssigner); ok {
 		name = TypeAssignerName(ta)
 	}
 	return nil, ErrIncompatibleAssign.NewErrorf(
-		"`:>` transforms only into a class, an enum value or an interface, not %s: use `::>` to convert",
+		"`:>` transforms only into a class, an enum value, an interface, a dict or a key-value array, not %s: use `::>` to convert",
 		ReprQuote(name))
 }
 

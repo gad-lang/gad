@@ -193,13 +193,21 @@ test "enum and checked fields" {
 }
 
 /**
-`:>` transforms only into a class, an enum value or an interface: any other
-target is an error that points to `::>`, which converts.
+`:>` transforms only into a class, an enum value, an interface, a dict or a
+key-value array — the last two are the pairs of the source
+(`{a: no} :> keyValueArray` is `(;a=no)`). A value already of the target type
+is itself, not a copy (`[1, 2] :> array`, `[1, 2] :> []int`); any other target
+is an error that points to `::>`, which converts (`[1, 2] :> []str`).
 **/
-test "only class, enum and interface" {
+test "only class, enum, interface, dict and key-value array" {
     fails := func(f) { try { f(); return false } catch { return true } }
     t.true(fails(func() { 1 :> str }))
-    t.true(fails(func() { [1, 2] :> array }))
+    t.true(fails(func() { [1, 2] :> []str }))
+    a := [1, 2]
+    t.true((a :> array) === a)
+    t.equal([1, 2], a :> []int)
     t.equal("1", 1 ::> str)
+    t.equal("(;a=no)", str({a: no} :> keyValueArray))
+    t.equal({a: 1}, (;a=1) :> dict)
 }
 ```

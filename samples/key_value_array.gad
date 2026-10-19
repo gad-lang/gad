@@ -42,7 +42,7 @@ dropped itself when a pair of the key comes after it:
 A reset that is the last pair of its key **stays**, so the array still resets
 the key when merged on another: `(;a) + (;a=2) + (;a=no)` — and
 `(;a=1) + ((;a=2) + (;a=no))` — are `(;a=no)`, `{}` as a dict; a dict holding
-`no` converts to one (`{a: no} ::> keyValueArray` is `(;a=no)`). An array
+`no` converts to one (`{a: no} :> keyValueArray` is `(;a=no)`). An array
 built in Go is read the same way: its resets applied by every read. The rule is the same for
 every merge: `+`, `++`, a `**spread` in a literal, the arguments of `dict(…)`,
 the named arguments of a call.

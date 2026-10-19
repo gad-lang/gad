@@ -6,7 +6,8 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
-// `:>` transforms into a class, an enum value or an interface only; `::>`
+// `:>` transforms into a class, an enum value, an interface, a dict or a
+// key-value array only; `::>`
 // converts to any type; `:::` is gone (github.com/gad-lang/gad issue #16).
 func TestCastOperators(t *testing.T) {
 	// :> — enum member by its value (int, negative ones too, or uint) or name
@@ -25,7 +26,7 @@ func TestCastOperators(t *testing.T) {
 	expectErrHas(t, `class P { x int }; return {x: "1"} :> P`, newOpts(), `field "x" expects int`)
 
 	// :> refuses any other target, pointing to ::>
-	for _, src := range []string{`return 1 :> str`, `return [1, 2] :> array`, `type strs []str; return [1, 2] :> strs`} {
+	for _, src := range []string{`return 1 :> str`, `return [1, 2] :> []str`, `type strs []str; return [1, 2] :> strs`} {
 		expectErrHas(t, src, newOpts(), "use `::>` to convert")
 	}
 
@@ -36,5 +37,15 @@ func TestCastOperators(t *testing.T) {
 	testExpectRun(t, `class P { x int }; return ({x: 1} ::> P).x`, nil, Int(1))
 
 	// ::: is a compile error that says what replaced it
-	expectCompileError(t, `return 1 ::: str`, "`:::` was replaced: `:>` transforms into a class, an enum value or an interface; `::>` converts to any type")
+	expectCompileError(t, `return 1 ::: str`, "`:::` was replaced: `:>` transforms into a class, an enum value, an interface, a dict or a key-value array; `::>` converts to any type")
+
+	// :> — a value already of the type is itself, not a copy
+	testExpectRun(t, `a := [1, 2]; b := a :> array; b[0] = 9; return [a, a :> []int, "x" :> str]`,
+		nil, Array{Array{Int(9), Int(2)}, Array{Int(9), Int(2)}, Str("x")})
+	testExpectRun(t, `type strs []str; v := strs("a"); return (v :> strs) == v`, nil, True)
+
+	// :> — into a dict or a key-value array: the pairs of the source
+	testExpectRun(t, `return [str({a: no} :> keyValueArray), (;a=1, b=2) :> dict, str((;a=1, a=no) :> keyValueArray)]`,
+		nil, Array{Str("(;a=no)"), Dict{"a": Int(1), "b": Int(2)}, Str("(;a=no)")})
+	testExpectRun(t, `class P { x int }; return P(;x=1) :> dict`, nil, Dict{"x": Int(1)})
 }

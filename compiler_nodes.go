@@ -3187,7 +3187,7 @@ func rangeCallExpr(from, to, step node.Expr) *node.CallExpr {
 
 func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 	if nd.Token == token.TripleColon {
-		return c.Errorf(nd, "`:::` was replaced: `:>` transforms into a class, an enum value or an interface; `::>` converts to any type")
+		return c.Errorf(nd, "`:::` was replaced: `:>` transforms into a class, an enum value, an interface, a dict or a key-value array; `::>` converts to any type")
 	}
 	// `from .. to` is sugar for `Range(from, to)`; `(from .. to) / step` (and the
 	// equivalent `from .. to / step`) is `Range(from, to; step=step)`.
@@ -3232,9 +3232,10 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 		// `obj :: Type` yields obj when it is assignable to Type, else throws.
 		c.emit(nd, OpAssign)
 	case token.ColonGreater:
-		// `obj :> Type` transforms into a class, an enum value or an interface:
-		// a dict cast to an interface builds its class/interface-typed fields and
-		// gathers `**name` rest keys; any other target is `::>`.
+		// `obj :> Type` transforms into a class, an enum value, an interface, a
+		// dict or a key-value array: a dict cast to an interface builds its
+		// class/interface-typed fields and gathers `**name` rest keys; any other
+		// target is `::>`.
 		c.emit(nd, OpAssignTransformStrict)
 	case token.DoubleColonGreater:
 		// `obj ::> Type` converts: everything `:>` does, plus a builtin type's
