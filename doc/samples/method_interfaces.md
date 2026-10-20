@@ -19,7 +19,7 @@ indexing (each parameter is a `typedIdent`).
 h := <(a int, b str) <r bool>>
 info := [len(h.params), h.params[0].name, h.params[1].name, h.return[0].name]
 info
-// => [2, "a", "b", "r"]
+= [2, "a", "b", "r"]
 ```
 
 ## Method interfaces (`meti`)
@@ -47,25 +47,31 @@ badArity := implements(func(a) => a, Stringer) // false (arity)
 both := implements(shape, Stringer, HasAdd)    // true — satisfies both
 merged := implements(shape, Stringer + HasAdd) // true (`+` merges interfaces)
 [okStr, badArity, both, merged]
-// => [true, false, true, true]
+= [true, false, true, true]
 ```
 
 ## Example — `method_interfaces.gad`
 
 ```gad
-h := <(a int, b str) <r bool>>
-info := [len(h.params), h.params[0].name, h.params[1].name, h.return[0].name]
-info
+example header {
+    h := <(a int, b str) <r bool>>
+    info := [len(h.params), h.params[0].name, h.params[1].name, h.return[0].name]
+    info
+    = [2, "a", "b", "r"]
+}
 
-Stringer := meti { () <str> }
-HasAdd := meti { (a int) }
-func shape() => "shape" // a function with several methods…
-met shape(a int) => a * a
-okStr := implements(func() => "x", Stringer) // true
-badArity := implements(func(a) => a, Stringer) // false (arity)
-both := implements(shape, Stringer, HasAdd)    // true — satisfies both
-merged := implements(shape, Stringer + HasAdd) // true (`+` merges interfaces)
-[okStr, badArity, both, merged]
+example implements {
+    Stringer := meti { () <str> }
+    HasAdd := meti { (a int) }
+    func shape() => "shape" // a function with several methods…
+    met shape(a int) => a * a
+    okStr := implements(func() => "x", Stringer) // true
+    badArity := implements(func(a) => a, Stringer) // false (arity)
+    both := implements(shape, Stringer, HasAdd)    // true — satisfies both
+    merged := implements(shape, Stringer + HasAdd) // true (`+` merges interfaces)
+    [okStr, badArity, both, merged]
+    = [true, false, true, true]
+}
 
 return implements(shape, Stringer, HasAdd)
 ```

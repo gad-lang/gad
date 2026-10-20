@@ -3382,6 +3382,26 @@ func (p *Parser) ParseStmt() (stmt node.Stmt) {
 
 func (p *Parser) DefaultParseStmt() (stmt node.Stmt) {
 do:
+	// the inline checks (issue #22): `= EXPR`, `<<< text`
+	switch p.Token.Token {
+	case token.Assign:
+		pos := p.Token.Pos
+		p.Next()
+		s := &node.ValueCheckStmt{EqPos: pos, Expr: p.ParseExpr()}
+		p.ExpectSemi()
+		return s
+	case token.OutputCheck:
+		s := &node.OutputCheckStmt{TokenPos: p.Token.Pos, Multi: p.Token.Flag(outputCheckMultiKey)}
+		if s.Multi {
+			s.Text = p.Token.Literal
+		} else {
+			s.Text = node.UnescapeOutputCheck(p.Token.Literal)
+		}
+		p.Next()
+		s.EndPos = p.Token.Pos
+		p.ExpectSemi()
+		return s
+	}
 	// An optional `[k=v, …]` metadata block before a declaration (interface,
 	// class, enum, func, …). Stashed in pendingMeta and attached by the
 	// declaration parser; recognized as metadata only when a declaration follows.
@@ -3396,6 +3416,11 @@ do:
 			// `test NAME { … }` / `bench NAME { … }` (NAME then `{`).
 			if p.isTestStmtStart() {
 				return p.ParseTestStmt()
+			}
+		case "example":
+			// `example [NAME] { … }` (issue #22)
+			if p.isExampleStmtStart() {
+				return p.ParseExampleStmt()
 			}
 		case "delete":
 			// `delete Target[.field] [keys]` — as a member (`obj.delete(…)`) it

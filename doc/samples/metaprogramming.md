@@ -29,7 +29,7 @@ value.
 fromString := gad.eval("return 6 * 7") // parse + eval a source string
 src := gad.parse("a := 2\nreturn a * a")
 [fromString, gad.eval(src), gad.eval(src.stmts)] // source file / its stmts
-// => [42, 4, 4]
+= [42, 4, 4]
 ```
 
 ## Inspecting and transforming statements
@@ -43,7 +43,7 @@ stmts := gad.parse("a := 1\nb := 2\nc := 3").stmts
 one := gad.parse("a := 99").stmts
 stmts[0] = one[0] // replace a statement in place
 [len(stmts), str(stmts[0]), str(stmts[1])]
-// => [3, "a := 99", "b := 2"]
+= [3, "a := 99", "b := 2"]
 ```
 
 ## Native Gadx compilation
@@ -63,14 +63,20 @@ cr, err := gad.Compile(st, []byte("p Hello {= name }"), opts)
 ## Example — `metaprogramming.gad`
 
 ```gad
-fromString := gad.eval("return 6 * 7") // parse + eval a source string
-src := gad.parse("a := 2\nreturn a * a")
-[fromString, gad.eval(src), gad.eval(src.stmts)] // source file / its stmts
+example parse_eval {
+    fromString := gad.eval("return 6 * 7") // parse + eval a source string
+    src := gad.parse("a := 2\nreturn a * a")
+    [fromString, gad.eval(src), gad.eval(src.stmts)] // source file / its stmts
+    = [42, 4, 4]
+}
 
-stmts := gad.parse("a := 1\nb := 2\nc := 3").stmts
-one := gad.parse("a := 99").stmts
-stmts[0] = one[0] // replace a statement in place
-[len(stmts), str(stmts[0]), str(stmts[1])]
+example stmts {
+    stmts := gad.parse("a := 1\nb := 2\nc := 3").stmts
+    one := gad.parse("a := 99").stmts
+    stmts[0] = one[0] // replace a statement in place
+    [len(stmts), str(stmts[0]), str(stmts[1])]
+    = [3, "a := 99", "b := 2"]
+}
 
 return "metaprogramming"
 ```

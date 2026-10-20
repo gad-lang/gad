@@ -220,6 +220,27 @@ func TextMateGrammar() ([]byte, error) {
 			{Name: "variable.other.property.gad", Match: `(?:(?<=[{(\[;,])|^)\s*\K` + wordRegex(plainKeywords) + `(?=\s*(?::(?![:=>])|=(?![=>])))`},
 			{Name: "variable.other.property.gad", Match: `(?:(?<=[{;])|^)\s*\K` + wordRegex(plainKeywords) + `(?=\?(?![?!.=]))`},
 		}},
+		// The inline checks (issue #22), where a statement starts: `= EXPR` (the
+		// value of the statement before), `<<< text` (one line, no closer) and
+		// `<<<`⏎ … ⏎`>>>` (a block of expected output).
+		"checks": {Patterns: []tmRule{
+			{
+				Name:          "meta.check.output.block.gad",
+				Begin:         `^\s*(<<<)\s*$`,
+				End:           `^\s*(>>>)\s*$`,
+				BeginCaptures: map[string]tmCap{"1": {Name: "keyword.other.check.gad"}},
+				EndCaptures:   map[string]tmCap{"1": {Name: "keyword.other.check.gad"}},
+				ContentName:   "string.unquoted.check.gad",
+			},
+			{
+				Match: `(?:^|(?<=;))\s*(<<<) (.*)$`,
+				Captures: map[string]tmCap{
+					"1": {Name: "keyword.other.check.gad"},
+					"2": {Name: "string.unquoted.check.gad"},
+				},
+			},
+			{Match: `^\s*(=)(?![=>])`, Captures: map[string]tmCap{"1": {Name: "keyword.other.check.gad"}}},
+		}},
 		// `end` in the brackets of an index or a slice is the last index
 		// (`a[end]`, `a[end-1]`, `a[1:end]`); elsewhere it closes a `begin` block.
 		"indexEnd": {Patterns: []tmRule{
@@ -231,6 +252,8 @@ func TextMateGrammar() ([]byte, error) {
 			// `NAME {` body, `interface` also before `[` (an array interface,
 			// `interface [] { … }` / `interface NAME [] …`).
 			{Name: "keyword.control.gad", Match: `\b(?:class|mixin)\b(?=\s*\{|\s+[A-Za-z_]\w*\s*\{)`},
+			// `example [NAME] { … }` (issue #22): a keyword only before its body
+			{Name: "keyword.control.gad", Match: `\bexample\b(?=\s*\{|\s+[A-Za-z_]\w*\s*\{)`},
 			// `contract [NAME] { … }`: a keyword only before its body
 			{Name: "keyword.control.gad", Match: `\bcontract\b(?=\s*\{|\s+[A-Za-z_]\w*\s*\{)`},
 			{Name: "keyword.control.gad", Match: `\binterface\b(?=\s*[\{\[]|\s+[A-Za-z_]\w*\s*[\{\[])`},
@@ -286,6 +309,7 @@ func TextMateGrammar() ([]byte, error) {
 		ScopeName: "source.gad",
 		Patterns: []tmRule{
 			{Include: "#comments"},
+			{Include: "#checks"},
 			{Include: "#metadata"},
 			{Include: "#strings"},
 			{Include: "#dollarIdentifiers"},

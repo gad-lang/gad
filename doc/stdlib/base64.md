@@ -17,11 +17,11 @@ Base64 encodings (Go's encoding/base64), available without an import as the
 ```gad
 data := bytes("Gad Lang")
 base64.StdEncoding.EncodeToString(data)
->>> "R2FkIExhbmc="
+= "R2FkIExhbmc="
 base64.RawStdEncoding.EncodeToString(data)
->>> "R2FkIExhbmc"
+= "R2FkIExhbmc"
 str(base64.StdEncoding.DecodeString("R2FkIExhbmc="))
->>> "Gad Lang"
+= "Gad Lang"
 ```
 
 ## Constants

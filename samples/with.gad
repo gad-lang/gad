@@ -57,41 +57,42 @@ whose `str(content)` is `"hello"`. It is the block-scoped, auto-closed form of t
 @snippet capture
 **/
 
-//snippet resource
-/**
-A resource: a class with enter()/exit(err) hooks (plus a little state).
-**/
-Res := Class("Res", (cls, define) => define(; fields = (; name = (= ""), open = (= false), items = (= nil)),
-    methods = [
-        enter(this) { this.open = true; this.items = []; println("  open ", this.name); return this }
-        exit(this, err) { this.open = false; println("  close", this.name, "err =", err) }
-        read(this) => this.name + "-data"
-        add(this, v) { this.items += v }
-    ]))
-//endsnippet
-
-//snippet forms uses resource
-// `as` binds the resource to a block-local name.
-println("as:")
-with Res(; name = "a") as f {
-    println("  use  ", f.name, "open =", f.open)
+example resource {
+    /**
+    A resource: a class with enter()/exit(err) hooks (plus a little state).
+    **/
+    Res := Class("Res", (cls, define) => define(; fields = (; name = (= ""), open = (= false), items = (= nil)),
+        methods = [
+            enter(this) { this.open = true; this.items = []; println("  open ", this.name); return this }
+            exit(this, err) { this.open = false; println("  close", this.name, "err =", err) }
+            read(this) => this.name + "-data"
+            add(this, v) { this.items += v }
+        ]))
 }
 
-// `:=` defines a variable visible after the block.
-println("define:")
-with r := Res(; name = "b") { println("  use  ", r.name) }
-println("  after, open =", r.open) // false (exit ran)
-
-// An error still runs exit, then propagates; resources nest (reverse-order exit).
-println("error+nested:")
-try {
-    with Res(; name = "outer") {
-        with Res(; name = "inner") { throw "boom" }
+example forms {
+    // `as` binds the resource to a block-local name.
+    println("as:")
+    with Res(; name = "a") as f {
+        println("  use  ", f.name, "open =", f.open)
     }
-} catch e {
-    println("  caught:", e)
+
+    // `:=` defines a variable visible after the block.
+    println("define:")
+    with r := Res(; name = "b") { println("  use  ", r.name) }
+    println("  after, open =", r.open) // false (exit ran)
+
+    // An error still runs exit, then propagates; resources nest (reverse-order exit).
+    println("error+nested:")
+    try {
+        with Res(; name = "outer") {
+            with Res(; name = "inner") { throw "boom" }
+        }
+    } catch e {
+        println("  caught:", e)
+    }
 }
-/**<
+<<<
 as:
   open  a
   use   a open = true
@@ -107,35 +108,35 @@ error+nested:
   close inner err = error: boom
   close outer err = error: boom
   caught: error: boom
-**/
-//endsnippet
+>>>
 
-//snippet expr_colon uses resource
-// Colon form: enter, evaluate, exit, yield the value.
-contents := with Res(; name = "d") as g: g.read()
-println("expr:", contents)
-/**<
+example expr_colon {
+    // Colon form: enter, evaluate, exit, yield the value.
+    contents := with Res(; name = "d") as g: g.read()
+    println("expr:", contents)
+}
+<<<
   open  d
   close d err = nil
 expr: d-data
-**/
-//endsnippet
+>>>
 
-//snippet expr_block uses resource
-// Block form: enter, run the body, exit, yield the RESOURCE (built inside).
-built := with Res(; name = "e") as it {
-    it.add(1)
-    it.add(2)
+example expr_block {
+    // Block form: enter, run the body, exit, yield the RESOURCE (built inside).
+    built := with Res(; name = "e") as it {
+        it.add(1)
+        it.add(2)
+    }
+    println("expr-block:", built.name, "open =", built.open, "items =", built.items)
+
+    // Being an expression, a function can build-and-return with it.
+    make := func() => with Res(; name = "f") as it { it.add(9) }
+    println("make():", make().items)
+
+    // A non-resource value is a silent no-op (the body still runs).
+    with 42 as n { println("noop:", n) }
 }
-println("expr-block:", built.name, "open =", built.open, "items =", built.items)
-
-// Being an expression, a function can build-and-return with it.
-make := func() => with Res(; name = "f") as it { it.add(9) }
-println("make():", make().items)
-
-// A non-resource value is a silent no-op (the body still runs).
-with 42 as n { println("noop:", n) }
-/**<
+<<<
   open  e
   close e err = nil
 expr-block: e open = false items = [1, 2]
@@ -143,15 +144,14 @@ expr-block: e open = false items = [1, 2]
   close f err = nil
 make(): [9]
 noop: 42
-**/
-//endsnippet
+>>>
 
-//snippet capture
-// `buffer()` captures the block's output; `with` yields the buffer with it.
-content := with buffer() {
-    print("hello, ")
-    print("world")
+example capture {
+    // `buffer()` captures the block's output; `with` yields the buffer with it.
+    content := with buffer() {
+        print("hello, ")
+        print("world")
+    }
+    [str(content), typeName(content)]
+    = ["hello, world", "buffer"]
 }
-[str(content), typeName(content)]
-/**= ["hello, world", "buffer"] **/
-//endsnippet

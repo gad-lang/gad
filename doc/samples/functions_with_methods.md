@@ -23,7 +23,7 @@ repeat := func(s str, n int) {
     return out
 }
 repeat("ab", 3)
-// => ababab
+= "ababab"
 ```
 
 ## Functions with methods (overloads)
@@ -40,7 +40,7 @@ func area {
     (w float, h float) => w * h           // rectangle
 }
 [area(2.0), area(2.0, 3.0)]
-// => [12.56636, 6]
+= [12.56636, 6.0]
 ```
 
 New methods can be added to an existing callable later with `met`.
@@ -51,7 +51,7 @@ New methods can be added to an existing callable later with `met`.
 **/
 met area(side int) => side * side // square (int), extends the `area` above
 [area(4), area(2.0, 3.0)]         // the new method beside the existing ones
-// => [16, 6]
+= [16, 6.0]
 ```
 
 `addMethod(target, fn…)` is the function form of `met`: it attaches typed
@@ -62,7 +62,7 @@ when the overloads are built at run time.
 func kind { (x int) => "int" }
 addMethod(kind, func(x str) => "str", func(x float) => "float")
 [kind(1), kind("a"), kind(1.5)]
-// => ["int", "str", "float"]
+= ["int", "str", "float"]
 ```
 
 ## Overriding and `$old`
@@ -78,7 +78,7 @@ layer beneath); when no previous method matches, `$old` is `nil`.
 func step(n int) => n * 10
 met ~step($old, n int) => $old(n) + 1 // wrap the previous `step`
 step(3)                               // 30 + 1
-// => 31
+= 31
 ```
 
 Under the hood `$old` is `gad.methodFromArgs(fn, types…)`, a builtin that returns
@@ -89,47 +89,65 @@ name — or `nil` when none matches.
 func size(n int) => n * 2
 // the (int) method, chosen by an example value or by a type name:
 [gad.methodFromArgs(size, 4)(10), gad.methodFromArgs(size, int)(10)]
-// => [20, 20]
+= [20, 20]
 ```
 
 ## Example — `functions_with_methods.gad`
 
 ```gad
-/**
-A parameter may declare a type; the argument is checked against it.
-**/
-repeat := func(s str, n int) {
-    out := ""
-    for i := 0; i < n; i++ {
-        out += s
+example typed {
+    /**
+    A parameter may declare a type; the argument is checked against it.
+    **/
+    repeat := func(s str, n int) {
+        out := ""
+        for i := 0; i < n; i++ {
+            out += s
+        }
+        return out
     }
-    return out
+    repeat("ab", 3)
+    = "ababab"
 }
-repeat("ab", 3)
 
-func area {
-    (r float)          => 3.14159 * r * r // circle
-    (w float, h float) => w * h           // rectangle
+example methods {
+    func area {
+        (r float)          => 3.14159 * r * r // circle
+        (w float, h float) => w * h           // rectangle
+    }
+    [area(2.0), area(2.0, 3.0)]
+    = [12.56636, 6.0]
 }
-[area(2.0), area(2.0, 3.0)]
 
-/**
-`met` adds a method to an existing callable afterwards.
-**/
-met area(side int) => side * side // square (int), extends the `area` above
-[area(4), area(2.0, 3.0)]         // the new method beside the existing ones
+example met {
+    /**
+    `met` adds a method to an existing callable afterwards.
+    **/
+    met area(side int) => side * side // square (int), extends the `area` above
+    [area(4), area(2.0, 3.0)]         // the new method beside the existing ones
+    = [16, 6.0]
+}
 
-func step(n int) => n * 10
-met ~step($old, n int) => $old(n) + 1 // wrap the previous `step`
-step(3)                               // 30 + 1
+example override {
+    func step(n int) => n * 10
+    met ~step($old, n int) => $old(n) + 1 // wrap the previous `step`
+    step(3)                               // 30 + 1
+    = 31
+}
 
-func size(n int) => n * 2
-// the (int) method, chosen by an example value or by a type name:
-[gad.methodFromArgs(size, 4)(10), gad.methodFromArgs(size, int)(10)]
+example method_from_args {
+    func size(n int) => n * 2
+    // the (int) method, chosen by an example value or by a type name:
+    [gad.methodFromArgs(size, 4)(10), gad.methodFromArgs(size, int)(10)]
+    = [20, 20]
+}
 
-func kind { (x int) => "int" }
-addMethod(kind, func(x str) => "str", func(x float) => "float")
-[kind(1), kind("a"), kind(1.5)]
+example add_method {
+    func kind { (x int) => "int" }
+    addMethod(kind, func(x str) => "str", func(x float) => "float")
+    [kind(1), kind("a"), kind(1.5)]
+    = ["int", "str", "float"]
+}
 
 return area(4)
 ```

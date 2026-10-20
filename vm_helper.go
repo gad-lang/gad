@@ -122,7 +122,10 @@ func DoCall(co CallerObject, c Call) (ret Object, err error) {
 				continue
 			}
 		} else {
-			err = ErrCall.Wrap(err, co.ToString())
+			// a failing check (issue #22) says only what it checked
+			if e, ok := err.(*Error); !ok || e.Name != ErrCheck.Name {
+				err = ErrCall.Wrap(err, co.ToString())
+			}
 			ret = nil
 		}
 		return

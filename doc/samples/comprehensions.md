@@ -14,7 +14,7 @@ evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]
 squares := [n * n for n in [1, 2, 3, 4] if n > 1]
 pairs := [i + j for i in [1, 2] for j in [10, 20]] // nested; last varies fastest
 [evens, squares, pairs]
-// => [[2, 4, 6], [4, 9, 16], [11, 21, 12, 22]]
+= [[2, 4, 6], [4, 9, 16], [11, 21, 12, 22]]
 ```
 
 ## Dict comprehensions
@@ -28,7 +28,7 @@ lengths := {[w]: len(w) for w in ["a", "bb", "ccc"]} // [w] computes the key
 // `_` accumulates into the dict being built
 counts := {[v]: (_[v] ?? 0) + 1 for v in ["a", "b", "a", "a"]}
 [lengths, counts]
-// => [{a: 1, bb: 2, ccc: 3}, {a: 3, b: 1}]
+= [{a: 1, bb: 2, ccc: 3}, {a: 3, b: 1}]
 ```
 
 ## Multi-line comprehensions
@@ -49,32 +49,41 @@ squared := {
     [n]: n * n
     for n in [2, 3]}
 [labels, squared]
-// => [["#2", "#4"], {"2": 4, "3": 9}]
+= [["#2", "#4"], {2: 4, 3: 9}]
 ```
 
 ## Example — `comprehensions.gad`
 
 ```gad
-evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]
-squares := [n * n for n in [1, 2, 3, 4] if n > 1]
-pairs := [i + j for i in [1, 2] for j in [10, 20]] // nested; last varies fastest
-[evens, squares, pairs]
+example array {
+    evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]
+    squares := [n * n for n in [1, 2, 3, 4] if n > 1]
+    pairs := [i + j for i in [1, 2] for j in [10, 20]] // nested; last varies fastest
+    [evens, squares, pairs]
+    = [[2, 4, 6], [4, 9, 16], [11, 21, 12, 22]]
+}
 
-lengths := {[w]: len(w) for w in ["a", "bb", "ccc"]} // [w] computes the key
-// `_` accumulates into the dict being built
-counts := {[v]: (_[v] ?? 0) + 1 for v in ["a", "b", "a", "a"]}
-[lengths, counts]
+example dict {
+    lengths := {[w]: len(w) for w in ["a", "bb", "ccc"]} // [w] computes the key
+    // `_` accumulates into the dict being built
+    counts := {[v]: (_[v] ?? 0) + 1 for v in ["a", "b", "a", "a"]}
+    [lengths, counts]
+    = [{a: 1, bb: 2, ccc: 3}, {a: 3, b: 1}]
+}
 
-// the `for` and `if` clauses may each begin on their own line
-labels := [
-    "#" + str(n)
-    for n in [1, 2, 3, 4]
-    if n % 2 == 0]
-// the same for a dict comprehension
-squared := {
-    [n]: n * n
-    for n in [2, 3]}
-[labels, squared]
+example multiline {
+    // the `for` and `if` clauses may each begin on their own line
+    labels := [
+        "#" + str(n)
+        for n in [1, 2, 3, 4]
+        if n % 2 == 0]
+    // the same for a dict comprehension
+    squared := {
+        [n]: n * n
+        for n in [2, 3]}
+    [labels, squared]
+    = [["#2", "#4"], {2: 4, 3: 9}]
+}
 
 return [4, 9, 16]
 ```

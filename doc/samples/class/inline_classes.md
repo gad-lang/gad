@@ -40,7 +40,7 @@ o := Options(; page = {header: {sticky: true}})
     o.page.header.sticky,
     o.theme,
 ]
-// => ["Options.page", "Options.page.header", "Home", true, "light"]
+= ["Options.page", "Options.page.header", "Home", true, "light"]
 ```
 
 ## Defaults, metadata and types
@@ -51,7 +51,7 @@ o := Options(; page = {header: {sticky: true}})
     Options(; page = {}).page.header,                // an inner class not given: nil
     Options(; page = {header: {}}).page.header.title, // given empty: its defaults
 ]
-// => [nil, nil, "Home"]
+= [nil, nil, "Home"]
 ```
 
 ## Rejection
@@ -62,7 +62,7 @@ rejects := func(f) { try { f(); return false } catch { return true } }
     rejects(() => Options(; page = {header: {title: 1}})),  // field "title" expects str
     rejects(() => Options(; page = {header: {title: "Hi"}})),
 ]
-// => [true, false]
+= [true, false]
 ```
 
 ## An anonymous outermost class
@@ -71,43 +71,55 @@ rejects := func(f) { try { f(); return false } catch { return true } }
 Settings := class { db class { host str = "localhost"; port int = 5432 } }
 s := Settings(; db = {port: 5445})
 [strings.hasPrefix(typeName(s.db), "#"), strings.hasSuffix(typeName(s.db), ".db"), s.db.host, s.db.port]
-// => [true, true, "localhost", 5445]
+= [true, true, "localhost", 5445]
 ```
 
 ## Example — `inline_classes.gad`
 
 ```gad
-class Options {
-    page class {
-        header class {
-            title str = "Home"
-            sticky bool = false
+example inline_nest {
+    class Options {
+        page class {
+            header class {
+                title str = "Home"
+                sticky bool = false
+            }
         }
+        theme str = "light"
     }
-    theme str = "light"
+    o := Options(; page = {header: {sticky: true}})
+    [
+        typeName(o.page),
+        typeName(o.page.header),
+        o.page.header.title,     // the default, the dict did not give it
+        o.page.header.sticky,
+        o.theme,
+    ]
+    = ["Options.page", "Options.page.header", "Home", true, "light"]
 }
-o := Options(; page = {header: {sticky: true}})
-[
-    typeName(o.page),
-    typeName(o.page.header),
-    o.page.header.title,     // the default, the dict did not give it
-    o.page.header.sticky,
-    o.theme,
-]
 
-[
-    Options().page,                                  // not given: nil
-    Options(; page = {}).page.header,                // an inner class not given: nil
-    Options(; page = {header: {}}).page.header.title, // given empty: its defaults
-]
+example inline_defaults {
+    [
+        Options().page,                                  // not given: nil
+        Options(; page = {}).page.header,                // an inner class not given: nil
+        Options(; page = {header: {}}).page.header.title, // given empty: its defaults
+    ]
+    = [nil, nil, "Home"]
+}
 
-rejects := func(f) { try { f(); return false } catch { return true } }
-[
-    rejects(() => Options(; page = {header: {title: 1}})),  // field "title" expects str
-    rejects(() => Options(; page = {header: {title: "Hi"}})),
-]
+example inline_reject {
+    rejects := func(f) { try { f(); return false } catch { return true } }
+    [
+        rejects(() => Options(; page = {header: {title: 1}})),  // field "title" expects str
+        rejects(() => Options(; page = {header: {title: "Hi"}})),
+    ]
+    = [true, false]
+}
 
-Settings := class { db class { host str = "localhost"; port int = 5432 } }
-s := Settings(; db = {port: 5445})
-[strings.hasPrefix(typeName(s.db), "#"), strings.hasSuffix(typeName(s.db), ".db"), s.db.host, s.db.port]
+example inline_anonymous {
+    Settings := class { db class { host str = "localhost"; port int = 5432 } }
+    s := Settings(; db = {port: 5445})
+    [strings.hasPrefix(typeName(s.db), "#"), strings.hasSuffix(typeName(s.db), ".db"), s.db.host, s.db.port]
+    = [true, true, "localhost", 5445]
+}
 ```

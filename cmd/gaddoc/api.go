@@ -135,9 +135,9 @@ func neutralizeFences(lines []string) []string {
 		if t != "```gad" && t != "```Gad" {
 			continue
 		}
-		// A fenced block that contains a `>>>` doctest assertion is a real,
-		// runnable example: leave it executable so `gad doc` verifies it. Purely
-		// illustrative fences (no assertion) are neutralized to `gad ignore`.
+		// A fenced block that contains a check (`= EXPR`, `<<< text`) is a
+		// real, runnable example: leave it executable so `gad doc` verifies it.
+		// Purely illustrative fences (no check) are neutralized to `gad ignore`.
 		hasDoctest := false
 		j := i + 1
 		for ; j < len(out); j++ {
@@ -145,7 +145,7 @@ func neutralizeFences(lines []string) []string {
 			if ct == "```" {
 				break
 			}
-			if strings.HasPrefix(ct, ">>>") {
+			if strings.HasPrefix(ct, "= ") || strings.HasPrefix(ct, "<<<") {
 				hasDoctest = true
 			}
 		}
@@ -183,21 +183,21 @@ func exportParsesRaw(src string) bool { return parsesRaw(src) }
 // emitted with a fallback, so the source gad:doc can be fixed).
 // --- gad:samples usage examples ------------------------------------------
 
-// reSnippetOpen matches the `//snippet NAME …` opening of a doctest region (the
-// same regions `gad doc` validates via `/**= … **/`), keyed here by member name.
-var reSnippetOpen = regexp.MustCompile(`^\s*//snippet\s+(\w+)`)
+// reExampleOpen matches the `example NAME {` opening of a member's example
+// (issue #22: the same blocks `gad doc` verifies by running the file),
+// keyed here by member name.
+var reExampleOpen = regexp.MustCompile(`^example\s+(\w+)\s*\{\s*$`)
 
-// sampleFile holds the usage snippets parsed from a `gad:samples` file, keyed by
-// the exported member name. Each member's example lives in a
-// `//snippet NAME … //endsnippet` region — the standard doctest snippet form, so
-// the file is validated by `gad doc` (its `/**= … **/` results are checked) and
-// no new format is introduced.
+// sampleFile holds the usage examples parsed from a `gad:samples` file, keyed by
+// the exported member name. Each member's example is an `example NAME { … }`
+// block — its checks (`= EXPR`, `<<< text`) verified when the file runs —, the
+// output checks right after its `}` part of it.
 type sampleFile struct {
 	path     string
 	snippets map[string][]string
 }
 
-// parseSampleFile reads path into per-member snippets. A missing file yields an
+// parseSampleFile reads path into per-member examples. A missing file yields an
 // empty set (it is created on demand when auto-scaffolding).
 func parseSampleFile(path string) (*sampleFile, error) {
 	sf := &sampleFile{path: path, snippets: map[string][]string{}}
@@ -208,28 +208,65 @@ func parseSampleFile(path string) (*sampleFile, error) {
 		}
 		return nil, err
 	}
-	cur := ""
-	var buf []string
-	for _, ln := range strings.Split(string(data), "\n") {
-		t := strings.TrimSpace(ln)
-		if cur == "" {
-			if m := reSnippetOpen.FindStringSubmatch(t); m != nil {
-				cur, buf = m[1], nil
+	lines := strings.Split(string(data), "\n")
+	for i := 0; i < len(lines); i++ {
+		m := reExampleOpen.FindStringSubmatch(lines[i])
+		if m == nil {
+			continue
+		}
+		j := i + 1
+		for j < len(lines) && strings.TrimRight(lines[j], " \t") != "}" {
+			j++
+		}
+		if j >= len(lines) {
+			break
+		}
+		body := dedentLines(trimBlankEdges(lines[i+1 : j]))
+		// the output checks after the `}`
+		k := j + 1
+		for k < len(lines) && strings.HasPrefix(lines[k], "<<<") {
+			body = append(body, lines[k])
+			k++
+			if strings.TrimSpace(lines[k-1]) == "<<<" {
+				for k < len(lines) {
+					body = append(body, lines[k])
+					k++
+					if strings.TrimSpace(lines[k-1]) == ">>>" {
+						break
+					}
+				}
 			}
-			continue
 		}
-		if t == "//endsnippet" {
-			sf.snippets[cur] = trimBlankEdges(buf)
-			cur = ""
-			continue
-		}
-		buf = append(buf, ln)
+		sf.snippets[m[1]] = body
+		i = k - 1
 	}
 	return sf, nil
 }
 
-// exampleDoc returns the `## Example` doc lines (a non-running fenced `gad`
-// block) for a member's snippet, or nil when the file has no snippet for it.
+// dedentLines removes the indentation common to the non-blank lines.
+func dedentLines(lines []string) []string {
+	indent := -1
+	for _, ln := range lines {
+		if strings.TrimSpace(ln) == "" {
+			continue
+		}
+		if n := len(ln) - len(strings.TrimLeft(ln, " \t")); indent < 0 || n < indent {
+			indent = n
+		}
+	}
+	out := make([]string, len(lines))
+	for i, ln := range lines {
+		if indent > 0 && len(ln) >= indent {
+			ln = ln[indent:]
+		}
+		out[i] = ln
+	}
+	return out
+}
+
+// exampleDoc returns the `## Example` doc lines for a member's example: a
+// runnable ```gad fence — `gad doc` verifies its checks —, or nil when the file
+// has none for it.
 func exampleDoc(sf *sampleFile, name string) []string {
 	if sf == nil {
 		return nil
@@ -238,21 +275,8 @@ func exampleDoc(sf *sampleFile, name string) []string {
 	if len(snip) == 0 {
 		return nil
 	}
-	// Emit a runnable ```gad fence so `gad doc` executes the example when it
-	// renders the final documentation. The snippet's `//= EXPR` value markers are
-	// translated to the fence doctest form `>>> EXPR` so the value is verified
-	// there too; `//< TEXT` (fences have no output assertion) is kept as a comment.
 	out := []string{"", "## Example", "", "```gad"}
-	for _, ln := range snip {
-		t := strings.TrimSpace(ln)
-		if rest, ok := strings.CutPrefix(t, "//="); ok {
-			out = append(out, ">>> "+strings.TrimSpace(rest))
-		} else if rest, ok := strings.CutPrefix(t, "//<"); ok {
-			out = append(out, "// output: "+strings.TrimSpace(rest))
-		} else {
-			out = append(out, ln)
-		}
-	}
+	out = append(out, snip...)
 	return append(out, "```")
 }
 
@@ -283,7 +307,7 @@ func scaffoldMissingSamples(module string, dg *docgroup, sf *sampleFile) error {
 
 	var b strings.Builder
 	if os.IsNotExist(err) {
-		b.WriteString("// Samples of module " + module + ": one snippet region per exported\n// member. These are standard doctest snippets, run and checked by `gad doc`,\n// and merged into the module API as `## Example` sections by gaddoc (the\n// `gad:samples` directive).\n")
+		b.WriteString("// Samples of module " + module + ": one `example NAME { … }` per exported\n// member. Their checks (`= EXPR`, `<<< text`) are verified when `gad doc` runs\n// the file, and gaddoc merges them into the module API as `## Example` sections\n// (the `gad:samples` directive).\n")
 	} else {
 		b.Write(existing)
 		if !strings.HasSuffix(string(existing), "\n") {
@@ -291,7 +315,7 @@ func scaffoldMissingSamples(module string, dg *docgroup, sf *sampleFile) error {
 		}
 	}
 	for _, name := range missing {
-		b.WriteString("\n//snippet " + name + "\n//endsnippet\n")
+		b.WriteString("\nexample " + name + " {\n}\n")
 	}
 	return os.WriteFile(sf.path, []byte(b.String()), 0o644)
 }

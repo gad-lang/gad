@@ -19,7 +19,7 @@ a := [1, 2, 3]
 a[1] = 20      // mutate in place
 a = a + [4, 5] // concatenate (`a += x` appends x as a single element)
 [a, len(a), a[0], a[-1], a[1:3], a[:-1]]
-// => [[1, 20, 3, 4, 5], 5, 1, 5, [20, 3], [1, 20, 3, 4]]
+= [[1, 20, 3, 4, 5], 5, 1, 5, [20, 3], [1, 20, 3, 4]]
 ```
 
 ### `end`: the last index
@@ -39,7 +39,7 @@ ys := [1, 2, 3]
 ys[end] = 30     // assign the last
 ys[end-1] += 20
 [xs[end], xs[end-1], xs[end-k], xs[1:end], xs[end-1:], xs[[0, 3][end]], ys]
-// => [40, 30, 20, [20, 30], [30, 40], 40, [1, 22, 30]]
+= [40, 30, 20, [20, 30], [30, 40], 40, [1, 22, 30]]
 ```
 
 ## Dicts
@@ -60,7 +60,7 @@ config := ({
     }
 })
 [m.b, m["d"], config.server.port]
-// => [2, 4, 8080]
+= [2, 4, 8080]
 ```
 
 ### Keyword keys
@@ -78,7 +78,7 @@ mk := {class: 1, else: 2, func: 3} // keywords as bare string keys
 interface Rule { if? str; for? int } // keywords as field names
 r := {if: "x > 1", for: 2} :> Rule
 [mk.class, mk["else"], mk.func, r.if, r.for]    // read via selector and index
-// => [1, 2, 3, "x > 1", 2]
+= [1, 2, 3, "x > 1", 2]
 ```
 
 ### Concurrent dicts
@@ -92,7 +92,7 @@ shared := syncDict({hits: 1})
 shared.hits += 1
 shared.users = ["ann"]
 [shared.hits, shared.users, isSyncDict(shared), isDict(shared), typeName(shared)]
-// => [2, ["ann"], true, false, "syncDict"]
+= [2, ["ann"], true, false, "syncDict"]
 ```
 
 ## Spread and merge literals
@@ -107,7 +107,7 @@ sb := [3, 4]
 arr := [0, *sa, *sb, 5]              // splice
 dd := {a: 1, *{a: 9, b: 2}, c: 3}    // merge (later wins)
 [arr, dd]
-// => [[0, 1, 2, 3, 4, 5], {a: 9, b: 2, c: 3}]
+= [[0, 1, 2, 3, 4, 5], {a: 9, b: 2, c: 3}]
 ```
 
 ## Iteration
@@ -125,61 +125,82 @@ for k, v in person { // dicts: (key, value)
     println(#"  {k} -> {v}")
 }
 squares
-// => [100, 400, 900]
+= [100, 400, 900]
 ```
 
 ## Example — `collections.gad`
 
 ```gad
-a := [1, 2, 3]
-a[1] = 20      // mutate in place
-a = a + [4, 5] // concatenate (`a += x` appends x as a single element)
-[a, len(a), a[0], a[-1], a[1:3], a[:-1]]
+example arrays {
+    a := [1, 2, 3]
+    a[1] = 20      // mutate in place
+    a = a + [4, 5] // concatenate (`a += x` appends x as a single element)
+    [a, len(a), a[0], a[-1], a[1:3], a[:-1]]
+    = [[1, 20, 3, 4, 5], 5, 1, 5, [20, 3], [1, 20, 3, 4]]
+}
 
-m := {a: 1, "b": 2, c: 3}
-m.d = 4     // add a key
-delete m.a  // remove a key (delete is a statement)
-config := ({
-    server {
-        host: "localhost"
-        port: 8080
+example dicts {
+    m := {a: 1, "b": 2, c: 3}
+    m.d = 4     // add a key
+    delete m.a  // remove a key (delete is a statement)
+    config := ({
+        server {
+            host: "localhost"
+            port: 8080
+        }
+    })
+    [m.b, m["d"], config.server.port]
+    = [2, 4, 8080]
+}
+
+example index_end {
+    xs := [10, 20, 30, 40]
+    k := 2
+    ys := [1, 2, 3]
+    ys[end] = 30     // assign the last
+    ys[end-1] += 20
+    [xs[end], xs[end-1], xs[end-k], xs[1:end], xs[end-1:], xs[[0, 3][end]], ys]
+    = [40, 30, 20, [20, 30], [30, 40], 40, [1, 22, 30]]
+}
+
+example keyword_keys {
+    mk := {class: 1, else: 2, func: 3} // keywords as bare string keys
+    interface Rule { if? str; for? int } // keywords as field names
+    r := {if: "x > 1", for: 2} :> Rule
+    [mk.class, mk["else"], mk.func, r.if, r.for]    // read via selector and index
+    = [1, 2, 3, "x > 1", 2]
+}
+
+example spread {
+    sa := [1, 2]
+    sb := [3, 4]
+    arr := [0, *sa, *sb, 5]              // splice
+    dd := {a: 1, *{a: 9, b: 2}, c: 3}    // merge (later wins)
+    [arr, dd]
+    = [[0, 1, 2, 3, 4, 5], {a: 9, b: 2, c: 3}]
+}
+
+example iterate {
+    nums := [10, 20, 30]
+    squares := []
+    for _, n in nums { // arrays: (index, value)
+        squares += n * n
     }
-})
-[m.b, m["d"], config.server.port]
-
-xs := [10, 20, 30, 40]
-k := 2
-ys := [1, 2, 3]
-ys[end] = 30     // assign the last
-ys[end-1] += 20
-[xs[end], xs[end-1], xs[end-k], xs[1:end], xs[end-1:], xs[[0, 3][end]], ys]
-
-mk := {class: 1, else: 2, func: 3} // keywords as bare string keys
-interface Rule { if? str; for? int } // keywords as field names
-r := {if: "x > 1", for: 2} :> Rule
-[mk.class, mk["else"], mk.func, r.if, r.for]    // read via selector and index
-
-sa := [1, 2]
-sb := [3, 4]
-arr := [0, *sa, *sb, 5]              // splice
-dd := {a: 1, *{a: 9, b: 2}, c: 3}    // merge (later wins)
-[arr, dd]
-
-nums := [10, 20, 30]
-squares := []
-for _, n in nums { // arrays: (index, value)
-    squares += n * n
+    person := {name: "Ada", age: 36}
+    for k, v in person { // dicts: (key, value)
+        println(#"  {k} -> {v}")
+    }
+    squares
+    = [100, 400, 900]
 }
-person := {name: "Ada", age: 36}
-for k, v in person { // dicts: (key, value)
-    println(#"  {k} -> {v}")
-}
-squares
 
-shared := syncDict({hits: 1})
-shared.hits += 1
-shared.users = ["ann"]
-[shared.hits, shared.users, isSyncDict(shared), isDict(shared), typeName(shared)]
+example sync_dict {
+    shared := syncDict({hits: 1})
+    shared.hits += 1
+    shared.users = ["ann"]
+    [shared.hits, shared.users, isSyncDict(shared), isDict(shared), typeName(shared)]
+    = [2, ["ann"], true, false, "syncDict"]
+}
 
 return [1, 20, 3, 4, 5]
 ```

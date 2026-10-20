@@ -68,7 +68,7 @@ interface User {
     str(User.title.@meta),
     str(User.label.@meta),
 ]
-// => ["(;table=\"users\", version=2)", "(;db=(;primary_key, auto))", "(;db=(;column=\"full_name\"), max_len=120)", "(;db=(;ignore))"]
+= ["(;table=\"users\", version=2)", "(;db=(;primary_key, auto))", "(;db=(;column=\"full_name\"), max_len=120)", "(;db=(;ignore))"]
 ```
 
 ```gad
@@ -84,7 +84,7 @@ enum Perm {
 }
 
 [str(Perm.@meta), str(Perm.Read.@meta), str(Perm.Write.@meta)]
-// => ["(;category=\"acl\")", "(;bit_pos=0)", "(;bit_pos=1)"]
+= ["(;category=\"acl\")", "(;bit_pos=0)", "(;bit_pos=1)"]
 ```
 
 ```gad
@@ -101,7 +101,7 @@ func save(id uint, name str; dry_run=false) <bool> {
     save.@nargs,       // named param names
     save.@ret,         // return signature
 ]
-// => ["(;route=\"/save\", method=\"POST\", auth)", "save", ["id", "name"], ["dry_run"], "<bool>"]
+= ["(;route=\"/save\", method=\"POST\", auth)", "save", ["id", "name"], ["dry_run"], "<bool>"]
 ```
 
 ```gad
@@ -137,7 +137,7 @@ u := Account()
     str(Account.save.@meta),  // a method's
     u.id, u.label,            // field defaults are preserved alongside metadata
 ]
-// => ["(;table=\"users\", version=2)", "(;db=(;primary_key))", "(;computed)", "(;route=\"/save\", method=\"POST\")", 0, "anon"]
+= ["(;table=\"users\", version=2)", "(;db=(;primary_key))", "(;computed)", "(;route=\"/save\", method=\"POST\")", 0, "anon"]
 ```
 
 ## A function of several methods
@@ -159,7 +159,7 @@ func add {
 	add(1, 2),      // a method by the types of its arguments
 	add("a", "b"),
 ]
-// => ["(;kind=\"sum\", pure)", 3, "ab"]
+= ["(;kind=\"sum\", pure)", 3, "ab"]
 ```
 
 ## A declared union
@@ -179,7 +179,7 @@ type Size <str|int>
 	len(Size.@types), // its member types: str, int
 	"M" :: Size,      // a value of one of them
 ]
-// => ["(;label=\"Size\", options=[\"S\", \"M\", \"L\"])", 2, "M"]
+= ["(;label=\"Size\", options=[\"S\", \"M\", \"L\"])", 2, "M"]
 ```
 
 ## A function as a value
@@ -199,7 +199,7 @@ class Contact {
 // the block as a dict, to take a value by its key
 check := dict(Contact.name.@meta).validation
 [check("Ana"), check("Al")]
-// => [nil, "too short"]
+= [nil, "too short"]
 ```
 
 ## Formatting: `gad fmt`
@@ -234,7 +234,7 @@ class Quote {
 
 // a flag of the class's block, as any other: gad fmt reads it
 str(Quote.@meta)
-// => (;ordered)
+= "(;ordered)"
 ```
 
 `gad fmt` also formats the fenced code blocks of Gad in Markdown files —
@@ -269,131 +269,155 @@ error, or to place a node, in that file. See also
 ## Example — `metadata.gad`
 
 ```gad
-/// a user record
-[table="users", version=2]
-interface User {
-    /// the primary key
-    [db=(;primary_key, auto)]
-    id uint
+example interface_meta {
+    /// a user record
+    [table="users", version=2]
+    interface User {
+        /// the primary key
+        [db=(;primary_key, auto)]
+        id uint
 
-    /// the display name
-    [db=(;column="full_name"), max_len=120]
-    title str
+        /// the display name
+        [db=(;column="full_name"), max_len=120]
+        title str
 
-    /// computed, not stored
-    [db=(;ignore)]
-    get label str
-}
-
-// The interface's own metadata, and each member's.
-[
-    str(User.@meta),
-    str(User.id.@meta),
-    str(User.title.@meta),
-    str(User.label.@meta),
-]
-
-/// permission bits
-[category="acl"]
-enum Perm {
-    /// may read
-    [bit_pos=0]
-    Read
-    /// may write
-    [bit_pos=1]
-    Write
-}
-
-[str(Perm.@meta), str(Perm.Read.@meta), str(Perm.Write.@meta)]
-
-/// persist a record
-[route="/save", method="POST", auth]
-func save(id uint, name str; dry_run=false) <bool> {
-    return true
-}
-
-[
-    str(save.@meta),   // the metadata block
-    save.@name,        // "save"
-    save.@args,        // positional param names
-    save.@nargs,       // named param names
-    save.@ret,         // return signature
-]
-
-/// a persisted user
-[table="users", version=2]
-class Account {
-    /// primary key
-    [db=(;primary_key)]
-    id = 0
-
-    /// stored under a different column
-    [db=(;column="full_name")]
-    label = "anon"
-
-    props {
-        /// derived, not stored
-        [computed]
-        display => this.label
+        /// computed, not stored
+        [db=(;ignore)]
+        get label str
     }
 
-    methods {
-        /// the persist endpoint
-        [route="/save", method="POST"]
-        save() { return this.id }
+    // The interface's own metadata, and each member's.
+    [
+        str(User.@meta),
+        str(User.id.@meta),
+        str(User.title.@meta),
+        str(User.label.@meta),
+    ]
+    = ["(;table=\"users\", version=2)", "(;db=(;primary_key, auto))", "(;db=(;column=\"full_name\"), max_len=120)", "(;db=(;ignore))"]
+}
+
+example enum_meta {
+    /// permission bits
+    [category="acl"]
+    enum Perm {
+        /// may read
+        [bit_pos=0]
+        Read
+        /// may write
+        [bit_pos=1]
+        Write
     }
+
+    [str(Perm.@meta), str(Perm.Read.@meta), str(Perm.Write.@meta)]
+    = ["(;category=\"acl\")", "(;bit_pos=0)", "(;bit_pos=1)"]
 }
 
-u := Account()
-[
-    str(Account.@meta),       // the class metadata
-    str(Account.id.@meta),    // a field's
-    str(Account.display.@meta), // a property's
-    str(Account.save.@meta),  // a method's
-    u.id, u.label,            // field defaults are preserved alongside metadata
-]
+example func_meta {
+    /// persist a record
+    [route="/save", method="POST", auth]
+    func save(id uint, name str; dry_run=false) <bool> {
+        return true
+    }
 
-/// the sum of two numbers, or two texts joined
-[kind="sum", pure]
-func add {
-	(a int, b int) => a + b
-	(a str, b str) => a + b
+    [
+        str(save.@meta),   // the metadata block
+        save.@name,        // "save"
+        save.@args,        // positional param names
+        save.@nargs,       // named param names
+        save.@ret,         // return signature
+    ]
+    = ["(;route=\"/save\", method=\"POST\", auth)", "save", ["id", "name"], ["dry_run"], "<bool>"]
 }
 
-[
-	str(add.@meta), // the function's block
-	add(1, 2),      // a method by the types of its arguments
-	add("a", "b"),
-]
+example class_meta {
+    /// a persisted user
+    [table="users", version=2]
+    class Account {
+        /// primary key
+        [db=(;primary_key)]
+        id = 0
 
-/// a size, as a letter or as a number
-[label="Size", options=["S", "M", "L"]]
-type Size <str|int>
+        /// stored under a different column
+        [db=(;column="full_name")]
+        label = "anon"
 
-[
-	str(Size.@meta), // the union's block
-	len(Size.@types), // its member types: str, int
-	"M" :: Size,      // a value of one of them
-]
+        props {
+            /// derived, not stored
+            [computed]
+            display => this.label
+        }
 
-class Contact {
-	/// a check: nil when fine, else why not
-	[validation=func(v) => len(v) >= 3 ? nil : "too short"]
-	name str
+        methods {
+            /// the persist endpoint
+            [route="/save", method="POST"]
+            save() { return this.id }
+        }
+    }
+
+    u := Account()
+    [
+        str(Account.@meta),       // the class metadata
+        str(Account.id.@meta),    // a field's
+        str(Account.display.@meta), // a property's
+        str(Account.save.@meta),  // a method's
+        u.id, u.label,            // field defaults are preserved alongside metadata
+    ]
+    = ["(;table=\"users\", version=2)", "(;db=(;primary_key))", "(;computed)", "(;route=\"/save\", method=\"POST\")", 0, "anon"]
 }
 
-// the block as a dict, to take a value by its key
-check := dict(Contact.name.@meta).validation
-[check("Ana"), check("Al")]
+example func_methods_meta {
+    /// the sum of two numbers, or two texts joined
+    [kind="sum", pure]
+    func add {
+    	(a int, b int) => a + b
+    	(a str, b str) => a + b
+    }
 
-/// the fields in the order they are filled in: gad fmt keeps it
-[ordered]
-class Quote {
-	name str
-	phone str
-	details str
+    [
+    	str(add.@meta), // the function's block
+    	add(1, 2),      // a method by the types of its arguments
+    	add("a", "b"),
+    ]
+    = ["(;kind=\"sum\", pure)", 3, "ab"]
 }
 
-// a flag of the class's block, as any other: gad fmt reads it
-str(Quote.@meta)
+example union_meta {
+    /// a size, as a letter or as a number
+    [label="Size", options=["S", "M", "L"]]
+    type Size <str|int>
+
+    [
+    	str(Size.@meta), // the union's block
+    	len(Size.@types), // its member types: str, int
+    	"M" :: Size,      // a value of one of them
+    ]
+    = ["(;label=\"Size\", options=[\"S\", \"M\", \"L\"])", 2, "M"]
+}
+
+example meta_func_values {
+    class Contact {
+    	/// a check: nil when fine, else why not
+    	[validation=func(v) => len(v) >= 3 ? nil : "too short"]
+    	name str
+    }
+
+    // the block as a dict, to take a value by its key
+    check := dict(Contact.name.@meta).validation
+    [check("Ana"), check("Al")]
+    = [nil, "too short"]
+}
+
+example meta_ordered {
+    /// the fields in the order they are filled in: gad fmt keeps it
+    [ordered]
+    class Quote {
+    	name str
+    	phone str
+    	details str
+    }
+
+    // a flag of the class's block, as any other: gad fmt reads it
+    str(Quote.@meta)
+    = "(;ordered)"
+}
 ```

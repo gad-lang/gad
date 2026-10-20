@@ -31,7 +31,7 @@ pick := func(v int|str) <int|str> => v
 // nested: a union can contain another named union
 label := func(v str|number) => isStr(v) ? "text" : "num"
 [addOne(2), addOne(2.5), pick(5), pick("x"), 1 :: number, label("hi"), label(3)]
-// => [3, 3.5, 5, "x", 1, "text", "num"]
+= [3, 3.5, 5, "x", 1, "text", "num"]
 ```
 
 ## Behavioural interfaces
@@ -59,7 +59,7 @@ apply := func(f callable, x) => f(x)
 size := func(x lengther) => len(x)
 first := func(x indexable) => x[0]
 [sum([1, 2, 3]), apply(func(n) => n * 2, 21), size("abc"), first([7, 8, 9])]
-// => [6, 42, 3, 7]
+= [6, 42, 3, 7]
 ```
 
 ## Classes: `classType` and `classInstance`
@@ -78,35 +78,44 @@ class Point { // the statement form names the class (an expression `class { … 
 build := func(t classType) <classInstance> => t(; x = 3, y = 4)
 p := build(Point)
 [typeName(Point), typeName(p), p.sum()]
-// => ["Class", "Point", 7]
+= ["Class", "Point", 7]
 ```
 
 ## Example — `type_unions.gad`
 
 ```gad
-type number <int|uint|float|decimal> // named union (statement form)
-addOne := func(v number) <number> => v + 1
-// inline unions need no naming — here in both a parameter and a return type
-pick := func(v int|str) <int|str> => v
-// nested: a union can contain another named union
-label := func(v str|number) => isStr(v) ? "text" : "num"
-[addOne(2), addOne(2.5), pick(5), pick("x"), 1 :: number, label("hi"), label(3)]
-
-sum := func(xs iterable) { total := 0; for v in xs { total += v }; return total }
-apply := func(f callable, x) => f(x)
-size := func(x lengther) => len(x)
-first := func(x indexable) => x[0]
-[sum([1, 2, 3]), apply(func(n) => n * 2, 21), size("abc"), first([7, 8, 9])]
-
-class Point { // the statement form names the class (an expression `class { … }` is anonymous)
-    x = 0
-    y = 0
-    methods { sum() => this.x + this.y }
+example unions {
+    type number <int|uint|float|decimal> // named union (statement form)
+    addOne := func(v number) <number> => v + 1
+    // inline unions need no naming — here in both a parameter and a return type
+    pick := func(v int|str) <int|str> => v
+    // nested: a union can contain another named union
+    label := func(v str|number) => isStr(v) ? "text" : "num"
+    [addOne(2), addOne(2.5), pick(5), pick("x"), 1 :: number, label("hi"), label(3)]
+    = [3, 3.5, 5, "x", 1, "text", "num"]
 }
-// a classType is a class; calling it makes a classInstance
-build := func(t classType) <classInstance> => t(; x = 3, y = 4)
-p := build(Point)
-[typeName(Point), typeName(p), p.sum()]
+
+example interfaces {
+    sum := func(xs iterable) { total := 0; for v in xs { total += v }; return total }
+    apply := func(f callable, x) => f(x)
+    size := func(x lengther) => len(x)
+    first := func(x indexable) => x[0]
+    [sum([1, 2, 3]), apply(func(n) => n * 2, 21), size("abc"), first([7, 8, 9])]
+    = [6, 42, 3, 7]
+}
+
+example classes {
+    class Point { // the statement form names the class (an expression `class { … }` is anonymous)
+        x = 0
+        y = 0
+        methods { sum() => this.x + this.y }
+    }
+    // a classType is a class; calling it makes a classInstance
+    build := func(t classType) <classInstance> => t(; x = 3, y = 4)
+    p := build(Point)
+    [typeName(Point), typeName(p), p.sum()]
+    = ["Class", "Point", 7]
+}
 
 return "type unions"
 ```

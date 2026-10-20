@@ -35,7 +35,7 @@ class Grid {
 }
 g := Grid(; rows = 4)
 [g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
-// => ["grid", 3, 4, 8, ["columns", "gap", "name", "rows"]]
+= ["grid", 3, 4, 8, ["columns", "gap", "name", "rows"]]
 ```
 
 ## Typed fields: the spec
@@ -55,7 +55,7 @@ rejects := func(f) { try { f(); return false } catch { return true } }
     Box(; title = "a", size = 2).size,
     rejects(() => Box(; size = "big")),   // field "size" expects int
 ]
-// => [nil, 10, 2, true]
+= [nil, 10, 2, true]
 ```
 
 ## Methods and properties
@@ -68,7 +68,7 @@ class Counter {
 }
 c := Counter(; n = 21)
 [c.twice(), c.label]
-// => [42, "counter 21"]
+= [42, "counter 21"]
 ```
 
 ## Built from what a glob import found
@@ -85,7 +85,7 @@ class Languages {
 }
 l := Languages(; pt = true)
 [l.en, l.pt, collect(keys(Languages.@fields)).|sort]
-// => [false, true, ["en", "pt"]]
+= [false, true, ["en", "pt"]]
 ```
 
 ## Nothing to add
@@ -99,58 +99,73 @@ class Plain {
     **nil
 }
 [Plain().a, collect(keys(Plain.@fields))]
-// => [1, ["a"]]
+= [1, ["a"]]
 ```
 
 ## Example — `spread_members.gad`
 
 ```gad
-defaults := {columns: 3, rows: 2}
-class Grid {
-    name str = "grid"
-    **{fields: defaults + {gap: 8}}
+example spread_fields {
+    defaults := {columns: 3, rows: 2}
+    class Grid {
+        name str = "grid"
+        **{fields: defaults + {gap: 8}}
+    }
+    g := Grid(; rows = 4)
+    [g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
+    = ["grid", 3, 4, 8, ["columns", "gap", "name", "rows"]]
 }
-g := Grid(; rows = 4)
-[g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
 
-extra := {fields: (;
-    title=(; types=[str], nullable=true, meta=(; label="Title")),
-    size=(; types=[int], default=10),
-)}
-class Box {
-    **extra
+example spread_spec {
+    extra := {fields: (;
+        title=(; types=[str], nullable=true, meta=(; label="Title")),
+        size=(; types=[int], default=10),
+    )}
+    class Box {
+        **extra
+    }
+    rejects := func(f) { try { f(); return false } catch { return true } }
+    [
+        Box().title,                          // nullable: nil
+        Box().size,                           // its default
+        Box(; title = "a", size = 2).size,
+        rejects(() => Box(; size = "big")),   // field "size" expects int
+    ]
+    = [nil, 10, 2, true]
 }
-rejects := func(f) { try { f(); return false } catch { return true } }
-[
-    Box().title,                          // nullable: nil
-    Box().size,                           // its default
-    Box(; title = "a", size = 2).size,
-    rejects(() => Box(; size = "big")),   // field "size" expects int
-]
 
-class Counter {
-    n int = 0
-    **{methods: [twice(this) => this.n * 2]}
-    **{props: {label: func { (this) => "counter " + str(this.n) }}}
+example spread_methods {
+    class Counter {
+        n int = 0
+        **{methods: [twice(this) => this.n * 2]}
+        **{props: {label: func { (this) => "counter " + str(this.n) }}}
+    }
+    c := Counter(; n = 21)
+    [c.twice(), c.label]
+    = [42, "counter 21"]
 }
-c := Counter(; n = 21)
-[c.twice(), c.label]
 
-// what `import("./plugins/*")::dict` gives: a module by name
-plugins := {pt: {lang: "pt"}, en: {lang: "en"}}
-langFields := {}
-for name, _ in plugins {
-    langFields[name] = (; types=[bool], default=false)
+example spread_glob {
+    // what `import("./plugins/*")::dict` gives: a module by name
+    plugins := {pt: {lang: "pt"}, en: {lang: "en"}}
+    langFields := {}
+    for name, _ in plugins {
+        langFields[name] = (; types=[bool], default=false)
+    }
+    class Languages {
+        **{fields: langFields}
+    }
+    l := Languages(; pt = true)
+    [l.en, l.pt, collect(keys(Languages.@fields)).|sort]
+    = [false, true, ["en", "pt"]]
 }
-class Languages {
-    **{fields: langFields}
-}
-l := Languages(; pt = true)
-[l.en, l.pt, collect(keys(Languages.@fields)).|sort]
 
-class Plain {
-    a = 1
-    **nil
+example spread_nil {
+    class Plain {
+        a = 1
+        **nil
+    }
+    [Plain().a, collect(keys(Plain.@fields))]
+    = [1, ["a"]]
 }
-[Plain().a, collect(keys(Plain.@fields))]
 ```

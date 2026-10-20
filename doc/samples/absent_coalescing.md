@@ -18,7 +18,7 @@ documentation.
     ({b: nil}).b ?? 9,                       // contrast: `??` is nil-based
     ({}).b !? 9,                             // absent
 ]
-// => [5, nil, 9, 9]
+= [5, nil, 9, 9]
 ```
 
 ## Assignment form
@@ -31,7 +31,7 @@ a.b !?= 9                // no-op — the key is already present
 e := {}
 e.b !?= 9                // assigns — the key is absent
 [a.b, e.b]
-// => [nil, 9]
+= [nil, 9]
 ```
 
 ## Deep paths
@@ -44,7 +44,7 @@ box := {}
 missing := box.x.y.z !? "missing"   // nothing is created
 box.x.y.z !?= 42
 [missing, box]
-// => ["missing", {x: {y: {z: 42}}}]
+= ["missing", {x: {y: {z: 42}}}]
 ```
 
 ## Class instances
@@ -57,7 +57,7 @@ p := Point()
 before := ["x" in p, "y" in p, p.y !? -1]  // field y is absent
 p.y !?= 7
 [before, p.y]
-// => [[true, false, -1], 7]
+= [[true, false, -1], 7]
 ```
 
 ## `global` defaults
@@ -69,36 +69,51 @@ absent, so both apply.
 ```gad
 global (page = 1, user !?= "guest")
 #"page={page} user={user}"
-// => page=1 user=guest
+= "page=1 user=guest"
 ```
 
 ## Example — `absent_coalescing.gad`
 
 ```gad
-[
-    ({b: 5}).b !? 9,                         // present
-    ({b: nil}).b !? 9,                       // present with a nil value
-    ({b: nil}).b ?? 9,                       // contrast: `??` is nil-based
-    ({}).b !? 9,                             // absent
-]
+example absent_value {
+    [
+        ({b: 5}).b !? 9,                         // present
+        ({b: nil}).b !? 9,                       // present with a nil value
+        ({b: nil}).b ?? 9,                       // contrast: `??` is nil-based
+        ({}).b !? 9,                             // absent
+    ]
+    = [5, nil, 9, 9]
+}
 
-a := {b: nil}
-a.b !?= 9                // no-op — the key is already present
-e := {}
-e.b !?= 9                // assigns — the key is absent
-[a.b, e.b]
+example absent_assign {
+    a := {b: nil}
+    a.b !?= 9                // no-op — the key is already present
+    e := {}
+    e.b !?= 9                // assigns — the key is absent
+    [a.b, e.b]
+    = [nil, 9]
+}
 
-box := {}
-missing := box.x.y.z !? "missing"   // nothing is created
-box.x.y.z !?= 42
-[missing, box]
+example absent_deep {
+    box := {}
+    missing := box.x.y.z !? "missing"   // nothing is created
+    box.x.y.z !?= 42
+    [missing, box]
+    = ["missing", {x: {y: {z: 42}}}]
+}
 
-class Point { x = 0 }
-p := Point()
-before := ["x" in p, "y" in p, p.y !? -1]  // field y is absent
-p.y !?= 7
-[before, p.y]
+example absent_instance {
+    class Point { x = 0 }
+    p := Point()
+    before := ["x" in p, "y" in p, p.y !? -1]  // field y is absent
+    p.y !?= 7
+    [before, p.y]
+    = [[true, false, -1], 7]
+}
 
-global (page = 1, user !?= "guest")
-#"page={page} user={user}"
+example absent_global {
+    global (page = 1, user !?= "guest")
+    #"page={page} user={user}"
+    = "page=1 user=guest"
+}
 ```

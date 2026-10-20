@@ -31,7 +31,7 @@ p := P(; x=1, y=2.5)                    // P alone: the aliases
 a := Pair[float, bool](; key=1.5, value=true)
 b := Pair[float](; key=2.5, value=3)    // V left out: its alias, int
 [p.x + p.y, typeName(a), typeName(b)]
-// => [3.5, "Pair[float, bool]", "Pair[float, int]"]
+= [3.5, "Pair[float, bool]", "Pair[float, int]"]
 ```
 
 ## How it works: one declaration per instance
@@ -61,7 +61,7 @@ class Box[T] { item T }                 // T has no alias: any
     Box(; item="anything").item,        // Box alone: T is any
     Box[int](; item="x") or "rejected", // T is int
 ]
-// => [1, true, "anything", "rejected"]
+= [1, true, "anything", "rejected"]
 ```
 
 ## Referring to itself
@@ -79,7 +79,7 @@ class List[T] { v T; next? List[T] }
 n := Node(; v=1, next=Node(; v=2))
 l := List[str](; v="a", next=List[str](; v="b"))
 [n.next.v, l.next.v, typeName(l.next)]
-// => [2, "b", "List[str]"]
+= [2, "b", "List[str]"]
 ```
 
 ## Generic interfaces
@@ -98,7 +98,7 @@ interface Chain { v int; next? Chain }  // an interface naming itself
     {v: 1, next: {v: 2}} :: Chain or "no",
     {v: 1, next: {v: "x"}} :: Chain or "no",
 ]
-// => [{name: "a"}, "no", {name: 1}, {next: {v: 2}, v: 1}, "no"]
+= [{name: "a"}, "no", {name: 1}, {next: {v: 2}, v: 1}, "no"]
 ```
 
 ## Generic mixins, and a mixin as a type
@@ -125,7 +125,7 @@ class Slot { l? Linked }              // typed by Linked's interface
     Slot(; l=Item()).l.v,
     Slot(; l=Other()) or "rejected",
 ]
-// => ["a", 2, 3, 1, "rejected"]
+= ["a", 2, 3, 1, "rejected"]
 ```
 
 ## Reflection: `@tparams`
@@ -152,7 +152,7 @@ t := Point.@tparams
     dict(Tagged[str].@tparams).T == str,
     len(Plain.@tparams),                        // not generic: none
 ]
-// => ["X", true, true, true, true, true, 0]
+= ["X", true, true, true, true, true, 0]
 ```
 
 ## Limits
@@ -167,80 +167,98 @@ t := Point.@tparams
 ## Example — `generics.gad`
 
 ```gad
-// X is int and Y is float, unless P is given other types
-class P [X int, Y float] { x X; y Y }
+example aliases {
+    // X is int and Y is float, unless P is given other types
+    class P [X int, Y float] { x X; y Y }
 
-// Pair's aliases: K is str, V is int
-class Pair[K str, V int] { key K; value V }
+    // Pair's aliases: K is str, V is int
+    class Pair[K str, V int] { key K; value V }
 
-p := P(; x=1, y=2.5)                    // P alone: the aliases
-a := Pair[float, bool](; key=1.5, value=true)
-b := Pair[float](; key=2.5, value=3)    // V left out: its alias, int
-[p.x + p.y, typeName(a), typeName(b)]
+    p := P(; x=1, y=2.5)                    // P alone: the aliases
+    a := Pair[float, bool](; key=1.5, value=true)
+    b := Pair[float](; key=2.5, value=3)    // V left out: its alias, int
+    [p.x + p.y, typeName(a), typeName(b)]
+    = [3.5, "Pair[float, bool]", "Pair[float, int]"]
+}
 
-// a use before the declaration, and in a declaration before it
-one := Box[int](; item=1)
-class Holder { b Box[int]; many? Box[int|str] }
-class Box[T] { item T }                 // T has no alias: any
+example instances {
+    // a use before the declaration, and in a declaration before it
+    one := Box[int](; item=1)
+    class Holder { b Box[int]; many? Box[int|str] }
+    class Box[T] { item T }                 // T has no alias: any
 
-[
-    Holder(; b=one).b.item,
-    Box[int] == Box[int],               // one class per instance
-    Box(; item="anything").item,        // Box alone: T is any
-    Box[int](; item="x") or "rejected", // T is int
-]
+    [
+        Holder(; b=one).b.item,
+        Box[int] == Box[int],               // one class per instance
+        Box(; item="anything").item,        // Box alone: T is any
+        Box[int](; item="x") or "rejected", // T is int
+    ]
+    = [1, true, "anything", "rejected"]
+}
 
-class Node { v int; next? Node }
-class List[T] { v T; next? List[T] }
+example recursive {
+    class Node { v int; next? Node }
+    class List[T] { v T; next? List[T] }
 
-n := Node(; v=1, next=Node(; v=2))
-l := List[str](; v="a", next=List[str](; v="b"))
-[n.next.v, l.next.v, typeName(l.next)]
+    n := Node(; v=1, next=Node(; v=2))
+    l := List[str](; v="a", next=List[str](; v="b"))
+    [n.next.v, l.next.v, typeName(l.next)]
+    = [2, "b", "List[str]"]
+}
 
-interface Named[T str] { name T }
-interface Chain { v int; next? Chain }  // an interface naming itself
+example interfaces {
+    interface Named[T str] { name T }
+    interface Chain { v int; next? Chain }  // an interface naming itself
 
-[
-    {name: "a"} :: Named or "no",      // Named alone: T is str
-    {name: 1} :: Named or "no",
-    {name: 1} :: Named[int] or "no",
-    {v: 1, next: {v: 2}} :: Chain or "no",
-    {v: 1, next: {v: "x"}} :: Chain or "no",
-]
+    [
+        {name: "a"} :: Named or "no",      // Named alone: T is str
+        {name: 1} :: Named or "no",
+        {name: 1} :: Named[int] or "no",
+        {v: 1, next: {v: 2}} :: Chain or "no",
+        {v: 1, next: {v: "x"}} :: Chain or "no",
+    ]
+    = [{name: "a"}, "no", {name: 1}, {next: {v: 2}, v: 1}, "no"]
+}
 
-mixin Valued[T int] { v T }
-class Label { use Valued[str] }
-class Count { use Valued }              // Valued alone: T is int
+example mixins {
+    mixin Valued[T int] { v T }
+    class Label { use Valued[str] }
+    class Count { use Valued }              // Valued alone: T is int
 
-mixin Linked { v int = 1; next? Linked }
-class Item { use Linked }
-class Other { v str = "x" }
-class Slot { l? Linked }              // typed by Linked's interface
+    mixin Linked { v int = 1; next? Linked }
+    class Item { use Linked }
+    class Other { v str = "x" }
+    class Slot { l? Linked }              // typed by Linked's interface
 
-[
-    Label(; v="a").v,
-    Count(; v=2).v,
-    Item(; next=Item(; v=3)).next.v,
-    Slot(; l=Item()).l.v,
-    Slot(; l=Other()) or "rejected",
-]
+    [
+        Label(; v="a").v,
+        Count(; v=2).v,
+        Item(; next=Item(; v=3)).next.v,
+        Slot(; l=Item()).l.v,
+        Slot(; l=Other()) or "rejected",
+    ]
+    = ["a", 2, 3, 1, "rejected"]
+}
 
-class Point [X int, Y float] { x X; y Y }
-class Cell[T] { item T }
-interface Titled[T str] { title T }
-mixin Tagged[T int] { tag T }
-class Plain {}
+example tparams {
+    class Point [X int, Y float] { x X; y Y }
+    class Cell[T] { item T }
+    interface Titled[T str] { title T }
+    mixin Tagged[T int] { tag T }
+    class Plain {}
 
-t := Point.@tparams
-[
-    t[0].k,                                     // the parameters, in order
-    dict(t).X == int,                           // the name alone: the aliases
-    dict(Cell.@tparams).T == any,                // no alias: any
-    dict(Cell[int|str].@tparams).T == [int, str], // a union: an array
-    dict(Titled[bool].@tparams).T == bool,
-    dict(Tagged[str].@tparams).T == str,
-    len(Plain.@tparams),                        // not generic: none
-]
+    t := Point.@tparams
+    [
+        t[0].k,                                     // the parameters, in order
+        dict(t).X == int,                           // the name alone: the aliases
+        dict(Cell.@tparams).T == any,                // no alias: any
+        dict(Cell[int|str].@tparams).T == [int, str], // a union: an array
+        dict(Titled[bool].@tparams).T == bool,
+        dict(Tagged[str].@tparams).T == str,
+        len(Plain.@tparams),                        // not generic: none
+    ]
+    = ["X", true, true, true, true, true, 0]
+}
 
 return "generics"
 ```

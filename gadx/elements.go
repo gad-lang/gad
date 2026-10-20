@@ -16,6 +16,8 @@ import (
 // `el += child` / `el ++= children` operators a tag supports build it up.
 type Elements struct {
 	Items []Element
+	// checked is how many items an output check has read (CheckRendered)
+	checked int
 }
 
 // ElementsType is the Gad object type of *Elements. Calling it builds a fragment:

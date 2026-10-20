@@ -42,7 +42,7 @@ p := Point(; x = 9, y = 9)
     Rect(; a = p, b = {x: 1, y: 1}).a.x,    // an instance is kept as-is
     Rect(; a = {x: 1, y: 2}).b,             // not provided: nil
 ]
-// => ["Point", 4, ["Rect", "Point", 2], 9, nil]
+= ["Point", 4, ["Rect", "Point", 2], 9, nil]
 ```
 
 ## Anonymous classes and members given at run time
@@ -69,7 +69,7 @@ class Bag { any }
     rejects(() => Box(; v = true)),              // field "v" expects int|str, got bool
     [typeName(Bag(; any = 1).any), typeName(Bag(; any = "x").any)],  // untyped
 ]
-// => [true, 7, "hi", true, ["int", "str"]]
+= [true, 7, "hi", true, ["int", "str"]]
 ```
 
 ## Interface-typed fields
@@ -89,7 +89,7 @@ badGreeter := func() { try { Registry(; main = 42); return false } catch { retur
     Registry(; main = {name: "Bo", greet: func() => "hi Bo"}).main.greet(),
     badGreeter(),                      // 42 is not a Greeter
 ]
-// => ["hi Ada", "hi Bo", true]
+= ["hi Ada", "hi Bo", true]
 ```
 
 ## Nullable fields (`name? T`)
@@ -119,60 +119,72 @@ nilPort := func() { try { Config(; port = nil); return false } catch { return tr
     ({} :: HasTag) != nil,             // an absent tag is fine
     ({tag: 3} :: HasTag).tag,
 ]
-// => [[8080, nil, "beta"], true, true, 3]
+= [[8080, nil, "beta"], true, true, 3]
 ```
 
 ## Example — `field_types.gad`
 
 ```gad
-class Point { x int; y int }
-class Rect { a Point; b Point }        // class-typed fields
-class Scene { name str; rect Rect }    // nested to any depth
+example field_class {
+    class Point { x int; y int }
+    class Rect { a Point; b Point }        // class-typed fields
+    class Scene { name str; rect Rect }    // nested to any depth
 
-r := Rect(; a = {x: 0, y: 0}, b = {x: 3, y: 4})
-s := Scene(; name = "s1", rect = {a: {x: 1, y: 2}, b: {x: 3, y: 4}})
-p := Point(; x = 9, y = 9)
-[
-    typeName(r.a), r.b.y,
-    [typeName(s.rect), typeName(s.rect.a), s.rect.a.y],
-    Rect(; a = p, b = {x: 1, y: 1}).a.x,    // an instance is kept as-is
-    Rect(; a = {x: 1, y: 2}).b,             // not provided: nil
-]
-
-rejects := func(f) { try { f(); return false } catch { return true } }
-class Box { v int|str }
-class Bag { any }
-[
-    rejects(() => Point(; x = "hello", y = 1)),  // field "x" expects int, got str
-    Box(; v = 7).v, Box(; v = "hi").v,
-    rejects(() => Box(; v = true)),              // field "v" expects int|str, got bool
-    [typeName(Bag(; any = 1).any), typeName(Bag(; any = "x").any)],  // untyped
-]
-
-interface Greeter { name str; greet() <str> }
-class Person { name = ""; methods { greet() => "hi " + this.name } }
-class Registry { main Greeter }        // accepts anything that is a Greeter
-
-badGreeter := func() { try { Registry(; main = 42); return false } catch { return true } }
-[
-    Registry(; main = Person(; name = "Ada")).main.greet(),
-    Registry(; main = {name: "Bo", greet: func() => "hi Bo"}).main.greet(),
-    badGreeter(),                      // 42 is not a Greeter
-]
-
-class Config {
-    port int        // required — a non-nil int
-    host? str       // optional — a str or nil
-    tag? int|str    // optional union — int, str or nil
+    r := Rect(; a = {x: 0, y: 0}, b = {x: 3, y: 4})
+    s := Scene(; name = "s1", rect = {a: {x: 1, y: 2}, b: {x: 3, y: 4}})
+    p := Point(; x = 9, y = 9)
+    [
+        typeName(r.a), r.b.y,
+        [typeName(s.rect), typeName(s.rect.a), s.rect.a.y],
+        Rect(; a = p, b = {x: 1, y: 1}).a.x,    // an instance is kept as-is
+        Rect(; a = {x: 1, y: 2}).b,             // not provided: nil
+    ]
+    = ["Point", 4, ["Rect", "Point", 2], 9, nil]
 }
-interface HasTag { tag? int|str }
 
-c := Config(; port = 8080, host = nil, tag = "beta")
-nilPort := func() { try { Config(; port = nil); return false } catch { return true } }
-[
-    [c.port, c.host, c.tag],
-    nilPort(),                         // field "port" expects int, got nil
-    ({} :: HasTag) != nil,             // an absent tag is fine
-    ({tag: 3} :: HasTag).tag,
-]
+example field_enforce {
+    rejects := func(f) { try { f(); return false } catch { return true } }
+    class Box { v int|str }
+    class Bag { any }
+    [
+        rejects(() => Point(; x = "hello", y = 1)),  // field "x" expects int, got str
+        Box(; v = 7).v, Box(; v = "hi").v,
+        rejects(() => Box(; v = true)),              // field "v" expects int|str, got bool
+        [typeName(Bag(; any = 1).any), typeName(Bag(; any = "x").any)],  // untyped
+    ]
+    = [true, 7, "hi", true, ["int", "str"]]
+}
+
+example field_iface {
+    interface Greeter { name str; greet() <str> }
+    class Person { name = ""; methods { greet() => "hi " + this.name } }
+    class Registry { main Greeter }        // accepts anything that is a Greeter
+
+    badGreeter := func() { try { Registry(; main = 42); return false } catch { return true } }
+    [
+        Registry(; main = Person(; name = "Ada")).main.greet(),
+        Registry(; main = {name: "Bo", greet: func() => "hi Bo"}).main.greet(),
+        badGreeter(),                      // 42 is not a Greeter
+    ]
+    = ["hi Ada", "hi Bo", true]
+}
+
+example field_nullable {
+    class Config {
+        port int        // required — a non-nil int
+        host? str       // optional — a str or nil
+        tag? int|str    // optional union — int, str or nil
+    }
+    interface HasTag { tag? int|str }
+
+    c := Config(; port = 8080, host = nil, tag = "beta")
+    nilPort := func() { try { Config(; port = nil); return false } catch { return true } }
+    [
+        [c.port, c.host, c.tag],
+        nilPort(),                         // field "port" expects int, got nil
+        ({} :: HasTag) != nil,             // an absent tag is fine
+        ({tag: 3} :: HasTag).tag,
+    ]
+    = [[8080, nil, "beta"], true, true, 3]
+}
 ```

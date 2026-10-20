@@ -25,7 +25,7 @@ c := raw "x" + "y"  // raw (x + y) -> rawStr "xy"
 d := #"hi {name}"   // interpolated string -> str "hi Gad"
 e := #`hi {name}`   // interpolated raw string -> rawStr "hi Gad" (\ verbatim)
 [a, b, c, d, e, typeName(b), typeName(e)]
-// => ["tab\there", no\tescape, xy, "hi Gad", hi Gad, "rawstr", "rawstr"]
+= ["tab\there", `no\tescape`, `xy`, "hi Gad", `hi Gad`, "rawstr", "rawstr"]
 ```
 
 ## Raw strings
@@ -42,14 +42,13 @@ escape, so there is no `\{` escape (write `` #"…" `` when you need one). A raw
 template is handy for paths and regex-like text: `` #`C:\Users\{name}` ``.
 
 ```gad
-user := "Gad"
-verbatim := `C:\tmp\{x}`     // rawStr: \ and {…} are literal (no escapes/interp)
-lines := `first
+    user := "Gad"
+    verbatim := `C:\tmp\{x}`     // rawStr: \ and {…} are literal (no escapes/interp)
+    lines := `first
 second`                      // backtick literals span lines verbatim
-tpath := #`path C:\{user}`    // template raw str: \ stays literal, {user} interpolates
-[verbatim, lines, tpath, typeName(verbatim), typeName(tpath)]
-// => [C:\tmp\{x}, first
-second, path C:\Gad, "rawstr", "rawstr"]
+    tpath := #`path C:\{user}`    // template raw str: \ stays literal, {user} interpolates
+    [verbatim, lines, tpath, typeName(verbatim), typeName(tpath)]
+    = [`C:\tmp\{x}`, raw "first\nsecond", `path C:\Gad`, "rawstr", "rawstr"]
 ```
 
 ## Interpolated strings
@@ -60,7 +59,7 @@ The `#` prefix works on the heredoc forms too.
 ```gad
 lang := "Gad"
 [#"Hello {lang}!", #"sum = {2 + 3}", #`raw {lang}`]
-// => ["Hello Gad!", "sum = 5", raw Gad]
+= ["Hello Gad!", "sum = 5", `raw Gad`]
 ```
 
 ## Symbols
@@ -84,7 +83,7 @@ paren := #(a\)b)          // a ")" inside is written \)
 keyed := {#name: 1}       // a symbol is a plain string — here a dict key
 tmpl := #"hi {sym}"       // NOT a symbol: `#` + quotes is an interpolated string
 [sym, spaced, paren, typeName(sym), sym == "name", keyed.name, tmpl]
-// => ["name", "with spaces", "a)b", "str", true, 1, "hi name"]
+= ["name", "with spaces", "a)b", "str", true, 1, "hi name"]
 ```
 
 ## Escaping the delimiters
@@ -103,7 +102,7 @@ mix := #"{app} in \{ braces }"      // escape + real interpolation
 js := #"json: \{ {str({a: 1})} }"    // braces in the expr's own literal are fine
 plain := "regular \{ ok"             // works in ordinary strings too
 [lit, mix, js, plain]
-// => ["literal { and }", "Gad in { braces }", "json: { {a: 1} }", "regular { ok"]
+= ["literal { and }", "Gad in { braces }", "json: { {a: 1} }", "regular { ok"]
 ```
 
 ## Quoting at run time
@@ -124,7 +123,7 @@ would exceed it — and `fence` (default 3) — the heredoc start/end delimiter 
     gad.unquote(gad.quote("x\ny")) == "x\ny", // round-trip
     gad.quote("a\nb\nc"; maxCols=4),          // long line -> multiline heredoc
 ]
-// => ["\"hi\"", "`c:\\x`", true, true, "\"\"\"a\nb\nc\"\"\""]
+= ["\"hi\"", "`c:\\x`", true, true, "\"\"\"a\nb\nc\"\"\""]
 ```
 
 ## Bytes
@@ -138,7 +137,7 @@ prefix must touch the quote — `b "x"` is the variable `b` then a string.
 fromText := b"Hello"
 fromHex := h"48 65 6c 6c 6f" // "Hello" in hex (whitespace ignored)
 [typeName(fromText), str(fromText) == str(fromHex), fromText[0], str(fromText[1:3])]
-// => ["bytes", true, 72, "el"]
+= ["bytes", true, 72, "el"]
 ```
 
 ## Regular expressions
@@ -154,7 +153,7 @@ re := /(\w+)@(\w+)/
 m := re ~~ "user@host"           // first match: [whole, group1, group2]
 all := /\d+/ ~~~ "a1 b22 c333"   // every match
 [re.match("user@host"), m[0], m[1], m[2], len(all), all[0][0], all[2][0]]
-// => [true, "user@host", "user", "host", 3, "1", "333"]
+= [true, "user@host", "user", "host", 3, "1", "333"]
 ```
 
 ## Replacing
@@ -171,66 +170,93 @@ named := (/(?P<y>\d+)-(?P<m>\d+)/).replace("2024-06", "${m}/${y}")
 upper := (/[a-z]+/).replace("hi bye", strings.toUpper)   // callable per match
 redact := /(\d{2})(\d+)/ | func(whole; m) => m[1] + strings.repeat("*", len(m[2]))
 [swapped, named, upper, "card 1234567890".|redact]
-// => ["34/12", "06/2024", "HI BYE", "card 12********"]
+= ["34/12", "06/2024", "HI BYE", "card 12********"]
 ```
 
 ## Example — `strings_bytes_regex.gad`
 
 ```gad
-name := "Gad"
-a := "tab\there"    // str with escapes
-b := `no\tescape`   // rawStr, verbatim
-c := raw "x" + "y"  // raw (x + y) -> rawStr "xy"
-d := #"hi {name}"   // interpolated string -> str "hi Gad"
-e := #`hi {name}`   // interpolated raw string -> rawStr "hi Gad" (\ verbatim)
-[a, b, c, d, e, typeName(b), typeName(e)]
+example forms {
+    name := "Gad"
+    a := "tab\there"    // str with escapes
+    b := `no\tescape`   // rawStr, verbatim
+    c := raw "x" + "y"  // raw (x + y) -> rawStr "xy"
+    d := #"hi {name}"   // interpolated string -> str "hi Gad"
+    e := #`hi {name}`   // interpolated raw string -> rawStr "hi Gad" (\ verbatim)
+    [a, b, c, d, e, typeName(b), typeName(e)]
+    = ["tab\there", `no\tescape`, `xy`, "hi Gad", `hi Gad`, "rawstr", "rawstr"]
+}
 
-user := "Gad"
-verbatim := `C:\tmp\{x}`     // rawStr: \ and {…} are literal (no escapes/interp)
-lines := `first
+example rawforms {
+    user := "Gad"
+    verbatim := `C:\tmp\{x}`     // rawStr: \ and {…} are literal (no escapes/interp)
+    lines := `first
 second`                      // backtick literals span lines verbatim
-tpath := #`path C:\{user}`    // template raw str: \ stays literal, {user} interpolates
-[verbatim, lines, tpath, typeName(verbatim), typeName(tpath)]
+    tpath := #`path C:\{user}`    // template raw str: \ stays literal, {user} interpolates
+    [verbatim, lines, tpath, typeName(verbatim), typeName(tpath)]
+    = [`C:\tmp\{x}`, raw "first\nsecond", `path C:\Gad`, "rawstr", "rawstr"]
+}
 
-lang := "Gad"
-[#"Hello {lang}!", #"sum = {2 + 3}", #`raw {lang}`]
+example interp {
+    lang := "Gad"
+    [#"Hello {lang}!", #"sum = {2 + 3}", #`raw {lang}`]
+    = ["Hello Gad!", "sum = 5", `raw Gad`]
+}
 
-sym := #name              // # + identifier
-spaced := #(with spaces)  // #( … ): any text up to the closing ")"
-paren := #(a\)b)          // a ")" inside is written \)
-keyed := {#name: 1}       // a symbol is a plain string — here a dict key
-tmpl := #"hi {sym}"       // NOT a symbol: `#` + quotes is an interpolated string
-[sym, spaced, paren, typeName(sym), sym == "name", keyed.name, tmpl]
+example symbols {
+    sym := #name              // # + identifier
+    spaced := #(with spaces)  // #( … ): any text up to the closing ")"
+    paren := #(a\)b)          // a ")" inside is written \)
+    keyed := {#name: 1}       // a symbol is a plain string — here a dict key
+    tmpl := #"hi {sym}"       // NOT a symbol: `#` + quotes is an interpolated string
+    [sym, spaced, paren, typeName(sym), sym == "name", keyed.name, tmpl]
+    = ["name", "with spaces", "a)b", "str", true, 1, "hi name"]
+}
 
-app := "Gad"
-lit := #"literal \{ and \}"          // escaped braces -> literal text
-mix := #"{app} in \{ braces }"      // escape + real interpolation
-js := #"json: \{ {str({a: 1})} }"    // braces in the expr's own literal are fine
-plain := "regular \{ ok"             // works in ordinary strings too
-[lit, mix, js, plain]
+example escape {
+    app := "Gad"
+    lit := #"literal \{ and \}"          // escaped braces -> literal text
+    mix := #"{app} in \{ braces }"      // escape + real interpolation
+    js := #"json: \{ {str({a: 1})} }"    // braces in the expr's own literal are fine
+    plain := "regular \{ ok"             // works in ordinary strings too
+    [lit, mix, js, plain]
+    = ["literal { and }", "Gad in { braces }", "json: { {a: 1} }", "regular { ok"]
+}
 
-[
-    gad.quote("hi"),                          // -> "hi"    (cooked literal text)
-    gad.quote(`c:\x`),                        // -> `c:\x`  (raw literal text)
-    gad.unquote("\"a\\tb\"") == "a\tb",       // decode -> value with a real tab
-    gad.unquote(gad.quote("x\ny")) == "x\ny", // round-trip
-    gad.quote("a\nb\nc"; maxCols=4),          // long line -> multiline heredoc
-]
+example quoting {
+    [
+        gad.quote("hi"),                          // -> "hi"    (cooked literal text)
+        gad.quote(`c:\x`),                        // -> `c:\x`  (raw literal text)
+        gad.unquote("\"a\\tb\"") == "a\tb",       // decode -> value with a real tab
+        gad.unquote(gad.quote("x\ny")) == "x\ny", // round-trip
+        gad.quote("a\nb\nc"; maxCols=4),          // long line -> multiline heredoc
+    ]
+    = ["\"hi\"", "`c:\\x`", true, true, "\"\"\"a\nb\nc\"\"\""]
+}
 
-fromText := b"Hello"
-fromHex := h"48 65 6c 6c 6f" // "Hello" in hex (whitespace ignored)
-[typeName(fromText), str(fromText) == str(fromHex), fromText[0], str(fromText[1:3])]
+example bytes {
+    fromText := b"Hello"
+    fromHex := h"48 65 6c 6c 6f" // "Hello" in hex (whitespace ignored)
+    [typeName(fromText), str(fromText) == str(fromHex), fromText[0], str(fromText[1:3])]
+    = ["bytes", true, 72, "el"]
+}
 
-re := /(\w+)@(\w+)/
-m := re ~~ "user@host"           // first match: [whole, group1, group2]
-all := /\d+/ ~~~ "a1 b22 c333"   // every match
-[re.match("user@host"), m[0], m[1], m[2], len(all), all[0][0], all[2][0]]
+example regex {
+    re := /(\w+)@(\w+)/
+    m := re ~~ "user@host"           // first match: [whole, group1, group2]
+    all := /\d+/ ~~~ "a1 b22 c333"   // every match
+    [re.match("user@host"), m[0], m[1], m[2], len(all), all[0][0], all[2][0]]
+    = [true, "user@host", "user", "host", 3, "1", "333"]
+}
 
-swapped := (/(\d+)-(\d+)/).replace("12-34", "$2/$1")     // numbered groups
-named := (/(?P<y>\d+)-(?P<m>\d+)/).replace("2024-06", "${m}/${y}")
-upper := (/[a-z]+/).replace("hi bye", strings.toUpper)   // callable per match
-redact := /(\d{2})(\d+)/ | func(whole; m) => m[1] + strings.repeat("*", len(m[2]))
-[swapped, named, upper, "card 1234567890".|redact]
+example replace {
+    swapped := (/(\d+)-(\d+)/).replace("12-34", "$2/$1")     // numbered groups
+    named := (/(?P<y>\d+)-(?P<m>\d+)/).replace("2024-06", "${m}/${y}")
+    upper := (/[a-z]+/).replace("hi bye", strings.toUpper)   // callable per match
+    redact := /(\d{2})(\d+)/ | func(whole; m) => m[1] + strings.repeat("*", len(m[2]))
+    [swapped, named, upper, "card 1234567890".|redact]
+    = ["34/12", "06/2024", "HI BYE", "card 12********"]
+}
 
 return "strings"
 ```

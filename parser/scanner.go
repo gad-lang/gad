@@ -144,7 +144,10 @@ type Scanner struct {
 	source.Reader
 	MixedDelimiter MixedDelimiter // the mixed delimiters
 
-	InsertSemi         bool // insert a semicolon before next newline
+	InsertSemi bool // insert a semicolon before next newline
+	// lastTok is the token scanned last: a statement starts after a `;`, a
+	// `{` or nothing — where `<<<` is an output check (scanOutputCheck)
+	lastTok            token.Token
 	mode               ScanMode
 	InCode             bool
 	ToText             bool

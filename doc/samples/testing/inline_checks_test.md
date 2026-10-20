@@ -1,0 +1,219 @@
+
+# Inline checks: `=` and `<<<`
+
+A check is a line of its own, where a statement starts — after a line break
+or a `;` —, verified as the code runs **in a test, an example or a doc fence**:
+`gad test` (`_test.gad`, `_test.gadx`), `gad doc` and `gad doctest` (the
+` ```gad ` fences of doc comments, the snippets). Anywhere else — `gad run`, an
+embedding host — a check compiles to nothing: no instruction, no cost (the
+compile option `Checks`).
+
+| Check | Verifies |
+|---|---|
+| `= EXPR` | the value of the statement before it, as `str(…)`, equals `str(EXPR)` |
+| `<<< text` | the output since the previous check is `text` (`\n`, `\t`, `\\` escaped) |
+| `<<<`⏎ lines ⏎`>>>` | the same, the lines between (indented as the code around them) |
+
+- The statement before a `=` is an expression, an assignment or a definition
+  (`x := 10` — its value, `10`); after any other statement it is a compile
+  error.
+- The values compare **as `str`**: `1u` and `1` print alike, so `= 1` passes for
+  both.
+- The output compares without each line's trailing spaces and without the blank
+  lines at its edges; it is what was written to stdout **since the previous
+  check** (or the start), and it still reaches stdout.
+- `<<< text` has no closer: the text runs to the end of its line. Only `<<<`
+  followed by a line break opens a block, closed by a line `>>>` (in gad and in
+  gadt; in gadx the indentation closes it, see below).
+- `=` and `<<<` keep every other meaning: `a = b` assigns, `(= expr)` is a
+  computed value, `a <<< b` / `a >>> b` are the operators.
+
+A failing check fails the test — at the top level of a `_test` file, the file —
+and says where and what:
+
+```
+FAIL inline_checks_test.gad:3:1: CheckError: got 10, want 11
+```
+
+## In gad
+
+```gad
+x := 10
+= 10
+
+x * 2
+= 20
+
+[1, "a"]
+= [1, "a"]
+
+println("a\nb")
+<<<
+a
+b
+>>>
+
+print("c\td");<<< c\td
+
+func twice(v) {
+    r := v * 2
+    = v + v
+    return r
+}
+twice(4)
+= 8
+```
+
+## `example`: snippets and checked blocks
+
+`example [NAME] { … }` is code verified by its checks: inside it, the line
+checks; right after its `}`, `<<<` checks **all** it printed (whatever checks
+are inside it — as after any block `{ … }`). Named, it is a **snippet**:
+`@snippet NAME` in a doc comment renders its body and the checks after it (see
+[doc comments](../doc_comments.gad)). Its code is of the scope around it — a
+later example uses an earlier one's definitions —, each example opening a
+scope of its own (a later one may declare a name again).
+
+```gad
+println("a")
+<<< a
+n := twice(2)
+= 4
+println("b")
+<<< b
+<<<
+a
+b
+>>>
+```
+
+## The return and the output of the same statement
+
+A statement that both returns a value and prints — `print`, `fmt.printf`… —
+is checked on both: **the return first** (`=` must follow the statement
+right away), **then what it printed** (`<<<`). `<<< text` runs to the end of
+its line: put no comment after it.
+
+```gad
+fmt := import("fmt")
+
+fmt.print("a", 1)
+= 2
+<<< a1
+
+fmt.printf("%d!", 5)
+= 2
+<<< 5!
+
+fmt.println("hi", 1)
+= 5
+<<<
+hi 1
+>>>
+```
+
+## In gadt and gadx
+
+In a **gadt** template the checks are statements of a code block — not right
+after `{%`, where `=` is the emit tag (`{%= … %}`):
+
+```gadt ignore
+Hello{%
+x := 10
+= 10
+%} world{%
+<<<
+Hello world
+>>>
+%}
+```
+
+In **gadx**, `<<<` is also a line of the **markup**: it checks what was
+rendered into the current node since the previous check — `<<<` alone takes
+the lines indented under it, joined (a rendering has no line breaks), and the
+indentation ends it; a value check is a code line, `~ = EXPR`:
+
+```gadx ignore
+div hello
+
+<<< <div>hello</div>
+
+ul
+	li a
+
+<<<
+	<ul>
+	<li>a</li>
+	</ul>
+
+~ x := 10
+~ = 10
+```
+
+## Example — `inline_checks_test.gad`
+
+```gad
+example gad {
+    x := 10
+    = 10
+
+    x * 2
+    = 20
+
+    [1, "a"]
+    = [1, "a"]
+
+    println("a\nb")
+    <<<
+    a
+    b
+    >>>
+
+    print("c\td");<<< c\td
+
+    func twice(v) {
+        r := v * 2
+        = v + v
+        return r
+    }
+    twice(4)
+    = 8
+}
+
+example both {
+    fmt := import("fmt")
+
+    fmt.print("a", 1)
+    = 2
+    <<< a1
+
+    fmt.printf("%d!", 5)
+    = 2
+    <<< 5!
+
+    fmt.println("hi", 1)
+    = 5
+    <<<
+    hi 1
+    >>>
+}
+
+example wrap {
+    println("a")
+    <<< a
+    n := twice(2)
+    = 4
+    println("b")
+    <<< b
+}
+<<<
+a
+b
+>>>
+
+func testChecks(t) {
+	t.equal(twice(2), 4)
+	twice(3)
+	= 6
+}
+```

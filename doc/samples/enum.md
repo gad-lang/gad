@@ -37,7 +37,7 @@ enum Perm {
 }
 
 [Perm.Read.value, Perm.Write.value, Perm.Exec.value, Perm.Delete.value]
-// => [1, 2, 10, 11]
+= [1, 2, 10, 11]
 ```
 
 A field without an explicit `= value` takes the previous magnitude **+ 1** (or
@@ -49,7 +49,7 @@ to later defaulted fields):
 ```gad
 Values := enum { Read, Write, Exec = 10, Delete }
 [Values.Read.value, Values.Exec.value, Values.Delete.value]
-// => [1, 10, 11]
+= [1, 10, 11]
 ```
 
 ## Signs
@@ -69,7 +69,7 @@ enum Signed {
     Higher    // 4
 }
 [Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value]
-// => [-1, -2, 3, 4]
+= [-1, -2, 3, 4]
 ```
 
 ## Bit flags
@@ -100,7 +100,7 @@ enum Flags {
     Read = List | Detail
 }
 [Flags.Create.value, Flags.Read.value]
-// => [4, 3]
+= [4, 3]
 ```
 
 ## The `_` placeholder
@@ -112,7 +112,7 @@ it can be used to skip values:
 Skip1 := enum { _, Read, Write }        // Read = 2, Write = 3
 Skip2 := enum { Read, _ = 6, Write }    // Read = 1, Write = 7
 [Skip1.Read.value, Skip1.Write.value, Skip2.Read.value, Skip2.Write.value]
-// => [2, 3, 1, 7]
+= [2, 3, 1, 7]
 ```
 
 ## Using an enum
@@ -130,11 +130,7 @@ println(Access["Write"].value) // 2 — index by name
 for name, member in Access { // iterate in declaration order
     println(name, member.value)
 }
-```
-
-Output:
-
-```text
+<<<
 10
 Exec
 2
@@ -142,6 +138,7 @@ Exec
 Read 1
 Write 2
 Exec 10
+>>>
 ```
 
 A member **stringifies as its underlying value** — `str()`, `println` and string
@@ -153,14 +150,11 @@ Kind := enum { Read, Write, Exec = 10 }
 println(str(Kind.Exec))          // 10   (the value, not the name)
 println("perm=" + str(Kind.Exec)) // perm=10
 println(Kind.Exec.name)          // Exec
-```
-
-Output:
-
-```text
+<<<
 10
 perm=10
 Exec
+>>>
 ```
 
 ## Bulk accessors
@@ -175,15 +169,12 @@ println(Bulk["@names"])   // ["Read", "Write", "Exec"]
 println(Bulk["@values"])  // [1, 2, 10]
 println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
 println(dict(Bulk))       // same name -> value mapping
-```
-
-Output:
-
-```text
+<<<
 ["Read", "Write", "Exec"]
 [1, 2, 10]
 {Exec: 10, Read: 1, Write: 2}
 {Exec: 10, Read: 1, Write: 2}
+>>>
 ```
 
 ## Reflection
@@ -201,7 +192,7 @@ member reflects too: `@name`, `@value`, `@index` (its position) and `@enum`
     [[m.@name, m.@value, m.@index] for m in Room.@items],
     Room.Bath.@enum.@name,
 ]
-// => ["Room", "(;label=\"Rooms\")", [["Kitchen", 1, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"]
+= ["Room", "(;label=\"Rooms\")", [["Kitchen", 1, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"]
 ```
 
 ## Enums as types
@@ -232,136 +223,185 @@ interface User { name str; perm Perm }
 func canWrite(u User) => u.perm == Perm.Write
 ada := {name: "Ada", perm: Perm.Write}
 println("canWrite(ada): ", canWrite(ada))
-```
-
-Output:
-
-```text
+<<<
 isWrite(Write): true
 isWrite(Read):  false
 isWrite(42):   rejected
 canWrite(ada):  true
+>>>
 ```
 
 ## Example — `enum.gad`
 
 ```gad
-/**
-Permissions, as auto-incrementing values. The first field is 1; each later
-field without a value is the previous + 1.
-**/
-enum Perm {
+example define {
     /**
-    may read
+    Permissions, as auto-incrementing values. The first field is 1; each later
+    field without a value is the previous + 1.
     **/
-    Read
-    /**
-    may write
-    **/
-    Write
-    /**
-    may execute (explicit; later fields resume from here)
-    **/
-    Exec = 10
-    /**
-    next after Exec
-    **/
-    Delete
+    enum Perm {
+        /**
+        may read
+        **/
+        Read
+        /**
+        may write
+        **/
+        Write
+        /**
+        may execute (explicit; later fields resume from here)
+        **/
+        Exec = 10
+        /**
+        next after Exec
+        **/
+        Delete
+    }
+
+    [Perm.Read.value, Perm.Write.value, Perm.Exec.value, Perm.Delete.value]
+    = [1, 2, 10, 11]
 }
 
-[Perm.Read.value, Perm.Write.value, Perm.Exec.value, Perm.Delete.value]
-
-Values := enum { Read, Write, Exec = 10, Delete }
-[Values.Read.value, Values.Exec.value, Values.Delete.value]
-
-/**
-Signed uses `+`/`-`: a sign makes a field a signed int and propagates to
-later defaulted fields; `+` flips the running sign back to positive.
-**/
-enum Signed {
-    -Low      // -1
-    Lower     // -2 (sign propagates)
-    +High     // 3  (sign flipped positive)
-    Higher    // 4
-}
-[Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value]
-
-/**
-Flags uses `bit` for power-of-two values; a field may combine earlier ones.
-**/
-enum Flags {
-    /**
-    1 << 0
-    **/
-    bit List
-    /**
-    1 << 1
-    **/
-    Detail
-    /**
-    1 << 2
-    **/
-    Create
-    /**
-    List | Detail
-    **/
-    Read = List | Detail
-}
-[Flags.Create.value, Flags.Read.value]
-
-Skip1 := enum { _, Read, Write }        // Read = 2, Write = 3
-Skip2 := enum { Read, _ = 6, Write }    // Read = 1, Write = 7
-[Skip1.Read.value, Skip1.Write.value, Skip2.Read.value, Skip2.Write.value]
-
-Access := enum { Read, Write, Exec = 10 }
-println(Access.Exec.value)   // 10 — the underlying int/uint
-println(Access.Exec.name)    // Exec
-println(Access.Exec.index)   // 2 — declaration order
-println(Access["Write"].value) // 2 — index by name
-for name, member in Access { // iterate in declaration order
-    println(name, member.value)
+example values {
+    Values := enum { Read, Write, Exec = 10, Delete }
+    [Values.Read.value, Values.Exec.value, Values.Delete.value]
+    = [1, 10, 11]
 }
 
-Kind := enum { Read, Write, Exec = 10 }
-println(str(Kind.Exec))          // 10   (the value, not the name)
-println("perm=" + str(Kind.Exec)) // perm=10
-println(Kind.Exec.name)          // Exec
-
-Bulk := enum { Read, Write, Exec = 10 }
-println(Bulk["@names"])   // ["Read", "Write", "Exec"]
-println(Bulk["@values"])  // [1, 2, 10]
-println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
-println(dict(Bulk))       // same name -> value mapping
-
-[label="Rooms"] enum Room { Kitchen, Bath = 5, Garage }
-[
-    Room.@name,
-    str(Room.@meta),
-    [[m.@name, m.@value, m.@index] for m in Room.@items],
-    Room.Bath.@enum.@name,
-]
-
-/**
-A parameter typed with the enum only accepts its members; dispatch rejects
-anything else. (`Perm` is reused from the "Defining an enum" example above.)
-**/
-func isWrite(p Perm) => p == Perm.Write
-println("isWrite(Write):", isWrite(Perm.Write))
-println("isWrite(Read): ", isWrite(Perm.Read))
-try {
-    isWrite(42)                 // 42 is not a Perm member
-} catch {
-    println("isWrite(42):   rejected")
+example signed {
+    /**
+    Signed uses `+`/`-`: a sign makes a field a signed int and propagates to
+    later defaulted fields; `+` flips the running sign back to positive.
+    **/
+    enum Signed {
+        -Low      // -1
+        Lower     // -2 (sign propagates)
+        +High     // 3  (sign flipped positive)
+        Higher    // 4
+    }
+    [Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value]
+    = [-1, -2, 3, 4]
 }
 
-/**
-An interface can require a field typed with the enum; a value satisfies it
-only when its `perm` is a Perm member.
-**/
-interface User { name str; perm Perm }
-func canWrite(u User) => u.perm == Perm.Write
-ada := {name: "Ada", perm: Perm.Write}
-println("canWrite(ada): ", canWrite(ada))
+example flags {
+    /**
+    Flags uses `bit` for power-of-two values; a field may combine earlier ones.
+    **/
+    enum Flags {
+        /**
+        1 << 0
+        **/
+        bit List
+        /**
+        1 << 1
+        **/
+        Detail
+        /**
+        1 << 2
+        **/
+        Create
+        /**
+        List | Detail
+        **/
+        Read = List | Detail
+    }
+    [Flags.Create.value, Flags.Read.value]
+    = [4, 3]
+}
+
+example placeholder {
+    Skip1 := enum { _, Read, Write }        // Read = 2, Write = 3
+    Skip2 := enum { Read, _ = 6, Write }    // Read = 1, Write = 7
+    [Skip1.Read.value, Skip1.Write.value, Skip2.Read.value, Skip2.Write.value]
+    = [2, 3, 1, 7]
+}
+
+example iterate {
+    Access := enum { Read, Write, Exec = 10 }
+    println(Access.Exec.value)   // 10 — the underlying int/uint
+    println(Access.Exec.name)    // Exec
+    println(Access.Exec.index)   // 2 — declaration order
+    println(Access["Write"].value) // 2 — index by name
+    for name, member in Access { // iterate in declaration order
+        println(name, member.value)
+    }
+}
+<<<
+10
+Exec
+2
+2
+Read 1
+Write 2
+Exec 10
+>>>
+
+example stringify {
+    Kind := enum { Read, Write, Exec = 10 }
+    println(str(Kind.Exec))          // 10   (the value, not the name)
+    println("perm=" + str(Kind.Exec)) // perm=10
+    println(Kind.Exec.name)          // Exec
+}
+<<<
+10
+perm=10
+Exec
+>>>
+
+example bulk {
+    Bulk := enum { Read, Write, Exec = 10 }
+    println(Bulk["@names"])   // ["Read", "Write", "Exec"]
+    println(Bulk["@values"])  // [1, 2, 10]
+    println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
+    println(dict(Bulk))       // same name -> value mapping
+}
+<<<
+["Read", "Write", "Exec"]
+[1, 2, 10]
+{Exec: 10, Read: 1, Write: 2}
+{Exec: 10, Read: 1, Write: 2}
+>>>
+
+example reflect {
+    [label="Rooms"] enum Room { Kitchen, Bath = 5, Garage }
+    [
+        Room.@name,
+        str(Room.@meta),
+        [[m.@name, m.@value, m.@index] for m in Room.@items],
+        Room.Bath.@enum.@name,
+    ]
+    = ["Room", "(;label=\"Rooms\")", [["Kitchen", 1, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"]
+}
+
+example as_types {
+    /**
+    A parameter typed with the enum only accepts its members; dispatch rejects
+    anything else. (`Perm` is reused from the "Defining an enum" example above.)
+    **/
+    func isWrite(p Perm) => p == Perm.Write
+    println("isWrite(Write):", isWrite(Perm.Write))
+    println("isWrite(Read): ", isWrite(Perm.Read))
+    try {
+        isWrite(42)                 // 42 is not a Perm member
+    } catch {
+        println("isWrite(42):   rejected")
+    }
+
+    /**
+    An interface can require a field typed with the enum; a value satisfies it
+    only when its `perm` is a Perm member.
+    **/
+    interface User { name str; perm Perm }
+    func canWrite(u User) => u.perm == Perm.Write
+    ada := {name: "Ada", perm: Perm.Write}
+    println("canWrite(ada): ", canWrite(ada))
+}
+<<<
+isWrite(Write): true
+isWrite(Read):  false
+isWrite(42):   rejected
+canWrite(ada):  true
+>>>
 
 return Perm.Delete.value
 ```

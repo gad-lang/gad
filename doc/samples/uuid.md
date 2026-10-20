@@ -25,7 +25,7 @@ u := uuid("01A0A168-6707-748F-B487-C0AB78E25C11")
     uuid(u.bytes) == u,                            // its 16 bytes, and back
     bool(uuid("00000000000000000000000000000000")), // the nil UUID: falsy
 ]
-// => ["01a0a168-6707-748f-b487-c0ab78e25c11", 7, 4, true, true, false]
+= ["01a0a168-6707-748f-b487-c0ab78e25c11", 7, 4, true, true, false]
 ```
 
 ## As a type
@@ -35,7 +35,7 @@ class Record { id uuid; name str }
 r := Record(; id = uuid("01a0a1686707748fb487c0ab78e25c11"), name = "a")
 refused := func() { try { Record(; id = "not one", name = "b"); return false } catch { return true } }()
 [typeName(r.id), str(r.id), refused]
-// => ["uuid", "01a0a168-6707-748f-b487-c0ab78e25c11", true]
+= ["uuid", "01a0a168-6707-748f-b487-c0ab78e25c11", true]
 ```
 
 ## A constant
@@ -56,32 +56,41 @@ text := "01a0a168-6707-748f-b487-c0ab78e25c11"
     uuid("01A0A1686707748FB487C0AB78E25C11") == ADMIN, // any form uuid("…") reads
     func(uuid) { return uuid("x") }(func(s) => s),     // a uuid of its own: a call
 ]
-// => [true, true, "x"]
+= [true, true, "x"]
 ```
 
 ## Example — `uuid.gad`
 
 ```gad
-u := uuid("01A0A168-6707-748F-B487-C0AB78E25C11")
-[
-    str(u),                                        // canonical, lower case
-    u.version,                                     // 7: ordered by time
-    uuid().version,                                // a new one: 4, random
-    u == "01a0a168-6707-748f-b487-c0ab78e25c11",   // equal to its text
-    uuid(u.bytes) == u,                            // its 16 bytes, and back
-    bool(uuid("00000000000000000000000000000000")), // the nil UUID: falsy
-]
+example uuid_basics {
+    u := uuid("01A0A168-6707-748F-B487-C0AB78E25C11")
+    [
+        str(u),                                        // canonical, lower case
+        u.version,                                     // 7: ordered by time
+        uuid().version,                                // a new one: 4, random
+        u == "01a0a168-6707-748f-b487-c0ab78e25c11",   // equal to its text
+        uuid(u.bytes) == u,                            // its 16 bytes, and back
+        bool(uuid("00000000000000000000000000000000")), // the nil UUID: falsy
+    ]
+    = ["01a0a168-6707-748f-b487-c0ab78e25c11", 7, 4, true, true, false]
+}
 
-class Record { id uuid; name str }
-r := Record(; id = uuid("01a0a1686707748fb487c0ab78e25c11"), name = "a")
-refused := func() { try { Record(; id = "not one", name = "b"); return false } catch { return true } }()
-[typeName(r.id), str(r.id), refused]
+example uuid_type {
+    class Record { id uuid; name str }
+    r := Record(; id = uuid("01a0a1686707748fb487c0ab78e25c11"), name = "a")
+    refused := func() { try { Record(; id = "not one", name = "b"); return false } catch { return true } }()
+    [typeName(r.id), str(r.id), refused]
+    = ["uuid", "01a0a168-6707-748f-b487-c0ab78e25c11", true]
+}
 
-const ADMIN = uuid("01a0a168-6707-748f-b487-c0ab78e25c11")  // read when compiled
-text := "01a0a168-6707-748f-b487-c0ab78e25c11"
-[
-    ADMIN == uuid(text),                               // the same as one read at run time
-    uuid("01A0A1686707748FB487C0AB78E25C11") == ADMIN, // any form uuid("…") reads
-    func(uuid) { return uuid("x") }(func(s) => s),     // a uuid of its own: a call
-]
+example uuid_constant {
+    const ADMIN = uuid("01a0a168-6707-748f-b487-c0ab78e25c11")  // read when compiled
+    text := "01a0a168-6707-748f-b487-c0ab78e25c11"
+    [
+        ADMIN == uuid(text),                               // the same as one read at run time
+        uuid("01A0A1686707748FB487C0AB78E25C11") == ADMIN, // any form uuid("…") reads
+        func(uuid) { return uuid("x") }(func(s) => s),     // a uuid of its own: a call
+    ]
+    = [true, true, "x"]
+}
 ```

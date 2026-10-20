@@ -820,7 +820,7 @@ func TestDebugModulePathsAreRelative(t *testing.T) {
 	// so the sample's layout can change).
 	line := 0
 	for i, ln := range strings.Split(string(src), "\n") {
-		if strings.HasPrefix(ln, "mathx := import(") {
+		if strings.HasPrefix(strings.TrimSpace(ln), "mathx := import(") {
 			line = i + 2 // 1-based, the next line
 			break
 		}

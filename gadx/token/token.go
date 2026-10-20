@@ -47,6 +47,11 @@ const (
 	Repeat    // `(N)` right after a tag head — the tag is written N times
 	Include   // @include — compile source file(s) inline (Gad `include`)
 	Class     // @class — a class declaration (Gad `class NAME { … }`)
+	// OutputCheck is `<<< text` / `<<<` and its indented lines: what was
+	// rendered since the previous check (issue #22)
+	OutputCheck
+	// Example is `@example [NAME]` and its indented body (issue #22)
+	Example
 	tokMax
 )
 
@@ -93,6 +98,8 @@ var tokNames = [...]string{
 	Repeat:       "REPEAT",
 	Include:      "INCLUDE",
 	Class:        "CLASS",
+	OutputCheck:  "OUTPUT_CHECK",
+	Example:      "EXAMPLE",
 }
 
 // String returns a human-readable name for a gadx token.

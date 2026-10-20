@@ -20,14 +20,11 @@ printf("%-6s|%05d|%.2f\n", "id", 42, 3.14159)
     sprintf("%s=%d", "x", 7),
     sprintf("%v %q %x", [1], "hi", 255),
 ]
-// => [16, "x=7", "[1] \"hi\" ff"]
-```
-
-Output:
-
-```text
+= [16, "x=7", "[1] \"hi\" ff"]
+<<<
 total: 3 [1, 2]
 id    |00042|3.14
+>>>
 ```
 
 ## Capturing output
@@ -46,7 +43,7 @@ print("c")                  // back to the outer capture
 obend()
 viaWith := with buffer() { print("block") }
 [str(outer), str(inner), str(viaWith)]
-// => ["ac", "b", "block"]
+= ["ac", "b", "block"]
 ```
 
 ## Standard streams
@@ -66,36 +63,48 @@ written := write(buf, "héllo", 1)    // bytes, not chars
     stdio("OUT") == STDOUT, stdio(2) == STDERR,
     written, str(buf),
 ]
-// => [["reader", "writer", "writer"], true, true, 7, "héllo1"]
+= [["reader", "writer", "writer"], true, true, 7, "héllo1"]
 ```
 
 ## Example — `io.gad`
 
 ```gad
-n := println("total:", 3, [1, 2])     // "total: 3 [1, 2]\n" — 16 bytes
-printf("%-6s|%05d|%.2f\n", "id", 42, 3.14159)
-[
-    n,
-    sprintf("%s=%d", "x", 7),
-    sprintf("%v %q %x", [1], "hi", 255),
-]
-//= [16, "x=7", "[1] \"hi\" ff"]
+example printing {
+    n := println("total:", 3, [1, 2])     // "total: 3 [1, 2]\n" — 16 bytes
+    printf("%-6s|%05d|%.2f\n", "id", 42, 3.14159)
+    [
+        n,
+        sprintf("%s=%d", "x", 7),
+        sprintf("%v %q %x", [1], "hi", 255),
+    ]
+    = [16, "x=7", "[1] \"hi\" ff"]
+    <<<
+    total: 3 [1, 2]
+    id    |00042|3.14
+    >>>
+}
 
-outer := obstart()
-print("a")
-inner := obstart()          // nested: output now goes here
-print("b")
-obend()
-print("c")                  // back to the outer capture
-obend()
-viaWith := with buffer() { print("block") }
-[str(outer), str(inner), str(viaWith)]
+example capture {
+    outer := obstart()
+    print("a")
+    inner := obstart()          // nested: output now goes here
+    print("b")
+    obend()
+    print("c")                  // back to the outer capture
+    obend()
+    viaWith := with buffer() { print("block") }
+    [str(outer), str(inner), str(viaWith)]
+    = ["ac", "b", "block"]
+}
 
-buf := buffer()
-written := write(buf, "héllo", 1)    // bytes, not chars
-[
-    [typeName(STDIN), typeName(STDOUT), typeName(STDERR)],
-    stdio("OUT") == STDOUT, stdio(2) == STDERR,
-    written, str(buf),
-]
+example streams {
+    buf := buffer()
+    written := write(buf, "héllo", 1)    // bytes, not chars
+    [
+        [typeName(STDIN), typeName(STDOUT), typeName(STDERR)],
+        stdio("OUT") == STDOUT, stdio(2) == STDERR,
+        written, str(buf),
+    ]
+    = [["reader", "writer", "writer"], true, true, 7, "héllo1"]
+}
 ```

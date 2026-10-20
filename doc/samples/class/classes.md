@@ -46,7 +46,7 @@ Point := Class("Point", (cls, define) => define(;
 ))
 p := Point(3, 4)
 [p.dist(), Point().x, Point(; y=2).y]
-// => [5, 0, 2]
+= [5.0, 0, 2]
 ```
 
 ```gad
@@ -62,7 +62,7 @@ b.val = "hi"
 first := b.val
 b.val = 7
 [first, b.val]
-// => ["any:hi", "int:7"]
+= ["any:hi", "int:7"]
 ```
 
 ## Inheritance
@@ -85,7 +85,7 @@ Dog := Class("Dog", (cls, define) => define(;
 ))
 d := Dog(; name="Rex")
 [d.speak(), d.describe()]   // overridden, inherited
-// => ["Rex barks", "I am Rex"]
+= ["Rex barks", "I am Rex"]
 ```
 
 ## Extending with `met` / `met ~` / `$old`
@@ -114,7 +114,7 @@ met ~Box.val($old, this, x int) { $old(this, x); this.v = this.v + " (checked)" 
 b.val = 9
 
 [d.speak(), [q.x, q.y], b.val]
-// => ["Rex barks loudly!", [30, 40], "int:9 (checked)"]
+= ["Rex barks loudly!", [30, 40], "int:9 (checked)"]
 ```
 
 ```gad
@@ -127,77 +127,92 @@ met Vec.len2(this) => this.x*this.x + this.y*this.y  // an extra method
 
 a := Vec(; x=1, y=2)
 [str(a + Vec(; x=10, y=20)), a.len2()]
-// => ["(11, 22)", 5]
+= ["(11, 22)", 5]
 ```
 
 ## Example — `classes.gad`
 
 ```gad
-Point := Class("Point", (cls, define) => define(;
-    new {
-        (new; **f)  => new(; x=0, y=0, **f)   // defaults + extra named fields
-        (new, x, y) => new(; x=x, y=y)        // positional
-    },
-    methods = [
-        dist(this) => (this.x ** 2 + this.y ** 2) ** 0.5
-    ]
-))
-p := Point(3, 4)
-[p.dist(), Point().x, Point(; y=2).y]
-
-Box := Class("Box", (cls, define) => define(; fields = (; v), props = {
-    val: func {
-        (this)        => this.v                        // getter
-        (this, x)     { this.v = "any:" + str(x) }     // setters, by type
-        (this, x int) { this.v = "int:" + str(x) }
-    }
-}))
-b := Box()
-b.val = "hi"
-first := b.val
-b.val = 7
-[first, b.val]
-
-Animal := Class("Animal", (cls, define) => define(;
-    fields  = (; name str = "?"),
-    methods = [
-        speak(this)    => this.name + " makes a sound"
-        describe(this) => "I am " + this.name
-    ]
-))
-Dog := Class("Dog", (cls, define) => define(;
-    extends = [Animal],
-    methods = [ speak(this) => this.name + " barks" ]   // override
-))
-d := Dog(; name="Rex")
-[d.speak(), d.describe()]   // overridden, inherited
-
-// method: wrap the overridden speak()
-met ~Dog.speak($old, this) => $old(this) + " loudly!"
-
-// constructor: scale coordinates, delegating to the previous constructor
-Point3 := Class("Point3", (cls, define) => define(;
-    fields = (; x int = 0, y int = 0),
-    new { (new, x, y) => new(; x=x, y=y) }
-))
-met ~Point3($old, new, x, y) => $old(new, x * 10, y * 10)
-q := Point3(3, 4)
-
-// property setter: validate on top of the previous setter
-met ~Box.val($old, this, x int) { $old(this, x); this.v = this.v + " (checked)" }
-b.val = 9
-
-[d.speak(), [q.x, q.y], b.val]
-
-Vec := Class("Vec", (cls, define) => define(; fields = (; x int = 0, y int = 0)))
-met gad.binOpAdd(a Vec, b Vec) {           // an operator overload
-    return Vec(; x=a.x+b.x, y=a.y+b.y)
+example class_define {
+    Point := Class("Point", (cls, define) => define(;
+        new {
+            (new; **f)  => new(; x=0, y=0, **f)   // defaults + extra named fields
+            (new, x, y) => new(; x=x, y=y)        // positional
+        },
+        methods = [
+            dist(this) => (this.x ** 2 + this.y ** 2) ** 0.5
+        ]
+    ))
+    p := Point(3, 4)
+    [p.dist(), Point().x, Point(; y=2).y]
+    = [5.0, 0, 2]
 }
-met str(v Vec) => "(" + v.x + ", " + v.y + ")"   // a conversion
-met Vec.len2(this) => this.x*this.x + this.y*this.y  // an extra method
 
-a := Vec(; x=1, y=2)
-[str(a + Vec(; x=10, y=20)), a.len2()]
+example class_props {
+    Box := Class("Box", (cls, define) => define(; fields = (; v), props = {
+        val: func {
+            (this)        => this.v                        // getter
+            (this, x)     { this.v = "any:" + str(x) }     // setters, by type
+            (this, x int) { this.v = "int:" + str(x) }
+        }
+    }))
+    b := Box()
+    b.val = "hi"
+    first := b.val
+    b.val = 7
+    [first, b.val]
+    = ["any:hi", "int:7"]
+}
+
+example class_extends {
+    Animal := Class("Animal", (cls, define) => define(;
+        fields  = (; name str = "?"),
+        methods = [
+            speak(this)    => this.name + " makes a sound"
+            describe(this) => "I am " + this.name
+        ]
+    ))
+    Dog := Class("Dog", (cls, define) => define(;
+        extends = [Animal],
+        methods = [ speak(this) => this.name + " barks" ]   // override
+    ))
+    d := Dog(; name="Rex")
+    [d.speak(), d.describe()]   // overridden, inherited
+    = ["Rex barks", "I am Rex"]
+}
+
+example class_met_old {
+    // method: wrap the overridden speak()
+    met ~Dog.speak($old, this) => $old(this) + " loudly!"
+
+    // constructor: scale coordinates, delegating to the previous constructor
+    Point3 := Class("Point3", (cls, define) => define(;
+        fields = (; x int = 0, y int = 0),
+        new { (new, x, y) => new(; x=x, y=y) }
+    ))
+    met ~Point3($old, new, x, y) => $old(new, x * 10, y * 10)
+    q := Point3(3, 4)
+
+    // property setter: validate on top of the previous setter
+    met ~Box.val($old, this, x int) { $old(this, x); this.v = this.v + " (checked)" }
+    b.val = 9
+
+    [d.speak(), [q.x, q.y], b.val]
+    = ["Rex barks loudly!", [30, 40], "int:9 (checked)"]
+}
+
+example class_met {
+    Vec := Class("Vec", (cls, define) => define(; fields = (; x int = 0, y int = 0)))
+    met gad.binOpAdd(a Vec, b Vec) {           // an operator overload
+        return Vec(; x=a.x+b.x, y=a.y+b.y)
+    }
+    met str(v Vec) => "(" + v.x + ", " + v.y + ")"   // a conversion
+    met Vec.len2(this) => this.x*this.x + this.y*this.y  // an extra method
+
+    a := Vec(; x=1, y=2)
+    [str(a + Vec(; x=10, y=20)), a.len2()]
+    = ["(11, 22)", 5]
+}
 
 return p.dist()
 ```

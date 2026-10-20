@@ -174,12 +174,12 @@ func fenceLangFor(sourceType string) string {
 
 // buildDocDict builds the `param (doc dict)` value a documentation template
 // consumes. Besides the extracted prose/sections it exposes the module name, the
-// source file name, its fence language and the full (marker-stripped) source, and
-// it expands `@snippet NAME` placeholders — in the prose and in each symbol's doc
-// — into fenced code blocks taken from the source's `//snippet NAME … //endsnippet`
-// regions (see extractSnippets), so documented code is never copied by hand. When
-// run is true a snippet's declared result (`/**= … **/` / `/**< … **/`) is
-// executed and verified; a mismatch or run error aborts generation.
+// source file name, its fence language and the full source, and it expands
+// `@snippet NAME` placeholders — in the prose and in each symbol's doc — into
+// fenced code blocks taken from the source's `example NAME { … }` blocks (see
+// extractSnippets), so documented code is never copied by hand. When run is
+// true the file runs once with its checks on (verifyExamples); a failing check
+// or a run error aborts generation.
 func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType string, run bool) (gad.Dict, error) {
 	lang := fenceLangFor(sourceType)
 	// Snippets run as if they were the file itself: relative `import("./…")` /
@@ -189,21 +189,22 @@ func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType st
 		exampleWorkDir = filepath.Dir(path)
 		defer func() { exampleWorkDir = prev }()
 	}
-	if err := expandDocSnippets(doc, src, lang, run); err != nil {
+	if err := expandDocSnippets(doc, src, lang); err != nil {
 		return nil, err
+	}
+	if run {
+		if err := verifyExamples(path, src, sourceType); err != nil {
+			return nil, err
+		}
 	}
 
 	d := doc.GadDict()
 	d["name"] = gad.Str(moduleName(path))
 	d["file"] = gad.Str(filepath.Base(path))
 	d["lang"] = gad.Str(lang)
-	// The file's snippets — with their `uses` references and verified
-	// result/output — are exposed so a template can render them itself.
-	infos, err := collectSnippets(src, run)
-	if err != nil {
-		return nil, err
-	}
-	d["snippets"] = snippetsGadArray(infos)
+	// The file's snippets (its named examples) are exposed so a template can
+	// render them itself.
+	d["snippets"] = snippetsGadArray(collectSnippets(src))
 	example := exampleSource(src)
 	d["source"] = gad.Str(example)
 	// The Markdown fence for the example must be wider than any backticks inside
@@ -263,20 +264,14 @@ func setDocHTML(m gad.Dict) {
 }
 
 // expandDocSnippets expands the `@snippet NAME` placeholders in a DocData's prose
-// and in each symbol's doc, in place, from the source's `//snippet` regions (see
-// buildDocDict). When run is true a snippet's declared result is executed and
-// verified.
-func expandDocSnippets(doc *gadbridge.DocData, src []byte, lang string, run bool) error {
+// and in each symbol's doc, in place, from the source's named examples (see
+// buildDocDict).
+func expandDocSnippets(doc *gadbridge.DocData, src []byte, lang string) error {
 	snips := extractSnippets(src)
-	var err error
-	if doc.Prose, err = expandSnippets(doc.Prose, snips, lang, run); err != nil {
-		return err
-	}
+	doc.Prose = expandSnippets(doc.Prose, snips, lang)
 	for si := range doc.Sections {
 		for yi := range doc.Sections[si].Symbols {
-			if doc.Sections[si].Symbols[yi].Doc, err = expandSnippets(doc.Sections[si].Symbols[yi].Doc, snips, lang, run); err != nil {
-				return err
-			}
+			doc.Sections[si].Symbols[yi].Doc = expandSnippets(doc.Sections[si].Symbols[yi].Doc, snips, lang)
 		}
 	}
 	return nil

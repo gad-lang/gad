@@ -53,7 +53,7 @@ w := Widget(; name = "box", count = 3)
 before := [w.name, w.doubled]       // Widget's own field, Counter's property
 w.inc()                             // Counter's method
 [before, w.count]
-// => [["box", 6], 4]
+= [["box", 6], 4]
 ```
 
 A mixin can also be anonymous, bound to a const with `const M = mixin { … }`.
@@ -62,7 +62,7 @@ A mixin can also be anonymous, bound to a const with `const M = mixin { … }`.
 const Versioned = mixin { version = 1 }
 class Doc { use Versioned }
 Doc().version
-// => 1
+= 1
 ```
 
 ## Rules
@@ -88,7 +88,7 @@ class Ordered { use M; z = mark("z") }
 
 Ordered()
 log                                 // mixin fields first
-// => ["a", "b", "z"]
+= ["a", "b", "z"]
 ```
 
 A mixin reachable more than once (here via `Sub` and directly) is merged only
@@ -100,7 +100,7 @@ mixin Sub  { *Base }
 
 class Both { use Sub, Base }        // Base reachable twice: merged once
 [Both().kind, len(Both.@mixins)]    // both use-entries are recorded
-// => ["base", 2]
+= ["base", 2]
 ```
 
 ## The `this` interface
@@ -122,7 +122,7 @@ class Tag {
     methods { label() => "tag" }
 }
 Tag().describe()
-// => <tag>
+= "<tag>"
 ```
 
 ## Reflection
@@ -153,7 +153,7 @@ flat := Shape.@interface.@flat      // the whole contract, flattened
     [m.name for m in flat.methods],
     Shape.@interface == Shape.@interface,   // cached
 ]
-// => ["Shape", ["sides"], ["name", "sides"], ["draw"], true]
+= ["Shape", ["sides"], ["name", "sides"], ["draw"], true]
 ```
 
 A mixin is also a type: it types a value — a field `m? M`, a parameter — by
@@ -169,7 +169,7 @@ merged from mixins, and inherited ones — on the `this` receiver.
 class Card { use Shape; title = "" }
 met Card.summary(this) => this.title + " (" + str(this.sides) + " sides, " + this.name + ")"
 Card(; title="Ace", sides=4, name="c").summary()
-// => Ace (4 sides, c)
+= "Ace (4 sides, c)"
 ```
 
 ## Parent mixins
@@ -188,7 +188,7 @@ mixin Entity {
 class Record { use Entity }
 r := Record(; created = 100, id = 7)
 [len(Entity.@parents), r.created, r.id]
-// => [2, 100, 7]
+= [2, 100, 7]
 ```
 
 ### Parent lists
@@ -211,103 +211,130 @@ mixin Styled2 { *styleParts }
 class Button { use Styled2 }
 b := Button(; label = "ok")
 [len(Styled.@parents), len(Styled2.@parents), b.size, b.color, b.label]
-// => [2, 3, 1, "red", "ok"]
+= [2, 3, 1, "red", "ok"]
 ```
 
 ## Example — `mixins.gad`
 
 ```gad
-mixin Counter {
-    count = 0
-    props   { doubled => this.count * 2 }
-    methods { inc() { this.count += 1 } }
+example mixin_use {
+    mixin Counter {
+        count = 0
+        props   { doubled => this.count * 2 }
+        methods { inc() { this.count += 1 } }
+    }
+
+    class Widget {
+        use Counter        // pulls count / doubled / inc into Widget
+        name = "?"
+    }
+
+    w := Widget(; name = "box", count = 3)
+    before := [w.name, w.doubled]       // Widget's own field, Counter's property
+    w.inc()                             // Counter's method
+    [before, w.count]
+    = [["box", 6], 4]
 }
 
-class Widget {
-    use Counter        // pulls count / doubled / inc into Widget
-    name = "?"
+example mixin_anon {
+    const Versioned = mixin { version = 1 }
+    class Doc { use Versioned }
+    Doc().version
+    = 1
 }
 
-w := Widget(; name = "box", count = 3)
-before := [w.name, w.doubled]       // Widget's own field, Counter's property
-w.inc()                             // Counter's method
-[before, w.count]
+example mixin_init_order {
+    log := []
+    mark := func(s) { log = log + [s]; return s }
 
-const Versioned = mixin { version = 1 }
-class Doc { use Versioned }
-Doc().version
+    mixin M { a = mark("a"); b = mark("b") }
+    class Ordered { use M; z = mark("z") }
 
-log := []
-mark := func(s) { log = log + [s]; return s }
-
-mixin M { a = mark("a"); b = mark("b") }
-class Ordered { use M; z = mark("z") }
-
-Ordered()
-log                                 // mixin fields first
-
-mixin Timestamped { created = 0 }
-mixin Identified  { id = 0 }
-mixin Entity {
-    *Timestamped
-    *Identified
+    Ordered()
+    log                                 // mixin fields first
+    = ["a", "b", "z"]
 }
 
-class Record { use Entity }
-r := Record(; created = 100, id = 7)
-[len(Entity.@parents), r.created, r.id]
+example mixin_extends {
+    mixin Timestamped { created = 0 }
+    mixin Identified  { id = 0 }
+    mixin Entity {
+        *Timestamped
+        *Identified
+    }
 
-mixin Base { kind = "base" }
-mixin Sub  { *Base }
-
-class Both { use Sub, Base }        // Base reachable twice: merged once
-[Both().kind, len(Both.@mixins)]    // both use-entries are recorded
-
-mixin Described {
-    this { label() <str> }          // require the receiver to have label()
-    methods { describe() => "<" + this.label() + ">" }
+    class Record { use Entity }
+    r := Record(; created = 100, id = 7)
+    [len(Entity.@parents), r.created, r.id]
+    = [2, 100, 7]
 }
 
-class Tag {
-    use Described
-    methods { label() => "tag" }
+example mixin_dedup {
+    mixin Base { kind = "base" }
+    mixin Sub  { *Base }
+
+    class Both { use Sub, Base }        // Base reachable twice: merged once
+    [Both().kind, len(Both.@mixins)]    // both use-entries are recorded
+    = ["base", 2]
 }
-Tag().describe()
 
-mixin Named { name = "?" }
-mixin Shape {
-    *Named
-    sides int = 0
-    props   { area => 0 }
-    methods { draw() => nil }
+example mixin_this {
+    mixin Described {
+        this { label() <str> }          // require the receiver to have label()
+        methods { describe() => "<" + this.label() + ">" }
+    }
+
+    class Tag {
+        use Described
+        methods { label() => "tag" }
+    }
+    Tag().describe()
+    = "<tag>"
 }
-flat := Shape.@interface.@flat      // the whole contract, flattened
-[
-    Shape.@name,
-    collect(keys(Shape.@fields)),   // own fields only
-    [f.name for f in flat.fields],
-    [m.name for m in flat.methods],
-    Shape.@interface == Shape.@interface,   // cached
-]
 
-class Card { use Shape; title = "" }
-met Card.summary(this) => this.title + " (" + str(this.sides) + " sides, " + this.name + ")"
-Card(; title="Ace", sides=4, name="c").summary()
+example mixin_reflect {
+    mixin Named { name = "?" }
+    mixin Shape {
+        *Named
+        sides int = 0
+        props   { area => 0 }
+        methods { draw() => nil }
+    }
+    flat := Shape.@interface.@flat      // the whole contract, flattened
+    [
+        Shape.@name,
+        collect(keys(Shape.@fields)),   // own fields only
+        [f.name for f in flat.fields],
+        [m.name for m in flat.methods],
+        Shape.@interface == Shape.@interface,   // cached
+    ]
+    = ["Shape", ["sides"], ["name", "sides"], ["draw"], true]
+}
 
-mixin Sized   { size = 1 }
-mixin Colored { color = "red" }
-mixin Labeled { label = "" }
+example mixin_met {
+    class Card { use Shape; title = "" }
+    met Card.summary(this) => this.title + " (" + str(this.sides) + " sides, " + this.name + ")"
+    Card(; title="Ace", sides=4, name="c").summary()
+    = "Ace (4 sides, c)"
+}
 
-// a literal list of parent mixins
-mixin Styled { *[Sized, Colored] }
+example mixin_parents {
+    mixin Sized   { size = 1 }
+    mixin Colored { color = "red" }
+    mixin Labeled { label = "" }
 
-// a list held in a variable (nested arrays flatten)
-styleParts := [Sized, [Colored, Labeled]]
-mixin Styled2 { *styleParts }
+    // a literal list of parent mixins
+    mixin Styled { *[Sized, Colored] }
 
-class Button { use Styled2 }
-b := Button(; label = "ok")
-[len(Styled.@parents), len(Styled2.@parents), b.size, b.color, b.label]
+    // a list held in a variable (nested arrays flatten)
+    styleParts := [Sized, [Colored, Labeled]]
+    mixin Styled2 { *styleParts }
+
+    class Button { use Styled2 }
+    b := Button(; label = "ok")
+    [len(Styled.@parents), len(Styled2.@parents), b.size, b.color, b.label]
+    = [2, 3, 1, "red", "ok"]
+}
 
 return w.count
 ```

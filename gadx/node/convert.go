@@ -190,6 +190,10 @@ func convertStmt(s gnode.Stmt) gnode.Stmts {
 		return convertHTMLComment(st)
 	case *TextStmt:
 		return convertText(st)
+	case *OutputCheckStmt:
+		return convertOutputCheck(st)
+	case *ExampleDecl:
+		return convertExampleDecl(st)
 	case *TagStmt:
 		return convertTag(st)
 	case *HTMLStmt:
@@ -1365,4 +1369,27 @@ func (a *textAccum) flush() {
 	}
 	a.out.Append(gnode.SExpr(textCall(a.pos, a.end, a.values...)))
 	a.values = nil
+}
+
+// convertOutputCheck lowers `<<<` to gad's output check of the current node:
+// what was rendered into `$el` since the previous check (compiled only with
+// the Checks option).
+func convertOutputCheck(t *OutputCheckStmt) gnode.Stmts {
+	return gnode.Stmts{&gnode.OutputCheckStmt{
+		TokenPos: t.NodePos,
+		Text:     t.Text,
+		Multi:    t.Multi,
+		EndPos:   t.NodeEnd,
+		Target:   tagIdent(t.NodePos),
+	}}
+}
+
+// convertExampleDecl lowers `@example [NAME]` to gad's `example [NAME] { … }`:
+// its markup appended to the current node.
+func convertExampleDecl(t *ExampleDecl) gnode.Stmts {
+	ex := &gnode.ExampleStmt{KwPos: t.Pos(), Body: gnode.SBlock(t.Pos(), t.End(), convertBody(t.Body)...)}
+	if t.Name != "" {
+		ex.Name = gnode.EIdent(t.Name, t.Pos())
+	}
+	return gnode.Stmts{ex}
 }

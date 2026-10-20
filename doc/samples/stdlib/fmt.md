@@ -52,9 +52,11 @@ throws a runtime error.
 ## Example
 
 ```gad
-// print writes to stdout and returns the byte count.
+// print writes to stdout and returns the byte count: the return checked
+// first, then what was printed
 fmt.print("a", 1)
->>> 2
+= 2
+<<< a1
 ```
 
 ### printf
@@ -71,7 +73,8 @@ throws a runtime error.
 
 ```gad
 fmt.printf("%d!", 5)
->>> 2
+= 2
+<<< 5!
 ```
 
 ### println
@@ -88,8 +91,9 @@ write error throws a runtime error.
 ## Example
 
 ```gad
-fmt.println("hi", 1)   // writes "hi 1\n"
->>> 5
+fmt.println("hi", 1)
+= 5
+<<< hi 1
 ```
 
 ### sprint
@@ -106,7 +110,7 @@ str.
 
 ```gad
 fmt.sprint("x=", 5)
->>> "x=5"
+= "x=5"
 ```
 
 ### sprintf
@@ -121,7 +125,7 @@ Formats according to a format specifier and returns the resulting str.
 
 ```gad
 fmt.sprintf("%s=%d", "n", 42)
->>> "n=42"
+= "n=42"
 ```
 
 ### sprintln
@@ -138,7 +142,7 @@ is appended.
 
 ```gad
 fmt.sprintln("a", 1)
->>> "a 1\n"
+= "a 1\n"
 ```
 
 ### sscan
@@ -156,7 +160,7 @@ is less than the number of arguments, a scan error is thrown.
 
 ```gad
 fmt.sscan("7", fmt.scanArg("int"))
->>> 1
+= 1
 ```
 
 ### sscanf
@@ -175,7 +179,7 @@ Newlines in the input must match newlines in the format.
 ```gad
 // scanArg holders receive the parsed fields; sscanf returns the count.
 fmt.sscanf("42 hi", "%d %s", fmt.scanArg("int"), fmt.scanArg("str"))
->>> 2
+= 2
 ```
 
 ### scanArg
@@ -198,7 +202,7 @@ Literal field.
 ```gad
 // scanArg builds a typed holder passed to sscan/sscanf.
 typeName(fmt.scanArg("int"))
->>> "scanArg"
+= "scanArg"
 ```
 
 ## Example — `fmt.gad`
@@ -213,9 +217,11 @@ throws a runtime error.
 ## Example
 
 ```gad
-// print writes to stdout and returns the byte count.
+// print writes to stdout and returns the byte count: the return checked
+// first, then what was printed
 fmt.print("a", 1)
->>> 2
+= 2
+<<< a1
 ```
 **/
 export print(*any) <int> => nil
@@ -229,7 +235,8 @@ throws a runtime error.
 
 ```gad
 fmt.printf("%d!", 5)
->>> 2
+= 2
+<<< 5!
 ```
 **/
 export printf(format str, *any) <int> => nil
@@ -243,8 +250,9 @@ write error throws a runtime error.
 ## Example
 
 ```gad
-fmt.println("hi", 1)   // writes "hi 1\n"
->>> 5
+fmt.println("hi", 1)
+= 5
+<<< hi 1
 ```
 **/
 export println(*any) <int> => nil
@@ -258,7 +266,7 @@ str.
 
 ```gad
 fmt.sprint("x=", 5)
->>> "x=5"
+= "x=5"
 ```
 **/
 export sprint(*any) <str> => nil
@@ -270,7 +278,7 @@ Formats according to a format specifier and returns the resulting str.
 
 ```gad
 fmt.sprintf("%s=%d", "n", 42)
->>> "n=42"
+= "n=42"
 ```
 **/
 export sprintf(format str, *any) <str> => nil
@@ -284,7 +292,7 @@ is appended.
 
 ```gad
 fmt.sprintln("a", 1)
->>> "a 1\n"
+= "a 1\n"
 ```
 **/
 export sprintln(*any) <str> => nil
@@ -299,7 +307,7 @@ is less than the number of arguments, a scan error is thrown.
 
 ```gad
 fmt.sscan("7", fmt.scanArg("int"))
->>> 1
+= 1
 ```
 **/
 export sscan(str str, *scanArg) <int> => nil
@@ -315,7 +323,7 @@ Newlines in the input must match newlines in the format.
 ```gad
 // scanArg holders receive the parsed fields; sscanf returns the count.
 fmt.sscanf("42 hi", "%d %s", fmt.scanArg("int"), fmt.scanArg("str"))
->>> 2
+= 2
 ```
 **/
 export sscanf(str str, format str, *scanArg) <int> => nil
@@ -335,7 +343,7 @@ Literal field.
 ```gad
 // scanArg builds a typed holder passed to sscan/sscanf.
 typeName(fmt.scanArg("int"))
->>> "scanArg"
+= "scanArg"
 ```
 **/
 export scanArg(typeName str) <scanArg> => nil

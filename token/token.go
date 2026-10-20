@@ -232,9 +232,13 @@ const (
 	// NoCoalesceAssign is `a ?!= b`: assigns b when a is `no` — how a named
 	// parameter takes its default.
 	NoCoalesceAssign // ?!=
+	// OutputCheck is an output check at the start of a statement: `<<< text`
+	// (one line) or `<<<⏎ lines ⏎>>>` — its literal the text (issue #22).
+	// Appended so no token value shifts.
+	OutputCheck
 )
 
-const NumTokens = int(NoCoalesceAssign) + 1
+const NumTokens = int(OutputCheck) + 1
 
 var keywords map[string]Token
 
@@ -422,6 +426,7 @@ var tokens = [...]string{
 	DoubleColonGreater:  "::>",
 	NoCoalesce:          "?!",
 	NoCoalesceAssign:    "?!=",
+	OutputCheck:         "<<<",
 }
 
 var tokenNames = [...]string{
@@ -597,6 +602,7 @@ var tokenNames = [...]string{
 	DoubleColonGreater:           "DoubleColonGreater",
 	NoCoalesce:                   "NoCoalesce",
 	NoCoalesceAssign:             "NoCoalesceAssign",
+	OutputCheck:                  "OutputCheck",
 }
 
 // FromName return a Token from name

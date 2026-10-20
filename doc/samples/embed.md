@@ -44,7 +44,7 @@ iterable `.fs`. Paths resolve against the running script's directory;
 ```gad
 greeting := embed("embed/greeting.txt")
 [greeting.name, greeting.size, str(greeting.data)]
-// => ["embed/greeting.txt", 29, "Hello from an embedded file!\n"]
+= ["embed/greeting.txt", 29, "Hello from an embedded file!\n"]
 ```
 
 Embedding a directory gives a node indexed by entry name; each entry is itself
@@ -55,7 +55,7 @@ look the name up in, so the reference need not spell out the full path.
 dir := embed("embed")
 cfg := embed("config.json"; sources = ["embed"])   // found via the search path
 [dir.name, dir.isDir, str(dir["config.json"].data), str(cfg.data) == str(dir["config.json"].data)]
-// => ["embed", true, "{\"name\": \"gad\", \"stars\": 3}\n", true]
+= ["embed", true, "{\"name\": \"gad\", \"stars\": 3}\n", true]
 ```
 
 A directory's `.fs` is iterable: `for name, entry in dir.fs` yields each child
@@ -77,40 +77,51 @@ walk = func(node, indent) {
     }
 }
 walk(root, "")
-```
-
-Output:
-
-```text
+<<<
 config.json (28 bytes)
 greeting.txt (29 bytes)
 nested/
   note.txt (14 bytes)
+>>>
 ```
 
 ## Example — `embed.gad`
 
 ```gad
-greeting := embed("embed/greeting.txt")
-[greeting.name, greeting.size, str(greeting.data)]
+example embed_file {
+    greeting := embed("embed/greeting.txt")
+    [greeting.name, greeting.size, str(greeting.data)]
+    = ["embed/greeting.txt", 29, "Hello from an embedded file!\n"]
+}
 
-dir := embed("embed")
-cfg := embed("config.json"; sources = ["embed"])   // found via the search path
-[dir.name, dir.isDir, str(dir["config.json"].data), str(cfg.data) == str(dir["config.json"].data)]
+example embed_dir {
+    dir := embed("embed")
+    cfg := embed("config.json"; sources = ["embed"])   // found via the search path
+    [dir.name, dir.isDir, str(dir["config.json"].data), str(cfg.data) == str(dir["config.json"].data)]
+    = ["embed", true, "{\"name\": \"gad\", \"stars\": 3}\n", true]
+}
 
-root := embed("embed")
-var walk
-walk = func(node, indent) {
-    for name, e in iterator(node.fs; sorted) {
-        if e.isDir {
-            println(indent + name + "/")
-            walk(e, indent + "  ")
-        } else {
-            println(indent + name + " (" + str(e.size) + " bytes)")
+example embed_walk {
+    root := embed("embed")
+    var walk
+    walk = func(node, indent) {
+        for name, e in iterator(node.fs; sorted) {
+            if e.isDir {
+                println(indent + name + "/")
+                walk(e, indent + "  ")
+            } else {
+                println(indent + name + " (" + str(e.size) + " bytes)")
+            }
         }
     }
+    walk(root, "")
 }
-walk(root, "")
+<<<
+config.json (28 bytes)
+greeting.txt (29 bytes)
+nested/
+  note.txt (14 bytes)
+>>>
 
 return greeting.name
 ```

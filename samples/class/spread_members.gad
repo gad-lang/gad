@@ -49,66 +49,66 @@ array is an error.
 @snippet spread_nil
 **/
 
-//snippet spread_fields
-defaults := {columns: 3, rows: 2}
-class Grid {
-    name str = "grid"
-    **{fields: defaults + {gap: 8}}
+example spread_fields {
+    defaults := {columns: 3, rows: 2}
+    class Grid {
+        name str = "grid"
+        **{fields: defaults + {gap: 8}}
+    }
+    g := Grid(; rows = 4)
+    [g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
+    = ["grid", 3, 4, 8, ["columns", "gap", "name", "rows"]]
 }
-g := Grid(; rows = 4)
-[g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
-/**= ["grid", 3, 4, 8, ["columns", "gap", "name", "rows"]] **/
-//endsnippet
 
-//snippet spread_spec
-extra := {fields: (;
-    title=(; types=[str], nullable=true, meta=(; label="Title")),
-    size=(; types=[int], default=10),
-)}
-class Box {
-    **extra
+example spread_spec {
+    extra := {fields: (;
+        title=(; types=[str], nullable=true, meta=(; label="Title")),
+        size=(; types=[int], default=10),
+    )}
+    class Box {
+        **extra
+    }
+    rejects := func(f) { try { f(); return false } catch { return true } }
+    [
+        Box().title,                          // nullable: nil
+        Box().size,                           // its default
+        Box(; title = "a", size = 2).size,
+        rejects(() => Box(; size = "big")),   // field "size" expects int
+    ]
+    = [nil, 10, 2, true]
 }
-rejects := func(f) { try { f(); return false } catch { return true } }
-[
-    Box().title,                          // nullable: nil
-    Box().size,                           // its default
-    Box(; title = "a", size = 2).size,
-    rejects(() => Box(; size = "big")),   // field "size" expects int
-]
-/**= [nil, 10, 2, true] **/
-//endsnippet
 
-//snippet spread_methods
-class Counter {
-    n int = 0
-    **{methods: [twice(this) => this.n * 2]}
-    **{props: {label: func { (this) => "counter " + str(this.n) }}}
+example spread_methods {
+    class Counter {
+        n int = 0
+        **{methods: [twice(this) => this.n * 2]}
+        **{props: {label: func { (this) => "counter " + str(this.n) }}}
+    }
+    c := Counter(; n = 21)
+    [c.twice(), c.label]
+    = [42, "counter 21"]
 }
-c := Counter(; n = 21)
-[c.twice(), c.label]
-/**= [42, "counter 21"] **/
-//endsnippet
 
-//snippet spread_glob
-// what `import("./plugins/*")::dict` gives: a module by name
-plugins := {pt: {lang: "pt"}, en: {lang: "en"}}
-langFields := {}
-for name, _ in plugins {
-    langFields[name] = (; types=[bool], default=false)
+example spread_glob {
+    // what `import("./plugins/*")::dict` gives: a module by name
+    plugins := {pt: {lang: "pt"}, en: {lang: "en"}}
+    langFields := {}
+    for name, _ in plugins {
+        langFields[name] = (; types=[bool], default=false)
+    }
+    class Languages {
+        **{fields: langFields}
+    }
+    l := Languages(; pt = true)
+    [l.en, l.pt, collect(keys(Languages.@fields)).|sort]
+    = [false, true, ["en", "pt"]]
 }
-class Languages {
-    **{fields: langFields}
-}
-l := Languages(; pt = true)
-[l.en, l.pt, collect(keys(Languages.@fields)).|sort]
-/**= [false, true, ["en", "pt"]] **/
-//endsnippet
 
-//snippet spread_nil
-class Plain {
-    a = 1
-    **nil
+example spread_nil {
+    class Plain {
+        a = 1
+        **nil
+    }
+    [Plain().a, collect(keys(Plain.@fields))]
+    = [1, ["a"]]
 }
-[Plain().a, collect(keys(Plain.@fields))]
-/**= [1, ["a"]] **/
-//endsnippet

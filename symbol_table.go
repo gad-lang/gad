@@ -108,6 +108,9 @@ type SymbolTable struct {
 	disabledBuiltins map[string]struct{}
 	frees            []*Symbol
 	block            bool
+	// example marks the scope an `example` opened (issue #22): of the module
+	// still, for a `global` declared in it
+	example          bool
 	disableParams    bool
 	shadowedBuiltins []string
 	builtins         BuiltinsNameSet
@@ -380,6 +383,10 @@ func (st *SymbolTable) NextIndex() int {
 
 // DefineGlobal adds a new symbol with ScopeGlobal in the current scope.
 func (st *SymbolTable) DefineGlobal(name string) (*Symbol, error) {
+	// in the scopes examples opened: the module's (issue #22)
+	for st.example && st.parent != nil {
+		st = st.parent
+	}
 	if st.parent != nil {
 		return nil, errors.New("global declaration can be at top scope")
 	}

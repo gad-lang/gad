@@ -644,7 +644,12 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 }
 
 func (c *Compiler) compileDeclGlobal(nd *node.GenDecl) error {
-	if c.symbolTable.parent != nil {
+	// the scopes examples opened are of the module (compileExample)
+	st := c.symbolTable
+	for st.example && st.parent != nil {
+		st = st.parent
+	}
+	if st.parent != nil {
 		return c.Errorf(nd, "global not allowed in this scope")
 	}
 
@@ -3799,6 +3804,12 @@ func (c *Compiler) compileFile(nd *parser.File) (err error) {
 
 func (c *Compiler) compileFileStmts(stmts node.Stmts) (err error) {
 	var paramsNames []string
+	// the output of the program recorded for its output checks
+	if c.opts.Checks && hasOutputCheck(stmts) {
+		if err = c.emitCheckCall(nil, checkStartFunc); err != nil {
+			return
+		}
+	}
 
 	for _, stmt := range stmts {
 		switch stmt := stmt.(type) {

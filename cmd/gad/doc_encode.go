@@ -44,8 +44,8 @@ type docEncoded struct {
 	Prose    string                 `json:"prose,omitempty" yaml:"prose,omitempty"`
 	Sections []gadbridge.DocSection `json:"sections,omitempty" yaml:"sections,omitempty"`
 	Source   string                 `json:"source,omitempty" yaml:"source,omitempty"`
-	// Snippets are the file's `//snippet` regions with their `uses` references and
-	// verified result/output, so the encoded doc carries them too.
+	// Snippets are the file's named examples (`example NAME { … }`), so the
+	// encoded doc carries them too.
 	Snippets []snippetInfo `json:"snippets,omitempty" yaml:"snippets,omitempty"`
 }
 
@@ -79,13 +79,15 @@ func (o *docOptions) buildDocEncoded(path string, src []byte) (*docEncoded, erro
 		return nil, fmt.Errorf("extract docs from %s: %w", filepath.Base(path), err)
 	}
 	lang := fenceLangFor(st)
-	if err = expandDocSnippets(doc, src, lang, !o.noDoctest); err != nil {
+	if err = expandDocSnippets(doc, src, lang); err != nil {
 		return nil, err
 	}
-	snippets, err := collectSnippets(src, !o.noDoctest)
-	if err != nil {
-		return nil, err
+	if !o.noDoctest {
+		if err = verifyExamples(path, src, st); err != nil {
+			return nil, err
+		}
 	}
+	snippets := collectSnippets(src)
 	return &docEncoded{
 		Name:     moduleName(path),
 		File:     filepath.Base(path),

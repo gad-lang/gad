@@ -21,7 +21,7 @@ double := (x) => x * 2       // arrow closure
 adder := func(base) => (x) => base + x // closure capturing `base`
 add5 := adder(5)
 [sum(2, 3), double(21), add5(4)]
-// => [5, 42, 9]
+= [5, 42, 9]
 ```
 
 ## The value of a closure block
@@ -59,7 +59,7 @@ A `func` block has no implicit value at all (only `return` sets one), while
     func() { 5 + 10 }(),                        // a func block: only return sets a value
     (func() => 5 + 10)(),                       // …its => form is an expression
 ]
-// => [15, 6, 5, [1, 2], 2, 7, nil, 9, nil, 4, nil, 15]
+= [15, 6, 5, [1, 2], 2, 7, nil, 9, nil, 4, nil, 15]
 ```
 
 So choosing a value by condition needs no `return`: each branch is worth its
@@ -77,7 +77,7 @@ sign := (n) => {
     }
 }
 [sign(3), sign(-2), sign(0)]
-// => ["positive 3", "negative 2", "zero"]
+= ["positive 3", "negative 2", "zero"]
 ```
 
 ## Returning several values
@@ -96,7 +96,7 @@ minMax := func(xs) {
 }
 lo, hi := minMax([3, 9, 1, 4])
 [minMax([2, 5]), lo, hi]
-// => [[2, 5], 1, 9]
+= [[2, 5], 1, 9]
 ```
 
 ## Partial application
@@ -110,7 +110,7 @@ add := func(a, b; scale=1) => (a + b) * scale
 add10 := wrap(add, 10)
 tagged := wrap(func(*xs; **opts) => [xs, dict(opts)], "first"; source="wrap")
 [add10(5), add10(5; scale=2), tagged("second"; extra=1)]
-// => [15, 30, [["first", "second"], {extra: 1, source: "wrap"}]]
+= [15, 30, [["first", "second"], {source: "wrap", extra: 1}]]
 ```
 
 ## Variadic parameters
@@ -128,7 +128,7 @@ total := func(*nums) {
     return acc
 }
 total(1, 2, 3, 4)
-// => 10
+= 10
 ```
 
 ## Spreading arguments
@@ -141,7 +141,7 @@ named keys merge left to right (a later source overrides an earlier key).
 ```gad
 collect := func(*args; **kw) => [args, dict(kw)]
 collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)
-// => [[1, 2, 3, 4, 5, 6], {b: 1, c: 2, x: 10}]
+= [[1, 2, 3, 4, 5, 6], {b: 1, c: 2, x: 10}]
 ```
 
 ## Named arguments
@@ -158,7 +158,7 @@ given is `no` until its default (`name ?!= default`). See
 ```gad
 greet := func(name; greeting = "Hello", **rest) => greeting + ", " + name
 [greet("Gad"), greet("Gad"; greeting = "Hi"), greet("Gad"; **{greeting: "Hey"})]
-// => ["Hello, Gad", "Hi, Gad", "Hey, Gad"]
+= ["Hello, Gad", "Hi, Gad", "Hey, Gad"]
 ```
 
 A call must supply the right number of positional arguments (variadics aside), or
@@ -177,7 +177,7 @@ c := (= v * 2) // a lazy callable; body re-evaluated on each call
 before := c()  // 20
 v = 100
 [typeName(c), before, c()]
-// => ["ComputedValue", 20, 200]
+= ["ComputedValue", 20, 200]
 ```
 
 ## return = (assign the result)
@@ -192,7 +192,7 @@ f := func(x) {
     x++        // keep running; mutating x updates the result
 }
 f(10)
-// => 11
+= 11
 ```
 
 ## Deferred handlers
@@ -218,7 +218,7 @@ safeCall := func(fail) {
     return "ok"
 }
 [deferOrder(), safeCall(false), safeCall(true)]
-// => [["body-", "B", "A"], "ok", "recovered: error: boom"]
+= [["body-", "B", "A"], "ok", "recovered: error: boom"]
 ```
 
 `deferb` (and `deferb_ok` / `deferb_err`) run when the enclosing **block** exits
@@ -235,7 +235,7 @@ blockCleanup := func() {
     return out + "after"
 }
 blockCleanup()
-// => body b2 b1 after
+= "body b2 b1 after"
 ```
 
 ## Reflection
@@ -253,121 +253,160 @@ func hello(name str; loud=false) <str> {
 }
 
 [hello.@name, hello.@args, hello.@nargs, hello.@ret, str(hello.@meta)]
-// => ["hello", ["name"], ["loud"], "<str>", "(;route=\"/hello\")"]
+= ["hello", ["name"], ["loud"], "<str>", "(;route=\"/hello\")"]
 ```
 
 ## Example — `functions.gad`
 
 ```gad
-sum := func(a, b) {
-    return a + b
-}
-double := (x) => x * 2       // arrow closure
-adder := func(base) => (x) => base + x // closure capturing `base`
-add5 := adder(5)
-[sum(2, 3), double(21), add5(4)]
-
-[
-    (() => { 5 + 10 })(),                       // the last expression
-    (() => { a := 5; a + 1 })(),                // statements, then an expression
-    (() => { a := 5 })(),                       // an assignment: the value
-    (() => { a, b := 1, 2 })(),                 // several targets: an array
-    (() => { if true { 2 } })(),                // the taken branch
-    (() => { if false { 1 } else { { 7 } } })(), // …down nested blocks
-    (() => { if false { 1 } })(),               // no branch taken: nil
-    (() => { try { throw "x"; 8 } catch { 9 } })(), // the catch that ran
-    (() => { for x in [1, 2] { x } })(),        // a loop: nil
-    (() => { return 4; 5 })(),                  // return wins
-    func() { 5 + 10 }(),                        // a func block: only return sets a value
-    (func() => 5 + 10)(),                       // …its => form is an expression
-]
-
-sign := (n) => {
-    abs := n < 0 ? -n : n
-    if n > 0 {
-        "positive " + str(abs)
-    } else if n < 0 {
-        "negative " + str(abs)
-    } else {
-        "zero"
+example basics {
+    sum := func(a, b) {
+        return a + b
     }
+    double := (x) => x * 2       // arrow closure
+    adder := func(base) => (x) => base + x // closure capturing `base`
+    add5 := adder(5)
+    [sum(2, 3), double(21), add5(4)]
+    = [5, 42, 9]
 }
-[sign(3), sign(-2), sign(0)]
 
-minMax := func(xs) {
-    lo, hi := xs[0], xs[0]
-    for x in xs {
-        lo = x < lo ? x : lo
-        hi = x > hi ? x : hi
+example closure_block_value {
+    [
+        (() => { 5 + 10 })(),                       // the last expression
+        (() => { a := 5; a + 1 })(),                // statements, then an expression
+        (() => { a := 5 })(),                       // an assignment: the value
+        (() => { a, b := 1, 2 })(),                 // several targets: an array
+        (() => { if true { 2 } })(),                // the taken branch
+        (() => { if false { 1 } else { { 7 } } })(), // …down nested blocks
+        (() => { if false { 1 } })(),               // no branch taken: nil
+        (() => { try { throw "x"; 8 } catch { 9 } })(), // the catch that ran
+        (() => { for x in [1, 2] { x } })(),        // a loop: nil
+        (() => { return 4; 5 })(),                  // return wins
+        func() { 5 + 10 }(),                        // a func block: only return sets a value
+        (func() => 5 + 10)(),                       // …its => form is an expression
+    ]
+    = [15, 6, 5, [1, 2], 2, 7, nil, 9, nil, 4, nil, 15]
+}
+
+example closure_block_match {
+    sign := (n) => {
+        abs := n < 0 ? -n : n
+        if n > 0 {
+            "positive " + str(abs)
+        } else if n < 0 {
+            "negative " + str(abs)
+        } else {
+            "zero"
+        }
     }
-    return lo, hi                               // == return [lo, hi]
+    [sign(3), sign(-2), sign(0)]
+    = ["positive 3", "negative 2", "zero"]
 }
-lo, hi := minMax([3, 9, 1, 4])
-[minMax([2, 5]), lo, hi]
 
-total := func(*nums) {
-    acc := 0
-    for _, n in nums {
-        acc += n
+example return_many {
+    minMax := func(xs) {
+        lo, hi := xs[0], xs[0]
+        for x in xs {
+            lo = x < lo ? x : lo
+            hi = x > hi ? x : hi
+        }
+        return lo, hi                               // == return [lo, hi]
     }
-    return acc
+    lo, hi := minMax([3, 9, 1, 4])
+    [minMax([2, 5]), lo, hi]
+    = [[2, 5], 1, 9]
 }
-total(1, 2, 3, 4)
 
-collect := func(*args; **kw) => [args, dict(kw)]
-collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)
-
-greet := func(name; greeting = "Hello", **rest) => greeting + ", " + name
-[greet("Gad"), greet("Gad"; greeting = "Hi"), greet("Gad"; **{greeting: "Hey"})]
-
-v := 10
-c := (= v * 2) // a lazy callable; body re-evaluated on each call
-before := c()  // 20
-v = 100
-[typeName(c), before, c()]
-
-f := func(x) {
-    return = x // bind the result slot to x
-    x++        // keep running; mutating x updates the result
-}
-f(10)
-
-deferOrder := func() {
-    defer { $ret += "A" } // runs last (LIFO)
-    defer { $ret += "B" } // runs first
-    return ["body-"]
-}
-safeCall := func(fail) {
-    defer_err { $ret = "recovered: " + str($err); $err = nil } // swallow
-    if fail {
-        throw "boom"
+example variadic {
+    total := func(*nums) {
+        acc := 0
+        for _, n in nums {
+            acc += n
+        }
+        return acc
     }
-    return "ok"
+    total(1, 2, 3, 4)
+    = 10
 }
-[deferOrder(), safeCall(false), safeCall(true)]
 
-blockCleanup := func() {
-    out := ""
-    {
-        deferb out += "b1 " // shortcut form; runs last
-        deferb out += "b2 " // runs first
-        out += "body "
-    }
-    return out + "after"
+example spreading {
+    collect := func(*args; **kw) => [args, dict(kw)]
+    collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)
+    = [[1, 2, 3, 4, 5, 6], {b: 1, c: 2, x: 10}]
 }
-blockCleanup()
+
+example named {
+    greet := func(name; greeting = "Hello", **rest) => greeting + ", " + name
+    [greet("Gad"), greet("Gad"; greeting = "Hi"), greet("Gad"; **{greeting: "Hey"})]
+    = ["Hello, Gad", "Hi, Gad", "Hey, Gad"]
+}
+
+example computed {
+    v := 10
+    c := (= v * 2) // a lazy callable; body re-evaluated on each call
+    before := c()  // 20
+    v = 100
+    [typeName(c), before, c()]
+    = ["ComputedValue", 20, 200]
+}
+
+example return_eq {
+    f := func(x) {
+        return = x // bind the result slot to x
+        x++        // keep running; mutating x updates the result
+    }
+    f(10)
+    = 11
+}
+
+example defer {
+    deferOrder := func() {
+        defer { $ret += "A" } // runs last (LIFO)
+        defer { $ret += "B" } // runs first
+        return ["body-"]
+    }
+    safeCall := func(fail) {
+        defer_err { $ret = "recovered: " + str($err); $err = nil } // swallow
+        if fail {
+            throw "boom"
+        }
+        return "ok"
+    }
+    [deferOrder(), safeCall(false), safeCall(true)]
+    = [["body-", "B", "A"], "ok", "recovered: error: boom"]
+}
+
+example deferb {
+    blockCleanup := func() {
+        out := ""
+        {
+            deferb out += "b1 " // shortcut form; runs last
+            deferb out += "b2 " // runs first
+            out += "body "
+        }
+        return out + "after"
+    }
+    blockCleanup()
+    = "body b2 b1 after"
+}
 
 return total(1, 2, 3, 4)
 
-[route="/hello"]
-func hello(name str; loud=false) <str> {
-    return "hi " + name
+example reflection {
+    [route="/hello"]
+    func hello(name str; loud=false) <str> {
+        return "hi " + name
+    }
+
+    [hello.@name, hello.@args, hello.@nargs, hello.@ret, str(hello.@meta)]
+    = ["hello", ["name"], ["loud"], "<str>", "(;route=\"/hello\")"]
 }
 
-[hello.@name, hello.@args, hello.@nargs, hello.@ret, str(hello.@meta)]
-
-add := func(a, b; scale=1) => (a + b) * scale
-add10 := wrap(add, 10)
-tagged := wrap(func(*xs; **opts) => [xs, dict(opts)], "first"; source="wrap")
-[add10(5), add10(5; scale=2), tagged("second"; extra=1)]
+example wrap {
+    add := func(a, b; scale=1) => (a + b) * scale
+    add10 := wrap(add, 10)
+    tagged := wrap(func(*xs; **opts) => [xs, dict(opts)], "first"; source="wrap")
+    [add10(5), add10(5; scale=2), tagged("second"; extra=1)]
+    = [15, 30, [["first", "second"], {source: "wrap", extra: 1}]]
+}
 ```

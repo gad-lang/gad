@@ -1,82 +1,82 @@
-// Samples of module json: one snippet region per exported
-// member. These are standard doctest snippets, run and checked by `gad doc`,
-// and merged into the module API as `## Example` sections by gaddoc (the
-// `gad:samples` directive).
+// Samples of module json: one `example NAME { … }` per exported
+// member. Their checks (`= EXPR`, `<<< text`) are verified when `gad doc` runs
+// the file, and gaddoc merges them into the module API as `## Example` sections
+// (the `gad:samples` directive).
 
-//snippet Marshal
-json := import("json")
-str(json.Marshal({a: 1, b: [2, 3]}))
-//= "{\"a\":1,\"b\":[2,3]}"
-// scalars, dates and durations encode too (mined from json module tests):
-str(json.Marshal(nil))
-//= "null"
-str(json.Marshal(true))
-//= "true"
-str(json.Marshal("test"))
-//= "\"test\""
-str(json.Marshal(dur 1h30m))
-//= "\"1h30m0s\""
-str(json.Marshal(2026-01-31D))
-//= "\"2026-01-31\""
-//endsnippet
+example Marshal {
+    json := import("json")
+    str(json.Marshal({a: 1, b: [2, 3]}))
+    = "{\"a\":1,\"b\":[2,3]}"
+    // scalars, dates and durations encode too (mined from json module tests):
+    str(json.Marshal(nil))
+    = "null"
+    str(json.Marshal(true))
+    = "true"
+    str(json.Marshal("test"))
+    = "\"test\""
+    str(json.Marshal(dur 1h30m))
+    = "\"1h30m0s\""
+    str(json.Marshal(2026-01-31D))
+    = "\"2026-01-31\""
+}
 
-//snippet MarshalIndent
-json := import("json")
-str(json.MarshalIndent({a: 1}, "", "  "))
-//= "{\n  \"a\": 1\n}"
-//endsnippet
+example MarshalIndent {
+    json := import("json")
+    str(json.MarshalIndent({a: 1}, "", "  "))
+    = "{\n  \"a\": 1\n}"
+}
 
-//snippet IndentCount
-json := import("json")
-str(json.IndentCount(bytes(`{"a":1}`), "", "  "))
-//= "{\n  \"a\": 1\n}"
-//endsnippet
+example IndentCount {
+    json := import("json")
+    str(json.IndentCount(bytes(`{"a":1}`), "", "  "))
+    = "{\n  \"a\": 1\n}"
+}
 
-//snippet RawMessage
-json := import("json")
-// RawMessage embeds pre-encoded JSON verbatim.
-str(json.Marshal({wrapped: json.RawMessage(bytes(`{"x":1}`))}))
-//= "{\"wrapped\":{\"x\":1}}"
-//endsnippet
+example RawMessage {
+    json := import("json")
+    // RawMessage embeds pre-encoded JSON verbatim.
+    str(json.Marshal({wrapped: json.RawMessage(bytes(`{"x":1}`))}))
+    = "{\"wrapped\":{\"x\":1}}"
+}
 
-//snippet Compact
-json := import("json")
-str(json.Compact(bytes(`{ "a" : 1 }`), false))
-//= "{\"a\":1}"
-//endsnippet
+example Compact {
+    json := import("json")
+    str(json.Compact(bytes(`{ "a" : 1 }`), false))
+    = "{\"a\":1}"
+}
 
-//snippet Quote
-json := import("json")
-// Quote forces a value to be encoded as a quoted string.
-str(json.Marshal(json.Quote(42)))
-//= "\"42\""
-//endsnippet
+example Quote {
+    json := import("json")
+    // Quote forces a value to be encoded as a quoted string.
+    str(json.Marshal(json.Quote(42)))
+    = "\"42\""
+}
 
-//snippet NoQuote
-json := import("json")
-// NoQuote keeps the value in its natural (unquoted) JSON form.
-str(json.Marshal(json.NoQuote(42)))
-//= "42"
-//endsnippet
+example NoQuote {
+    json := import("json")
+    // NoQuote keeps the value in its natural (unquoted) JSON form.
+    str(json.Marshal(json.NoQuote(42)))
+    = "42"
+}
 
-//snippet NoEscape
-json := import("json")
-// NoEscape leaves <, > and & unescaped.
-str(json.Marshal(json.NoEscape("a<b>c")))
-//= "\"a<b>c\""
-//endsnippet
+example NoEscape {
+    json := import("json")
+    // NoEscape leaves <, > and & unescaped.
+    str(json.Marshal(json.NoEscape("a<b>c")))
+    = "\"a<b>c\""
+}
 
-//snippet Unmarshal
-json := import("json")
-json.Unmarshal(`{"a":1,"b":[2,3]}`).a
-//= 1
-// a mixed JSON array decodes to a Gad array:
-json.Unmarshal(`[1,1.5,true,"x"]`)
-//= [1, 1.5, true, "x"]
-//endsnippet
+example Unmarshal {
+    json := import("json")
+    json.Unmarshal(`{"a":1,"b":[2,3]}`).a
+    = 1
+    // a mixed JSON array decodes to a Gad array:
+    json.Unmarshal(`[1,1.5,true,"x"]`)
+    = [1, 1.5, true, "x"]
+}
 
-//snippet Valid
-json := import("json")
-[json.Valid(`{"x":1}`), json.Valid("bad"), json.Valid("{")]
-//= [true, false, false]
-//endsnippet
+example Valid {
+    json := import("json")
+    [json.Valid(`{"x":1}`), json.Valid("bad"), json.Valid("{")]
+    = [true, false, false]
+}

@@ -13,7 +13,7 @@ arguments. Part of the [Collections](collections.gad) chapter.
 ```gad
 pair := [color = "red"]
 [pair.k, pair.v, pair.array, typeName(pair), typeName(["color"])]
-// => ["color", "red", ["color", "red"], "keyValue", "array"]
+= ["color", "red", ["color", "red"], "keyValue", "array"]
 ```
 
 ## Ordered pairs
@@ -27,7 +27,7 @@ kva := (; a = 1, b = 2)
 anyKeys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
 built := keyValueArray([a=1], keyValue("b", 2))
 [str(kva), str(anyKeys), str(built)]
-// => ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)", "(;a=1, b=2)"]
+= ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)", "(;a=1, b=2)"]
 ```
 
 ## Flags: given without a value, and resets
@@ -63,7 +63,7 @@ Reading a reset key finds nothing: `kva.get(k)` is `nil`, `k in kva` is false,
 ```gad
 flags := (; debug, verbose = no, level = 3, color = true)
 [str(flags), flags.flag("debug"), flags.flag("verbose"), flags.get("debug") == yes, typeName(flags.get("color"))]
-// => ["(;debug, verbose=no, level=3, color=true)", true, false, true, "bool"]
+= ["(;debug, verbose=no, level=3, color=true)", true, false, true, "bool"]
 ```
 
 ```gad
@@ -72,11 +72,11 @@ base := (;a=1, b=2)
 [str(seq), seq == (;a=3, a=4), str((;a) + (;a=2) + (;a=no)),
  dict((;a) + (;a=2)), dict((;a) + (;a=2) + (;a=no)), dict((;a=1) + ((;a=2) + (;a=no))),
  str((;**base, a=no)), dict(base, (;b=no))]
-// => ["(;a=3, a=4)", true, "(;a=no)", {a: 2}, {}, {}, "(;b=2, a=no)", {a: 1}]
+= ["(;a=3, a=4)", true, "(;a=no)", {a: 2}, {}, {}, "(;b=2, a=no)", {a: 1}]
 
 reset := (;a=1, a=no)
 ["a" in reset, reset.get("a"), (;a=1, a=no, a=2, a=3).values("a")]
-// => [false, nil, [2, 3]]
+= [false, nil, [2, 3]]
 ```
 
 A named argument reset is not given: its parameter is `no` until its default
@@ -88,7 +88,7 @@ not take is no error.
 f := func(; a=1, **rest) => [a, dict(rest)]
 defaults := (;a=5)
 [f(), f(; a=2), f(; a=no), f(; a=nil), f(; a=yes), f(; **defaults), f(; **defaults, a=no), f(; b=2, b=no, c)]
-// => [[1, {}], [2, {}], [1, {}], [nil, {}], [on, {}], [5, {}], [1, {}], [1, {c: on}]]
+= [[1, {}], [2, {}], [1, {}], [nil, {}], [yes, {}], [5, {}], [1, {}], [1, {c: yes}]]
 ```
 
 ## Function values
@@ -98,7 +98,7 @@ A value may be a function or closure, written in method form.
 ```gad
 fns := (; greet() => "hi", add(a, b) => a + b, twice(x) { return x * 2 })
 [fns[0].v(), fns[1].v(2, 3), fns[2].v(4)]
-// => ["hi", 5, 8]
+= ["hi", 5, 8]
 ```
 
 ## Typed keys
@@ -109,7 +109,7 @@ that types a function's named parameters (`func(; n int = 0)`).
 ```gad
 typed := (; id int, label str = "none")
 [typed[0].k.name, len(typed[0].k.types), typed[1].v]
-// => ["id", 1, "none"]
+= ["id", 1, "none"]
 ```
 
 ## Duplicates, lookup and mutation
@@ -124,7 +124,7 @@ removed := str(dup.delete("tag"))
 m := (; x = 1)
 m[0].v = 99                          // indexing yields the keyValue
 [found, removed, str(m)]
-// => [[[1, 2], [1, 2, 3]], "(;name=3)", "(;x=99)"]
+= [[[1, 2], [1, 2, 3]], "(;name=3)", "(;x=99)"]
 ```
 
 ## Spread, iteration and conversion
@@ -138,68 +138,97 @@ base := (; a = 1, b = 2)
 merged := (; head = 0, **base)
 show := func(; a = 0, b = 0, **rest) => [a, b, dict(rest)]
 [str(merged), dict(base), show(; **(; a = 1, b = 2, c = 3))]
-// => ["(;head=0, a=1, b=2)", {a: 1, b: 2}, [1, 2, {c: 3}]]
+= ["(;head=0, a=1, b=2)", {a: 1, b: 2}, [1, 2, {c: 3}]]
 
 for k, v in base {
     println(k, "=", v)
 }
-```
-
-Output:
-
-```text
+<<<
 a = 1
 b = 2
+>>>
 ```
 
 ## Example — `key_value_array.gad`
 
 ```gad
-pair := [color = "red"]
-[pair.k, pair.v, pair.array, typeName(pair), typeName(["color"])]
-
-kva := (; a = 1, b = 2)
-anyKeys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
-built := keyValueArray([a=1], keyValue("b", 2))
-[str(kva), str(anyKeys), str(built)]
-
-flags := (; debug, verbose = no, level = 3, color = true)
-[str(flags), flags.flag("debug"), flags.flag("verbose"), flags.get("debug") == yes, typeName(flags.get("color"))]
-
-seq := (;a=1, a=2, a=no, a=3, a=4)
-base := (;a=1, b=2)
-[str(seq), seq == (;a=3, a=4), str((;a) + (;a=2) + (;a=no)),
- dict((;a) + (;a=2)), dict((;a) + (;a=2) + (;a=no)), dict((;a=1) + ((;a=2) + (;a=no))),
- str((;**base, a=no)), dict(base, (;b=no))]
-
-reset := (;a=1, a=no)
-["a" in reset, reset.get("a"), (;a=1, a=no, a=2, a=3).values("a")]
-
-f := func(; a=1, **rest) => [a, dict(rest)]
-defaults := (;a=5)
-[f(), f(; a=2), f(; a=no), f(; a=nil), f(; a=yes), f(; **defaults), f(; **defaults, a=no), f(; b=2, b=no, c)]
-
-fns := (; greet() => "hi", add(a, b) => a + b, twice(x) { return x * 2 })
-[fns[0].v(), fns[1].v(2, 3), fns[2].v(4)]
-
-typed := (; id int, label str = "none")
-[typed[0].k.name, len(typed[0].k.types), typed[1].v]
-
-dup := (; tag = 1, tag = 2, name = 3)
-found := [dup.values("tag"), dup.values()]
-removed := str(dup.delete("tag"))
-m := (; x = 1)
-m[0].v = 99                          // indexing yields the keyValue
-[found, removed, str(m)]
-
-base := (; a = 1, b = 2)
-merged := (; head = 0, **base)
-show := func(; a = 0, b = 0, **rest) => [a, b, dict(rest)]
-[str(merged), dict(base), show(; **(; a = 1, b = 2, c = 3))]
-
-for k, v in base {
-    println(k, "=", v)
+example kv_pair {
+    pair := [color = "red"]
+    [pair.k, pair.v, pair.array, typeName(pair), typeName(["color"])]
+    = ["color", "red", ["color", "red"], "keyValue", "array"]
 }
+
+example kva_keys {
+    kva := (; a = 1, b = 2)
+    anyKeys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
+    built := keyValueArray([a=1], keyValue("b", 2))
+    [str(kva), str(anyKeys), str(built)]
+    = ["(;a=1, b=2)", "(;name=\"x\", \"a b\"=1, 42=2, true=3, k1=9)", "(;a=1, b=2)"]
+}
+
+example kva_flags {
+    flags := (; debug, verbose = no, level = 3, color = true)
+    [str(flags), flags.flag("debug"), flags.flag("verbose"), flags.get("debug") == yes, typeName(flags.get("color"))]
+    = ["(;debug, verbose=no, level=3, color=true)", true, false, true, "bool"]
+}
+
+example kva_resets {
+    seq := (;a=1, a=2, a=no, a=3, a=4)
+    base := (;a=1, b=2)
+    [str(seq), seq == (;a=3, a=4), str((;a) + (;a=2) + (;a=no)),
+     dict((;a) + (;a=2)), dict((;a) + (;a=2) + (;a=no)), dict((;a=1) + ((;a=2) + (;a=no))),
+     str((;**base, a=no)), dict(base, (;b=no))]
+    = ["(;a=3, a=4)", true, "(;a=no)", {a: 2}, {}, {}, "(;b=2, a=no)", {a: 1}]
+
+    reset := (;a=1, a=no)
+    ["a" in reset, reset.get("a"), (;a=1, a=no, a=2, a=3).values("a")]
+    = [false, nil, [2, 3]]
+}
+
+example kva_named_resets {
+    f := func(; a=1, **rest) => [a, dict(rest)]
+    defaults := (;a=5)
+    [f(), f(; a=2), f(; a=no), f(; a=nil), f(; a=yes), f(; **defaults), f(; **defaults, a=no), f(; b=2, b=no, c)]
+    = [[1, {}], [2, {}], [1, {}], [nil, {}], [yes, {}], [5, {}], [1, {}], [1, {c: yes}]]
+}
+
+example kva_funcs {
+    fns := (; greet() => "hi", add(a, b) => a + b, twice(x) { return x * 2 })
+    [fns[0].v(), fns[1].v(2, 3), fns[2].v(4)]
+    = ["hi", 5, 8]
+}
+
+example kva_typed {
+    typed := (; id int, label str = "none")
+    [typed[0].k.name, len(typed[0].k.types), typed[1].v]
+    = ["id", 1, "none"]
+}
+
+example kva_access {
+    dup := (; tag = 1, tag = 2, name = 3)
+    found := [dup.values("tag"), dup.values()]
+    removed := str(dup.delete("tag"))
+    m := (; x = 1)
+    m[0].v = 99                          // indexing yields the keyValue
+    [found, removed, str(m)]
+    = [[[1, 2], [1, 2, 3]], "(;name=3)", "(;x=99)"]
+}
+
+example kva_spread {
+    base := (; a = 1, b = 2)
+    merged := (; head = 0, **base)
+    show := func(; a = 0, b = 0, **rest) => [a, b, dict(rest)]
+    [str(merged), dict(base), show(; **(; a = 1, b = 2, c = 3))]
+    = ["(;head=0, a=1, b=2)", {a: 1, b: 2}, [1, 2, {c: 3}]]
+
+    for k, v in base {
+        println(k, "=", v)
+    }
+}
+<<<
+a = 1
+b = 2
+>>>
 
 return str(kva)
 ```

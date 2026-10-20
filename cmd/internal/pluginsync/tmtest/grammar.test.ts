@@ -394,3 +394,20 @@ test("`end` in an index's brackets is the last index", () => {
   const blockEnd = tokenize("if x begin y() end").filter((t) => t.text.includes("end"));
   expect(blockEnd.some((t) => t.scopes.some((s) => s.includes("variable.language.gad")))).toBe(false);
 });
+
+test("inline checks: `= EXPR`, `<<< text`, `<<<` … `>>>`", () => {
+  expect(scopesOf("= 10", "=").some((s) => s.includes("keyword.other.check.gad"))).toBe(true);
+  expect(scopesOf("<<< a\\nb", "<<<").some((s) => s.includes("keyword.other.check.gad"))).toBe(true);
+  expect(scopesOf("<<< a\\nb", "a\\nb").some((s) => s.includes("string.unquoted.check.gad"))).toBe(true);
+  expect(scopesOf("f();<<< done", "done").some((s) => s.includes("string.unquoted.check.gad"))).toBe(true);
+  // the operators and the assignment are not checks
+  expect(scopesOf("x := 1 <<< 2", "<<<").some((s) => s.includes("keyword.other.check.gad"))).toBe(false);
+  expect(scopesOf("a = 1", "=").some((s) => s.includes("keyword.other.check.gad"))).toBe(false);
+});
+
+test("`example` is contextual: a keyword only before `[NAME] {`", () => {
+  expect(isKeyword("example greet {", "example")).toBe(true);
+  expect(isKeyword("example {", "example")).toBe(true);
+  expect(isKeyword("example := 1", "example")).toBe(false);
+  expect(isKeyword("x.example", "example")).toBe(false);
+});

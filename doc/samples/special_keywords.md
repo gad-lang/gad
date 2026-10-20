@@ -52,7 +52,7 @@ declared parameters).
 **/
 forward := func(; **extra) => @nargs
 [f5, s10, typeName(forward(; a = 1))]
-// => [120, 10, "namedArgs"]
+= [120, 10, "namedArgs"]
 ```
 
 ## Module introspection
@@ -77,7 +77,7 @@ mathx := import("./modules/mathx.gad")
     @module.@main == @main,             // the same answer, via the object
     mathx.@main,                        // an imported module is never the entry
 ]
-// => ["str", "bool", "Module", true, false]
+= ["str", "bool", "Module", true, false]
 ```
 
 ## Globals: `@g`
@@ -97,56 +97,65 @@ and [Operators](17_unary_operators.md).
 @g["hits"] = (@g["hits"] !? 0) + 1
 @g["hits"] = (@g["hits"] !? 0) + 1
 [@g["hits"], "hits" in @g]
-// => [2, true]
+= [2, true]
 ```
 
 ## Example — `special_keywords.gad`
 
 ```gad
-/**
-@fn — the running function; here used for anonymous recursion.
-**/
-fact := func(n) {
-    return n <= 1 ? 1 : n * @fn(n - 1)
-}
-f5 := fact(5)                   // 120
-
-/**
-@args — the positional arguments as an array.
-**/
-sum := func(*_) {
-    total := 0
-    for v in @args {
-        total += v
+example fn_introspection {
+    /**
+    @fn — the running function; here used for anonymous recursion.
+    **/
+    fact := func(n) {
+        return n <= 1 ? 1 : n * @fn(n - 1)
     }
-    return total
+    f5 := fact(5)                   // 120
+
+    /**
+    @args — the positional arguments as an array.
+    **/
+    sum := func(*_) {
+        total := 0
+        for v in @args {
+            total += v
+        }
+        return total
+    }
+    s10 := sum(1, 2, 3, 4)          // 10
+
+    /**
+    @nargs — the named-argument set of the current call (extra names beyond the
+    declared parameters).
+    **/
+    forward := func(; **extra) => @nargs
+    [f5, s10, typeName(forward(; a = 1))]
+    = [120, 10, "namedArgs"]
 }
-s10 := sum(1, 2, 3, 4)          // 10
 
-/**
-@nargs — the named-argument set of the current call (extra names beyond the
-declared parameters).
-**/
-forward := func(; **extra) => @nargs
-[f5, s10, typeName(forward(; a = 1))]
+example module_info {
+    /**
+    Module info: @name, @file, @main, @module.
+    **/
+    mathx := import("./modules/mathx.gad")
+    [
+        typeName(@name), typeName(@main),   // the module name (str), whether it is main
+        typeName(@module),                  // the current module object
+        @module.@main == @main,             // the same answer, via the object
+        mathx.@main,                        // an imported module is never the entry
+    ]
+    = ["str", "bool", "Module", true, false]
+}
 
-/**
-Module info: @name, @file, @main, @module.
-**/
-mathx := import("./modules/mathx.gad")
-[
-    typeName(@name), typeName(@main),   // the module name (str), whether it is main
-    typeName(@module),                  // the current module object
-    @module.@main == @main,             // the same answer, via the object
-    mathx.@main,                        // an imported module is never the entry
-]
-
-/**
-@g — the host globals object (short form of the old `globals()`).
-**/
-@g["hits"] = (@g["hits"] !? 0) + 1
-@g["hits"] = (@g["hits"] !? 0) + 1
-[@g["hits"], "hits" in @g]
+example globals {
+    /**
+    @g — the host globals object (short form of the old `globals()`).
+    **/
+    @g["hits"] = (@g["hits"] !? 0) + 1
+    @g["hits"] = (@g["hits"] !? 0) + 1
+    [@g["hits"], "hits" in @g]
+    = [2, true]
+}
 
 return @g["hits"]
 ```

@@ -33,15 +33,12 @@ prop pi => 3.14159                   // read-only getter (no parens, no braces)
 println("pi():      ", pi())         // 3.14159
 prop tau <float> => 6.28318          // typed read-only getter
 println("tau():     ", tau())        // 6.28318
-```
-
-Output:
-
-```text
+<<<
 value (str): hello
 value (int): int: 42
 pi():       3.14159
 tau():      6.28318
+>>>
 ```
 
 `prop => expr` is a read-only property whose getter is `expr`. It reads **live**
@@ -54,12 +51,7 @@ var _live = 1
 ro := prop => _live                  // anonymous, read-only, live
 _live = 42
 println("ro.v:      ", ro.v)         // 42 (live)
-```
-
-Output:
-
-```text
-ro.v:       42
+<<< ro.v:       42
 ```
 
 ## The virtual `.v` field
@@ -74,7 +66,7 @@ clearer. `x.v = n` runs only the setter — it does not read the getter first.
 ```gad
 value.v = 3                          // setter via .v (preferred over value(3))
 value.v                              // getter via .v
-// => int: 3
+= "int: 3"
 ```
 
 ## Properties as container members (computed properties)
@@ -96,14 +88,11 @@ temp.c = 30                          // setter runs
 println("f =", temp.f)               // 86 — computed from celsius
 temp.f = 212                         // setter converts back
 println("c =", temp.c)               // 100
-```
-
-Output:
-
-```text
+<<<
 c = 20
 f = 86
 c = 100
+>>>
 ```
 
 A `prop` declared with `prop` is a plain value: storing it at a key shares the
@@ -124,13 +113,10 @@ Arrays never delegate: a stored prop is the value itself.
 **/
 p := prop { () => 99 }
 println("array holds prop:", typeName([p][0])) // Prop
-```
-
-Output:
-
-```text
+<<<
 d.x = 8 counter() = 8
 array holds prop: Prop
+>>>
 ```
 
 ## Raw access with `reflect`
@@ -143,7 +129,7 @@ to a stored prop — the functional analog of JavaScript `Reflect.get` /
 rawC := typeName(reflect.get(temp, "c"))  // Prop (the getter is not run)
 reflect.set(temp, "c", 5)                // replaces the prop
 [rawC, temp.c]                           // a plain value now
-// => ["Prop", 5]
+= ["Prop", 5]
 ```
 
 ## Exporting properties (module live bindings)
@@ -164,58 +150,88 @@ export getX() => x
 ## Example — `properties.gad`
 
 ```gad
-var stored
-prop value {
-    ()      => stored                // getter
-    (v)     { stored = v }           // setter (any value)
-    (v int) { stored = "int: " + v } // typed setter, dispatched by arg type
+example declare {
+    var stored
+    prop value {
+        ()      => stored                // getter
+        (v)     { stored = v }           // setter (any value)
+        (v int) { stored = "int: " + v } // typed setter, dispatched by arg type
+    }
+    value("hello"); a := value()         // setter, then getter
+    value(42);      b := value()         // typed (int) setter
+    println("value (str):", a)           // hello
+    println("value (int):", b)           // int: 42
+
+    prop pi => 3.14159                   // read-only getter (no parens, no braces)
+    println("pi():      ", pi())         // 3.14159
+    prop tau <float> => 6.28318          // typed read-only getter
+    println("tau():     ", tau())        // 6.28318
 }
-value("hello"); a := value()         // setter, then getter
-value(42);      b := value()         // typed (int) setter
-println("value (str):", a)           // hello
-println("value (int):", b)           // int: 42
+<<<
+value (str): hello
+value (int): int: 42
+pi():       3.14159
+tau():      6.28318
+>>>
 
-prop pi => 3.14159                   // read-only getter (no parens, no braces)
-println("pi():      ", pi())         // 3.14159
-prop tau <float> => 6.28318          // typed read-only getter
-println("tau():     ", tau())        // 6.28318
+example getter_only {
+    var _live = 1
+    ro := prop => _live                  // anonymous, read-only, live
+    _live = 42
+    println("ro.v:      ", ro.v)         // 42 (live)
+}
+<<< ro.v:       42
 
-var _live = 1
-ro := prop => _live                  // anonymous, read-only, live
-_live = 42
-println("ro.v:      ", ro.v)         // 42 (live)
+example dot_v {
+    value.v = 3                          // setter via .v (preferred over value(3))
+    value.v                              // getter via .v
+    = "int: 3"
+}
 
-value.v = 3                          // setter via .v (preferred over value(3))
-value.v                              // getter via .v
+example computed {
+    var (
+        celsius = 20,
+        temp = {
+            c: prop { () => celsius; (v) { celsius = v } },
+            f: prop { () => celsius * 9 / 5 + 32; (v) { celsius = (v - 32) * 5 / 9 } },
+        },
+    )
+    println("c =", temp.c)               // 20 — getter runs
+    temp.c = 30                          // setter runs
+    println("f =", temp.f)               // 86 — computed from celsius
+    temp.f = 212                         // setter converts back
+    println("c =", temp.c)               // 100
+}
+<<<
+c = 20
+f = 86
+c = 100
+>>>
 
-var (
-    celsius = 20,
-    temp = {
-        c: prop { () => celsius; (v) { celsius = v } },
-        f: prop { () => celsius * 9 / 5 + 32; (v) { celsius = (v - 32) * 5 / 9 } },
-    },
-)
-println("c =", temp.c)               // 20 — getter runs
-temp.c = 30                          // setter runs
-println("f =", temp.f)               // 86 — computed from celsius
-temp.f = 212                         // setter converts back
-println("c =", temp.c)               // 100
+example byref {
+    var n = 1
+    prop counter { () => n; (v) { n = v } }
+    d := {x: counter}                    // store the prop by reference
+    d.x = 8                              // delegates -> runs counter's setter
+    println("d.x =", d.x, "counter() =", counter()) // 8 8 (shared backing var)
 
-var n = 1
-prop counter { () => n; (v) { n = v } }
-d := {x: counter}                    // store the prop by reference
-d.x = 8                              // delegates -> runs counter's setter
-println("d.x =", d.x, "counter() =", counter()) // 8 8 (shared backing var)
+    /**
+    Arrays never delegate: a stored prop is the value itself.
+    **/
+    p := prop { () => 99 }
+    println("array holds prop:", typeName([p][0])) // Prop
+}
+<<<
+d.x = 8 counter() = 8
+array holds prop: Prop
+>>>
 
-/**
-Arrays never delegate: a stored prop is the value itself.
-**/
-p := prop { () => 99 }
-println("array holds prop:", typeName([p][0])) // Prop
-
-rawC := typeName(reflect.get(temp, "c"))  // Prop (the getter is not run)
-reflect.set(temp, "c", 5)                // replaces the prop
-[rawC, temp.c]                           // a plain value now
+example reflect {
+    rawC := typeName(reflect.get(temp, "c"))  // Prop (the getter is not run)
+    reflect.set(temp, "c", 5)                // replaces the prop
+    [rawC, temp.c]                           // a plain value now
+    = ["Prop", 5]
+}
 
 return value()
 ```

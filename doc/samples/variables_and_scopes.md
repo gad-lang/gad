@@ -16,7 +16,7 @@ a := 123      // declare 'a' (int)
 a = "123"     // reassign (str) — a variable may change type
 a = [1, 2, 3] // reassign (array)
 a
-// => [1, 2, 3]
+= [1, 2, 3]
 ```
 
 ## param
@@ -52,7 +52,7 @@ may give defaults: `name = value` applies when the global is nil or absent (like
 global (page = 1, limit = 20) // default unless the host set them
 global (user !?= "guest")     // only when "user" is not provided at all
 [page, limit, user]
-// => [1, 20, "guest"]
+= [1, 20, "guest"]
 ```
 
 ## var
@@ -65,7 +65,7 @@ because the right-hand side is compiled first.
 var foo            // nil
 var (bar, baz = 1) // bar == nil, baz == 1
 [isNil(foo), bar, baz]
-// => [true, nil, 1]
+= [true, nil, 1]
 ```
 
 ## const
@@ -81,7 +81,7 @@ const (bit1 = 1 << iota, bit2, bit4) // 1, 2, 4 (iota resets per block)
 const box = {foo: "bar"}
 box.foo = "baz"                   // ok: the binding is read-only, the dict is not
 [i0, i1, i2, bit1, bit2, bit4, box.foo]
-// => [0, 1, 2, 1, 2, 4, "baz"]
+= [0, 1, 2, 1, 2, 4, "baz"]
 ```
 
 ### A const is visible in its whole block
@@ -112,7 +112,7 @@ mixin Named { name = "?" }
 
 n := Node(;name="root", children=Nodes(Node()))
 [x, n.name, len(n.children)]
-// => [42, "root", 1]
+= [42, "root", 1]
 ```
 
 A cycle of values (`const a = b; const b = a`) is a compile error, and so is a
@@ -133,51 +133,69 @@ for i := 0; i < 3; i++ {
     f = func() => i
 }
 f()
-// => 2
+= 2
 ```
 
 ## Example — `variables_and_scopes.gad`
 
 ```gad
-a := 123      // declare 'a' (int)
-a = "123"     // reassign (str) — a variable may change type
-a = [1, 2, 3] // reassign (array)
-a
-
-global (page = 1, limit = 20) // default unless the host set them
-global (user !?= "guest")     // only when "user" is not provided at all
-[page, limit, user]
-
-var foo            // nil
-var (bar, baz = 1) // bar == nil, baz == 1
-[isNil(foo), bar, baz]
-
-const (i0 = iota, i1, i2)         // 0, 1, 2
-const (bit1 = 1 << iota, bit2, bit4) // 1, 2, 4 (iota resets per block)
-const box = {foo: "bar"}
-box.foo = "baz"                   // ok: the binding is read-only, the dict is not
-[i0, i1, i2, bit1, bit2, bit4, box.foo]
-
-x := twice(k)          // k and twice are declared below
-func twice(n) => n * 2
-const k = 21
-
-class Node {
-    use Named                   // Named is declared below
-    children? Nodes             // Nodes too…
+example assign {
+    a := 123      // declare 'a' (int)
+    a = "123"     // reassign (str) — a variable may change type
+    a = [1, 2, 3] // reassign (array)
+    a
+    = [1, 2, 3]
 }
-type Nodes []Node               // …an array of Node
-mixin Named { name = "?" }
 
-n := Node(;name="root", children=Nodes(Node()))
-[x, n.name, len(n.children)]
-
-var f
-for i := 0; i < 3; i++ {
-    i := i // fresh binding per iteration
-    f = func() => i
+example global {
+    global (page = 1, limit = 20) // default unless the host set them
+    global (user !?= "guest")     // only when "user" is not provided at all
+    [page, limit, user]
+    = [1, 20, "guest"]
 }
-f()
+
+example var {
+    var foo            // nil
+    var (bar, baz = 1) // bar == nil, baz == 1
+    [isNil(foo), bar, baz]
+    = [true, nil, 1]
+}
+
+example const {
+    const (i0 = iota, i1, i2)         // 0, 1, 2
+    const (bit1 = 1 << iota, bit2, bit4) // 1, 2, 4 (iota resets per block)
+    const box = {foo: "bar"}
+    box.foo = "baz"                   // ok: the binding is read-only, the dict is not
+    [i0, i1, i2, bit1, bit2, bit4, box.foo]
+    = [0, 1, 2, 1, 2, 4, "baz"]
+}
+
+example const_order {
+    x := twice(k)          // k and twice are declared below
+    func twice(n) => n * 2
+    const k = 21
+
+    class Node {
+        use Named                   // Named is declared below
+        children? Nodes             // Nodes too…
+    }
+    type Nodes []Node               // …an array of Node
+    mixin Named { name = "?" }
+
+    n := Node(;name="root", children=Nodes(Node()))
+    [x, n.name, len(n.children)]
+    = [42, "root", 1]
+}
+
+example scopes {
+    var f
+    for i := 0; i < 3; i++ {
+        i := i // fresh binding per iteration
+        f = func() => i
+    }
+    f()
+    = 2
+}
 
 return "variables"
 ```

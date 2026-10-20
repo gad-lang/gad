@@ -29,7 +29,7 @@ p, q, *tail := 1, 2, 3, 4           // parallel: no brackets on the right
 const {tls} = {host: "h", tls: true}
 const [lo, hi, *more] = [1, 9, 10, 11]
 [[x, y], [a, b, c], [first, second], [head, next, rest], [p, q, tail], [tls, lo, hi, more]]
-// => [[10, 20], [1, 2, nil], [100, 200], [1, 2, [3, 4, 5]], [1, 2, [3, 4]], [true, 1, 9, [10, 11]]]
+= [[10, 20], [1, 2, nil], [100, 200], [1, 2, [3, 4, 5]], [1, 2, [3, 4]], [true, 1, 9, [10, 11]]]
 ```
 
 ## 2. Named, `(; … )` form — key on the left
@@ -45,7 +45,7 @@ d := {host: "localhost", port: 8080, tls: true}
 // timeout <- key "timeout" — default; the key is absent
 // extra   <- the remaining keys
 [host, pn, timeout, extra]
-// => ["localhost", 8080, 30, {tls: true}]
+= ["localhost", 8080, 30, {tls: true}]
 ```
 
 ## 3. Named, `{ … }` form — TypeScript order, key on the left
@@ -59,7 +59,7 @@ cfg := {host: "localhost", port: 8080, tls: true}
 var (h, po)
 { host: h, port: po } = cfg         // `=` assigns existing variables
 [host, pt, timeout, typeName(others), others, [h, po]]
-// => ["localhost", 8080, 30, "dict", {tls: true}, ["localhost", 8080]]
+= ["localhost", 8080, 30, "dict", {tls: true}, ["localhost", 8080]]
 ```
 
 ## Any named data
@@ -75,7 +75,7 @@ connect := func(; **opts) {                   // named args
     return host + ":" + str(port)
 }
 [toUpper("hi"), hasPrefix("hello", "he"), [ka, kb, krest], connect(; host = "example.com")]
-// => ["HI", true, [1, 2, {c: 3}], "example.com:80"]
+= ["HI", true, [1, 2, {c: 3}], "example.com:80"]
 ```
 
 ## Mixed positional + named
@@ -95,7 +95,7 @@ run := func(*xs; **opts) => [xs, dict(opts)]
     run(*args.positional; **args.named),        // spread it into a call
     [len((,).positional), len((,).named)],      // the empty one
 ]
-// => ["MixedParams", [1, 2, 3], "(;mode=\"fast\", debug)", [[1, 2, 3], {debug: on, mode: "fast"}], [0, 0]]
+= ["MixedParams", [1, 2, 3], "(;mode=\"fast\", debug)", [[1, 2, 3], {mode: "fast", debug: yes}], [0, 0]]
 ```
 
 It destructures with the full `( positional ; named )` pattern — the positional
@@ -107,54 +107,72 @@ of any value, use `(; … )` or `{ … }` on it.
 mp := (1, 2, *[3]; user = "ann", role = "admin", team = "core")
 (first, second, *restPos; user: who, role: r, **restNamed) := mp
 [first, second, restPos, who, r, restNamed]
-// => [1, 2, [3], "ann", "admin", {team: "core"}]
+= [1, 2, [3], "ann", "admin", {team: "core"}]
 ```
 
 ## Example — `destructuring.gad`
 
 ```gad
-x, y := [10, 20]
-a, b, c := [1, 2]                   // missing element -> nil
-[first, second] := [100, 200]       // bracket form
-head, next, *rest := [1, 2, 3, 4, 5] // trailing *rest
-p, q, *tail := 1, 2, 3, 4           // parallel: no brackets on the right
-const {tls} = {host: "h", tls: true}
-const [lo, hi, *more] = [1, 9, 10, 11]
-[[x, y], [a, b, c], [first, second], [head, next, rest], [p, q, tail], [tls, lo, hi, more]]
-
-d := {host: "localhost", port: 8080, tls: true}
-(; host, port:pn, timeout = 30, **extra) := d
-// host    <- key "host"
-// pn      <- key "port"    — rename, `key: target`
-// timeout <- key "timeout" — default; the key is absent
-// extra   <- the remaining keys
-[host, pn, timeout, extra]
-
-cfg := {host: "localhost", port: 8080, tls: true}
-{ host, port: pt, timeout = 30, **others } := cfg
-var (h, po)
-{ host: h, port: po } = cfg         // `=` assigns existing variables
-[host, pt, timeout, typeName(others), others, [h, po]]
-
-{ toUpper, hasPrefix } := import("strings")   // a module
-{ a: ka, b: kb, **krest } := (; a = 1, b = 2, c = 3) // a key-value array
-connect := func(; **opts) {                   // named args
-    { host, port = 80 } := opts
-    return host + ":" + str(port)
+example destructure_arrays {
+    x, y := [10, 20]
+    a, b, c := [1, 2]                   // missing element -> nil
+    [first, second] := [100, 200]       // bracket form
+    head, next, *rest := [1, 2, 3, 4, 5] // trailing *rest
+    p, q, *tail := 1, 2, 3, 4           // parallel: no brackets on the right
+    const {tls} = {host: "h", tls: true}
+    const [lo, hi, *more] = [1, 9, 10, 11]
+    [[x, y], [a, b, c], [first, second], [head, next, rest], [p, q, tail], [tls, lo, hi, more]]
+    = [[10, 20], [1, 2, nil], [100, 200], [1, 2, [3, 4, 5]], [1, 2, [3, 4]], [true, 1, 9, [10, 11]]]
 }
-[toUpper("hi"), hasPrefix("hello", "he"), [ka, kb, krest], connect(; host = "example.com")]
 
-args := (1, *[2, 3]; mode = "fast", **{debug: yes})
-run := func(*xs; **opts) => [xs, dict(opts)]
-[
-    typeName(args),
-    args.positional,
-    str(args.named),
-    run(*args.positional; **args.named),        // spread it into a call
-    [len((,).positional), len((,).named)],      // the empty one
-]
+example destructure_named {
+    d := {host: "localhost", port: 8080, tls: true}
+    (; host, port:pn, timeout = 30, **extra) := d
+    // host    <- key "host"
+    // pn      <- key "port"    — rename, `key: target`
+    // timeout <- key "timeout" — default; the key is absent
+    // extra   <- the remaining keys
+    [host, pn, timeout, extra]
+    = ["localhost", 8080, 30, {tls: true}]
+}
 
-mp := (1, 2, *[3]; user = "ann", role = "admin", team = "core")
-(first, second, *restPos; user: who, role: r, **restNamed) := mp
-[first, second, restPos, who, r, restNamed]
+example destructure_braces {
+    cfg := {host: "localhost", port: 8080, tls: true}
+    { host, port: pt, timeout = 30, **others } := cfg
+    var (h, po)
+    { host: h, port: po } = cfg         // `=` assigns existing variables
+    [host, pt, timeout, typeName(others), others, [h, po]]
+    = ["localhost", 8080, 30, "dict", {tls: true}, ["localhost", 8080]]
+}
+
+example destructure_any {
+    { toUpper, hasPrefix } := import("strings")   // a module
+    { a: ka, b: kb, **krest } := (; a = 1, b = 2, c = 3) // a key-value array
+    connect := func(; **opts) {                   // named args
+        { host, port = 80 } := opts
+        return host + ":" + str(port)
+    }
+    [toUpper("hi"), hasPrefix("hello", "he"), [ka, kb, krest], connect(; host = "example.com")]
+    = ["HI", true, [1, 2, {c: 3}], "example.com:80"]
+}
+
+example mixed_params {
+    args := (1, *[2, 3]; mode = "fast", **{debug: yes})
+    run := func(*xs; **opts) => [xs, dict(opts)]
+    [
+        typeName(args),
+        args.positional,
+        str(args.named),
+        run(*args.positional; **args.named),        // spread it into a call
+        [len((,).positional), len((,).named)],      // the empty one
+    ]
+    = ["MixedParams", [1, 2, 3], "(;mode=\"fast\", debug)", [[1, 2, 3], {mode: "fast", debug: yes}], [0, 0]]
+}
+
+example mixed_destructure {
+    mp := (1, 2, *[3]; user = "ann", role = "admin", team = "core")
+    (first, second, *restPos; user: who, role: r, **restNamed) := mp
+    [first, second, restPos, who, r, restNamed]
+    = [1, 2, [3], "ann", "admin", {team: "core"}]
+}
 ```

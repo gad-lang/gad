@@ -20,7 +20,7 @@ for a registered module, or a file path/URL for a file on disk).
 ```gad
 include ("config.gad")
 [#"{appName} v{version}", import("strings").hasSuffix(loadedFrom, "config.gad")]
-// => ["Gadapp v1.0", true]
+= ["Gadapp v1.0", true]
 ```
 
 ## Several files at once
@@ -33,7 +33,7 @@ include (
     "banner.gad",
 )
 banner(appName)
-// => == Gadapp ==
+= "== Gadapp =="
 ```
 
 ## `@file`, `@files` and `@mod`
@@ -47,7 +47,7 @@ a new module (use `import` for that).
 
 ```gad
 [loadedFrom == @file, typeName(@mod)]   // config.gad's @file differs from ours
-// => [false, "Module"]
+= [false, "Module"]
 ```
 
 ## Including many files with a glob
@@ -74,26 +74,38 @@ like an import's (`include ("config")` loads `config.gad`, else `.gadt`, else
 include ("parts/*.gad"; excludes=["*_draft.gad"])
 colorsOnly := len(palette)
 [palette, sizes, swatches, colorsOnly]
-// => [["red", "green"], {large: 3, small: 1}, 4, 2]
+= [["red", "green"], {small: 1, large: 3}, 4, 2]
 ```
 
 ## Example — `main.gad`
 
 ```gad
-include ("config.gad")
-[#"{appName} v{version}", import("strings").hasSuffix(loadedFrom, "config.gad")]
+example include_one {
+    include ("config.gad")
+    [#"{appName} v{version}", import("strings").hasSuffix(loadedFrom, "config.gad")]
+    = ["Gadapp v1.0", true]
+}
 
-include (
-    "banner.gad",
-)
-banner(appName)
+example include_many {
+    include (
+        "banner.gad",
+    )
+    banner(appName)
+    = "== Gadapp =="
+}
 
-[loadedFrom == @file, typeName(@mod)]   // config.gad's @file differs from ours
+example include_file {
+    [loadedFrom == @file, typeName(@mod)]   // config.gad's @file differs from ours
+    = [false, "Module"]
+}
 
-// 10_colors.gad, then 20_sizes.gad — the draft is filtered out
-include ("parts/*.gad"; excludes=["*_draft.gad"])
-colorsOnly := len(palette)
-[palette, sizes, swatches, colorsOnly]
+example include_glob {
+    // 10_colors.gad, then 20_sizes.gad — the draft is filtered out
+    include ("parts/*.gad"; excludes=["*_draft.gad"])
+    colorsOnly := len(palette)
+    [palette, sizes, swatches, colorsOnly]
+    = [["red", "green"], {small: 1, large: 3}, 4, 2]
+}
 
 return appName
 ```

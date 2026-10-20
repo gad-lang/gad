@@ -59,7 +59,7 @@ Example:
 ```gad
 class Point { x int; y int }
 bool(Point(; x=1, y=2) :: gad.Class)
->>> true
+= true
 ```
 
 ## Meta
@@ -79,7 +79,7 @@ reported file name.
 Example:
 ```gad
 typeName(gad.parse("a := 1"))
->>> "SourceFileObject"
+= "SourceFileObject"
 ```
 
 ---
@@ -102,9 +102,9 @@ its result.
 Example:
 ```gad
 gad.eval("40 + 2")
->>> 42
+= 42
 gad.eval(gad.parse("40 + 2"))
->>> 42
+= 42
 ```
 
 ---
@@ -118,7 +118,7 @@ strings and `fence` picks the quoting style.
 Example:
 ```gad
 gad.quote("hi")
->>> "\"hi\""
+= "\"hi\""
 ```
 
 ---
@@ -131,7 +131,7 @@ The inverse of `quote`: parses a Gad string literal `lit` back to its str value.
 Example:
 ```gad
 gad.unquote(gad.quote("hi"))
->>> "hi"
+= "hi"
 ```
 
 ---
@@ -152,7 +152,7 @@ args := [int]
 inv := gad.invoker(str, args)
 args[0] = 42
 inv()
->>> "42"
+= "42"
 ```
 
 ---
@@ -196,10 +196,10 @@ d := gad.transform({points: [[1, 2], [3, 4]]};
     ".points[]" = (p array) => Point(; x = p[0], y = p[1])
 )
 [typeName(d), typeName(d.pts[0]), d.pts[1].y]
->>> ["Poly", "Point", 4]
+= ["Poly", "Point", 4]
 ```
 ```gad
 // `.*` matches every dict child.
 gad.transform({a: 1, b: 2}; ".*" = (n int) => n + 100)
->>> {a: 101, b: 102}
+= {a: 101, b: 102}
 ```

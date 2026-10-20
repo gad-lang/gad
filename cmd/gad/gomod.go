@@ -134,14 +134,15 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 
 // samplesTemplate renders the samples.gad seed for a module named name.
 func samplesTemplate(name string) string {
-	return strings.ReplaceAll(`// Samples of module NAME: one snippet region per exported member. These are
-// standard doctest snippets, run and checked by `+"`gad doc`"+`, and merged into the
-// module API as `+"`## Example`"+` sections by gaddoc (the `+"`gad:samples`"+` directive).
+	return strings.ReplaceAll(`// Samples of module NAME: an `+"`example`"+` block per exported member. Their
+// checks (`+"`= EXPR`"+` the value of the statement before, `+"`<<< text`"+` what it printed)
+// are verified when `+"`gad doc`"+` runs the file, and gaddoc merges them into the module
+// API as `+"`## Example`"+` sections (the `+"`gad:samples`"+` directive).
 
-//snippet hello
-NAME := import("NAME")
-NAME.hello("Gad")
-//= "hello Gad"
-//endsnippet
+example hello {
+    NAME := import("NAME")
+    NAME.hello("Gad")
+    = "hello Gad"
+}
 `, "NAME", name)
 }

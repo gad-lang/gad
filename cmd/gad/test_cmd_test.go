@@ -174,3 +174,45 @@ func testRaisesBadMatchFails(t) { a := []; t.raises(() => a[5]; contains="nope")
 	require.Equal(t, 4, pass, out) // bare, contains, eq, affix
 	require.Equal(t, 2, fail, out) // no-error, bad-match
 }
+
+// The inline checks (issue #22) run in a test: at the top level and in a test
+// function, a failure failing it.
+func TestRunFileInlineChecks(t *testing.T) {
+	src := "x := 10\n= 10\nprintln(\"top\")\n<<< top\n" +
+		"func testOk(t) {\n\tprintln(1)\n\t<<< 1\n\tt.equal(1, 1)\n\t2 * 2\n\t= 4\n}\n" +
+		"func testBad(t) {\n\t2 * 2\n\t= 5\n}\n"
+	o := &testOptions{verbose: true}
+	pass, fail, _, out := runFileOn(t, o, src)
+	require.Equal(t, 1, pass, out)
+	require.Equal(t, 1, fail, out)
+	require.Contains(t, out, "got 4, want 5")
+
+	// a failing check at the top level fails the file
+	_, fail, _, out = runFileOn(t, &testOptions{}, "x := 1\n= 2\nfunc testA(t) {}\n")
+	require.Equal(t, 1, fail, out)
+	require.Contains(t, out, "got 1, want 2")
+}
+
+// In a _test.gadx file: `<<<` after markup checks what was rendered into the
+// current node since the previous check (one line, or the lines indented
+// under it, no closer); `~ = EXPR` checks a value.
+func TestRunFileInlineChecksGadx(t *testing.T) {
+	run := func(src string) (int, int, string) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "x_test.gadx")
+		require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
+		o := &testOptions{}
+		require.NoError(t, o.compile())
+		var buf bytes.Buffer
+		pass, fail, _ := o.runFile(&cc.CommandContext{Out: &buf, Err: &buf}, path)
+		return pass, fail, buf.String()
+	}
+	pass, fail, out := run("div hello\n\n<<< <div>hello</div>\np\n\tspan a\nul\n\tli 1\n\n<<<\n\t<p><span>a</span></p>\n\t<ul><li>1</li></ul>\n" +
+		"~ x := 10\n~ = 10\n\n@test ok\n\t! t.true yes\n")
+	require.Equal(t, 1, pass, out)
+	require.Equal(t, 0, fail, out)
+
+	_, fail, out = run("div hello\n<<< <div>bye</div>\n@test ok\n\t! t.true yes\n")
+	require.Equal(t, 1, fail, out)
+	require.Contains(t, out, "x_test.gadx:2:1: CheckError: rendered: got \"<div>hello</div>\", want \"<div>bye</div>\"")
+}

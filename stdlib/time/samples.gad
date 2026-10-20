@@ -1,204 +1,205 @@
-// Samples of module time: one snippet region per exported
-// member. These are standard doctest snippets, run and checked by `gad doc`,
-// and merged into the module API as `## Example` sections by gaddoc (the
-// `gad:samples` directive).
+// Samples of module time: one `example NAME { … }` per exported
+// member. Their checks (`= EXPR`, `<<< text`) are verified when `gad doc` runs
+// the file, and gaddoc merges them into the module API as `## Example` sections
+// (the `gad:samples` directive).
 
-//snippet utc
-time.isLocation(time.utc())
-//= true
-//endsnippet
+example utc {
+    time.isLocation(time.utc())
+    = true
+}
 
-//snippet local
-time.isLocation(time.local())
-//= true
-//endsnippet
+example local {
+    time.isLocation(time.local())
+    = true
+}
 
-//snippet monthString
-time.monthString(1)   // 1 = January
-//= "January"
-//endsnippet
+example monthString {
+    time.monthString(1)   // 1 = January
+    = "January"
+}
 
-//snippet weekdayString
-time.weekdayString(0)
-//= "Sunday"
-//endsnippet
+example weekdayString {
+    time.weekdayString(0)
+    = "Sunday"
+}
 
-//snippet durationString
-time.durationString(90 * time.Minute)
-//= "1h30m0s"
-//endsnippet
+example durationString {
+    time.durationString(90 * time.Minute)
+    = "1h30m0s"
+}
 
-//snippet durationNanoseconds
-time.durationNanoseconds(time.Second)
-//= 1000000000
-//endsnippet
+example durationNanoseconds {
+    time.durationNanoseconds(time.Second)
+    = 1000000000
+}
 
-//snippet durationMicroseconds
-time.durationMicroseconds(time.Millisecond)
-//= 1000
-//endsnippet
+example durationMicroseconds {
+    time.durationMicroseconds(time.Millisecond)
+    = 1000
+}
 
-//snippet durationMilliseconds
-time.durationMilliseconds(time.Second)
-//= 1000
-//endsnippet
+example durationMilliseconds {
+    time.durationMilliseconds(time.Second)
+    = 1000
+}
 
-//snippet durationSeconds
-time.durationSeconds(90 * time.Minute)
-//= 5400
-//endsnippet
+example durationSeconds {
+    time.durationSeconds(90 * time.Minute)
+    = 5400
+}
 
-//snippet durationMinutes
-time.durationMinutes(90 * time.Minute)
-//= 90
-//endsnippet
+example durationMinutes {
+    time.durationMinutes(90 * time.Minute)
+    = 90
+}
 
-//snippet durationHours
-time.durationHours(3 * time.Hour)
-//= 3
-//endsnippet
+example durationHours {
+    time.durationHours(3 * time.Hour)
+    = 3
+}
 
-//snippet parseDuration
-time.parseDuration("2h30m") == 2 * time.Hour + 30 * time.Minute
-//= true
-//endsnippet
+example parseDuration {
+    time.parseDuration("2h30m") == 2 * time.Hour + 30 * time.Minute
+    = true
+}
 
-//snippet durationRound
-time.durationRound(time.parseDuration("1h17m30s"), time.Minute)
-//= dur 1h18m
-//endsnippet
+example durationRound {
+    time.durationRound(time.parseDuration("1h17m30s"), time.Minute)
+    = dur 1h18m
+}
 
-//snippet durationTruncate
-time.durationTruncate(time.parseDuration("1h17m30s"), time.Minute)
-//= dur 1h17m
-//endsnippet
+example durationTruncate {
+    time.durationTruncate(time.parseDuration("1h17m30s"), time.Minute)
+    = dur 1h17m
+}
 
-//snippet fixedZone
-time.isLocation(time.fixedZone("X+1", 3600))
-//= true
-//endsnippet
+example fixedZone {
+    time.isLocation(time.fixedZone("X+1", 3600))
+    = true
+}
 
-//snippet loadLocation
-time.isLocation(time.loadLocation("UTC"))
-//= true
-//endsnippet
+example loadLocation {
+    time.isLocation(time.loadLocation("UTC"))
+    = true
+}
 
-//snippet isLocation
-[time.isLocation(time.utc()), time.isLocation(5)]
-//= [true, false]
-//endsnippet
+example isLocation {
+    [time.isLocation(time.utc()), time.isLocation(5)]
+    = [true, false]
+}
 
-//snippet time
-time.isTime(time.time())
-//= true
-//endsnippet
+example time {
+    time.isTime(time.time())
+    = true
+}
 
-//snippet since
-//endsnippet
+example since {
+}
 
-//snippet until
-//endsnippet
+example until {
+}
 
-//snippet date
-time.format(time.date(2026, 1, 31, 9, 0, 0, 0, time.utc()), "2006-01-02")
-//= "2026-01-31"
-//endsnippet
+example date {
+    time.format(time.date(2026, 1, 31, 9, 0, 0, 0, time.utc()), "2006-01-02")
+    = "2026-01-31"
+}
 
-//snippet now
-time.isTime(time.now())
-//= true
-//endsnippet
+example now {
+    time.isTime(time.now())
+    = true
+}
 
-//snippet parse
-time.format(time.parse("2006-01-02", "2026-01-31", time.utc()), "2006/01/02")
-//= "2026/01/31"
-//endsnippet
+example parse {
+    time.format(time.parse("2006-01-02", "2026-01-31", time.utc()), "2006/01/02")
+    = "2026/01/31"
+}
 
-//snippet strToDate
-time.strToDate("2026-01-31").year()
-//= 2026
-//endsnippet
+example strToDate {
+    time.strToDate("2026-01-31").year()
+    = 2026
+}
 
-//snippet strToTime
-time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02")
-//= "2026-01-31"
-//endsnippet
+example strToTime {
+    time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02")
+    = "2026-01-31"
+}
 
-//snippet strToCalendarTime
-time.strToCalendarTime("2026-01-31 09:30:00.001").ns()
-//= 1000000
-//endsnippet
+example strToCalendarTime {
+    time.strToCalendarTime("2026-01-31 09:30:00.001").ns()
+    = 1000000
+}
 
-//snippet strToDuration
-time.strToDuration("2h30m")
-//= dur 2h30m
-//endsnippet
+example strToDuration {
+    time.strToDuration("2h30m")
+    = dur 2h30m
+}
 
-//snippet strToLocation
-time.isLocation(time.strToLocation("UTC"))
-//= true
-//endsnippet
+example strToLocation {
+    time.isLocation(time.strToLocation("UTC"))
+    = true
+}
 
-//snippet unix
-// Normalize to UTC so the formatted date is timezone-independent (unix returns
-// local time; 1e9 is 2001-09-09 01:46:40 UTC).
-time.format(time.unix(1000000000, 0).In(time.utc()), "2006-01-02")
-//= "2001-09-09"
-//endsnippet
+example unix {
+    // Normalize to UTC so the formatted date is timezone-independent (unix returns
+    // local time; 1e9 is 2001-09-09 01:46:40 UTC).
+    time.format(time.unix(1000000000, 0).In(time.utc()), "2006-01-02")
+    = "2001-09-09"
+}
 
-//snippet add
-time.format(time.add(time.strToTime("2026-01-31T09:00:00Z"), 24 * time.Hour), "2006-01-02")
-//= "2026-02-01"
-//endsnippet
+example add {
+    time.format(time.add(time.strToTime("2026-01-31T09:00:00Z"), 24 * time.Hour), "2006-01-02")
+    = "2026-02-01"
+}
 
-//snippet sub
-time.sub(time.strToTime("2026-02-01T09:00:00Z"), time.strToTime("2026-01-31T09:00:00Z"))
-//= dur 24h
-//endsnippet
+example sub {
+    time.sub(time.strToTime("2026-02-01T09:00:00Z"), time.strToTime("2026-01-31T09:00:00Z"))
+    = dur 24h
+}
 
-//snippet addDate
-time.format(time.addDate(time.strToTime("2026-01-31T09:00:00Z"), 1, 0, 0), "2006-01-02")
-//= "2027-01-31"
-//endsnippet
+example addDate {
+    time.format(time.addDate(time.strToTime("2026-01-31T09:00:00Z"), 1, 0, 0), "2006-01-02")
+    = "2027-01-31"
+}
 
-//snippet after
-time.after(time.strToTime("2026-02-01T00:00:00Z"), time.strToTime("2026-01-31T09:00:00Z"))
-//= true
-//endsnippet
+example after {
+    time.after(time.strToTime("2026-02-01T00:00:00Z"), time.strToTime("2026-01-31T09:00:00Z"))
+    = true
+}
 
-//snippet before
-time.before(time.strToTime("2026-01-31T09:00:00Z"), time.strToTime("2026-02-01T00:00:00Z"))
-//= true
-//endsnippet
+example before {
+    time.before(time.strToTime("2026-01-31T09:00:00Z"), time.strToTime("2026-02-01T00:00:00Z"))
+    = true
+}
 
-//snippet format
-time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02 15:04")
-//= "2026-01-31 09:00"
-//endsnippet
+example format {
+    time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02 15:04")
+    = "2026-01-31 09:00"
+}
 
-//snippet appendFormat
-str(time.appendFormat(time.strToTime("2026-01-31T09:00:00Z"), bytes(""), "2006"))
-//= "2026"
-//endsnippet
+example appendFormat {
+    str(time.appendFormat(time.strToTime("2026-01-31T09:00:00Z"), bytes(""), "2006"))
+    = "2026"
+}
 
-//snippet in
-time.format(time.in(time.strToTime("2026-01-31T09:00:00Z"), time.utc()), "15:04")
-//= "09:00"
+example in {
+    time.format(time.in(time.strToTime("2026-01-31T09:00:00Z"), time.utc()), "15:04")
+    = "09:00"
+}
 
-//snippet round
-time.format(time.round(time.strToTime("2026-01-31T09:37:52Z"), time.Hour), "15:04")
-//= "10:00"
-//endsnippet
+example round {
+    time.format(time.round(time.strToTime("2026-01-31T09:37:52Z"), time.Hour), "15:04")
+    = "10:00"
+}
 
-//snippet truncate
-time.format(time.truncate(time.strToTime("2026-01-31T09:37:52Z"), time.Hour), "15:04")
-//= "09:00"
-//endsnippet
+example truncate {
+    time.format(time.truncate(time.strToTime("2026-01-31T09:37:52Z"), time.Hour), "15:04")
+    = "09:00"
+}
 
-//snippet isTime
-[time.isTime(time.now()), time.isTime(5)]
-//= [true, false]
-//endsnippet
+example isTime {
+    [time.isTime(time.now()), time.isTime(5)]
+    = [true, false]
+}
 
-//snippet round
-//endsnippet
+example round {
+}

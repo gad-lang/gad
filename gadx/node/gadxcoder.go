@@ -527,6 +527,25 @@ func (t *RawTextBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.Depth--
 }
 
+// WriteGadx writes an output check: `<<< text`, or `<<<` and its lines one
+// level deeper.
+func (t *OutputCheckStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	if !t.Multi {
+		ctx.WriteLine("<<< " + gnode.EscapeOutputCheck(t.Text))
+		return
+	}
+	ctx.WriteLine("<<<")
+	ctx.Depth++
+	for _, line := range strings.Split(t.Text, "\n") {
+		if line == "" {
+			ctx.write("\n")
+			continue
+		}
+		ctx.WriteLine(line)
+	}
+	ctx.Depth--
+}
+
 func (t *ParaBlockStmt) WriteGadx(ctx *GadxCodeWriteContext) { ctx.writeRawBlock("@p", t.Body) }
 func (t *MdBlockStmt) WriteGadx(ctx *GadxCodeWriteContext)   { ctx.writeRawBlock("@md", t.Body) }
 
@@ -1201,6 +1220,18 @@ func (w *WrapStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	ctx.WriteLine("@wrap")
 	ctx.Depth++
 	ctx.WriteStmts(w.Body)
+	ctx.Depth--
+}
+
+// WriteGadx writes `@example [NAME]` and its body one level deeper.
+func (t *ExampleDecl) WriteGadx(ctx *GadxCodeWriteContext) {
+	line := "@example"
+	if t.Name != "" {
+		line += " " + t.Name
+	}
+	ctx.WriteLine(line)
+	ctx.Depth++
+	ctx.WriteStmts(t.Body)
 	ctx.Depth--
 }
 

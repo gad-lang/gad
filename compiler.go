@@ -85,6 +85,8 @@ type (
 		matchExprs    []*matchExprCtx
 		tryCatchIndex int
 		iotaVal       int
+		// exampleScopes counts the scopes examples opened (compileExample)
+		exampleScopes int
 		// indexOwners: what `end` is the last index of, the innermost last
 		// (compileIndexEnd)
 		indexOwners        []node.Expr
@@ -144,10 +146,14 @@ type (
 		OptimizeExpr        bool
 		MixedWriteFunction  node.Expr
 		MixedExprToTextFunc node.Expr
-		FallbackFunc        func(c *Compiler, nd ast.Node) error
-		embeddedStore       map[string]int
-		moduleStore         *moduleStore
-		constsCache         map[Object]int
+		// Checks compiles the inline checks, `= EXPR` and `<<< text` (issue
+		// #22): on for a test, an example, a doc fence; off, they compile to
+		// nothing.
+		Checks        bool
+		FallbackFunc  func(c *Compiler, nd ast.Node) error
+		embeddedStore map[string]int
+		moduleStore   *moduleStore
+		constsCache   map[Object]int
 	}
 
 	// CompilerError represents a compiler error.
@@ -622,6 +628,13 @@ func (c *Compiler) compileStmts(stmt ...node.Stmt) (err error) {
 // c.hoist.
 func (c *Compiler) compileStmtList(stmt ...node.Stmt) (err error) {
 	l := len(stmt)
+	// the scopes the examples of the list opened (compileExample) close with it
+	examples := c.exampleScopes
+	defer func() {
+		for ; c.exampleScopes > examples; c.exampleScopes-- {
+			c.symbolTable = c.symbolTable.Parent(false)
+		}
+	}()
 
 	if l == 0 {
 		return nil
@@ -693,15 +706,54 @@ stmts:
 			i = j - 1
 			continue stmts
 		default:
+			// `= EXPR` after it (issue #22): the value of the statement checked
+			var vc *node.ValueCheckStmt
+			if i+1 < l {
+				vc, _ = stmt[i+1].(*node.ValueCheckStmt)
+			}
+			// `{ … }` or `example { … }` then `<<<`: the output of the whole block
+			if c.opts.Checks && i+1 < l {
+				if oc, ok := stmt[i+1].(*node.OutputCheckStmt); ok && oc.Target == nil {
+					switch stmt[i].(type) {
+					case *node.BlockStmt, *node.ExampleStmt:
+						if err = c.compileBlockOutputCheck(stmt[i], oc); err != nil {
+							return
+						}
+						i++
+						continue
+					}
+				}
+			}
+			if vc != nil && c.opts.Checks {
+				if es, ok := stmt[i].(*node.ExprStmt); ok {
+					// its value, not dropped: the check takes it
+					if err = c.compileValueCheck(vc, func() error { return c.Compile(es.Expr) }); err != nil {
+						return
+					}
+					i++
+					continue
+				}
+			}
 			var done bool
-			if done, err = c.hoistStmt(stmt[i]); err != nil || done {
-				if err != nil {
+			if done, err = c.hoistStmt(stmt[i]); err != nil {
+				return
+			}
+			if !done {
+				if err = c.Compile(stmt[i]); err != nil {
 					return
 				}
-				continue
 			}
-			if err = c.Compile(stmt[i]); err != nil {
-				return
+			if vc != nil {
+				if c.opts.Checks {
+					got := checkedValue(stmt[i])
+					if got == nil {
+						return c.Errorf(vc, "`=` after a statement with no value")
+					}
+					if err = c.compileValueCheck(vc, func() error { return c.Compile(got) }); err != nil {
+						return
+					}
+				}
+				i++
 			}
 		}
 	}
@@ -734,6 +786,15 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		if err := c.compileFile(nt); err != nil {
 			return err
 		}
+	case *node.ExampleStmt:
+		return c.compileExample(nt)
+	case *node.ValueCheckStmt:
+		// one not after a statement (compileStmtList takes those)
+		if c.opts.Checks {
+			return c.Errorf(nt, "`=` after a statement with no value")
+		}
+	case *node.OutputCheckStmt:
+		return c.compileOutputCheck(nt)
 	case *node.ExprStmt:
 		// A bare `match … { … }` statement is compiled in statement context
 		// (asExpr=false): a block arm's `return` is a normal function return, and
@@ -1354,6 +1415,7 @@ func (c *Compiler) fork(
 			moduleStore:       c.moduleStore,
 			constsCache:       c.constsCache,
 			FallbackFunc:      c.opts.FallbackFunc,
+			Checks:            c.opts.Checks,
 		},
 	})
 

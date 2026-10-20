@@ -88,7 +88,7 @@ Each `@`-attribute is a dict/array; iterate `k, v` to read the member names
     len(Circle.@parents),
     typeName(Circle.@module),
 ]
-// => ["Circle", ["r"], ["kind", "r"], ["area"], ["scaled"], 1, "Module"]
+= ["Circle", ["r"], ["kind", "r"], ["area"], ["scaled"], 1, "Module"]
 ```
 
 ### Members by name, attribute vs item
@@ -103,66 +103,74 @@ c := Circle(; r = 2, kind = "circle")   // bound values live on an instance
     Circle.@name == Circle["@name"],     // the same lookup
     c.area, c.scaled(5),
 ]
-// => ["ClassProperty", "ClassMethod", "Circle", true, 12, 10]
+= ["ClassProperty", "ClassMethod", "Circle", true, 12, 10]
 ```
 
 ## Example — `class_type.gad`
 
 ```gad
-/**
-Shape is a small base class, spread into Circle below.
-**/
-class Shape {
+example class_type_defs {
     /**
-    what kind of shape
+    Shape is a small base class, spread into Circle below.
     **/
-    kind str = "?"
+    class Shape {
+        /**
+        what kind of shape
+        **/
+        kind str = "?"
+    }
+
+    /**
+    Circle has a typed field, a property and a method — enough to show every
+    introspection attribute.
+    **/
+    class Circle {
+        *Shape
+        /**
+        the radius
+        **/
+        r int
+        props {
+            /**
+            the area (a getter)
+            **/
+            area => 3 * this.r * this.r
+        }
+        methods {
+            /**
+            the radius scaled by k
+            **/
+            scaled(k) => this.r * k
+        }
+    }
+
 }
 
-/**
-Circle has a typed field, a property and a method — enough to show every
-introspection attribute.
-**/
-class Circle {
-    *Shape
-    /**
-    the radius
-    **/
-    r int
-    props {
-        /**
-        the area (a getter)
-        **/
-        area => 3 * this.r * this.r
-    }
-    methods {
-        /**
-        the radius scaled by k
-        **/
-        scaled(k) => this.r * k
-    }
+example class_type_introspect {
+    [
+        Circle.@name,
+        [k for k, v in Circle.@fields],
+        [k for k, v in Circle.@flat],
+        [k for k, v in Circle.@props],
+        [k for k, v in Circle.@methods],
+        len(Circle.@parents),
+        typeName(Circle.@module),
+    ]
+    = ["Circle", ["r"], ["kind", "r"], ["area"], ["scaled"], 1, "Module"]
 }
 
-
-[
-    Circle.@name,
-    [k for k, v in Circle.@fields],
-    [k for k, v in Circle.@flat],
-    [k for k, v in Circle.@props],
-    [k for k, v in Circle.@methods],
-    len(Circle.@parents),
-    typeName(Circle.@module),
-]
-
-attr := "@name"
-c := Circle(; r = 2, kind = "circle")   // bound values live on an instance
-[
-    typeName(Circle.area),               // the unbound property object
-    typeName(Circle["scaled"]),          // the unbound method object
-    Circle[attr],                        // item form: a dynamic key
-    Circle.@name == Circle["@name"],     // the same lookup
-    c.area, c.scaled(5),
-]
+example class_type_members {
+    attr := "@name"
+    c := Circle(; r = 2, kind = "circle")   // bound values live on an instance
+    [
+        typeName(Circle.area),               // the unbound property object
+        typeName(Circle["scaled"]),          // the unbound method object
+        Circle[attr],                        // item form: a dynamic key
+        Circle.@name == Circle["@name"],     // the same lookup
+        c.area, c.scaled(5),
+    ]
+    = ["ClassProperty", "ClassMethod", "Circle", true, 12, 10]
+}
 
 return Circle.@name
 ```

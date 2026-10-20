@@ -179,36 +179,12 @@ func runnableGadFence(t string) bool {
 	return true
 }
 
-// runExample runs an example's code. A line beginning with `>>> ` asserts that
-// the value of the program up to that point equals the value of the expression
-// after `>>>` (doctest style); other lines are ordinary code. It returns nil on
-// success or a descriptive error on a run failure or a doctest mismatch.
+// runExample runs an example's code once, its inline checks verified as it
+// runs (issue #22): a line `= EXPR` checks the value of the statement before
+// it, `<<< text` / `<<<⏎ lines ⏎>>>` the output since the previous check. It
+// returns nil on success or a descriptive error.
 func runExample(code string) error {
-	var prog []string
-	for _, ln := range strings.Split(code, "\n") {
-		t := strings.TrimSpace(ln)
-		if t == ">>>" || strings.HasPrefix(t, ">>> ") {
-			want := stripLineComment(strings.TrimSpace(strings.TrimPrefix(t, ">>>")))
-			if want == "" {
-				continue
-			}
-			got, err := evalGadExample(strings.Join(prog, "\n"))
-			if err != nil {
-				return fmt.Errorf("running example: %w", err)
-			}
-			exp, err := evalGadExample("return " + want)
-			if err != nil {
-				return fmt.Errorf("evaluating expected %q: %w", want, err)
-			}
-			if !objectsEqual(got, exp) {
-				return fmt.Errorf("doctest mismatch: got %s, want %s",
-					objectStr(got), objectStr(exp))
-			}
-			continue
-		}
-		prog = append(prog, ln)
-	}
-	if _, err := evalGadExample(strings.Join(prog, "\n")); err != nil {
+	if _, err := evalGadExample(code); err != nil {
 		return fmt.Errorf("running example: %w", err)
 	}
 	return nil
@@ -239,41 +215,8 @@ func exampleCompileOptions() gad.CompileOptions {
 	return gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
 		ModuleMap:   DefaultModuleMap(exampleWorkDir, &sourcePath),
 		EmbededdMap: DefaultEmbedMap(exampleWorkDir),
+		// its inline checks (`= EXPR`, `<<< text`) verified as it runs
+		Checks: true,
 	}}
 }
 
-// objectsEqual reports whether two result objects are equal, treating nil as a
-// distinct value.
-func objectsEqual(a, b gad.Object) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return a.Equal(b)
-}
-
-func objectStr(o gad.Object) string {
-	if o == nil {
-		return "nil"
-	}
-	return o.ToString()
-}
-
-// stripLineComment removes a trailing `// …` comment from a doctest expected
-// value, respecting string literals.
-func stripLineComment(s string) string {
-	inStr := byte(0)
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case inStr != 0:
-			if c == inStr {
-				inStr = 0
-			}
-		case c == '"' || c == '\'' || c == '`':
-			inStr = c
-		case c == '/' && i+1 < len(s) && s[i+1] == '/':
-			return strings.TrimSpace(s[:i])
-		}
-	}
-	return strings.TrimSpace(s)
-}

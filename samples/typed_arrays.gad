@@ -83,121 +83,121 @@ skip it on a hot path with the run flag `gad.RunFlagSkipTypedArrayItemCheck`
 same way `RunFlagSkipReceiverTypeCheck` skips the class `this` check.
 **/
 
-//snippet declare
-type numerics []<int|uint|float|decimal>   // items of a type union
-type users []{ name; id }                  // items satisfying an interface
-type grid [][]int                          // arrays of int
+example declare {
+    type numerics []<int|uint|float|decimal>   // items of a type union
+    type users []{ name; id }                  // items satisfying an interface
+    type grid [][]int                          // arrays of int
 
-n := numerics(1, 2.5, 3u)
-u := users({name: "ana", id: 1})
-g := grid([1, 2], [3])
-type board [2][2]str
-b := board(; fill=".")                     // by its dimensions
-[typeName(n), str(n), u[0].name, str(g), str(b)]
-/**= ["numerics", "numerics[1, 2.5, 3]", "ana", "grid[[1, 2], [3]]", "board[[\".\", \".\"], [\".\", \".\"]]"] **/
-//endsnippet
-
-//snippet behaves_as_array
-type ints []int
-
-xs := ints(3, 1, 2)
-xs[0] = 30          // index set (checked)
-delete xs[1]        // delete an item
-xs += 5             // append (checked)
-more := xs ++ [6]   // a new typed array with 6 appended
-sum := 0
-for v in xs { sum += v }
-
-// every write is checked: a wrong item throws
-fails := func(f) { try { f(); return false } catch { return true } }
-rejected := [
-    fails(func() { xs[0] = "x" }),
-    fails(func() { xs += "x" }),
-    fails(func() { ints(1, "y") }),
-]
-[str(xs), str(xs[1:]), str(more), sum, 5 in xs, str(sort(ints(3, 1, 2))), rejected]
-/**= ["ints[30, 2, 5]", "ints[2, 5]", "ints[30, 2, 5, 6]", 37, true, "ints[1, 2, 3]", [true, true, true]] **/
-//endsnippet
-
-//snippet casts
-type reals []<int|float>
-interface realsIface []<int|float>
-
-sat := func(v, T) { try { v :: T; return true } catch { return false } }
-r := [1, 2.5] ::> reals         // array -> typed array (items checked)
-plain := r ::> array            // typed array -> array
-asIface := r :> realsIface      // typed array -> array interface value
-back := asIface ::> reals       // and back
-
-avg := func(xs reals) => (xs[0] + xs[1]) / 2
-[typeName(r), typeName(plain), typeName(asIface), typeName(back),
- sat([1, 2.5], reals), sat(r, reals), avg(r)]
-/**= ["reals", "array", "array", "reals", false, true, 1.75] **/
-//endsnippet
-
-//snippet members
-type measures []<int|float> {
-    /// what is measured
-    [db=(;column="lbl")]
-    label = "none"
-    /// a multiplier
-    scale int = 1
-
-    /// `n` zero items
-    new(n int) {
-        items := []
-        for i := 0; i < n; i++ { items += 0 }
-        return new(*items; label="zeros")
-    }
-
-    props {
-        /// the scaled sum
-        [computed]
-        total => this.sum() * this.scale
-    }
-
-    methods {
-        /// sums the items
-        [route="/sum"]
-        sum() {
-            s := 0
-            for v in this { s += v }
-            return s
-        }
-        /// appends an item, returning the value
-        add(v int|float) {
-            this += v
-            return this
-        }
-    }
+    n := numerics(1, 2.5, 3u)
+    u := users({name: "ana", id: 1})
+    g := grid([1, 2], [3])
+    type board [2][2]str
+    b := board(; fill=".")                     // by its dimensions
+    [typeName(n), str(n), u[0].name, str(g), str(b)]
+    = ["numerics", "numerics[1, 2.5, 3]", "ana", "grid[[1, 2], [3]]", "board[[\".\", \".\"], [\".\", \".\"]]"]
 }
 
-m := measures(1, 2.5; scale=2)   // items + a named field value
-m.label = "cm"                   // a field write (checked against its type)
-m.add(3)
-z := measures(2)                 // the `new(n int)` overload
-[str(m), m.total, m[1], z.label, len(z)]
-/**= ["measures[1, 2.5, 3]{label: \"cm\", scale: 2}", 13.0, 2.5, "zeros", 2] **/
-//endsnippet
+example behaves_as_array {
+    type ints []int
 
-//snippet reflection
-/// sensor readings
-[unit="celsius", version=2]
-type readings []float {
-    [db=(;column="src")]
-    source = ""
-    methods {
-        [route="/max"]
-        max() {
-            best := this[0]
-            for v in this { if v > best { best = v } }
-            return best
-        }
-    }
+    xs := ints(3, 1, 2)
+    xs[0] = 30          // index set (checked)
+    delete xs[1]        // delete an item
+    xs += 5             // append (checked)
+    more := xs ++ [6]   // a new typed array with 6 appended
+    sum := 0
+    for v in xs { sum += v }
+
+    // every write is checked: a wrong item throws
+    fails := func(f) { try { f(); return false } catch { return true } }
+    rejected := [
+        fails(func() { xs[0] = "x" }),
+        fails(func() { xs += "x" }),
+        fails(func() { ints(1, "y") }),
+    ]
+    [str(xs), str(xs[1:]), str(more), sum, 5 in xs, str(sort(ints(3, 1, 2))), rejected]
+    = ["ints[30, 2, 5]", "ints[2, 5]", "ints[30, 2, 5, 6]", 37, true, "ints[1, 2, 3]", [true, true, true]]
 }
 
-[readings.@name, str(readings.@meta), readings.@depth, readings.@elem == float,
- readings.@size[0] == [nil, nil, nil],
- str(readings.source.@meta), str(readings.max.@meta), readings(20.5, 22.0).max()]
-/**= ["readings", "(;unit=\"celsius\", version=2)", 1, true, true, "(;db=(;column=\"src\"))", "(;route=\"/max\")", 22.0] **/
-//endsnippet
+example casts {
+    type reals []<int|float>
+    interface realsIface []<int|float>
+
+    sat := func(v, T) { try { v :: T; return true } catch { return false } }
+    r := [1, 2.5] ::> reals         // array -> typed array (items checked)
+    plain := r ::> array            // typed array -> array
+    asIface := r :> realsIface      // typed array -> array interface value
+    back := asIface ::> reals       // and back
+
+    avg := func(xs reals) => (xs[0] + xs[1]) / 2
+    [typeName(r), typeName(plain), typeName(asIface), typeName(back),
+     sat([1, 2.5], reals), sat(r, reals), avg(r)]
+    = ["reals", "array", "array", "reals", false, true, 1.75]
+}
+
+example members {
+    type measures []<int|float> {
+        /// what is measured
+        [db=(;column="lbl")]
+        label = "none"
+        /// a multiplier
+        scale int = 1
+
+        /// `n` zero items
+        new(n int) {
+            items := []
+            for i := 0; i < n; i++ { items += 0 }
+            return new(*items; label="zeros")
+        }
+
+        props {
+            /// the scaled sum
+            [computed]
+            total => this.sum() * this.scale
+        }
+
+        methods {
+            /// sums the items
+            [route="/sum"]
+            sum() {
+                s := 0
+                for v in this { s += v }
+                return s
+            }
+            /// appends an item, returning the value
+            add(v int|float) {
+                this += v
+                return this
+            }
+        }
+    }
+
+    m := measures(1, 2.5; scale=2)   // items + a named field value
+    m.label = "cm"                   // a field write (checked against its type)
+    m.add(3)
+    z := measures(2)                 // the `new(n int)` overload
+    [str(m), m.total, m[1], z.label, len(z)]
+    = ["measures[1, 2.5, 3]{label: \"cm\", scale: 2}", 13.0, 2.5, "zeros", 2]
+}
+
+example reflection {
+    /// sensor readings
+    [unit="celsius", version=2]
+    type readings []float {
+        [db=(;column="src")]
+        source = ""
+        methods {
+            [route="/max"]
+            max() {
+                best := this[0]
+                for v in this { if v > best { best = v } }
+                return best
+            }
+        }
+    }
+
+    [readings.@name, str(readings.@meta), readings.@depth, readings.@elem == float,
+     readings.@size[0] == [nil, nil, nil],
+     str(readings.source.@meta), str(readings.max.@meta), readings(20.5, 22.0).max()]
+    = ["readings", "(;unit=\"celsius\", version=2)", 1, true, true, "(;db=(;column=\"src\"))", "(;route=\"/max\")", 22.0]
+}

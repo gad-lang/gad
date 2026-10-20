@@ -1151,3 +1151,51 @@ func IsPreserveWhitespace(name string) bool {
 	}
 	return false
 }
+
+// =============================================================================
+// OutputCheckStmt — `<<< text` / `<<<` + indented lines (issue #22)
+// =============================================================================
+
+// OutputCheckStmt checks what was rendered into the current node (`$el`)
+// since the previous check: `<<< <div>hello</div>`, or `<<<` and the lines
+// indented under it (joined: a rendering has no line breaks of its own).
+type OutputCheckStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Text    string
+	Multi   bool
+}
+
+func (t *OutputCheckStmt) Pos() source.Pos { return t.NodePos }
+func (t *OutputCheckStmt) End() source.Pos { return t.NodeEnd }
+func (t *OutputCheckStmt) StmtNode()       {}
+func (t *OutputCheckStmt) String() string  { return "<<< " + gnode.EscapeOutputCheck(t.Text) }
+
+func (t *OutputCheckStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertOutputCheck(t)...)
+}
+
+// =============================================================================
+// ExampleDecl — `@example [NAME]` + indented body (issue #22)
+// =============================================================================
+
+// ExampleDecl is gadx's `@example [NAME]`: its indented body is a gad `example
+// [NAME] { … }` — its markup rendered into the current node, its checks
+// verified; named, a snippet.
+type ExampleDecl struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	Name    string // "" when unnamed
+	Body    gnode.Stmts
+}
+
+func (t *ExampleDecl) Pos() source.Pos { return t.NodePos }
+func (t *ExampleDecl) End() source.Pos { return t.NodeEnd }
+func (t *ExampleDecl) StmtNode()       {}
+func (t *ExampleDecl) String() string  { return "gadx.Example(" + t.Name + ")" }
+
+func (t *ExampleDecl) WriteCode(ctx *gnode.CodeWriteContext) {
+	ctx.WriteStmts(convertExampleDecl(t)...)
+}

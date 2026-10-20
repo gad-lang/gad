@@ -172,6 +172,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanExport(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanOutputCheck(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanRawTextBlock(); tok.Valid() {
 			return tok
 		}
@@ -182,6 +185,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 			return tok
 		}
 		if tok := s.scanMdBlock(); tok.Valid() {
+			return tok
+		}
+		if tok := s.scanExample(); tok.Valid() {
 			return tok
 		}
 		if tok := s.scanTest(); tok.Valid() {
@@ -653,6 +659,28 @@ func (s *scanner) scanTextBlock() gadparser.PToken {
 		return s.newToken(gadxtoken.TextBlock, lit, "")
 	}
 	return gadparser.PToken{}
+}
+
+var rgxOutputCheck = regexp.MustCompile(`^<<<(?: (.*)|\s*)$`)
+
+// scanOutputCheck matches an output check (issue #22): `<<< text` — the text
+// on the line, `\n`, `\t`, `\\` escaped — or `<<<` alone, whose expected text
+// is the lines indented under it (read as `@raw_text` reads its body: the
+// indentation ends it, no closer).
+func (s *scanner) scanOutputCheck() gadparser.PToken {
+	sm := rgxOutputCheck.FindStringSubmatch(s.buffer)
+	if sm == nil {
+		return gadparser.PToken{}
+	}
+	lit := s.buffer
+	s.consume(len(s.buffer))
+	if strings.TrimSpace(lit) == "<<<" {
+		s.pushForce(false)
+		pt := s.newToken(gadxtoken.OutputCheck, lit, "")
+		pt.Set("multi", true)
+		return pt
+	}
+	return s.newToken(gadxtoken.OutputCheck, lit, sm[1])
 }
 
 var rgxRawTextBlock = regexp.MustCompile(`^@raw_text\s*$`)
@@ -1705,6 +1733,18 @@ func (s *scanner) scanCall() gadparser.PToken {
 	if sm := rgxCall.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		s.consume(len(sm[0]))
 		return s.newToken(gadxtoken.Call, sm[0], sm[1])
+	}
+	return gadparser.PToken{}
+}
+
+var rgxExample = regexp.MustCompile(`^@example(?:\s+(\w+))?\s*$`)
+
+// scanExample matches an `@example [NAME]` directive (issue #22): its indented
+// body becomes a Gad `example [NAME] { … }`.
+func (s *scanner) scanExample() gadparser.PToken {
+	if sm := rgxExample.FindStringSubmatch(s.buffer); len(sm) != 0 {
+		s.consume(len(sm[0]))
+		return s.newToken(gadxtoken.Example, sm[0], sm[1])
 	}
 	return gadparser.PToken{}
 }

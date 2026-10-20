@@ -14,7 +14,7 @@ dict.
 ```gad
 mathx := import("./mathx.gad")
 [mathx.pi, mathx.square(7), mathx.cube(3), mathx.circleArea(2), mathx.rectArea(3, 4)]
-// => [3.141592653589793, 49, 27, 12.566370614359172, 12]
+= [3.141592653589793, 49, 27, 12.566370614359172, 12]
 ```
 
 ## The import statement
@@ -28,7 +28,7 @@ another name, a default when the module has none of it).
 @import "./mathx.gad" as mx
 @import { square, cube: cubed, tau = 6.28 } from "./mathx.gad"
 [mx.square(3), square(4), cubed(2), tau]
-// => [9, 16, 8, 6.28]
+= [9, 16, 8, 6.28]
 ```
 
 ## Names without an extension
@@ -41,7 +41,7 @@ for `include`.
 ```gad
 m := import("./mathx")                  // resolves ./mathx.gad
 m.square(4)
-// => 16
+= 16
 ```
 
 ## Modules already compiled (`.gadb`)
@@ -72,7 +72,7 @@ cached, so the params apply on its first import.
 ```gad
 pt := import("./exports.gad"; lang="pt")
 [pt.language, pt.greet("Gad")]
-// => ["pt", "Olá, Gad!"]
+= ["pt", "Olá, Gad!"]
 ```
 
 ## Exported properties
@@ -94,7 +94,7 @@ seen += counter.count             // 0
 counter.total = 10                // external write to the live binding
 counter.inc()                     // internal write (+1)
 [seen, counter.total, typeName(reflect.get(counter, "count"))]
-// => [[0, 6, 0], 11, "Prop"]
+= [[0, 6, 0], 11, "Prop"]
 ```
 
 ## Importing many modules with a glob
@@ -116,7 +116,7 @@ plugins := import("./plugins/*.gad"; punct=".")
     [p.greet("Gad") for p in plugins],
     import("./no_such_dir/*.gad"),                    // no match: []
 ]
-// => [["en", "pt"], ["Hello, Gad.", "Olá, Gad."], []]
+= [["en", "pt"], ["Hello, Gad.", "Olá, Gad."], []]
 ```
 
 The matches can be narrowed by the same filters `embed` takes, prefixed with `@`
@@ -146,7 +146,7 @@ langs := func(mods) => [m.lang for m in mods]
     langs(import("./plugins/*.gad"; @includes=["*_test.gad"])), // only the test file
     langs(import("./plugins/*.gad"; @includes=["*.gad", "*_test.gad"])),
 ]
-// => [["en"], ["pt"], ["test"], ["en", "test", "pt"]]
+= [["en"], ["pt"], ["test"], ["en", "test", "pt"]]
 ```
 
 A glob whose last segment has no extension names **modules**, like an import
@@ -168,60 +168,84 @@ greeters := import("./plugins/*")::dict  // plugins_test.gad is a test file: ski
     greeters.pt.lang,
     typeName(greeters),
 ]
-// => [["en", "pt"], "pt", "dict"]
+= [["en", "pt"], "pt", "dict"]
 ```
 
 ## Example — `main.gad`
 
 ```gad
-@import "./mathx.gad" as mx
-@import { square, cube: cubed, tau = 6.28 } from "./mathx.gad"
-[mx.square(3), square(4), cubed(2), tau]
+example import_stmt {
+    @import "./mathx.gad" as mx
+    @import { square, cube: cubed, tau = 6.28 } from "./mathx.gad"
+    [mx.square(3), square(4), cubed(2), tau]
+    = [9, 16, 8, 6.28]
+}
 
-mathx := import("./mathx.gad")
-[mathx.pi, mathx.square(7), mathx.cube(3), mathx.circleArea(2), mathx.rectArea(3, 4)]
+example import_module {
+    mathx := import("./mathx.gad")
+    [mathx.pi, mathx.square(7), mathx.cube(3), mathx.circleArea(2), mathx.rectArea(3, 4)]
+    = [3.141592653589793, 49, 27, 12.566370614359172, 12]
+}
 
-pt := import("./exports.gad"; lang="pt")
-[pt.language, pt.greet("Gad")]
+example import_params {
+    pt := import("./exports.gad"; lang="pt")
+    [pt.language, pt.greet("Gad")]
+    = ["pt", "Olá, Gad!"]
+}
 
-counter := import("./exports.gad")
-seen := [counter.count]           // 0 (getter)
-counter.count = 5                 // setter
-counter.inc()                     // bumps count and total
-seen += counter.count             // 6
-counter.count = -3                // the setter clamps at 0
-seen += counter.count             // 0
+example import_props {
+    counter := import("./exports.gad")
+    seen := [counter.count]           // 0 (getter)
+    counter.count = 5                 // setter
+    counter.inc()                     // bumps count and total
+    seen += counter.count             // 6
+    counter.count = -3                // the setter clamps at 0
+    seen += counter.count             // 0
 
-counter.total = 10                // external write to the live binding
-counter.inc()                     // internal write (+1)
-[seen, counter.total, typeName(reflect.get(counter, "count"))]
+    counter.total = 10                // external write to the live binding
+    counter.inc()                     // internal write (+1)
+    [seen, counter.total, typeName(reflect.get(counter, "count"))]
+    = [[0, 6, 0], 11, "Prop"]
+}
 
-// en.gad and pt.gad, sorted; `punct` is their module param (the first import of
-// a module applies its params, like any import)
-plugins := import("./plugins/*.gad"; punct=".")
-[
-    [p.lang for p in plugins],
-    [p.greet("Gad") for p in plugins],
-    import("./no_such_dir/*.gad"),                    // no match: []
-]
+example import_glob {
+    // en.gad and pt.gad, sorted; `punct` is their module param (the first import of
+    // a module applies its params, like any import)
+    plugins := import("./plugins/*.gad"; punct=".")
+    [
+        [p.lang for p in plugins],
+        [p.greet("Gad") for p in plugins],
+        import("./no_such_dir/*.gad"),                    // no match: []
+    ]
+    = [["en", "pt"], ["Hello, Gad.", "Olá, Gad."], []]
+}
 
-langs := func(mods) => [m.lang for m in mods]
-[
-    langs(import("./plugins/*.gad"; @excludes=["pt.gad"])),
-    langs(import("./plugins/*.gad"; @includes_re=["^p"])),     // pt.gad (not the test file)
-    langs(import("./plugins/*.gad"; @includes=["*_test.gad"])), // only the test file
-    langs(import("./plugins/*.gad"; @includes=["*.gad", "*_test.gad"])),
-]
+example import_glob_filters {
+    langs := func(mods) => [m.lang for m in mods]
+    [
+        langs(import("./plugins/*.gad"; @excludes=["pt.gad"])),
+        langs(import("./plugins/*.gad"; @includes_re=["^p"])),     // pt.gad (not the test file)
+        langs(import("./plugins/*.gad"; @includes=["*_test.gad"])), // only the test file
+        langs(import("./plugins/*.gad"; @includes=["*.gad", "*_test.gad"])),
+    ]
+    = [["en"], ["pt"], ["test"], ["en", "test", "pt"]]
+}
 
-m := import("./mathx")                  // resolves ./mathx.gad
-m.square(4)
+example import_no_ext {
+    m := import("./mathx")                  // resolves ./mathx.gad
+    m.square(4)
+    = 16
+}
 
-greeters := import("./plugins/*")::dict  // plugins_test.gad is a test file: skipped
-[
-    sort(collect(keys(greeters))),
-    greeters.pt.lang,
-    typeName(greeters),
-]
+example import_glob_dict {
+    greeters := import("./plugins/*")::dict  // plugins_test.gad is a test file: skipped
+    [
+        sort(collect(keys(greeters))),
+        greeters.pt.lang,
+        typeName(greeters),
+    ]
+    = [["en", "pt"], "pt", "dict"]
+}
 
 return mathx.square(7)
 ```

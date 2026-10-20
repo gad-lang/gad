@@ -15,7 +15,7 @@ directly — but merely *holding* an error does not stop execution; only `throw`
 ```gad
 err := error("oops")
 [isError(err), err.name, err.message]
-// => [true, "error", "oops"]
+= [true, "error", "oops"]
 ```
 
 ## throw
@@ -35,7 +35,7 @@ attempt := func(f) { try { return f() } catch e { return e.message } }
     required("x"),
     attempt(() => required(nil)),
 ]
-// => [3, "not positive: -1", "x", "missing value"]
+= [3, "not positive: -1", "x", "missing value"]
 ```
 
 ## try / catch / finally
@@ -58,7 +58,7 @@ safeDiv := func(a, b) {
     }
 }
 [safeDiv(10, 2), safeDiv(10, 0)]
-// => [5, "caught: error: division by zero"]
+= [5, "caught: error: division by zero"]
 ```
 
 ## Builtin errors
@@ -70,7 +70,7 @@ an error's `.name`.
 ```gad
 e := NotImplementedError.New("todo: parse v2")
 [e.name, e.message]
-// => ["NotImplementedError", "todo: parse v2"]
+= ["NotImplementedError", "todo: parse v2"]
 ```
 
 Available builtin errors:
@@ -102,7 +102,7 @@ z := mayThrow() or 99             // swallow the throw, use the fallback
 ok := (2 * 3) or 0                // no throw -> the left value
 recovered := mayThrow() or ("recovered: " + str($err)) // $err is the caught error
 [z, ok, recovered]
-// => [99, 6, "recovered: error: fail"]
+= [99, 6, "recovered: error: fail"]
 ```
 
 ## Recovering with `defer_err`
@@ -120,56 +120,74 @@ safe := func() {
     throw "boom"
 }
 safe()
-// => recovered: error: boom
+= "recovered: error: boom"
 ```
 
 ## Example — `error_handling.gad`
 
 ```gad
-err := error("oops")
-[isError(err), err.name, err.message]
+example error_value {
+    err := error("oops")
+    [isError(err), err.name, err.message]
+    = [true, "error", "oops"]
+}
 
-safeDiv := func(a, b) {
-    try {
-        if b == 0 {
-            throw "division by zero"
+example try_catch {
+    safeDiv := func(a, b) {
+        try {
+            if b == 0 {
+                throw "division by zero"
+            }
+            return a / b
+        } catch e {
+            return "caught: " + str(e)
+        } finally {
+            // always runs (cleanup, logging, …)
         }
-        return a / b
-    } catch e {
-        return "caught: " + str(e)
-    } finally {
-        // always runs (cleanup, logging, …)
     }
+    [safeDiv(10, 2), safeDiv(10, 0)]
+    = [5, "caught: error: division by zero"]
 }
-[safeDiv(10, 2), safeDiv(10, 0)]
 
-e := NotImplementedError.New("todo: parse v2")
-[e.name, e.message]
+example builtin_errors {
+    e := NotImplementedError.New("todo: parse v2")
+    [e.name, e.message]
+    = ["NotImplementedError", "todo: parse v2"]
+}
 
-mayThrow := func() { throw "fail" }
-z := mayThrow() or 99             // swallow the throw, use the fallback
-ok := (2 * 3) or 0                // no throw -> the left value
-recovered := mayThrow() or ("recovered: " + str($err)) // $err is the caught error
-[z, ok, recovered]
+example or_fallback {
+    mayThrow := func() { throw "fail" }
+    z := mayThrow() or 99             // swallow the throw, use the fallback
+    ok := (2 * 3) or 0                // no throw -> the left value
+    recovered := mayThrow() or ("recovered: " + str($err)) // $err is the caught error
+    [z, ok, recovered]
+    = [99, 6, "recovered: error: fail"]
+}
 
-safe := func() {
-    defer_err {
-        $ret = "recovered: " + str($err)
-        $err = nil
+example defer_err {
+    safe := func() {
+        defer_err {
+            $ret = "recovered: " + str($err)
+            $err = nil
+        }
+        throw "boom"
     }
-    throw "boom"
+    safe()
+    = "recovered: error: boom"
 }
-safe()
 
-positive := (n) => n > 0 ? n : throw "not positive: " + str(n)
-required := (v) => v ?? throw "missing value"
-attempt := func(f) { try { return f() } catch e { return e.message } }
-[
-    positive(3),
-    attempt(() => positive(-1)),       // the throwing branch ran
-    required("x"),
-    attempt(() => required(nil)),
-]
+example throw_expr {
+    positive := (n) => n > 0 ? n : throw "not positive: " + str(n)
+    required := (v) => v ?? throw "missing value"
+    attempt := func(f) { try { return f() } catch e { return e.message } }
+    [
+        positive(3),
+        attempt(() => positive(-1)),       // the throwing branch ran
+        required("x"),
+        attempt(() => required(nil)),
+    ]
+    = [3, "not positive: -1", "x", "missing value"]
+}
 
 return safeDiv(20, 4)
 ```

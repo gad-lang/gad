@@ -102,89 +102,89 @@ form.
 **/
 
 
-//snippet multiline_strings
-println("first
+example multiline_strings {
+    println("first
 second")
-println(`raw \t here
+    println(`raw \t here
 next`)
-/**<
+}
+<<<
 first
 second
 raw \t here
 next
-**/
-//endsnippet
+>>>
 
-//snippet heredoc_single
-["""abc""", """abc""de""", """tab\tend""", """quote: \"x\""""]
-/**= ["abc", "abc\"\"de", "tab\tend", "quote: \"x\""] **/
-//endsnippet
+example heredoc_single {
+    ["""abc""", """abc""de""", """tab\tend""", """quote: \"x\""""]
+    = ["abc", "abc\"\"de", "tab\tend", "quote: \"x\""]
+}
 
-//snippet heredoc_fence
-[
-    """say "hi" now""",                 // a single " is text
-    """"" a triple """ inside """"",    // fence of 5: """ is text
-    str(`````raw ``` fence`````),       // fence of 5 backticks (a rawStr)
-]
-/**= ["say \"hi\" now", " a triple \"\"\" inside ", "raw ``` fence"] **/
-//endsnippet
+example heredoc_fence {
+    [
+        """say "hi" now""",                 // a single " is text
+        """"" a triple """ inside """"",    // fence of 5: """ is text
+        str(`````raw ``` fence`````),       // fence of 5 backticks (a rawStr)
+    ]
+    = ["say \"hi\" now", " a triple \"\"\" inside ", "raw ``` fence"]
+}
 
-//snippet heredoc_multi
-poem := """
+example heredoc_multi {
+    poem := """
     roses are red
     violets are blue
     """
-verbatim := ```
+    verbatim := ```
     C:\tmp\file {x}
     line two
     ```
-println(poem)
-println(verbatim)
-/**<
+    println(poem)
+    println(verbatim)
+}
+<<<
 roses are red
 violets are blue
 C:\tmp\file {x}
 line two
-**/
-//endsnippet
+>>>
 
-//snippet heredoc_template
-name := "Gad"
-n := 3
-println(#"""
+example heredoc_template {
+    name := "Gad"
+    n := 3
+    println(#"""
     hello {name}
     {n} + 1 = {n + 1}
     """)
-println(#"""set \{ {name} }""")          // escaped braces
-println(#`user home: C:\Users\{name}`)   // raw template: backslashes verbatim
-println(#```
+    println(#"""set \{ {name} }""")          // escaped braces
+    println(#`user home: C:\Users\{name}`)   // raw template: backslashes verbatim
+    println(#```
     dir: C:\Users\{name}
     n+1 = {n + 1}
     ```)
-/**<
+}
+<<<
 hello Gad
 3 + 1 = 4
 set { Gad }
 user home: C:\Users\Gad
 dir: C:\Users\Gad
 n+1 = 4
-**/
-//endsnippet
+>>>
 
-//snippet code_strings
-src := code
-    for x in [1, 2] {
-        println(x)
-    }
-end
-println(src)
-println(code a + b end)                   // single-line form
-/**<
+example code_strings {
+    src := code
+        for x in [1, 2] {
+            println(x)
+        }
+    end
+    println(src)
+    println(code a + b end)                   // single-line form
+}
+<<<
 for x in [1, 2] {
     println(x)
 }
 a + b
-**/
-//endsnippet
+>>>
 
 return poem

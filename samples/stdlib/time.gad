@@ -9,7 +9,7 @@ Returns Universal Coordinated Time (UTC) location.
 
 ```gad
 time.isLocation(time.utc())
->>> true
+= true
 ```
 **/
 export utc() <Location> => nil
@@ -21,7 +21,7 @@ Returns the system's local time zone location.
 
 ```gad
 time.isLocation(time.local())
->>> true
+= true
 ```
 **/
 export local() <Location> => nil
@@ -33,7 +33,7 @@ Returns English name of the month m ("January", "February", ...).
 
 ```gad
 time.monthString(1)   // 1 = January
->>> "January"
+= "January"
 ```
 **/
 export monthString(m Months) <str> => nil
@@ -45,7 +45,7 @@ Returns English name of the int weekday w, note that 0 is Sunday.
 
 ```gad
 time.weekdayString(0)
->>> "Sunday"
+= "Sunday"
 ```
 **/
 export weekdayString(w Weekdays) <str> => nil
@@ -57,7 +57,7 @@ Returns a string representing the duration d in the form "72h3m0.5s".
 
 ```gad
 time.durationString(90 * time.Minute)
->>> "1h30m0s"
+= "1h30m0s"
 ```
 **/
 export durationString(d duration) <str> => nil
@@ -69,7 +69,7 @@ Returns the duration d as an int nanosecond count.
 
 ```gad
 time.durationNanoseconds(time.Second)
->>> 1000000000
+= 1000000000
 ```
 **/
 export durationNanoseconds(d duration) <int> => nil
@@ -81,7 +81,7 @@ Returns the duration d as an int microsecond count.
 
 ```gad
 time.durationMicroseconds(time.Millisecond)
->>> 1000
+= 1000
 ```
 **/
 export durationMicroseconds(d duration) <int> => nil
@@ -93,7 +93,7 @@ Returns the duration d as an int millisecond count.
 
 ```gad
 time.durationMilliseconds(time.Second)
->>> 1000
+= 1000
 ```
 **/
 export durationMilliseconds(d duration) <int> => nil
@@ -105,7 +105,7 @@ Returns the duration d as a floating point number of seconds.
 
 ```gad
 time.durationSeconds(90 * time.Minute)
->>> 5400
+= 5400
 ```
 **/
 export durationSeconds(d duration) <float> => nil
@@ -117,7 +117,7 @@ Returns the duration d as a floating point number of minutes.
 
 ```gad
 time.durationMinutes(90 * time.Minute)
->>> 90
+= 90
 ```
 **/
 export durationMinutes(d duration) <float> => nil
@@ -132,7 +132,7 @@ Pauses the current goroutine for at least the duration.
 
 ```gad
 time.durationHours(3 * time.Hour)
->>> 3
+= 3
 ```
 **/
 export durationHours(d duration) <float> => nil
@@ -144,7 +144,7 @@ Parses duration s and returns duration as int or error.
 
 ```gad
 time.parseDuration("2h30m") == 2 * time.Hour + 30 * time.Minute
->>> true
+= true
 ```
 **/
 export parseDuration(s str) <duration> => nil
@@ -156,7 +156,7 @@ Returns the result of rounding duration to the nearest multiple of m.
 
 ```gad
 time.durationRound(time.parseDuration("1h17m30s"), time.Minute)
->>> dur 1h18m
+= dur 1h18m
 ```
 **/
 export durationRound(d duration, m duration) <duration> => nil
@@ -168,7 +168,7 @@ Returns the result of rounding duration toward zero to a multiple of m.
 
 ```gad
 time.durationTruncate(time.parseDuration("1h17m30s"), time.Minute)
->>> dur 1h17m
+= dur 1h17m
 ```
 **/
 export durationTruncate(d duration, m duration) <duration> => nil
@@ -181,7 +181,7 @@ Returns a Location that always uses the given zone name and offset
 
 ```gad
 time.isLocation(time.fixedZone("X+1", 3600))
->>> true
+= true
 ```
 **/
 export fixedZone(name str, sec int) <Location> => nil
@@ -193,7 +193,7 @@ Returns the Location with the given name.
 
 ```gad
 time.isLocation(time.loadLocation("UTC"))
->>> true
+= true
 ```
 **/
 export loadLocation(name str) <Location> => nil
@@ -205,7 +205,7 @@ Reports whether any value is of location type.
 
 ```gad
 [time.isLocation(time.utc()), time.isLocation(5)]
->>> [true, false]
+= [true, false]
 ```
 **/
 export isLocation(any) <bool> => nil
@@ -217,7 +217,7 @@ Returns zero time.
 
 ```gad
 time.isTime(time.time())
->>> true
+= true
 ```
 **/
 export time() <time> => nil
@@ -241,7 +241,7 @@ of optional arguments are used if not provided.
 
 ```gad
 time.format(time.date(2026, 1, 31, 9, 0, 0, 0, time.utc()), "2006-01-02")
->>> "2026-01-31"
+= "2026-01-31"
 ```
 **/
 export date(year int, month Months, day int, hour int, min int, sec int, nsec int, loc Location) <time> => nil
@@ -253,7 +253,7 @@ Returns the current local time.
 
 ```gad
 time.isTime(time.now())
->>> true
+= true
 ```
 **/
 export now() <time> => nil
@@ -267,7 +267,7 @@ otherwise `time.ParseInLocation` is called.
 
 ```gad
 time.format(time.parse("2006-01-02", "2026-01-31", time.utc()), "2006/01/02")
->>> "2026/01/31"
+= "2026/01/31"
 ```
 **/
 export parse(layout str, value str, loc Location) <time> => nil
@@ -279,7 +279,7 @@ Parses a date from "YYYYMMDD" or "YYYY-MM-DD".
 
 ```gad
 time.strToDate("2026-01-31").year()
->>> 2026
+= 2026
 ```
 **/
 export strToDate(s str) <date> => nil
@@ -292,7 +292,7 @@ zone is present).
 
 ```gad
 time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02")
->>> "2026-01-31"
+= "2026-01-31"
 ```
 **/
 export strToTime(s str) <time> => nil
@@ -304,7 +304,7 @@ Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.
 
 ```gad
 time.strToCalendarTime("2026-01-31 09:30:00.001").ns()
->>> 1000000
+= 1000000
 ```
 **/
 export strToCalendarTime(s str) <calendarTime> => nil
@@ -316,7 +316,7 @@ Parses a Go duration string (e.g. "1h30m").
 
 ```gad
 time.strToDuration("2h30m")
->>> dur 2h30m
+= dur 2h30m
 ```
 **/
 export strToDuration(s str) <duration> => nil
@@ -328,7 +328,7 @@ Parses a location from an offset ("-0300"/"-03:00") or an IANA name.
 
 ```gad
 time.isLocation(time.strToLocation("UTC"))
->>> true
+= true
 ```
 **/
 export strToLocation(s str) <Location> => nil
@@ -344,7 +344,7 @@ Zero values of optional arguments are used if not provided.
 // Normalize to UTC so the formatted date is timezone-independent (unix returns
 // local time; 1e9 is 2001-09-09 01:46:40 UTC).
 time.format(time.unix(1000000000, 0).In(time.utc()), "2006-01-02")
->>> "2001-09-09"
+= "2001-09-09"
 ```
 **/
 export unix(sec int, nsec int) <time> => nil
@@ -357,7 +357,7 @@ Returns the time of t+duration.
 
 ```gad
 time.format(time.add(time.strToTime("2026-01-31T09:00:00Z"), 24 * time.Hour), "2006-01-02")
->>> "2026-02-01"
+= "2026-02-01"
 ```
 **/
 export add(t time, d duration) <time> => nil
@@ -370,7 +370,7 @@ Returns the duration of t1-t2.
 
 ```gad
 time.sub(time.strToTime("2026-02-01T09:00:00Z"), time.strToTime("2026-01-31T09:00:00Z"))
->>> dur 24h
+= dur 24h
 ```
 **/
 export sub(t1 time, t2 time) <duration> => nil
@@ -384,7 +384,7 @@ years, months, and days to t.
 
 ```gad
 time.format(time.addDate(time.strToTime("2026-01-31T09:00:00Z"), 1, 0, 0), "2006-01-02")
->>> "2027-01-31"
+= "2027-01-31"
 ```
 **/
 export addDate(t time, years int, months int, days int) <time> => nil
@@ -397,7 +397,7 @@ Reports whether the time t1 is after t2.
 
 ```gad
 time.after(time.strToTime("2026-02-01T00:00:00Z"), time.strToTime("2026-01-31T09:00:00Z"))
->>> true
+= true
 ```
 **/
 export after(t1 time, t2 time) <bool> => nil
@@ -410,7 +410,7 @@ Reports whether the time t1 is before t2.
 
 ```gad
 time.before(time.strToTime("2026-01-31T09:00:00Z"), time.strToTime("2026-02-01T00:00:00Z"))
->>> true
+= true
 ```
 **/
 export before(t1 time, t2 time) <bool> => nil
@@ -424,7 +424,7 @@ to layout.
 
 ```gad
 time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02 15:04")
->>> "2026-01-31 09:00"
+= "2026-01-31 09:00"
 ```
 **/
 export format(t time, layout str) <str> => nil
@@ -438,7 +438,7 @@ returns the extended buffer.
 
 ```gad
 str(time.appendFormat(time.strToTime("2026-01-31T09:00:00Z"), bytes(""), "2006"))
->>> "2026"
+= "2026"
 ```
 **/
 export appendFormat(t time, b bytes, layout str) <bytes> => nil
@@ -458,7 +458,7 @@ Truncate returns the result of rounding t down to a multiple of duration.
 
 ```gad
 time.format(time.truncate(time.strToTime("2026-01-31T09:37:52Z"), time.Hour), "15:04")
->>> "09:00"
+= "09:00"
 ```
 **/
 export truncate(t time, d duration) <time> => nil
@@ -470,7 +470,7 @@ Reports whether any value is of time type.
 
 ```gad
 [time.isTime(time.now()), time.isTime(5)]
->>> [true, false]
+= [true, false]
 ```
 **/
 export isTime(any) <bool> => nil

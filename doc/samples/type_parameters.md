@@ -33,7 +33,7 @@ func mySet[T indexable, K int|uint, V number](target T, k K, v V) <T> {
     return target
 }
 mySet([10, 20, 30], 1, 99)
-// => [10, 99, 30]
+= [10, 99, 30]
 ```
 
 ## Reusing one constraint across parameters
@@ -45,7 +45,7 @@ and the result share `T`:
 // both arguments and the result share the single constraint T (str or array).
 concat := func[T str|array](a T, b T) <T> => a + b
 [concat("ab", "cd"), concat([1, 2], [3])]
-// => ["abcd", [1, 2, 3]]
+= ["abcd", [1, 2, 3]]
 ```
 
 ## Anonymous functions and dict methods
@@ -54,7 +54,7 @@ concat := func[T str|array](a T, b T) <T> => a + b
 double := func[T number](v T) <T> => v * 2       // anonymous, `func[…]`
 d := { scale[V number](v V, n int) <V>: v * n }  // dict method shorthand
 [double(21), d.scale(5, 3)]
-// => [42, 15]
+= [42, 15]
 ```
 
 ## Headers and method interfaces
@@ -65,30 +65,42 @@ A generic `meti` describes a generic method; a generic function satisfies it:
 m := meti { [T number](v T) <T> }                // a generic method interface
 f := func[T number](v T) <T> => v                // a generic function
 implements(f, m)
-// => true
+= true
 ```
 
 ## Example — `type_parameters.gad`
 
 ```gad
-// T is indexable, K is int|uint, V is a number; the return type reuses T.
-func mySet[T indexable, K int|uint, V number](target T, k K, v V) <T> {
-    target[k] = v
-    return target
+example basics {
+    // T is indexable, K is int|uint, V is a number; the return type reuses T.
+    func mySet[T indexable, K int|uint, V number](target T, k K, v V) <T> {
+        target[k] = v
+        return target
+    }
+    mySet([10, 20, 30], 1, 99)
+    = [10, 99, 30]
 }
-mySet([10, 20, 30], 1, 99)
 
-// both arguments and the result share the single constraint T (str or array).
-concat := func[T str|array](a T, b T) <T> => a + b
-[concat("ab", "cd"), concat([1, 2], [3])]
+example reuse {
+    // both arguments and the result share the single constraint T (str or array).
+    concat := func[T str|array](a T, b T) <T> => a + b
+    [concat("ab", "cd"), concat([1, 2], [3])]
+    = ["abcd", [1, 2, 3]]
+}
 
-double := func[T number](v T) <T> => v * 2       // anonymous, `func[…]`
-d := { scale[V number](v V, n int) <V>: v * n }  // dict method shorthand
-[double(21), d.scale(5, 3)]
+example anon {
+    double := func[T number](v T) <T> => v * 2       // anonymous, `func[…]`
+    d := { scale[V number](v V, n int) <V>: v * n }  // dict method shorthand
+    [double(21), d.scale(5, 3)]
+    = [42, 15]
+}
 
-m := meti { [T number](v T) <T> }                // a generic method interface
-f := func[T number](v T) <T> => v                // a generic function
-implements(f, m)
+example meti {
+    m := meti { [T number](v T) <T> }                // a generic method interface
+    f := func[T number](v T) <T> => v                // a generic function
+    implements(f, m)
+    = true
+}
 
 return "type parameters"
 ```

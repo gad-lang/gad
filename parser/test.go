@@ -67,3 +67,50 @@ func (p *Parser) ParseTestStmt() node.Stmt {
 	s.Body = p.ParseScopedBlockStmt()
 	return s
 }
+
+// isExampleStmtStart reports whether the current `example` identifier opens
+// an example (issue #22): `example {` or `example NAME {`; anywhere else it is
+// an ordinary name (`example := 1`, `x.example`).
+func (p *Parser) isExampleStmtStart() bool {
+	if p.Token.Literal != "example" {
+		return false
+	}
+	var (
+		seen int
+		ok   bool
+	)
+	p.PeekCb(func(t PToken) bool {
+		if t.IsSpace() {
+			return true
+		}
+		seen++
+		switch {
+		case t.Token == token.LBrace:
+			ok = true
+			return false
+		case seen == 1 && (t.Token == token.Ident || t.Token.IsKeyword()):
+			// NAME (a keyword a name too: `example in`)
+			return true
+		default:
+			return false
+		}
+	})
+	return ok
+}
+
+// ParseExampleStmt parses `example [NAME] { … }`.
+func (p *Parser) ParseExampleStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "ExampleStmt"))
+	}
+	s := &node.ExampleStmt{Doc: p.leadComment, KwPos: p.Token.Pos}
+	p.Next()
+	p.SkipSpace()
+	p.keywordAsName()
+	if p.Token.Token == token.Ident {
+		s.Name = p.ParseIdent()
+		p.SkipSpace()
+	}
+	s.Body = p.ParseBlockStmt()
+	return s
+}

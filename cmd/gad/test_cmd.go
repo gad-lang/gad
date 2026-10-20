@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -139,7 +140,8 @@ func (o *testOptions) runFile(ctx *cc.CommandContext, path string) (pass, fail, 
 	// `.gadx` ModuleFile) with the `gadx.*` builtins added; `_test.gad` compiles
 	// as ordinary Gad.
 	base := gad.NewBuiltins()
-	co := gad.CompilerOptions{ModuleMap: DefaultModuleMap(".", &sourcePath)}
+	// the inline checks (`= EXPR`, `<<< text`) are verified in a test
+	co := gad.CompilerOptions{ModuleMap: DefaultModuleMap(".", &sourcePath), Checks: true}
 	if strings.HasSuffix(path, ".gadx") {
 		base = gadx.AppendBuiltins(base)
 		co.ModuleFile = path
@@ -157,7 +159,7 @@ func (o *testOptions) runFile(ctx *cc.CommandContext, path string) (pass, fail, 
 		defer cancel()
 	}
 	if _, _, err := eval.RunScript(runCtx, src); err != nil {
-		fmt.Fprintf(ctx.Err, "FAIL %s: %s\n", path, err)
+		fmt.Fprintf(ctx.Err, "FAIL %s: %s\n", errPos(path, err), err)
 		return 0, 1, 0
 	}
 
@@ -407,4 +409,21 @@ func testFiles(arg string) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+// errPos is where err was raised — the file:line:col of the innermost frame of
+// a runtime error (a failing check's line) —, else path.
+func errPos(path string, err error) string {
+	var re *gad.RuntimeError
+	if errors.As(err, &re) {
+		if st := re.StackTrace(); len(st) > 0 && st[0].Line > 0 {
+			// a frame of the test file itself (its name is the module's,
+			// `(main)`, when it is compiled as ordinary gad)
+			if st[0].File == nil || st[0].File.Name == "" || st[0].File.Name == gad.MainName || st[0].File.Name == "(main)" {
+				return fmt.Sprintf("%s:%d:%d", path, st[0].Line, st[0].Column)
+			}
+			return st[0].String()
+		}
+	}
+	return path
 }

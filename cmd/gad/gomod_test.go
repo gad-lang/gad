@@ -31,8 +31,8 @@ func TestScaffoldGoModule(t *testing.T) {
 
 	sam, err := os.ReadFile(filepath.Join(dir, "samples.gad"))
 	require.NoError(t, err)
-	require.Contains(t, string(sam), "//snippet hello")
-	require.Contains(t, string(sam), `//= "hello Gad"`)
+	require.Contains(t, string(sam), "example hello {")
+	require.Contains(t, string(sam), `= "hello Gad"`)
 
 	// A second init over the same directory must not clobber existing files.
 	require.Error(t, scaffoldGoModule("greet", dir))

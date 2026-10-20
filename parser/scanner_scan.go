@@ -46,6 +46,73 @@ const bytesLitPrefixKey = "bytesLitPrefix"
 // body without the suffix.
 const dateTimeLitKey = "dateTimeLit"
 
+// outputCheckMultiKey flags an OutputCheck token of the multi-line form
+// (`<<<⏎ lines ⏎>>>`): its literal is the lines as written; the one-line form's
+// (`<<< text`) is the text with its escapes still in it.
+const outputCheckMultiKey = "outputCheckMulti"
+
+// atStmtStart reports whether the next token starts a statement: nothing, a
+// `;` (a line break's too) or a `{` before it.
+func (s *Scanner) atStmtStart() bool {
+	switch s.lastTok {
+	case token.Illegal, token.Semicolon, token.LBrace, token.MixedCodeStart:
+		return true
+	}
+	return false
+}
+
+// scanOutputCheck scans an output check, `<<<` already read: `<<< text` — the
+// rest of the line — or `<<<⏎` and the lines up to a line `>>>` (issue #22).
+func (s *Scanner) scanOutputCheck(t *PToken) {
+	t.Token = token.OutputCheck
+	if s.Ch == ' ' {
+		s.Next()
+		start := s.Offset
+		for s.Ch != '\n' && s.Ch != -1 {
+			s.Next()
+		}
+		t.Literal = strings.TrimRight(string(s.Src[start:s.Offset]), "\r")
+		return
+	}
+	// the indentation of the line of `<<<`: the block's lines are written
+	// under it, so it is not of their text
+	lineStart := s.Offset - 3
+	for lineStart > 0 && s.Src[lineStart-1] != '\n' {
+		lineStart--
+	}
+	indent := string(s.Src[lineStart : s.Offset-3])
+	if strings.TrimSpace(indent) != "" {
+		indent = "" // `<<<` after code on its line (`f();<<<`)
+	}
+	if s.Ch == '\r' {
+		s.Next()
+	}
+	if s.Ch == '\n' {
+		s.Next()
+	}
+	t.Set(outputCheckMultiKey, true)
+	var lines []string
+	for {
+		if s.Ch == -1 {
+			s.Error(source.MustFileOffset(s.File, t.Pos), "output check `<<<` not closed by a line `>>>`")
+			break
+		}
+		start := s.Offset
+		for s.Ch != '\n' && s.Ch != -1 {
+			s.Next()
+		}
+		line := strings.TrimRight(string(s.Src[start:s.Offset]), "\r")
+		if strings.TrimSpace(line) == ">>>" {
+			break
+		}
+		lines = append(lines, strings.TrimPrefix(line, indent))
+		if s.Ch == '\n' {
+			s.Next()
+		}
+	}
+	t.Literal = strings.Join(lines, "\n")
+}
+
 // durationLitKey is the PToken data flag set when the scanner recognises a
 // d"..."/d`...` duration literal (its string body is a Go duration string).
 const durationLitKey = "durationLit"
@@ -216,6 +283,7 @@ func isWordBoundary(b byte) bool { return !runehelper.IsIdentifier(rune(b)) }
 
 // ScanNow returns a token, token literal and its position.
 func (s *Scanner) ScanNow() (t PToken) {
+	defer func() { s.lastTok = t.Token }()
 	t.Pos = source.MustFileSetPos(s.File, s.Offset)
 
 	if s.Ch == -1 {
@@ -662,6 +730,11 @@ do:
 				s.Next()
 				if s.Ch == '<' {
 					s.Next()
+					if s.atStmtStart() && (s.Ch == ' ' || s.Ch == '\n' || s.Ch == '\r') {
+						s.scanOutputCheck(&t)
+						insertSemi = true
+						break
+					}
 					t.Token = s.Switch2(token.TripleLess, token.TripleLessAssign)
 				} else {
 					t.Token = s.Switch2(token.Shl, token.ShlAssign)

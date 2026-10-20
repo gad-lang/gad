@@ -33,7 +33,7 @@ package gad
 // Example:
 // ```gad
 // typeName(gad.parse("a := 1"))
-// >>> "SourceFileObject"
+// = "SourceFileObject"
 // ```
 //
 // parseFile(pth str) <sourceFile>
@@ -46,9 +46,9 @@ package gad
 // Example:
 // ```gad
 // gad.eval("40 + 2")
-// >>> 42
+// = 42
 // gad.eval(gad.parse("40 + 2"))
-// >>> 42
+// = 42
 // ```
 //
 // quote(s str; maxCols, fence) <str>
@@ -57,7 +57,7 @@ package gad
 // Example:
 // ```gad
 // gad.quote("hi")
-// >>> "\"hi\""
+// = "\"hi\""
 // ```
 //
 // unquote(lit str) <str>
@@ -65,7 +65,7 @@ package gad
 // Example:
 // ```gad
 // gad.unquote(gad.quote("hi"))
-// >>> "hi"
+// = "hi"
 // ```
 //
 // invoker(fn any, args array; **nargs) <ret callable>
@@ -81,7 +81,7 @@ package gad
 // inv := gad.invoker(str, args)
 // args[0] = 42
 // inv()
-// >>> "42"
+// = "42"
 // ```
 //
 // transform(value any; **paths) <any>
@@ -120,12 +120,12 @@ package gad
 //     ".points[]" = (p array) => Point(; x = p[0], y = p[1])
 // )
 // [typeName(d), typeName(d.pts[0]), d.pts[1].y]
-// >>> ["Poly", "Point", 4]
+// = ["Poly", "Point", 4]
 // ```
 // ```gad
 // // `.*` matches every dict child.
 // gad.transform({a: 1, b: 2}; ".*" = (n int) => n + 100)
-// >>> {a: 101, b: 102}
+// = {a: 101, b: 102}
 // ```
 //
 // ## Operators
@@ -173,7 +173,7 @@ package gad
 // ```gad
 // class Point { x int; y int }
 // bool(Point(; x=1, y=2) :: gad.Class)
-// >>> true
+// = true
 // ```
 //
 // ## Meta

@@ -19,18 +19,18 @@ Returns the JSON encoding v or error.
 ```gad
 json := import("json")
 str(json.Marshal({a: 1, b: [2, 3]}))
->>> "{\"a\":1,\"b\":[2,3]}"
+= "{\"a\":1,\"b\":[2,3]}"
 // scalars, dates and durations encode too (mined from json module tests):
 str(json.Marshal(nil))
->>> "null"
+= "null"
 str(json.Marshal(true))
->>> "true"
+= "true"
 str(json.Marshal("test"))
->>> "\"test\""
+= "\"test\""
 str(json.Marshal(dur 1h30m))
->>> "\"1h30m0s\""
+= "\"1h30m0s\""
 str(json.Marshal(2026-01-31D))
->>> "\"2026-01-31\""
+= "\"2026-01-31\""
 ```
 
 ### MarshalIndent
@@ -46,7 +46,7 @@ MarshalIndent is like Marshal but applies IndentCount to format the output.
 ```gad
 json := import("json")
 str(json.MarshalIndent({a: 1}, "", "  "))
->>> "{\n  \"a\": 1\n}"
+= "{\n  \"a\": 1\n}"
 ```
 
 ### IndentCount
@@ -62,7 +62,7 @@ Returns indented form of the JSON-encoded src or error.
 ```gad
 json := import("json")
 str(json.IndentCount(bytes(`{"a":1}`), "", "  "))
->>> "{\n  \"a\": 1\n}"
+= "{\n  \"a\": 1\n}"
 ```
 
 ### RawMessage
@@ -80,7 +80,7 @@ functions.
 json := import("json")
 // RawMessage embeds pre-encoded JSON verbatim.
 str(json.Marshal({wrapped: json.RawMessage(bytes(`{"x":1}`))}))
->>> "{\"wrapped\":{\"x\":1}}"
+= "{\"wrapped\":{\"x\":1}}"
 ```
 
 ### Compact
@@ -96,7 +96,7 @@ Returns elided insignificant space characters from data or error.
 ```gad
 json := import("json")
 str(json.Compact(bytes(`{ "a" : 1 }`), false))
->>> "{\"a\":1}"
+= "{\"a\":1}"
 ```
 
 ### Quote
@@ -113,7 +113,7 @@ Returns a wrapped object to provide Marshal functions to quote v.
 json := import("json")
 // Quote forces a value to be encoded as a quoted string.
 str(json.Marshal(json.Quote(42)))
->>> "\"42\""
+= "\"42\""
 ```
 
 ### NoQuote
@@ -132,7 +132,7 @@ This can be used not to quote all array or map items.
 json := import("json")
 // NoQuote keeps the value in its natural (unquoted) JSON form.
 str(json.Marshal(json.NoQuote(42)))
->>> "42"
+= "42"
 ```
 
 ### NoEscape
@@ -150,7 +150,7 @@ while encoding.
 json := import("json")
 // NoEscape leaves <, > and & unescaped.
 str(json.Marshal(json.NoEscape("a<b>c")))
->>> "\"a<b>c\""
+= "\"a<b>c\""
 ```
 
 ### Unmarshal
@@ -169,10 +169,10 @@ Unmarshal parses the JSON-encoded p and returns the result or error.
 ```gad
 json := import("json")
 json.Unmarshal(`{"a":1,"b":[2,3]}`).a
->>> 1
+= 1
 // a mixed JSON array decodes to a Gad array:
 json.Unmarshal(`[1,1.5,true,"x"]`)
->>> [1, 1.5, true, "x"]
+= [1, 1.5, true, "x"]
 ```
 
 ### Valid
@@ -188,7 +188,7 @@ Reports whether p is a valid JSON encoding.
 ```gad
 json := import("json")
 [json.Valid(`{"x":1}`), json.Valid("bad"), json.Valid("{")]
->>> [true, false, false]
+= [true, false, false]
 ```
 
 ## Example — `json.gad`
@@ -202,18 +202,18 @@ Returns the JSON encoding v or error.
 ```gad
 json := import("json")
 str(json.Marshal({a: 1, b: [2, 3]}))
->>> "{\"a\":1,\"b\":[2,3]}"
+= "{\"a\":1,\"b\":[2,3]}"
 // scalars, dates and durations encode too (mined from json module tests):
 str(json.Marshal(nil))
->>> "null"
+= "null"
 str(json.Marshal(true))
->>> "true"
+= "true"
 str(json.Marshal("test"))
->>> "\"test\""
+= "\"test\""
 str(json.Marshal(dur 1h30m))
->>> "\"1h30m0s\""
+= "\"1h30m0s\""
 str(json.Marshal(2026-01-31D))
->>> "\"2026-01-31\""
+= "\"2026-01-31\""
 ```
 **/
 export Marshal(v any) <bytes> => nil
@@ -226,7 +226,7 @@ MarshalIndent is like Marshal but applies IndentCount to format the output.
 ```gad
 json := import("json")
 str(json.MarshalIndent({a: 1}, "", "  "))
->>> "{\n  \"a\": 1\n}"
+= "{\n  \"a\": 1\n}"
 ```
 **/
 export MarshalIndent(v any, prefix str, indent str) <bytes> => nil
@@ -239,7 +239,7 @@ Returns indented form of the JSON-encoded src or error.
 ```gad
 json := import("json")
 str(json.IndentCount(bytes(`{"a":1}`), "", "  "))
->>> "{\n  \"a\": 1\n}"
+= "{\n  \"a\": 1\n}"
 ```
 **/
 export IndentCount(src bytes, prefix str, indent str) <bytes> => nil
@@ -254,7 +254,7 @@ functions.
 json := import("json")
 // RawMessage embeds pre-encoded JSON verbatim.
 str(json.Marshal({wrapped: json.RawMessage(bytes(`{"x":1}`))}))
->>> "{\"wrapped\":{\"x\":1}}"
+= "{\"wrapped\":{\"x\":1}}"
 ```
 **/
 export RawMessage(v bytes) <rawMessage> => nil
@@ -267,7 +267,7 @@ Returns elided insignificant space characters from data or error.
 ```gad
 json := import("json")
 str(json.Compact(bytes(`{ "a" : 1 }`), false))
->>> "{\"a\":1}"
+= "{\"a\":1}"
 ```
 **/
 export Compact(data bytes, escape bool) <bytes> => nil
@@ -281,7 +281,7 @@ Returns a wrapped object to provide Marshal functions to quote v.
 json := import("json")
 // Quote forces a value to be encoded as a quoted string.
 str(json.Marshal(json.Quote(42)))
->>> "\"42\""
+= "\"42\""
 ```
 **/
 export Quote(v any) <encoderOptions> => nil
@@ -297,7 +297,7 @@ This can be used not to quote all array or map items.
 json := import("json")
 // NoQuote keeps the value in its natural (unquoted) JSON form.
 str(json.Marshal(json.NoQuote(42)))
->>> "42"
+= "42"
 ```
 **/
 export NoQuote(v any) <encoderOptions> => nil
@@ -312,7 +312,7 @@ while encoding.
 json := import("json")
 // NoEscape leaves <, > and & unescaped.
 str(json.Marshal(json.NoEscape("a<b>c")))
->>> "\"a<b>c\""
+= "\"a<b>c\""
 ```
 **/
 export NoEscape(v any) <encoderOptions> => nil
@@ -328,10 +328,10 @@ Unmarshal parses the JSON-encoded p and returns the result or error.
 ```gad
 json := import("json")
 json.Unmarshal(`{"a":1,"b":[2,3]}`).a
->>> 1
+= 1
 // a mixed JSON array decodes to a Gad array:
 json.Unmarshal(`[1,1.5,true,"x"]`)
->>> [1, 1.5, true, "x"]
+= [1, 1.5, true, "x"]
 ```
 **/
 export Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any> => nil
@@ -344,7 +344,7 @@ Reports whether p is a valid JSON encoding.
 ```gad
 json := import("json")
 [json.Valid(`{"x":1}`), json.Valid("bad"), json.Valid("{")]
->>> [true, false, false]
+= [true, false, false]
 ```
 **/
 export Valid(p bytes) <bool> => nil

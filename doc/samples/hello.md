@@ -20,28 +20,32 @@ println(#"Welcome to {name} v{version}!")   // interpolated string
 greeting := #"{name} is a fast, embeddable scripting language."
 version = 2                                 // reassign
 println(greeting, #"(v{version})")
-```
-
-Output:
-
-```text
+<<<
 Hello, Gad
 Welcome to Gad v1!
 Gad is a fast, embeddable scripting language. (v2)
+>>>
 ```
 
 ## Example — `hello.gad`
 
 ```gad
-name := "Gad"
-version := 1
+example hello {
+    name := "Gad"
+    version := 1
 
-println("Hello,", name)
-println(#"Welcome to {name} v{version}!")   // interpolated string
+    println("Hello,", name)
+    println(#"Welcome to {name} v{version}!")   // interpolated string
 
-greeting := #"{name} is a fast, embeddable scripting language."
-version = 2                                 // reassign
-println(greeting, #"(v{version})")
+    greeting := #"{name} is a fast, embeddable scripting language."
+    version = 2                                 // reassign
+    println(greeting, #"(v{version})")
+}
+<<<
+Hello, Gad
+Welcome to Gad v1!
+Gad is a fast, embeddable scripting language. (v2)
+>>>
 
 return greeting
 ```

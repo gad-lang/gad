@@ -33,7 +33,7 @@ refused := func(f) { try { f(); return false } catch { return true } }
 [len(pair), len(some), len(rows), len(three),
  refused(() => [1, 2, 3] :: [2]int),
  refused(() => [[1, 2], [3]] :: [][2]int)]
-// => [2, 3, 2, 3, true, true]
+= [2, 3, 2, 3, true, true]
 ```
 
 ## Parameters and fields
@@ -55,7 +55,7 @@ a := Address(;city=[["Viçosa", "MG"]])
 [first(["a", "b"]), a.city[0][1], three([1, 2, 3]),
  refused(() => first(["a"])),
  refused(() => three([1]))]
-// => ["a", "MG", 3, true, true]
+= ["a", "MG", 3, true, true]
 ```
 
 ## Overloads
@@ -73,7 +73,7 @@ kind := func {
     (a []int) => "any"
 }
 [kind([1, 2, 3]), kind([1, 2]), kind([1, 2, 3, 4]), kind([])]
-// => ["3", "2 or 3", "1 to 9", "any"]
+= ["3", "2 or 3", "1 to 9", "any"]
 ```
 
 ## Converting: `::>`
@@ -83,7 +83,7 @@ an element type (a leaf an element type already accepts is kept).
 
 ```gad
 [[1, 2] ::> []str, [[1, 2], [3, 4]] ::> [][2]str, [1, "a"] ::> []<int|str>]
-// => [["1", "2"], [["1", "2"], ["3", "4"]], [1, "a"]]
+= [["1", "2"], [["1", "2"], ["3", "4"]], [1, "a"]]
 ```
 
 ## Typed arrays
@@ -109,7 +109,7 @@ refused := func(f) { try { f(); return false } catch { return true } }
  refused(func() { p += "c" }),         // 3 items
  refused(func() { delete p[0] }),      // 1 item
  refused(() => options(["a"]))]        // a pair of 1
-// => ["pair[\"a\", \"b\"]", "pair[\"1\", \"2\"]", 2, 2, "array", true, true, true, true]
+= ["pair[\"a\", \"b\"]", "pair[\"1\", \"2\"]", 2, 2, "array", true, true, true, true]
 ```
 
 ## Reflection: `@size`, `@elem`, `@depth`
@@ -132,7 +132,7 @@ type ints []int
  options.@size[0].max, options.@size[1].eq,
  ints.@size[0] == [nil, nil, nil], ints.@elem == int,
  str(t), options.@name]
-// => [true, 2, nil, 2, true, true, 5, 2, true, true, "[2..3][2]str", "options"]
+= [true, 2, nil, 2, true, true, 5, 2, true, true, "[2..3][2]str", "options"]
 ```
 
 ## Building: calling an array type
@@ -149,7 +149,7 @@ refused := func(f) { try { f(); return false } catch { return true } }
 [pair("a", "b"), (type [][]int)([1], [2, 3]), (type []int)(),
  refused(() => pair("a")),                  // level 1: 1 item, wants 2
  refused(() => (type []int)("x"))]          // item 0: not an int
-// => [["a", "b"], [[1], [2, 3]], [], true, true]
+= [["a", "b"], [[1], [2, 3]], [], true, true]
 ```
 
 ### By its dimensions: `size`, `fill`
@@ -170,7 +170,7 @@ n := 2
  (type [][]int)(; size=[2, 2], fill=(i, j) => i + j),
  (type [2][]str)(; size=[1], fill="x"),     // the level with no size
  (type [n]any)(; size=[n])]                 // nil leaves: any takes nil
-// => [[[0, 0, 0], [0, 0, 0]], [[0, 1], [1, 2]], [["x"], ["x"]], [nil, nil]]
+= [[[0, 0, 0], [0, 0, 0]], [[0, 1], [1, 2]], [["x"], ["x"]], [nil, nil]]
 ```
 
 ## `arrayType`: the type of the array types
@@ -192,7 +192,7 @@ grid := arrayType(int; size=[3, 3])
  grid(; fill=0)[2],
  arrayType(T.@elem; depth=T.@depth, size=T.@size) == T,   // the round trip
  typeof(T) === arrayType]
-// => ["[][]int", "[]<int|str>", "[3][3]int", [0, 0, 0], true, true]
+= ["[][]int", "[]<int|str>", "[3][3]int", [0, 0, 0], true, true]
 ```
 
 ## `array` is `type []any`
@@ -207,94 +207,124 @@ builds as it always did, and by its dimensions too.
 f := func(x []any) => len(x)       // the same param as `x array`
 [array === type []any, typeof([1, 2]) === type []any, arrayType(any) === array,
  array.@depth, f([1, 2]), array(; size=[2], fill=0)]
-// => [true, true, true, 1, 2, [0, 0]]
+= [true, true, true, 1, 2, [0, 0]]
 ```
 
 ## Example — `sized_arrays.gad`
 
 ```gad
-pair := [1, 2] :: [2]int                 // exactly 2
-some := [1, 2, 3] :: [2..3]int           // 2 to 3
-rows := [[1, 2], [3, 4]] :: [][2]int     // any number of pairs
+example casts {
+    pair := [1, 2] :: [2]int                 // exactly 2
+    some := [1, 2, 3] :: [2..3]int           // 2 to 3
+    rows := [[1, 2], [3, 4]] :: [][2]int     // any number of pairs
 
-n := 3
-three := [1, 2, 3] :: [n]int             // a variable, read now
+    n := 3
+    three := [1, 2, 3] :: [n]int             // a variable, read now
 
-refused := func(f) { try { f(); return false } catch { return true } }
-[len(pair), len(some), len(rows), len(three),
- refused(() => [1, 2, 3] :: [2]int),
- refused(() => [[1, 2], [3]] :: [][2]int)]
-
-first := (p [2]str) => p[0]
-class Address {
-    city []str|[][2]str      // names, or [name, state] pairs
+    refused := func(f) { try { f(); return false } catch { return true } }
+    [len(pair), len(some), len(rows), len(three),
+     refused(() => [1, 2, 3] :: [2]int),
+     refused(() => [[1, 2], [3]] :: [][2]int)]
+    = [2, 3, 2, 3, true, true]
 }
 
-maker := (size) => (v [size]int) => len(v)    // the size of a closure
-three := maker(3)
+example params {
+    first := (p [2]str) => p[0]
+    class Address {
+        city []str|[][2]str      // names, or [name, state] pairs
+    }
 
-refused := func(f) { try { f(); return false } catch { return true } }
-a := Address(;city=[["Viçosa", "MG"]])
-[first(["a", "b"]), a.city[0][1], three([1, 2, 3]),
- refused(() => first(["a"])),
- refused(() => three([1]))]
+    maker := (size) => (v [size]int) => len(v)    // the size of a closure
+    three := maker(3)
 
-kind := func {
-    (a [1..9]int) => "1 to 9"
-    (a [2..3]int) => "2 or 3"
-    (a [3]int) => "3"
-    (a []int) => "any"
+    refused := func(f) { try { f(); return false } catch { return true } }
+    a := Address(;city=[["Viçosa", "MG"]])
+    [first(["a", "b"]), a.city[0][1], three([1, 2, 3]),
+     refused(() => first(["a"])),
+     refused(() => three([1]))]
+    = ["a", "MG", 3, true, true]
 }
-[kind([1, 2, 3]), kind([1, 2]), kind([1, 2, 3, 4]), kind([])]
 
-pair := type [2]str
-refused := func(f) { try { f(); return false } catch { return true } }
-[pair("a", "b"), (type [][]int)([1], [2, 3]), (type []int)(),
- refused(() => pair("a")),                  // level 1: 1 item, wants 2
- refused(() => (type []int)("x"))]          // item 0: not an int
+example overloads {
+    kind := func {
+        (a [1..9]int) => "1 to 9"
+        (a [2..3]int) => "2 or 3"
+        (a [3]int) => "3"
+        (a []int) => "any"
+    }
+    [kind([1, 2, 3]), kind([1, 2]), kind([1, 2, 3, 4]), kind([])]
+    = ["3", "2 or 3", "1 to 9", "any"]
+}
 
-n := 2
-[(type [2][3]int)(; fill=0),
- (type [][]int)(; size=[2, 2], fill=(i, j) => i + j),
- (type [2][]str)(; size=[1], fill="x"),     // the level with no size
- (type [n]any)(; size=[n])]                 // nil leaves: any takes nil
+example build_items {
+    pair := type [2]str
+    refused := func(f) { try { f(); return false } catch { return true } }
+    [pair("a", "b"), (type [][]int)([1], [2, 3]), (type []int)(),
+     refused(() => pair("a")),                  // level 1: 1 item, wants 2
+     refused(() => (type []int)("x"))]          // item 0: not an int
+    = [["a", "b"], [[1], [2, 3]], [], true, true]
+}
 
-T := type [2][1..3]int
-grid := arrayType(int; size=[3, 3])
-[str(arrayType(int; depth=2)), str(arrayType([int, str])), str(grid),
- grid(; fill=0)[2],
- arrayType(T.@elem; depth=T.@depth, size=T.@size) == T,   // the round trip
- typeof(T) === arrayType]
+example build_dims {
+    n := 2
+    [(type [2][3]int)(; fill=0),
+     (type [][]int)(; size=[2, 2], fill=(i, j) => i + j),
+     (type [2][]str)(; size=[1], fill="x"),     // the level with no size
+     (type [n]any)(; size=[n])]                 // nil leaves: any takes nil
+    = [[[0, 0, 0], [0, 0, 0]], [[0, 1], [1, 2]], [["x"], ["x"]], [nil, nil]]
+}
 
-f := func(x []any) => len(x)       // the same param as `x array`
-[array === type []any, typeof([1, 2]) === type []any, arrayType(any) === array,
- array.@depth, f([1, 2]), array(; size=[2], fill=0)]
+example array_type {
+    T := type [2][1..3]int
+    grid := arrayType(int; size=[3, 3])
+    [str(arrayType(int; depth=2)), str(arrayType([int, str])), str(grid),
+     grid(; fill=0)[2],
+     arrayType(T.@elem; depth=T.@depth, size=T.@size) == T,   // the round trip
+     typeof(T) === arrayType]
+    = ["[][]int", "[]<int|str>", "[3][3]int", [0, 0, 0], true, true]
+}
 
-[[1, 2] ::> []str, [[1, 2], [3, 4]] ::> [][2]str, [1, "a"] ::> []<int|str>]
+example any_array {
+    f := func(x []any) => len(x)       // the same param as `x array`
+    [array === type []any, typeof([1, 2]) === type []any, arrayType(any) === array,
+     array.@depth, f([1, 2]), array(; size=[2], fill=0)]
+    = [true, true, true, 1, 2, [0, 0]]
+}
 
-type pair [2]str
-type options [][2]str
-type upTo3 [..3]int
+example transform {
+    [[1, 2] ::> []str, [[1, 2], [3, 4]] ::> [][2]str, [1, "a"] ::> []<int|str>]
+    = [["1", "2"], [["1", "2"], ["3", "4"]], [1, "a"]]
+}
 
-p := pair("a", "b")
-o := options(["a", "A"], ["b", "B"])
-u := upTo3(1)
-u += 2
+example typed {
+    type pair [2]str
+    type options [][2]str
+    type upTo3 [..3]int
 
-refused := func(f) { try { f(); return false } catch { return true } }
-[str(p), str([1, 2] ::> pair), len(o), len(u), typeName(p[:1]),
- refused(() => pair("a")),             // 1 item
- refused(func() { p += "c" }),         // 3 items
- refused(func() { delete p[0] }),      // 1 item
- refused(() => options(["a"]))]        // a pair of 1
+    p := pair("a", "b")
+    o := options(["a", "A"], ["b", "B"])
+    u := upTo3(1)
+    u += 2
 
-const t = type [2..3][2]str
-type options [..5][2]str
-type ints []int
+    refused := func(f) { try { f(); return false } catch { return true } }
+    [str(p), str([1, 2] ::> pair), len(o), len(u), typeName(p[:1]),
+     refused(() => pair("a")),             // 1 item
+     refused(func() { p += "c" }),         // 3 items
+     refused(func() { delete p[0] }),      // 1 item
+     refused(() => options(["a"]))]        // a pair of 1
+    = ["pair[\"a\", \"b\"]", "pair[\"1\", \"2\"]", 2, 2, "array", true, true, true, true]
+}
 
-[t.@size[0] == [nil, 2, 3], t.@size[1].eq, t.@size[1].min, t.@depth,
- t.@elem[0] == str, (type []<int|str>).@elem == [int, str],
- options.@size[0].max, options.@size[1].eq,
- ints.@size[0] == [nil, nil, nil], ints.@elem == int,
- str(t), options.@name]
+example reflection {
+    const t = type [2..3][2]str
+    type options [..5][2]str
+    type ints []int
+
+    [t.@size[0] == [nil, 2, 3], t.@size[1].eq, t.@size[1].min, t.@depth,
+     t.@elem[0] == str, (type []<int|str>).@elem == [int, str],
+     options.@size[0].max, options.@size[1].eq,
+     ints.@size[0] == [nil, nil, nil], ints.@elem == int,
+     str(t), options.@name]
+    = [true, 2, nil, 2, true, true, 5, 2, true, true, "[2..3][2]str", "options"]
+}
 ```

@@ -6,6 +6,8 @@ package gad
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"reflect"
 	"strconv"
 )
@@ -69,7 +71,7 @@ func newFmtModule() StdModuleData {
 		// throws a runtime error.
 		"print": &BuiltinFunction{
 			FuncName: "print",
-			Value:    fmtNewPrint(fmt.Print),
+			Value:    fmtNewPrint(fmt.Fprint),
 		},
 		// gad:doc
 		// printf(format str, *any) <int>
@@ -78,7 +80,7 @@ func newFmtModule() StdModuleData {
 		// throws a runtime error.
 		"printf": &BuiltinFunction{
 			FuncName: "printf",
-			Value:    fmtNewPrintf(fmt.Printf),
+			Value:    fmtNewPrintf(fmt.Fprintf),
 		},
 		// gad:doc
 		// println(*any) <int>
@@ -88,7 +90,7 @@ func newFmtModule() StdModuleData {
 		// write error throws a runtime error.
 		"println": &BuiltinFunction{
 			FuncName: "println",
-			Value:    fmtNewPrint(fmt.Println),
+			Value:    fmtNewPrint(fmt.Fprintln),
 		},
 		// gad:doc
 		// sprint(*any) <str>
@@ -160,22 +162,33 @@ func newFmtModule() StdModuleData {
 	}}
 }
 
-func fmtNewPrint(fn func(...any) (int, error)) CallableFunc {
+// fmtNewPrint is fmt.print/println: to the VM's stdout — what a redirection
+// (obstart, a test's output check, an embedding host) writes to —, the
+// process's when there is no VM.
+func fmtNewPrint(fn func(io.Writer, ...any) (int, error)) CallableFunc {
 	return func(c Call) (ret Object, err error) {
 		vargs := fmtToPrintArgs(0, c)
-		n, err := fn(vargs...)
+		n, err := fn(fmtStdout(c), vargs...)
 		return Int(n), err
 	}
 }
 
-func fmtNewPrintf(fn func(string, ...any) (int, error)) CallableFunc {
+// fmtStdout is the writer fmt prints to: the VM's stdout.
+func fmtStdout(c Call) io.Writer {
+	if c.VM != nil && c.VM.StdOut != nil {
+		return c.VM.StdOut
+	}
+	return os.Stdout
+}
+
+func fmtNewPrintf(fn func(io.Writer, string, ...any) (int, error)) CallableFunc {
 	return func(c Call) (ret Object, err error) {
 		if c.Args.Length() < 1 {
 			return Nil, ErrWrongNumArguments.NewError(
 				"want>=1 got=" + strconv.Itoa(c.Args.Length()))
 		}
 		vargs := fmtToPrintArgs(1, c)
-		n, err := fn(c.Args.Get(0).ToString(), vargs...)
+		n, err := fn(fmtStdout(c), c.Args.Get(0).ToString(), vargs...)
 		return Int(n), err
 	}
 }

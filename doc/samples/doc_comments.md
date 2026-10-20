@@ -39,12 +39,12 @@ const (
 `sum` returns the sum of `a` and `b`.
 
 A `/**` … `**/` block is the BLOCK form; its lines are reflowed as Markdown. It
-can embed a runnable example that `gad doctest` checks against the `>>>` line:
+can embed a runnable example that `gad doctest` checks by its `=` line:
 
 ```gad
 sum := func(a, b) { return a + b }
 sum(2, 3)
->>> 5
+= 5
 ```
 **/
 func sum(a, b) {
@@ -52,7 +52,7 @@ func sum(a, b) {
 }
 
 [ServerAddr, Greeting, Retries, sum(2, 3)]   // doc comments never change values
-// => [":8080", "hello", 3, 5]
+= [":8080", "hello", 3, 5]
 ````
 
 ## What can be documented
@@ -78,7 +78,7 @@ meti differ {
 }
 
 [calc(1, 2), calc(1.5, 2.0)]
-// => [3, 3.5]
+= [3, 3.5]
 ```
 
 ## Attachment rules
@@ -119,8 +119,10 @@ raw := `````he said ``` here`````   // a 5-backtick raw heredoc, verbatim
 ## Runnable examples (doctest)
 
 A `BLOCK` may embed a runnable example in a ```` ```gad ````
-fence. Examples are self-contained; a line beginning with `>>> ` asserts that the
-value produced so far equals the expression after it. `gad doctest PATH…` runs
+fence. Examples are self-contained, and run once with their **inline checks**:
+a line `= EXPR` checks the value of the statement before it (as `str`), a line
+`<<< text` — or `<<<`, lines, `>>>` — the output since the previous check (see
+[inline checks](testing/inline_checks_test.gad)). `gad doctest PATH…` runs
 every embedded example, and `gad doc` runs them while generating (unless
 `--no-doctest`). See also [Conventions](conventions.md).
 
@@ -133,111 +135,127 @@ is likewise never executed.
 
 ## Verified snippets
 
-For longer examples a page pulls real code out of its own source: a region
-opened by a `//snippet NAME` line and closed by `//endsnippet` is inserted where
-a doc comment says `@snippet NAME`, and its result markers — `/**= EXPR **/` for
-a value, `/**< TEXT **/` for printed output — are verified by `gad doc`. The full
-guide, including the rules that are easy to miss, is in
+For longer examples a page pulls real code out of its own source: an
+`example NAME { … }` block is inserted where a doc comment says `@snippet NAME`
+— its body, and the output checks right after its `}` —, and its checks are
+verified by `gad doc`, which runs the file once. The full guide is in
 [Conventions](conventions.md) (Verified snippets). The examples below are
 snippets themselves.
 
-A snippet may verify several steps; each marker checks the code from the start
-of the snippet up to it. The terse `//= EXPR` form is handy between steps:
+An example may check several steps — each `= EXPR` the value of the statement
+before it:
 
 ```gad
 double := func(x) => x * 2
 double(2)
-// => 4
+= 4
 double(1.25)    // a float doubles too
-// => 2.5
+= 2.5
 ```
 
-A multi-line `/**<` keeps its lines verbatim, so indented output matches:
+`<<<` right after the `}` checks all the example printed; a multi-line block
+keeps the indentation of its lines inside it:
 
 ```gad
 for _, item in ["a", "b"] {
     println("item:")
     println("  ", item)
 }
-```
-
-Output:
-
-```text
+<<<
 item:
    a
 item:
    b
+>>>
 ```
 
-Each snippet runs on its own. `uses` prepends another snippet's code (not
-rendered) so this one can reuse its definitions — here `double` from
-`snippet_steps`:
+An example's code is of the scope around it: a later one uses an earlier one's
+definitions — here `double` from `snippet_steps` — without showing them (and
+may declare a name again: each opens its own scope):
 
 ```gad
 [double(21), double(0.5)]
-// => [42, 1]
+= [42, 1.0]
 ```
 
 ## Example — `doc_comments.gad`
 
 ````gad
-/// the service listen address (SINGLE form, on its own line)
-const (
-    ServerAddr = ":8080"
-    /// the greeting prefix (SINGLE, linked to the spec ident)
-    Greeting = "hello"
-    Retries = 3 /// how many times to retry (INLINE_VALUE, trailing)
-)
+example forms {
+    /// the service listen address (SINGLE form, on its own line)
+    const (
+        ServerAddr = ":8080"
+        /// the greeting prefix (SINGLE, linked to the spec ident)
+        Greeting = "hello"
+        Retries = 3 /// how many times to retry (INLINE_VALUE, trailing)
+    )
 
-/**
-`sum` returns the sum of `a` and `b`.
+    /**
+    `sum` returns the sum of `a` and `b`.
 
-A `/**` … `**/` block is the BLOCK form; its lines are reflowed as Markdown. It
-can embed a runnable example that `gad doctest` checks against the `>>>` line:
+    A `/**` … `**/` block is the BLOCK form; its lines are reflowed as Markdown. It
+    can embed a runnable example that `gad doctest` checks by its `=` line:
 
-```gad
-sum := func(a, b) { return a + b }
-sum(2, 3)
->>> 5
-```
-**/
-func sum(a, b) {
-    return a + b
+    ```gad
+    sum := func(a, b) { return a + b }
+    sum(2, 3)
+    = 5
+    ```
+    **/
+    func sum(a, b) {
+        return a + b
+    }
+
+    [ServerAddr, Greeting, Retries, sum(2, 3)]   // doc comments never change values
+    = [":8080", "hello", 3, 5]
 }
 
-[ServerAddr, Greeting, Retries, sum(2, 3)]   // doc comments never change values
+example documentable {
+    /// a tiny calculator dispatching on argument types
+    func calc {
+        /// add two ints
+        (a int, b int) => a + b
 
-/// a tiny calculator dispatching on argument types
-func calc {
-    /// add two ints
-    (a int, b int) => a + b
+        /// add two floats
+        (a float, b float) => a + b
+    }
 
-    /// add two floats
-    (a float, b float) => a + b
+    /// a difference contract
+    meti differ {
+        /// difference of two ints
+        (a int, b int) <int>
+    }
+
+    [calc(1, 2), calc(1.5, 2.0)]
+    = [3, 3.5]
 }
 
-/// a difference contract
-meti differ {
-    /// difference of two ints
-    (a int, b int) <int>
+
+example snippet_steps {
+    double := func(x) => x * 2
+    double(2)
+    = 4
+    double(1.25)    // a float doubles too
+    = 2.5
 }
 
-[calc(1, 2), calc(1.5, 2.0)]
-
-
-double := func(x) => x * 2
-double(2)
-//= 4
-double(1.25)    // a float doubles too
-//= 2.5
-
-for _, item in ["a", "b"] {
-    println("item:")
-    println("  ", item)
+example snippet_output {
+    for _, item in ["a", "b"] {
+        println("item:")
+        println("  ", item)
+    }
 }
+<<<
+item:
+   a
+item:
+   b
+>>>
 
-[double(21), double(0.5)]
+example snippet_uses {
+    [double(21), double(0.5)]
+    = [42, 1.0]
+}
 
 return sum(2, 3)
 ````

@@ -15,7 +15,7 @@ Reports whether substr is within s.
 
 ```gad
 strings.contains("hello", "ell")
->>> true
+= true
 ```
 
 ### containsAny
@@ -30,7 +30,7 @@ Reports whether any char in chars are within s.
 
 ```gad
 strings.containsAny("hello", "aeiou")
->>> true
+= true
 ```
 
 ### containsChar
@@ -45,7 +45,7 @@ Reports whether the char c is within s.
 
 ```gad
 strings.containsChar("hello", "e"[0])
->>> true
+= true
 ```
 
 ### count
@@ -60,7 +60,7 @@ Counts the number of non-overlapping instances of substr in s.
 
 ```gad
 strings.count("banana", "a")
->>> 3
+= 3
 ```
 
 ### equalFold
@@ -77,7 +77,7 @@ case-insensitivity.
 
 ```gad
 strings.equalFold("Go", "GO")
->>> true
+= true
 ```
 
 ### fields
@@ -94,7 +94,7 @@ if s contains only white space.
 
 ```gad
 strings.fields("  a b   c ")
->>> ["a", "b", "c"]
+= ["a", "b", "c"]
 ```
 
 ### fieldsFunc
@@ -111,7 +111,7 @@ f(c) or the string is empty, an empty array is returned.
 
 ```gad
 strings.fieldsFunc("a1b2c", func(c) => c >= "0"[0] && c <= "9"[0])
->>> ["a", "b", "c"]
+= ["a", "b", "c"]
 ```
 
 ### hasPrefix
@@ -126,7 +126,7 @@ Reports whether the string s begins with prefix.
 
 ```gad
 strings.hasPrefix("gopher", "go")
->>> true
+= true
 ```
 
 ### hasSuffix
@@ -141,7 +141,7 @@ Reports whether the string s ends with prefix.
 
 ```gad
 strings.hasSuffix("gopher", "her")
->>> true
+= true
 ```
 
 ### index
@@ -157,7 +157,7 @@ is not present in s.
 
 ```gad
 strings.index("chicken", "ken")
->>> 4
+= 4
 ```
 
 ### indexAny
@@ -173,7 +173,7 @@ Returns the index of the first instance of any char from chars in s, or
 
 ```gad
 strings.indexAny("golang", "ln")
->>> 2
+= 2
 ```
 
 ### indexByte
@@ -189,7 +189,7 @@ of c is not present in s. c's integer value must be between 0 and 255.
 
 ```gad
 strings.indexByte("golang", "g"[0])
->>> 0
+= 0
 ```
 
 ### indexChar
@@ -205,7 +205,7 @@ not present in s.
 
 ```gad
 strings.indexChar("golang", "a"[0])
->>> 3
+= 3
 ```
 
 ### indexFunc
@@ -221,7 +221,7 @@ or -1 if none do.
 
 ```gad
 strings.indexFunc("go123", func(c) => c >= "0"[0] && c <= "9"[0])
->>> 2
+= 2
 ```
 
 ### join
@@ -238,7 +238,7 @@ resulting string.
 
 ```gad
 strings.join(["a", "b", "c"], "-")
->>> "a-b-c"
+= "a-b-c"
 ```
 
 ### joinAnd
@@ -256,7 +256,7 @@ resulting string.
 
 ```gad
 strings.joinAnd(["a", "b", "c"], ", ", " and ")
->>> "a, b and c"
+= "a, b and c"
 ```
 
 ### lastIndex
@@ -272,7 +272,7 @@ is not present in s.
 
 ```gad
 strings.lastIndex("go gopher", "go")
->>> 3
+= 3
 ```
 
 ### lastIndexAny
@@ -288,7 +288,7 @@ Returns the index of the last instance of any char from chars in s, or
 
 ```gad
 strings.lastIndexAny("golang", "ln")
->>> 4
+= 4
 ```
 
 ### lastIndexByte
@@ -304,7 +304,7 @@ if c is not present in s. c's integer value must be between 0 and 255.
 
 ```gad
 strings.lastIndexByte("golang", "g"[0])
->>> 5
+= 5
 ```
 
 ### lastIndexFunc
@@ -320,7 +320,7 @@ or -1 if none do.
 
 ```gad
 strings.lastIndexFunc("1a2b", func(c) => c >= "0"[0] && c <= "9"[0])
->>> 2
+= 2
 ```
 
 ### dict
@@ -347,7 +347,7 @@ used as default padding.
 
 ```gad
 strings.padLeft("7", 3, "0")
->>> "007"
+= "007"
 ```
 
 ### padRight
@@ -364,7 +364,7 @@ used as default padding.
 
 ```gad
 strings.padRight("7", 3, "0")
->>> "700"
+= "700"
 ```
 
 ### repeat
@@ -382,7 +382,7 @@ Returns a new string consisting of count copies of the string s.
 
 ```gad
 strings.repeat("ab", 3)
->>> "ababab"
+= "ababab"
 ```
 
 ### replace
@@ -399,7 +399,7 @@ instances.
 
 ```gad
 strings.replace("oink oink", "k", "ky", 2)
->>> "oinky oinky"
+= "oinky oinky"
 ```
 
 ### split
@@ -421,7 +421,7 @@ n determines the number of substrings to return:
 
 ```gad
 strings.split("a,b,c", ",", -1)
->>> ["a", "b", "c"]
+= ["a", "b", "c"]
 ```
 
 ### splitAfter
@@ -443,7 +443,7 @@ n determines the number of substrings to return:
 
 ```gad
 strings.splitAfter("a,b,c", ",", -1)
->>> ["a,", "b,", "c"]
+= ["a,", "b,", "c"]
 ```
 
 ### title
@@ -459,7 +459,7 @@ begin words mapped to their Unicode title case.
 
 ```gad
 strings.title("hello world")
->>> "Hello World"
+= "Hello World"
 ```
 
 ### toLower
@@ -474,7 +474,7 @@ Returns s with all Unicode letters mapped to their lower case.
 
 ```gad
 strings.toLower("Go")
->>> "go"
+= "go"
 ```
 
 ### toTitle
@@ -490,7 +490,7 @@ Unicode title case.
 
 ```gad
 strings.toTitle("hello")
->>> "HELLO"
+= "HELLO"
 ```
 
 ### toUpper
@@ -505,7 +505,7 @@ Returns s with all Unicode letters mapped to their upper case.
 
 ```gad
 strings.toUpper("go")
->>> "GO"
+= "GO"
 ```
 
 ### toValidUTF8
@@ -521,7 +521,7 @@ sequences replaced by the replacement string, which may be empty.
 
 ```gad
 strings.toValidUTF8("abc", "?")
->>> "abc"
+= "abc"
 ```
 
 ### trim
@@ -537,7 +537,7 @@ code points contained in cutset removed.
 
 ```gad
 strings.trim("xxhixx", "x")
->>> "hi"
+= "hi"
 ```
 
 ### trimFunc
@@ -553,7 +553,7 @@ code points satisfying f removed.
 
 ```gad
 strings.trimFunc("12hi34", func(c) => c >= "0"[0] && c <= "9"[0])
->>> "hi"
+= "hi"
 ```
 
 ### trimLeft
@@ -569,7 +569,7 @@ contained in cutset removed.
 
 ```gad
 strings.trimLeft("xxhi", "x")
->>> "hi"
+= "hi"
 ```
 
 ### trimLeftFunc
@@ -585,7 +585,7 @@ c satisfying f(c) removed.
 
 ```gad
 strings.trimLeftFunc("12hi", func(c) => c >= "0"[0] && c <= "9"[0])
->>> "hi"
+= "hi"
 ```
 
 ### trimPrefix
@@ -601,7 +601,7 @@ with prefix, s is returned unchanged.
 
 ```gad
 strings.trimPrefix("gopher", "go")
->>> "pher"
+= "pher"
 ```
 
 ### trimRight
@@ -617,7 +617,7 @@ contained in cutset removed.
 
 ```gad
 strings.trimRight("hixx", "x")
->>> "hi"
+= "hi"
 ```
 
 ### trimRightFunc
@@ -633,7 +633,7 @@ c satisfying f(c) removed.
 
 ```gad
 strings.trimRightFunc("hi12", func(c) => c >= "0"[0] && c <= "9"[0])
->>> "hi"
+= "hi"
 ```
 
 ### trimSpace
@@ -649,7 +649,7 @@ space removed, as defined by Unicode.
 
 ```gad
 strings.trimSpace("  hi  ")
->>> "hi"
+= "hi"
 ```
 
 ### trimSuffix
@@ -665,7 +665,7 @@ with suffix, s is returned unchanged.
 
 ```gad
 strings.trimSuffix("gopher", "her")
->>> "gop"
+= "gop"
 ```
 
 ### trunc
@@ -680,7 +680,7 @@ Truncate s to maxLen concatenated with emph.
 
 ```gad
 strings.trunc("hello world", 8)
->>> "hello wo..."
+= "hello wo..."
 ```
 
 ### slitWords
@@ -696,7 +696,7 @@ If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
 
 ```gad
 strings.slitWords("foo bar baz")
->>> ["foo", "bar", "baz"]
+= ["foo", "bar", "baz"]
 ```
 
 ### truncWords
@@ -712,7 +712,7 @@ limits at word count equals to max, otherwise at length of s equals to max.
 
 ```gad
 strings.truncWords("one two three", 10)
->>> "one two..."
+= "one two..."
 ```
 
 ## Example — `strings.gad`
@@ -725,7 +725,7 @@ Reports whether substr is within s.
 
 ```gad
 strings.contains("hello", "ell")
->>> true
+= true
 ```
 **/
 export contains(s str, substr str) <bool> => nil
@@ -737,7 +737,7 @@ Reports whether any char in chars are within s.
 
 ```gad
 strings.containsAny("hello", "aeiou")
->>> true
+= true
 ```
 **/
 export containsAny(s str, chars str) <bool> => nil
@@ -749,7 +749,7 @@ Reports whether the char c is within s.
 
 ```gad
 strings.containsChar("hello", "e"[0])
->>> true
+= true
 ```
 **/
 export containsChar(s str, c char) <bool> => nil
@@ -761,7 +761,7 @@ Counts the number of non-overlapping instances of substr in s.
 
 ```gad
 strings.count("banana", "a")
->>> 3
+= 3
 ```
 **/
 export count(s str, substr str) <int> => nil
@@ -775,7 +775,7 @@ case-insensitivity.
 
 ```gad
 strings.equalFold("Go", "GO")
->>> true
+= true
 ```
 **/
 export equalFold(s str, t str) <bool> => nil
@@ -789,7 +789,7 @@ if s contains only white space.
 
 ```gad
 strings.fields("  a b   c ")
->>> ["a", "b", "c"]
+= ["a", "b", "c"]
 ```
 **/
 export fields(s str) <array> => nil
@@ -803,7 +803,7 @@ f(c) or the string is empty, an empty array is returned.
 
 ```gad
 strings.fieldsFunc("a1b2c", func(c) => c >= "0"[0] && c <= "9"[0])
->>> ["a", "b", "c"]
+= ["a", "b", "c"]
 ```
 **/
 export fieldsFunc(s str, f) <array> => nil
@@ -815,7 +815,7 @@ Reports whether the string s begins with prefix.
 
 ```gad
 strings.hasPrefix("gopher", "go")
->>> true
+= true
 ```
 **/
 export hasPrefix(s str, prefix str) <bool> => nil
@@ -827,7 +827,7 @@ Reports whether the string s ends with prefix.
 
 ```gad
 strings.hasSuffix("gopher", "her")
->>> true
+= true
 ```
 **/
 export hasSuffix(s str, suffix str) <bool> => nil
@@ -840,7 +840,7 @@ is not present in s.
 
 ```gad
 strings.index("chicken", "ken")
->>> 4
+= 4
 ```
 **/
 export index(s str, substr str) <int> => nil
@@ -853,7 +853,7 @@ Returns the index of the first instance of any char from chars in s, or
 
 ```gad
 strings.indexAny("golang", "ln")
->>> 2
+= 2
 ```
 **/
 export indexAny(s str, chars str) <int> => nil
@@ -866,7 +866,7 @@ of c is not present in s. c's integer value must be between 0 and 255.
 
 ```gad
 strings.indexByte("golang", "g"[0])
->>> 0
+= 0
 ```
 **/
 export indexByte(s str, c char|int) <int> => nil
@@ -879,7 +879,7 @@ not present in s.
 
 ```gad
 strings.indexChar("golang", "a"[0])
->>> 3
+= 3
 ```
 **/
 export indexChar(s str, c char) <int> => nil
@@ -892,7 +892,7 @@ or -1 if none do.
 
 ```gad
 strings.indexFunc("go123", func(c) => c >= "0"[0] && c <= "9"[0])
->>> 2
+= 2
 ```
 **/
 export indexFunc(s str, f) <int> => nil
@@ -906,7 +906,7 @@ resulting string.
 
 ```gad
 strings.join(["a", "b", "c"], "-")
->>> "a-b-c"
+= "a-b-c"
 ```
 **/
 export join(arr array, sep str) <str> => nil
@@ -921,7 +921,7 @@ resulting string.
 
 ```gad
 strings.joinAnd(["a", "b", "c"], ", ", " and ")
->>> "a, b and c"
+= "a, b and c"
 ```
 **/
 export joinAnd(arr array, sep, lastSep str) <str> => nil
@@ -934,7 +934,7 @@ is not present in s.
 
 ```gad
 strings.lastIndex("go gopher", "go")
->>> 3
+= 3
 ```
 **/
 export lastIndex(s str, substr str) <int> => nil
@@ -947,7 +947,7 @@ Returns the index of the last instance of any char from chars in s, or
 
 ```gad
 strings.lastIndexAny("golang", "ln")
->>> 4
+= 4
 ```
 **/
 export lastIndexAny(s str, chars str) <int> => nil
@@ -960,7 +960,7 @@ if c is not present in s. c's integer value must be between 0 and 255.
 
 ```gad
 strings.lastIndexByte("golang", "g"[0])
->>> 5
+= 5
 ```
 **/
 export lastIndexByte(s str, c char|int) <int> => nil
@@ -973,7 +973,7 @@ or -1 if none do.
 
 ```gad
 strings.lastIndexFunc("1a2b", func(c) => c >= "0"[0] && c <= "9"[0])
->>> 2
+= 2
 ```
 **/
 export lastIndexFunc(s str, f) <int> => nil
@@ -994,7 +994,7 @@ used as default padding.
 
 ```gad
 strings.padLeft("7", 3, "0")
->>> "007"
+= "007"
 ```
 **/
 export padLeft(s str, padLen int, padWith any) <str> => nil
@@ -1008,7 +1008,7 @@ used as default padding.
 
 ```gad
 strings.padRight("7", 3, "0")
->>> "700"
+= "700"
 ```
 **/
 export padRight(s str, padLen int, padWith any) <str> => nil
@@ -1023,7 +1023,7 @@ Returns a new string consisting of count copies of the string s.
 
 ```gad
 strings.repeat("ab", 3)
->>> "ababab"
+= "ababab"
 ```
 **/
 export repeat(s str, count int) <str> => nil
@@ -1037,7 +1037,7 @@ instances.
 
 ```gad
 strings.replace("oink oink", "k", "ky", 2)
->>> "oinky oinky"
+= "oinky oinky"
 ```
 **/
 export replace(s str, old str, new str, n int) <str> => nil
@@ -1056,7 +1056,7 @@ n determines the number of substrings to return:
 
 ```gad
 strings.split("a,b,c", ",", -1)
->>> ["a", "b", "c"]
+= ["a", "b", "c"]
 ```
 **/
 export split(s str, sep str, n int) <array> => nil
@@ -1075,7 +1075,7 @@ n determines the number of substrings to return:
 
 ```gad
 strings.splitAfter("a,b,c", ",", -1)
->>> ["a,", "b,", "c"]
+= ["a,", "b,", "c"]
 ```
 **/
 export splitAfter(s str, sep str, n int) <array> => nil
@@ -1088,7 +1088,7 @@ begin words mapped to their Unicode title case.
 
 ```gad
 strings.title("hello world")
->>> "Hello World"
+= "Hello World"
 ```
 **/
 export title(s str) <str> => nil
@@ -1100,7 +1100,7 @@ Returns s with all Unicode letters mapped to their lower case.
 
 ```gad
 strings.toLower("Go")
->>> "go"
+= "go"
 ```
 **/
 export toLower(s str) <str> => nil
@@ -1113,7 +1113,7 @@ Unicode title case.
 
 ```gad
 strings.toTitle("hello")
->>> "HELLO"
+= "HELLO"
 ```
 **/
 export toTitle(s str) <str> => nil
@@ -1125,7 +1125,7 @@ Returns s with all Unicode letters mapped to their upper case.
 
 ```gad
 strings.toUpper("go")
->>> "GO"
+= "GO"
 ```
 **/
 export toUpper(s str) <str> => nil
@@ -1138,7 +1138,7 @@ sequences replaced by the replacement string, which may be empty.
 
 ```gad
 strings.toValidUTF8("abc", "?")
->>> "abc"
+= "abc"
 ```
 **/
 export toValidUTF8(s str, replacement str) <str> => nil
@@ -1151,7 +1151,7 @@ code points contained in cutset removed.
 
 ```gad
 strings.trim("xxhixx", "x")
->>> "hi"
+= "hi"
 ```
 **/
 export trim(s str, cutset str) <str> => nil
@@ -1164,7 +1164,7 @@ code points satisfying f removed.
 
 ```gad
 strings.trimFunc("12hi34", func(c) => c >= "0"[0] && c <= "9"[0])
->>> "hi"
+= "hi"
 ```
 **/
 export trimFunc(s str, f) <str> => nil
@@ -1177,7 +1177,7 @@ contained in cutset removed.
 
 ```gad
 strings.trimLeft("xxhi", "x")
->>> "hi"
+= "hi"
 ```
 **/
 export trimLeft(s str, cutset str) <str> => nil
@@ -1190,7 +1190,7 @@ c satisfying f(c) removed.
 
 ```gad
 strings.trimLeftFunc("12hi", func(c) => c >= "0"[0] && c <= "9"[0])
->>> "hi"
+= "hi"
 ```
 **/
 export trimLeftFunc(s str, f) <str> => nil
@@ -1203,7 +1203,7 @@ with prefix, s is returned unchanged.
 
 ```gad
 strings.trimPrefix("gopher", "go")
->>> "pher"
+= "pher"
 ```
 **/
 export trimPrefix(s str, prefix str) <str> => nil
@@ -1216,7 +1216,7 @@ contained in cutset removed.
 
 ```gad
 strings.trimRight("hixx", "x")
->>> "hi"
+= "hi"
 ```
 **/
 export trimRight(s str, cutset str) <str> => nil
@@ -1229,7 +1229,7 @@ c satisfying f(c) removed.
 
 ```gad
 strings.trimRightFunc("hi12", func(c) => c >= "0"[0] && c <= "9"[0])
->>> "hi"
+= "hi"
 ```
 **/
 export trimRightFunc(s str, f) <str> => nil
@@ -1242,7 +1242,7 @@ space removed, as defined by Unicode.
 
 ```gad
 strings.trimSpace("  hi  ")
->>> "hi"
+= "hi"
 ```
 **/
 export trimSpace(s str) <str> => nil
@@ -1255,7 +1255,7 @@ with suffix, s is returned unchanged.
 
 ```gad
 strings.trimSuffix("gopher", "her")
->>> "gop"
+= "gop"
 ```
 **/
 export trimSuffix(s str, suffix str) <str> => nil
@@ -1267,7 +1267,7 @@ Truncate s to maxLen concatenated with emph.
 
 ```gad
 strings.trunc("hello world", 8)
->>> "hello wo..."
+= "hello wo..."
 ```
 **/
 export trunc(s str, maxLen int; emph="...") <str> => nil
@@ -1280,7 +1280,7 @@ If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
 
 ```gad
 strings.slitWords("foo bar baz")
->>> ["foo", "bar", "baz"]
+= ["foo", "bar", "baz"]
 ```
 **/
 export slitWords(s str|rawstr) <array> => nil
@@ -1293,7 +1293,7 @@ limits at word count equals to max, otherwise at length of s equals to max.
 
 ```gad
 strings.truncWords("one two three", 10)
->>> "one two..."
+= "one two..."
 ```
 **/
 export truncWords(s str|rawstr, max int; emph="...", atlimit=false) <_ str|rawstr> => nil

@@ -841,12 +841,16 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 				// separator.
 				sep = sepGlue
 			}
-		case *ExprStmt:
+		case *ExprStmt, *ValueCheckStmt, *OutputCheckStmt:
 			sep = sepNewline
 		default:
 			sep = sepNewline
 			// a run of `@import`s is one block
 			if x < last && importDirective(s) != nil && importDirective(stmt[x+1]) != nil {
+				break
+			}
+			// a check stays under the statement it checks (issue #22)
+			if x < last && isCheckStmt(stmt[x+1]) {
 				break
 			}
 			// Separate block/declaration statements from the next with a blank

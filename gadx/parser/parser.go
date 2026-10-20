@@ -174,12 +174,16 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		return p.parseTextBlock()
 	case gadxtoken.RawText:
 		return p.parseRawTextBlock()
+	case gadxtoken.OutputCheck:
+		return p.parseOutputCheck()
 	case gadxtoken.Para:
 		return p.parseParaBlock()
 	case gadxtoken.Md:
 		return p.parseMdBlock()
 	case gadxtoken.Test:
 		return p.parseTest()
+	case gadxtoken.Example:
+		return p.parseExample()
 	case gadxtoken.Call:
 		return p.parseCall()
 	case gadxtoken.HTML:
@@ -475,6 +479,37 @@ func (p *Parser) parseRawTextBlock() *gadxnode.RawTextBlockStmt {
 	return rt
 }
 
+// parseOutputCheck parses an output check (issue #22): `<<< text`, or `<<<`
+// and the lines indented under it, dedented.
+func (p *Parser) parseOutputCheck() *gadxnode.OutputCheckStmt {
+	tok := p.Token
+	p.expect(gadxtoken.OutputCheck)
+	oc := &gadxnode.OutputCheckStmt{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+	}
+	if !tok.Flag("multi") {
+		oc.Text = gnode.UnescapeOutputCheck(stringData(tok, "value", ""))
+		return oc
+	}
+	oc.Multi = true
+	if p.Token.Token != gadxtoken.Indent {
+		return oc
+	}
+	p.rawText++
+	body := p.parseBlock(oc)
+	p.rawText--
+	var lines []string
+	for _, stmt := range body {
+		if ts, ok := stmt.(*gadxnode.TextStmt); ok {
+			lines = append(lines, rawLineText(ts))
+			oc.NodeEnd = ts.End()
+		}
+	}
+	oc.Text = dedent(lines)
+	return oc
+}
+
 // parseRawTagBody reads the indented body of a `script` or `style` written in
 // tag syntax, by the same rules as `@raw_text`: the lines are content, so they
 // are taken verbatim — braces literal, `#{= … }#` the interpolation — minus the
@@ -712,6 +747,24 @@ func (p *Parser) parseTest() *gadxnode.TestDecl {
 		}
 	}
 	return td
+}
+
+// parseExample parses an `@example [NAME]` block and its indented body.
+func (p *Parser) parseExample() *gadxnode.ExampleDecl {
+	tok := p.Token
+	p.expect(gadxtoken.Example)
+	ed := &gadxnode.ExampleDecl{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+		Name:    strings.TrimSpace(stringData(tok, "value", "")),
+	}
+	if p.Token.Token == gadxtoken.Indent {
+		ed.Body = p.parseBlock(ed)
+		if len(ed.Body) > 0 {
+			ed.NodeEnd = ed.Body[len(ed.Body)-1].End()
+		}
+	}
+	return ed
 }
 
 func (p *Parser) parseHTML() *gadxnode.HTMLStmt {

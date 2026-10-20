@@ -30,7 +30,7 @@ class Written { a str; $1 class { b int } }
 g := Grouped(; $1={b: 1})
 w := Written(; $1={b: 2})
 [g.$1.b, w.$1.b, len(Grouped.@groups), len(Written.@groups)]
-// => [1, 2, 1, 1]
+= [1, 2, 1, 1]
 ```
 
 - `$N` counts the groups of **that** body, in the order written, from 1. A
@@ -66,7 +66,7 @@ for f in Contact.@groups { names += f.@name }
     c.$1.phone,
     c.$2,                           // nullable, not given: nil
 ]
-// => [["$1", "$2"], "Contact.$1", "555-0100", nil]
+= [["$1", "$2"], "Contact.$1", "555-0100", nil]
 ```
 
 ## A group's keys: under `$N`, or `[autoGroupKeys]`
@@ -84,7 +84,7 @@ class Contact {
 c := {name: "Ana", phone: "555-0100"} :> Contact
 d := {name: "Ana", $1: {phone: "555-0100"}} :> Contact
 [c.$1, d.$1.phone]                  // flat keys are no group's
-// => [nil, "555-0100"]
+= [nil, "555-0100"]
 ```
 
 `[autoGroupKeys]` before the class resolves them **by themselves**, as the
@@ -113,7 +113,7 @@ c := {name: "Ana", phone: "555-0100"} :> Contact
 d := {name: "Bob", $1: {phone: "555-0101"}} :> Contact
 e := Contact(; name="Eve", phone="555-0102")
 [c.phone, c.$1.phone, c.$2, d.phone, e.phone]
-// => ["555-0100", "555-0100", nil, "555-0101", "555-0102"]
+= ["555-0100", "555-0100", nil, "555-0101", "555-0102"]
 ```
 
 ## Nested groups, and their names
@@ -125,7 +125,7 @@ class Address {
 inner := Address.@fields["$1"].@types[0]
 deepest := inner.@fields["$1"].@types[0]
 [inner.@name, deepest.@name, len(inner.@groups)]
-// => ["Address.$1", "Address.$1.$1", 1]
+= ["Address.$1", "Address.$1.$1", 1]
 ```
 
 ## Metadata, nullable
@@ -138,7 +138,7 @@ class Row {
 g1 := Row.@fields["$1"]
 g2 := Row.@fields["$2"]
 [str(g1.@meta), g1.@nullable, g2.@nullable]
-// => ["(;width=2)", false, true]
+= ["(;width=2)", false, true]
 ```
 
 ## In a mixin: classes
@@ -150,7 +150,7 @@ the mixin has the field `$N` of it.
 mixin Contactable { { phone str } }
 class Person { use Contactable; name str }
 [Contactable.@groups[0].@name, typeName(Person.@fields["$1"].@types[0])]
-// => ["$1", "Class"]
+= ["$1", "Class"]
 ```
 
 ## In an interface: interfaces
@@ -167,76 +167,100 @@ ok := func(v) { try { v :: Contactable; return true } catch { return false } }
     ok({name: "Ana", "$1": {phone: "555-0100"}}),
     ok({name: "Ana"}),              // no $1: it is not
 ]
-// => [2, true, false]
+= [2, true, false]
 ```
 
 ## Example — `groups.gad`
 
 ```gad
-class Contact {
-    name str
-    { phone str; email str }
-    ? { note str }
+example groups_basic {
+    class Contact {
+        name str
+        { phone str; email str }
+        ? { note str }
+    }
+    c := Contact(; name = "Ana", $1 = {phone: "555-0100", email: "ana@example.com"})
+    names := []
+    for f in Contact.@groups { names += f.@name }
+    [
+        names,
+        typeName(c.$1),
+        c.$1.phone,
+        c.$2,                           // nullable, not given: nil
+    ]
+    = [["$1", "$2"], "Contact.$1", "555-0100", nil]
 }
-c := Contact(; name = "Ana", $1 = {phone: "555-0100", email: "ana@example.com"})
-names := []
-for f in Contact.@groups { names += f.@name }
-[
-    names,
-    typeName(c.$1),
-    c.$1.phone,
-    c.$2,                           // nullable, not given: nil
-]
 
-class Grouped { a str; { b int } }
-class Written { a str; $1 class { b int } }
-g := Grouped(; $1={b: 1})
-w := Written(; $1={b: 2})
-[g.$1.b, w.$1.b, len(Grouped.@groups), len(Written.@groups)]
-
-class Contact {
-    name str
-    { phone str }
+example groups_same {
+    class Grouped { a str; { b int } }
+    class Written { a str; $1 class { b int } }
+    g := Grouped(; $1={b: 1})
+    w := Written(; $1={b: 2})
+    [g.$1.b, w.$1.b, len(Grouped.@groups), len(Written.@groups)]
+    = [1, 2, 1, 1]
 }
-c := {name: "Ana", phone: "555-0100"} :> Contact
-d := {name: "Ana", $1: {phone: "555-0100"}} :> Contact
-[c.$1, d.$1.phone]                  // flat keys are no group's
 
-[autoGroupKeys]
-class Contact {
-    name str
-    { phone str; email? str }
-    ? { note str }
+example groups_keys_required {
+    class Contact {
+        name str
+        { phone str }
+    }
+    c := {name: "Ana", phone: "555-0100"} :> Contact
+    d := {name: "Ana", $1: {phone: "555-0100"}} :> Contact
+    [c.$1, d.$1.phone]                  // flat keys are no group's
+    = [nil, "555-0100"]
 }
-c := {name: "Ana", phone: "555-0100"} :> Contact
-d := {name: "Bob", $1: {phone: "555-0101"}} :> Contact
-e := Contact(; name="Eve", phone="555-0102")
-[c.phone, c.$1.phone, c.$2, d.phone, e.phone]
 
-class Address {
-    { street str; { city str; zip str } }
+example groups_keys_auto {
+    [autoGroupKeys]
+    class Contact {
+        name str
+        { phone str; email? str }
+        ? { note str }
+    }
+    c := {name: "Ana", phone: "555-0100"} :> Contact
+    d := {name: "Bob", $1: {phone: "555-0101"}} :> Contact
+    e := Contact(; name="Eve", phone="555-0102")
+    [c.phone, c.$1.phone, c.$2, d.phone, e.phone]
+    = ["555-0100", "555-0100", nil, "555-0101", "555-0102"]
 }
-inner := Address.@fields["$1"].@types[0]
-deepest := inner.@fields["$1"].@types[0]
-[inner.@name, deepest.@name, len(inner.@groups)]
 
-class Row {
-    [width=2] { a str; b str }
-    ? { c str }
+example groups_nested {
+    class Address {
+        { street str; { city str; zip str } }
+    }
+    inner := Address.@fields["$1"].@types[0]
+    deepest := inner.@fields["$1"].@types[0]
+    [inner.@name, deepest.@name, len(inner.@groups)]
+    = ["Address.$1", "Address.$1.$1", 1]
 }
-g1 := Row.@fields["$1"]
-g2 := Row.@fields["$2"]
-[str(g1.@meta), g1.@nullable, g2.@nullable]
 
-mixin Contactable { { phone str } }
-class Person { use Contactable; name str }
-[Contactable.@groups[0].@name, typeName(Person.@fields["$1"].@types[0])]
+example groups_meta {
+    class Row {
+        [width=2] { a str; b str }
+        ? { c str }
+    }
+    g1 := Row.@fields["$1"]
+    g2 := Row.@fields["$2"]
+    [str(g1.@meta), g1.@nullable, g2.@nullable]
+    = ["(;width=2)", false, true]
+}
 
-interface Contactable { name str; { phone str }; ? { note str } }
-ok := func(v) { try { v :: Contactable; return true } catch { return false } }
-[
-    len(Contactable.groups),
-    ok({name: "Ana", "$1": {phone: "555-0100"}}),
-    ok({name: "Ana"}),              // no $1: it is not
-]
+example groups_mixin {
+    mixin Contactable { { phone str } }
+    class Person { use Contactable; name str }
+    [Contactable.@groups[0].@name, typeName(Person.@fields["$1"].@types[0])]
+    = ["$1", "Class"]
+}
+
+example groups_interface {
+    interface Contactable { name str; { phone str }; ? { note str } }
+    ok := func(v) { try { v :: Contactable; return true } catch { return false } }
+    [
+        len(Contactable.groups),
+        ok({name: "Ana", "$1": {phone: "555-0100"}}),
+        ok({name: "Ana"}),              // no $1: it is not
+    ]
+    = [2, true, false]
+}
 ```

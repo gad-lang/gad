@@ -19,7 +19,7 @@ on anything else it is a bool of the operand's falsiness.
     [!0, !"", ![], !nil],       // falsy values
     [!yes, !no],                // a flag stays a flag
 ]
-// => [[-5, 5, -6, false], [-65, -66], [true, true, true, true], [off, on]]
+= [[-5, 5, -6, false], [-65, -66], [true, true, true, true], [no, yes]]
 ```
 
 ## Prefix `++` / `--`
@@ -33,7 +33,7 @@ f := 2.5
 c := 'A'
 d := 2.5d
 [[++x, x], [--f, f], ++c, ++d]
-// => [[6, 6], [1.5, 1.5], 'B', 3.5]
+= [[6, 6], [1.5, 1.5], 'B', 3.5d]
 ```
 
 ## Temporal values
@@ -51,7 +51,7 @@ t2 := time.CalendarTime("2026-01-31 08:05:30")
     str(++t),       // a minute (the seconds are 0)
     str(++t2),      // a second
 ]
-// => ["2026-02-01", "2026-01-31 08:06:00", "2026-01-31 08:05:31"]
+= ["2026-02-01", "2026-01-31 08:06:00", "2026-01-31 08:05:31"]
 ```
 
 ## Custom operators
@@ -66,38 +66,50 @@ met gad.unOpSub(v Vec) {
 }
 neg := -Vec(; x = 3, y = -4)
 [neg.x, neg.y, gad.unOpInc(41)]
-// => [-3, 4, 42]
+= [-3, 4, 42]
 ```
 
 ## Example — `unary_operators.gad`
 
 ```gad
-[
-    [-5, +5, ^5, !5],
-    [-'A', ^'A'],               // char promotes to int
-    [!0, !"", ![], !nil],       // falsy values
-    [!yes, !no],                // a flag stays a flag
-]
-
-x := 5
-f := 2.5
-c := 'A'
-d := 2.5d
-[[++x, x], [--f, f], ++c, ++d]
-
-day := 2026-01-31D
-t := time.CalendarTime("2026-01-31 08:05:00")
-t2 := time.CalendarTime("2026-01-31 08:05:30")
-[
-    str(++day),     // one day
-    str(++t),       // a minute (the seconds are 0)
-    str(++t2),      // a second
-]
-
-Vec := Class("Vec", (cls, define) => define(; fields = (; x = (= 0), y = (= 0))))
-met gad.unOpSub(v Vec) {
-    return Vec(; x = -v.x, y = -v.y)
+example unary_values {
+    [
+        [-5, +5, ^5, !5],
+        [-'A', ^'A'],               // char promotes to int
+        [!0, !"", ![], !nil],       // falsy values
+        [!yes, !no],                // a flag stays a flag
+    ]
+    = [[-5, 5, -6, false], [-65, -66], [true, true, true, true], [no, yes]]
 }
-neg := -Vec(; x = 3, y = -4)
-[neg.x, neg.y, gad.unOpInc(41)]
+
+example unary_incdec {
+    x := 5
+    f := 2.5
+    c := 'A'
+    d := 2.5d
+    [[++x, x], [--f, f], ++c, ++d]
+    = [[6, 6], [1.5, 1.5], 'B', 3.5d]
+}
+
+example unary_temporal {
+    day := 2026-01-31D
+    t := time.CalendarTime("2026-01-31 08:05:00")
+    t2 := time.CalendarTime("2026-01-31 08:05:30")
+    [
+        str(++day),     // one day
+        str(++t),       // a minute (the seconds are 0)
+        str(++t2),      // a second
+    ]
+    = ["2026-02-01", "2026-01-31 08:06:00", "2026-01-31 08:05:31"]
+}
+
+example unary_custom {
+    Vec := Class("Vec", (cls, define) => define(; fields = (; x = (= 0), y = (= 0))))
+    met gad.unOpSub(v Vec) {
+        return Vec(; x = -v.x, y = -v.y)
+    }
+    neg := -Vec(; x = 3, y = -4)
+    [neg.x, neg.y, gad.unOpInc(41)]
+    = [-3, 4, 42]
+}
 ```

@@ -26,7 +26,7 @@ func combine {
     (a str, b str) => "str+str"
 }
 [area(2.0), area(2.0, 3.0), combine(1, 2), combine(1, "x"), combine("a", "b")]
-// => [12.56636, 6, "int+int", "int+str", "str+str"]
+= [12.56636, 6.0, "int+int", "int+str", "str+str"]
 ```
 
 ## Specificity and fallbacks
@@ -48,7 +48,7 @@ func kind {
     (x)     => "other"                 // the fallback
 }
 [speak(Animal()), speak(Dog()), kind(5), kind("hi"), kind(true)]
-// => ["some animal", "woof", "integer", "text", "other"]
+= ["some animal", "woof", "integer", "text", "other"]
 ```
 
 ## Unions and variadics
@@ -68,7 +68,7 @@ func sum {
     }
 }
 [label(7), label("q"), sum(), sum(1, 2, 3)]
-// => ["label:7", "label:q", 0, 6]
+= ["label:7", "label:q", 0, 6]
 ```
 
 ## Extending and overriding (`met`, `met ~`, `$old`)
@@ -93,7 +93,7 @@ func step(n int) => n * 10
 met ~step($old, n int) => $old(n) + 1     // wraps the previous `step`
 
 [area(4), pre, greet("a"), step(3), gad.methodFromArgs(step, int)(4)]
-// => [16, "hi a", "HELLO a", 31, 41]
+= [16, "hi a", "HELLO a", 31, 41]
 ```
 
 ## Structural parameter types (dispatch by value)
@@ -109,7 +109,7 @@ func poly() => "s"
 met poly(n int) => n + 1                  // poly's (int) method fits the header
 rejected := func() { try { apply(42, 1); return false } catch { return true } }
 [apply(func(n int) => n * n, 6), apply(poly, 10), rejected()]
-// => [36, 11, true]
+= [36, 11, true]
 ```
 
 ## The assign-to-type operator `::`
@@ -128,70 +128,88 @@ bad := func() { try { "hi" :: int; return false } catch { return true } }
     (func(n int) => n) :: met<(int) <int>> != nil,     // a structural fit
     bad(),                                             // a failing cast raises
 ]
-// => [5, 5, 5, true, true]
+= [5, 5, 5, true, true]
 ```
 
 ## Example — `method_resolution.gad`
 
 ```gad
-func area {
-    (r float)          => 3.14159 * r * r        // circle
-    (w float, h float) => w * h                   // rectangle
-}
-func combine {
-    (a int, b int) => "int+int"
-    (a int, b str) => "int+str"
-    (a str, b str) => "str+str"
-}
-[area(2.0), area(2.0, 3.0), combine(1, 2), combine(1, "x"), combine("a", "b")]
-
-class Animal {}
-class Dog { *Animal }
-func speak {
-    (a Animal) => "some animal"
-    (d Dog)    => "woof"               // Dog is more specific
-}
-func kind {
-    (x int) => "integer"
-    (x str) => "text"
-    (x)     => "other"                 // the fallback
-}
-[speak(Animal()), speak(Dog()), kind(5), kind("hi"), kind(true)]
-
-func label(x int|str) => "label:" + str(x)
-func sum {
-    ()        => 0
-    (*xs int) {
-        total := 0
-        for _, x in xs { total += x }
-        return total
+example dispatch_arity {
+    func area {
+        (r float)          => 3.14159 * r * r        // circle
+        (w float, h float) => w * h                   // rectangle
     }
+    func combine {
+        (a int, b int) => "int+int"
+        (a int, b str) => "int+str"
+        (a str, b str) => "str+str"
+    }
+    [area(2.0), area(2.0, 3.0), combine(1, 2), combine(1, "x"), combine("a", "b")]
+    = [12.56636, 6.0, "int+int", "int+str", "str+str"]
 }
-[label(7), label("q"), sum(), sum(1, 2, 3)]
 
-met area(side int) => side * side          // a new (int) method: a square
+example dispatch_specific {
+    class Animal {}
+    class Dog { *Animal }
+    func speak {
+        (a Animal) => "some animal"
+        (d Dog)    => "woof"               // Dog is more specific
+    }
+    func kind {
+        (x int) => "integer"
+        (x str) => "text"
+        (x)     => "other"                 // the fallback
+    }
+    [speak(Animal()), speak(Dog()), kind(5), kind("hi"), kind(true)]
+    = ["some animal", "woof", "integer", "text", "other"]
+}
 
-func greet(name str) => "hi " + name
-pre := greet("a")
-met ~greet(name str) => "HELLO " + name   // override
+example dispatch_union_variadic {
+    func label(x int|str) => "label:" + str(x)
+    func sum {
+        ()        => 0
+        (*xs int) {
+            total := 0
+            for _, x in xs { total += x }
+            return total
+        }
+    }
+    [label(7), label("q"), sum(), sum(1, 2, 3)]
+    = ["label:7", "label:q", 0, 6]
+}
 
-func step(n int) => n * 10
-met ~step($old, n int) => $old(n) + 1     // wraps the previous `step`
+example dispatch_met {
+    met area(side int) => side * side          // a new (int) method: a square
 
-[area(4), pre, greet("a"), step(3), gad.methodFromArgs(step, int)(4)]
+    func greet(name str) => "hi " + name
+    pre := greet("a")
+    met ~greet(name str) => "HELLO " + name   // override
 
-func apply(cb met<(int) <int>>, v int) => cb(v)
-func poly() => "s"
-met poly(n int) => n + 1                  // poly's (int) method fits the header
-rejected := func() { try { apply(42, 1); return false } catch { return true } }
-[apply(func(n int) => n * n, 6), apply(poly, 10), rejected()]
+    func step(n int) => n * 10
+    met ~step($old, n int) => $old(n) + 1     // wraps the previous `step`
 
-bad := func() { try { "hi" :: int; return false } catch { return true } }
-[
-    5 :: int,
-    5 :: int :: any,                                   // chained
-    2 + 3 :: int,                                      // binds tighter than +
-    (func(n int) => n) :: met<(int) <int>> != nil,     // a structural fit
-    bad(),                                             // a failing cast raises
-]
+    [area(4), pre, greet("a"), step(3), gad.methodFromArgs(step, int)(4)]
+    = [16, "hi a", "HELLO a", 31, 41]
+}
+
+example dispatch_structural {
+    func apply(cb met<(int) <int>>, v int) => cb(v)
+    func poly() => "s"
+    met poly(n int) => n + 1                  // poly's (int) method fits the header
+    rejected := func() { try { apply(42, 1); return false } catch { return true } }
+    [apply(func(n int) => n * n, 6), apply(poly, 10), rejected()]
+    = [36, 11, true]
+}
+
+example dispatch_assign {
+    bad := func() { try { "hi" :: int; return false } catch { return true } }
+    [
+        5 :: int,
+        5 :: int :: any,                                   // chained
+        2 + 3 :: int,                                      // binds tighter than +
+        (func(n int) => n) :: met<(int) <int>> != nil,     // a structural fit
+        bad(),                                             // a failing cast raises
+    ]
+    = [5, 5, 5, true, true]
+}
 ```

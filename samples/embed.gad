@@ -57,39 +57,39 @@ func …` binds the name for the recursive call).
 @snippet embed_walk
 **/
 
-//snippet embed_file
-greeting := embed("embed/greeting.txt")
-[greeting.name, greeting.size, str(greeting.data)]
-/**= ["embed/greeting.txt", 29, "Hello from an embedded file!\n"] **/
-//endsnippet
+example embed_file {
+    greeting := embed("embed/greeting.txt")
+    [greeting.name, greeting.size, str(greeting.data)]
+    = ["embed/greeting.txt", 29, "Hello from an embedded file!\n"]
+}
 
-//snippet embed_dir
-dir := embed("embed")
-cfg := embed("config.json"; sources = ["embed"])   // found via the search path
-[dir.name, dir.isDir, str(dir["config.json"].data), str(cfg.data) == str(dir["config.json"].data)]
-/**= ["embed", true, "{\"name\": \"gad\", \"stars\": 3}\n", true] **/
-//endsnippet
+example embed_dir {
+    dir := embed("embed")
+    cfg := embed("config.json"; sources = ["embed"])   // found via the search path
+    [dir.name, dir.isDir, str(dir["config.json"].data), str(cfg.data) == str(dir["config.json"].data)]
+    = ["embed", true, "{\"name\": \"gad\", \"stars\": 3}\n", true]
+}
 
-//snippet embed_walk
-root := embed("embed")
-var walk
-walk = func(node, indent) {
-    for name, e in iterator(node.fs; sorted) {
-        if e.isDir {
-            println(indent + name + "/")
-            walk(e, indent + "  ")
-        } else {
-            println(indent + name + " (" + str(e.size) + " bytes)")
+example embed_walk {
+    root := embed("embed")
+    var walk
+    walk = func(node, indent) {
+        for name, e in iterator(node.fs; sorted) {
+            if e.isDir {
+                println(indent + name + "/")
+                walk(e, indent + "  ")
+            } else {
+                println(indent + name + " (" + str(e.size) + " bytes)")
+            }
         }
     }
+    walk(root, "")
 }
-walk(root, "")
-/**<
+<<<
 config.json (28 bytes)
 greeting.txt (29 bytes)
 nested/
   note.txt (14 bytes)
-**/
-//endsnippet
+>>>
 
 return greeting.name

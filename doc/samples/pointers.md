@@ -18,7 +18,7 @@ before := p.v            // read through the pointer
 p.v = 20                 // write through it: x changes
 p.v += 1
 [before, x, typeName(p)]
-// => [10, 21, "ptr"]
+= [10, 21, "ptr"]
 ```
 
 ## Passing by reference
@@ -41,7 +41,7 @@ push(&items, 2)
 data := bytes("ab")
 appendByte(&data, 99)
 [count, items, str(data)]
-// => [3, [1, 2], "abc"]
+= [3, [1, 2], "abc"]
 ```
 
 ## Pointer types (`*T`)
@@ -69,7 +69,7 @@ ratio := 1.5
     fails(() => total(&word)),     // points to a str, not an array
     fails(() => describe(&ratio)), // a float is not in <int|str>
 ]
-// => [3, 6, "str", true, true, true]
+= [3, 6, "str", true, true, true]
 ```
 
 ## Sharing with closures, outliving the function
@@ -96,7 +96,7 @@ c := counter()
 c.v += 1
 c.v += 1
 [seen, running, c.v]
-// => [5, 101, 2]
+= [5, 101, 2]
 ```
 
 ## Pointers to fields and elements
@@ -127,7 +127,7 @@ t := Temp()
 f := &t.fahrenheit          // the accessors run on each access
 f.v = 212
 [user.name, xs, t.celsius, f.v]
-// => ["bo", [1, 20, 3], 100, 212]
+= ["bo", [1, 20, 3], 100, 212]
 ```
 
 Such a pointer targets the **object**, not the variable that holds it: after
@@ -151,7 +151,7 @@ a := 1
 b := 1
 pa := &a
 [pa == &a, pa == &b, bool(pa), str(pa)]
-// => [true, false, true, "&1"]
+= [true, false, true, "&1"]
 ```
 
 ## From Go
@@ -180,83 +180,101 @@ hand out its own pointers for members by implementing `gad.Addressable`.
 ## Example — `pointers.gad`
 
 ```gad
-x := 10
-p := &x                  // p points to the variable x
-before := p.v            // read through the pointer
-p.v = 20                 // write through it: x changes
-p.v += 1
-[before, x, typeName(p)]
-
-inc := func(n) { n.v += 1 }
-push := func(xs, v) { xs.v += v }             // may reallocate: written back
-appendByte := func(buf, b) { buf.v += bytes(b) }
-
-count := 1
-inc(&count)
-inc(&count)
-items := [1]
-push(&items, 2)
-data := bytes("ab")
-appendByte(&data, 99)
-[count, items, str(data)]
-
-func total(xs *array) => len(xs.v)
-func describe(v *<int|str>) => typeName(v.v)
-func sum(xs *[]int) => reduce(xs.v, (acc, v, i) => acc + v, 0)
-fails := func(f) { try { f(); return false } catch { return true } }
-
-nums := [1, 2, 3]
-word := "gad"
-ratio := 1.5
-[
-    total(&nums), sum(&nums),
-    describe(&word),
-    fails(() => total(nums)),      // not a pointer
-    fails(() => total(&word)),     // points to a str, not an array
-    fails(() => describe(&ratio)), // a float is not in <int|str>
-]
-
-running := 0
-add := (n) => { running += n }     // a closure capturing running
-shared := &running                 // the same cell
-add(5)
-seen := shared.v
-shared.v = 100
-add(1)
-
-counter := func() {
-    n := 0
-    return &n                      // n lives on in its cell
+example ptr_basics {
+    x := 10
+    p := &x                  // p points to the variable x
+    before := p.v            // read through the pointer
+    p.v = 20                 // write through it: x changes
+    p.v += 1
+    [before, x, typeName(p)]
+    = [10, 21, "ptr"]
 }
-c := counter()
-c.v += 1
-c.v += 1
-[seen, running, c.v]
 
-user := {name: "ann"}
-name := &user.name
-name.v = "bo"
+example ptr_functions {
+    inc := func(n) { n.v += 1 }
+    push := func(xs, v) { xs.v += v }             // may reallocate: written back
+    appendByte := func(buf, b) { buf.v += bytes(b) }
 
-xs := [1, 2, 3]
-second := &xs[1]
-second.v *= 10
+    count := 1
+    inc(&count)
+    inc(&count)
+    items := [1]
+    push(&items, 2)
+    data := bytes("ab")
+    appendByte(&data, 99)
+    [count, items, str(data)]
+    = [3, [1, 2], "abc"]
+}
 
-class Temp {
-    celsius = 0
-    props {
-        fahrenheit {
-            () => this.celsius * 9 / 5 + 32
-            (f) { this.celsius = (f - 32) * 5 / 9 }
+example ptr_types {
+    func total(xs *array) => len(xs.v)
+    func describe(v *<int|str>) => typeName(v.v)
+    func sum(xs *[]int) => reduce(xs.v, (acc, v, i) => acc + v, 0)
+    fails := func(f) { try { f(); return false } catch { return true } }
+
+    nums := [1, 2, 3]
+    word := "gad"
+    ratio := 1.5
+    [
+        total(&nums), sum(&nums),
+        describe(&word),
+        fails(() => total(nums)),      // not a pointer
+        fails(() => total(&word)),     // points to a str, not an array
+        fails(() => describe(&ratio)), // a float is not in <int|str>
+    ]
+    = [3, 6, "str", true, true, true]
+}
+
+example ptr_cells {
+    running := 0
+    add := (n) => { running += n }     // a closure capturing running
+    shared := &running                 // the same cell
+    add(5)
+    seen := shared.v
+    shared.v = 100
+    add(1)
+
+    counter := func() {
+        n := 0
+        return &n                      // n lives on in its cell
+    }
+    c := counter()
+    c.v += 1
+    c.v += 1
+    [seen, running, c.v]
+    = [5, 101, 2]
+}
+
+example ptr_members {
+    user := {name: "ann"}
+    name := &user.name
+    name.v = "bo"
+
+    xs := [1, 2, 3]
+    second := &xs[1]
+    second.v *= 10
+
+    class Temp {
+        celsius = 0
+        props {
+            fahrenheit {
+                () => this.celsius * 9 / 5 + 32
+                (f) { this.celsius = (f - 32) * 5 / 9 }
+            }
         }
     }
+    t := Temp()
+    f := &t.fahrenheit          // the accessors run on each access
+    f.v = 212
+    [user.name, xs, t.celsius, f.v]
+    = ["bo", [1, 20, 3], 100, 212]
 }
-t := Temp()
-f := &t.fahrenheit          // the accessors run on each access
-f.v = 212
-[user.name, xs, t.celsius, f.v]
 
-a := 1
-b := 1
-pa := &a
-[pa == &a, pa == &b, bool(pa), str(pa)]
+example ptr_identity {
+    a := 1
+    b := 1
+    pa := &a
+    [pa == &a, pa == &b, bool(pa), str(pa)]
+    = [true, false, true, "&1"]
+}
 ```

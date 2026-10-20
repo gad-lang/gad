@@ -94,6 +94,8 @@ type Tag struct {
 	// are written to a buffer as Markdown source and converted to HTML via
 	// goldmark (see WriteTo). Such a tag is anonymous — it has no wrapper element.
 	markdown bool
+	// checked is how many children an output check has read (CheckRendered)
+	checked int
 }
 
 // NewTag returns a tag with the given name and children, classifying attrs into

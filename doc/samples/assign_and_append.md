@@ -16,7 +16,7 @@ y := 1, 2, *rest        // `*` splices an iterable in
 a, b := 10, 20          // several targets destructure
 head, *tail := 1, 2, 3, 4
 [x, y, [a, b], head, tail]
-// => [[1, 2, 3], [1, 2, 3, 4], [10, 20], 1, [2, 3, 4]]
+= [[1, 2, 3], [1, 2, 3, 4], [10, 20], 1, [2, 3, 4]]
 ```
 
 ## Array append
@@ -37,7 +37,7 @@ acc += 1                // append one element
 acc ++= [2, 3]          // extend with an iterable
 acc ++= 4, 5            // ++= a, b  ==  ++= [a, b]
 [exprs, acc]
-// => [[[1, 2], [1, 2, 3], [1, 2, 3]], [1, 2, 3, 4, 5]]
+= [[[1, 2], [1, 2, 3], [1, 2, 3]], [1, 2, 3, 4, 5]]
 ```
 
 ## Dict entries
@@ -53,36 +53,45 @@ d += keyValue("b", 2)   // put one entry
 d += {c: 3}             // a dict reads as a sequence of entries, and merges
 d ++= {e: 5, f: 6}      // extend with a sequence
 d
-// => {a: 1, b: 2, c: 3, e: 5, f: 6}
+= {a: 1, b: 2, c: 3, e: 5, f: 6}
 ```
 
 ## Example — `assign_and_append.gad`
 
 ```gad
-x := 1, 2, 3            // one target: the list is an array
-rest := [3, 4]
-y := 1, 2, *rest        // `*` splices an iterable in
-a, b := 10, 20          // several targets destructure
-head, *tail := 1, 2, 3, 4
-[x, y, [a, b], head, tail]
+example assign_lists {
+    x := 1, 2, 3            // one target: the list is an array
+    rest := [3, 4]
+    y := 1, 2, *rest        // `*` splices an iterable in
+    a, b := 10, 20          // several targets destructure
+    head, *tail := 1, 2, 3, 4
+    [x, y, [a, b], head, tail]
+    = [[1, 2, 3], [1, 2, 3, 4], [10, 20], 1, [2, 3, 4]]
+}
 
-exprs := [
-    [1] + 2,            // append one
-    [1] + [2, 3],       // + concatenates an array
-    [1] ++ [2, 3],      // ++ extends with an iterable
-]
+example array_append {
+    exprs := [
+        [1] + 2,            // append one
+        [1] + [2, 3],       // + concatenates an array
+        [1] ++ [2, 3],      // ++ extends with an iterable
+    ]
 
-acc := []
-acc += 1                // append one element
-acc ++= [2, 3]          // extend with an iterable
-acc ++= 4, 5            // ++= a, b  ==  ++= [a, b]
-[exprs, acc]
+    acc := []
+    acc += 1                // append one element
+    acc ++= [2, 3]          // extend with an iterable
+    acc ++= 4, 5            // ++= a, b  ==  ++= [a, b]
+    [exprs, acc]
+    = [[[1, 2], [1, 2, 3], [1, 2, 3]], [1, 2, 3, 4, 5]]
+}
 
-d := {a: 1}
-d += keyValue("b", 2)   // put one entry
-d += {c: 3}             // a dict reads as a sequence of entries, and merges
-d ++= {e: 5, f: 6}      // extend with a sequence
-d
+example dict_append {
+    d := {a: 1}
+    d += keyValue("b", 2)   // put one entry
+    d += {c: 3}             // a dict reads as a sequence of entries, and merges
+    d ++= {e: 5, f: 6}      // extend with a sequence
+    d
+    = {a: 1, b: 2, c: 3, e: 5, f: 6}
+}
 
 return acc == [1, 2, 3, 4, 5] && d == {a: 1, b: 2, c: 3, e: 5, f: 6}
 ```

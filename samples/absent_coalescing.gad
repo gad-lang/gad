@@ -41,44 +41,44 @@ absent, so both apply.
 @snippet absent_global
 **/
 
-//snippet absent_value
-[
-    ({b: 5}).b !? 9,                         // present
-    ({b: nil}).b !? 9,                       // present with a nil value
-    ({b: nil}).b ?? 9,                       // contrast: `??` is nil-based
-    ({}).b !? 9,                             // absent
-]
-/**= [5, nil, 9, 9] **/
-//endsnippet
+example absent_value {
+    [
+        ({b: 5}).b !? 9,                         // present
+        ({b: nil}).b !? 9,                       // present with a nil value
+        ({b: nil}).b ?? 9,                       // contrast: `??` is nil-based
+        ({}).b !? 9,                             // absent
+    ]
+    = [5, nil, 9, 9]
+}
 
-//snippet absent_assign
-a := {b: nil}
-a.b !?= 9                // no-op — the key is already present
-e := {}
-e.b !?= 9                // assigns — the key is absent
-[a.b, e.b]
-/**= [nil, 9] **/
-//endsnippet
+example absent_assign {
+    a := {b: nil}
+    a.b !?= 9                // no-op — the key is already present
+    e := {}
+    e.b !?= 9                // assigns — the key is absent
+    [a.b, e.b]
+    = [nil, 9]
+}
 
-//snippet absent_deep
-box := {}
-missing := box.x.y.z !? "missing"   // nothing is created
-box.x.y.z !?= 42
-[missing, box]
-/**= ["missing", {x: {y: {z: 42}}}] **/
-//endsnippet
+example absent_deep {
+    box := {}
+    missing := box.x.y.z !? "missing"   // nothing is created
+    box.x.y.z !?= 42
+    [missing, box]
+    = ["missing", {x: {y: {z: 42}}}]
+}
 
-//snippet absent_instance
-class Point { x = 0 }
-p := Point()
-before := ["x" in p, "y" in p, p.y !? -1]  // field y is absent
-p.y !?= 7
-[before, p.y]
-/**= [[true, false, -1], 7] **/
-//endsnippet
+example absent_instance {
+    class Point { x = 0 }
+    p := Point()
+    before := ["x" in p, "y" in p, p.y !? -1]  // field y is absent
+    p.y !?= 7
+    [before, p.y]
+    = [[true, false, -1], 7]
+}
 
-//snippet absent_global
-global (page = 1, user !?= "guest")
-#"page={page} user={user}"
-/**= "page=1 user=guest" **/
-//endsnippet
+example absent_global {
+    global (page = 1, user !?= "guest")
+    #"page={page} user={user}"
+    = "page=1 user=guest"
+}

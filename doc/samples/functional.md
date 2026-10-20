@@ -25,7 +25,7 @@ nums := [1, 2, 3, 4, 5]
     collect(map({a: 1}, (v, k) => k + "=" + str(v))),   // a dict: value, key
     collect(filter("gad lang", (c, i, s) => c != ' ')), // a string: its chars
 ]
-// => [[10, 21, 32, 43, 54], [1, 4, 9, 16, 25], [1, 3, 5], ["a=1"], ['g', 'a', 'd', 'l', 'a', 'n', 'g']]
+= [[10, 21, 32, 43, 54], [1, 4, 9, 16, 25], [1, 3, 5], ["a=1"], ['g', 'a', 'd', 'l', 'a', 'n', 'g']]
 ```
 
 `map(…; update)` also writes each result back into the collection — as the
@@ -37,7 +37,7 @@ lazy := map(prices, (v, i) => v * 2; update)
 before := copy(prices)             // nothing ran yet
 collect(lazy)                      // consuming it writes the results back
 [before, prices]
-// => [[10, 20], [20, 40]]
+= [[10, 20], [20, 40]]
 ```
 
 ## reduce and each
@@ -53,7 +53,7 @@ longest := reduce(["go", "gad", "lang"], (acc, v, i) => len(v) > len(acc) ? v : 
 seen := []
 each({x: 1}, (k, v) => { seen += k + str(v) })   // key first
 [total, longest, seen, typeName(each([1], (i, v) => nil))]
-// => [10, "lang", ["x1"], "array"]
+= [10, "lang", ["x1"], "array"]
 ```
 
 ## keys, values, items and enumerate
@@ -70,7 +70,7 @@ pair := collect(items(d))[0]
     [pair.k, pair.v],
     [[e.k, e.v] for e in enumerate(["a", "b"])],
 ]
-// => [["name"], ["x", "y"], ["name", "gad"], [[0, "a"], [1, "b"]]]
+= [["name"], ["x", "y"], ["name", "gad"], [[0, "a"], [1, "b"]]]
 ```
 
 ## zip, iterate and toArray
@@ -87,7 +87,7 @@ another iterable its `[(key)=value]` entries.
     toArray([1, 2], [3]),                  // arrays: their elements
     [[e.k, e.v] for e in toArray("ab")],   // other iterables: their entries
 ]
-// => [[1, 2, "a", 3, 4], ['a', 'b'], [1, 2, 3], [[0, 'a'], [1, 'b']]]
+= [[1, 2, "a", 3, 4], ['a', 'b'], [1, 2, 3], [[0, 'a'], [1, 'b']]]
 ```
 
 ## sort and sortReverse
@@ -101,7 +101,7 @@ another iterable its `[(key)=value]` entries.
     sortReverse([3, 1, 2]),
     sort(["pear", "fig", "apple"]; less=(a, b) => len(a) < len(b)),
 ]
-// => [[1, 2, 3], [3, 2, 1], ["fig", "pear", "apple"]]
+= [[1, 2, 3], [3, 2, 1], ["fig", "pear", "apple"]]
 ```
 
 ## A pipeline
@@ -116,57 +116,78 @@ squaresOfEvens := map(
     (v) => v * v; nokey,
 )
 [typeName(squaresOfEvens), collect(squaresOfEvens), reduce(squaresOfEvens, (a, v, i) => a + v, 0)]
-// => ["MapIterator", [4, 16, 36, 64, 100], 220]
+= ["MapIterator", [4, 16, 36, 64, 100], 220]
 ```
 
 ## Example — `functional.gad`
 
 ```gad
-nums := [1, 2, 3, 4, 5]
-[
-    collect(map(nums, (v, i) => v * 10 + i)),           // value, index
-    collect(map(nums, (v) => v * v; nokey)),            // value only
-    collect(filter(nums, (v, i, all) => v % 2 == 1)),   // value, index, iterable
-    collect(map({a: 1}, (v, k) => k + "=" + str(v))),   // a dict: value, key
-    collect(filter("gad lang", (c, i, s) => c != ' ')), // a string: its chars
-]
+example map_filter {
+    nums := [1, 2, 3, 4, 5]
+    [
+        collect(map(nums, (v, i) => v * 10 + i)),           // value, index
+        collect(map(nums, (v) => v * v; nokey)),            // value only
+        collect(filter(nums, (v, i, all) => v % 2 == 1)),   // value, index, iterable
+        collect(map({a: 1}, (v, k) => k + "=" + str(v))),   // a dict: value, key
+        collect(filter("gad lang", (c, i, s) => c != ' ')), // a string: its chars
+    ]
+    = [[10, 21, 32, 43, 54], [1, 4, 9, 16, 25], [1, 3, 5], ["a=1"], ['g', 'a', 'd', 'l', 'a', 'n', 'g']]
+}
 
-prices := [10, 20]
-lazy := map(prices, (v, i) => v * 2; update)
-before := copy(prices)             // nothing ran yet
-collect(lazy)                      // consuming it writes the results back
-[before, prices]
+example map_update {
+    prices := [10, 20]
+    lazy := map(prices, (v, i) => v * 2; update)
+    before := copy(prices)             // nothing ran yet
+    collect(lazy)                      // consuming it writes the results back
+    [before, prices]
+    = [[10, 20], [20, 40]]
+}
 
-total := reduce([1, 2, 3, 4], (acc, v, i) => acc + v, 0)
-longest := reduce(["go", "gad", "lang"], (acc, v, i) => len(v) > len(acc) ? v : acc)
-seen := []
-each({x: 1}, (k, v) => { seen += k + str(v) })   // key first
-[total, longest, seen, typeName(each([1], (i, v) => nil))]
+example reduce_each {
+    total := reduce([1, 2, 3, 4], (acc, v, i) => acc + v, 0)
+    longest := reduce(["go", "gad", "lang"], (acc, v, i) => len(v) > len(acc) ? v : acc)
+    seen := []
+    each({x: 1}, (k, v) => { seen += k + str(v) })   // key first
+    [total, longest, seen, typeName(each([1], (i, v) => nil))]
+    = [10, "lang", ["x1"], "array"]
+}
 
-d := {name: "gad"}
-pair := collect(items(d))[0]
-[
-    collect(keys(d)), collect(values(["x", "y"])),
-    [pair.k, pair.v],
-    [[e.k, e.v] for e in enumerate(["a", "b"])],
-]
+example entries {
+    d := {name: "gad"}
+    pair := collect(items(d))[0]
+    [
+        collect(keys(d)), collect(values(["x", "y"])),
+        [pair.k, pair.v],
+        [[e.k, e.v] for e in enumerate(["a", "b"])],
+    ]
+    = [["name"], ["x", "y"], ["name", "gad"], [[0, "a"], [1, "b"]]]
+}
 
-[
-    collect(zip([1, 2], ["a"], 3 .. 4)),   // chained, not paired
-    collect(iterate("ab")),
-    toArray([1, 2], [3]),                  // arrays: their elements
-    [[e.k, e.v] for e in toArray("ab")],   // other iterables: their entries
-]
+example chain_convert {
+    [
+        collect(zip([1, 2], ["a"], 3 .. 4)),   // chained, not paired
+        collect(iterate("ab")),
+        toArray([1, 2], [3]),                  // arrays: their elements
+        [[e.k, e.v] for e in toArray("ab")],   // other iterables: their entries
+    ]
+    = [[1, 2, "a", 3, 4], ['a', 'b'], [1, 2, 3], [[0, 'a'], [1, 'b']]]
+}
 
-[
-    sort([3, 1, 2]),
-    sortReverse([3, 1, 2]),
-    sort(["pear", "fig", "apple"]; less=(a, b) => len(a) < len(b)),
-]
+example sorting {
+    [
+        sort([3, 1, 2]),
+        sortReverse([3, 1, 2]),
+        sort(["pear", "fig", "apple"]; less=(a, b) => len(a) < len(b)),
+    ]
+    = [[1, 2, 3], [3, 2, 1], ["fig", "pear", "apple"]]
+}
 
-squaresOfEvens := map(
-    filter(1 .. 10, (v, i, r) => v % 2 == 0),
-    (v) => v * v; nokey,
-)
-[typeName(squaresOfEvens), collect(squaresOfEvens), reduce(squaresOfEvens, (a, v, i) => a + v, 0)]
+example pipeline {
+    squaresOfEvens := map(
+        filter(1 .. 10, (v, i, r) => v % 2 == 0),
+        (v) => v * v; nokey,
+    )
+    [typeName(squaresOfEvens), collect(squaresOfEvens), reduce(squaresOfEvens, (a, v, i) => a + v, 0)]
+    = ["MapIterator", [4, 16, 36, 64, 100], 220]
+}
 ```

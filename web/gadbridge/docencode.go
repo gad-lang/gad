@@ -2,34 +2,29 @@ package gadbridge
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 // DocEncoded is the structure serialized by DocEncode (JSON/YAML): the extracted
-// prose and sections plus the source's snippets, each with its `uses` references
-// and — when run — the verified result/output.
+// prose and sections plus the source's snippets — its named examples.
 type DocEncoded struct {
 	Prose    string       `json:"prose,omitempty" yaml:"prose,omitempty"`
 	Sections []DocSection `json:"sections,omitempty" yaml:"sections,omitempty"`
 	Snippets []DocSnippet `json:"snippets,omitempty" yaml:"snippets,omitempty"`
 }
 
-// DocSnippet is a `//snippet` region exposed in the encoded documentation.
+// DocSnippet is a named `example NAME { … }` (issue #22) exposed in the encoded
+// documentation: its body, dedented, and the output checks right after its `}`.
 type DocSnippet struct {
-	Name     string   `json:"name" yaml:"name"`
-	Uses     []string `json:"uses,omitempty" yaml:"uses,omitempty"`
-	Code     string   `json:"code" yaml:"code"`
-	Kind     string   `json:"kind,omitempty" yaml:"kind,omitempty"` // "value" | "output" | ""
-	Expected string   `json:"expected,omitempty" yaml:"expected,omitempty"`
-	Result   string   `json:"result,omitempty" yaml:"result,omitempty"`
-	Output   string   `json:"output,omitempty" yaml:"output,omitempty"`
+	Name string `json:"name" yaml:"name"`
+	Code string `json:"code" yaml:"code"`
 }
 
 // DocEncode extracts the documentation from src and returns it encoded as JSON or
-// YAML (format "json" | "yaml"), including the source's snippets with their
-// references and (when run) verified results.
+// YAML (format "json" | "yaml"), including the source's snippets.
 func DocEncode(src, sourceType, format string) (string, error) {
 	doc, err := ExtractDoc(src, sourceType)
 	if err != nil {
@@ -38,7 +33,7 @@ func DocEncode(src, sourceType, format string) (string, error) {
 	enc := &DocEncoded{
 		Prose:    doc.Prose,
 		Sections: doc.Sections,
-		Snippets: collectDocSnippets([]byte(src), sourceType),
+		Snippets: Snippets([]byte(src)),
 	}
 	switch strings.ToLower(format) {
 	case "yaml", "yml":
@@ -50,168 +45,133 @@ func DocEncode(src, sourceType, format string) (string, error) {
 	}
 }
 
-// --- snippet extraction (mirrors the CLI `//snippet` grammar) ---
+// reExampleOpen matches the line opening a named example: its indentation and
+// its name.
+var reExampleOpen = regexp.MustCompile(`^(\s*)example\s+(\w+)\s*\{\s*$`)
 
-type bridgeSnippet struct {
-	name, code, kind, expected string
-	uses                       []string
-}
+// reGadxExampleOpen matches gadx's `@example NAME`: its indentation and name.
+var reGadxExampleOpen = regexp.MustCompile(`^(\s*)@example\s+(\w+)\s*$`)
 
-// collectDocSnippets extracts every `//snippet NAME [uses …]` region of src (in
-// source order), runs each (with its `uses` contexts prepended) to fill in the
-// verified result/output, and returns them for encoding.
-func collectDocSnippets(src []byte, sourceType string) []DocSnippet {
-	snips, order := extractBridgeSnippets(src)
-	out := make([]DocSnippet, 0, len(order))
-	for _, name := range order {
-		s := snips[name]
-		info := DocSnippet{Name: s.name, Uses: s.uses, Code: s.code, Kind: s.kind, Expected: s.expected}
-		if s.kind != "" {
-			ctx := snippetContext(s, snips)
-			switch s.kind {
-			case "value":
-				// A value snippet ends in a bare expression; return it so the run
-				// reports it as the result.
-				if r := RunSource(ctx+returnLast(s.code), sourceType); r.OK {
-					info.Result = r.Result
-				}
-			case "output":
-				if r := RunSource(ctx+s.code, sourceType); r.OK {
-					info.Output = strings.TrimRight(r.Stdout, "\n")
+// Snippets are the named examples of src, in source order: each one's body
+// (dedented, without its braces) and the output checks written right after
+// its closing brace, at its level (`<<< text`, `<<<` … `>>>`) — or, in gadx,
+// `@example NAME`'s indented body and the `<<<` lines after it.
+func Snippets(src []byte) []DocSnippet {
+	var out []DocSnippet
+	lines := strings.Split(string(src), "\n")
+	for i := 0; i < len(lines); i++ {
+		if m := reGadxExampleOpen.FindStringSubmatch(lines[i]); m != nil {
+			var s DocSnippet
+			s, i = gadxSnippet(lines, i, m[1], m[2])
+			out = append(out, s)
+			continue
+		}
+		m := reExampleOpen.FindStringSubmatch(lines[i])
+		if m == nil {
+			continue
+		}
+		indent, name := m[1], m[2]
+		closer := indent + "}"
+		j := i + 1
+		for j < len(lines) && strings.TrimRight(lines[j], " \t") != closer {
+			j++
+		}
+		if j >= len(lines) {
+			continue
+		}
+		body := dedent(trimBlank(append([]string(nil), lines[i+1:j]...)))
+		k := j + 1
+		var after []string
+		for k < len(lines) && strings.HasPrefix(lines[k], indent+"<<<") {
+			block := strings.TrimSpace(lines[k]) == "<<<"
+			after = append(after, strings.TrimPrefix(lines[k], indent))
+			k++
+			for block && k < len(lines) {
+				after = append(after, strings.TrimPrefix(lines[k], indent))
+				k++
+				if strings.TrimSpace(lines[k-1]) == ">>>" {
+					break
 				}
 			}
 		}
-		out = append(out, info)
+		code := strings.Join(body, "\n")
+		if len(after) > 0 {
+			code += "\n" + strings.Join(after, "\n")
+		}
+		out = append(out, DocSnippet{Name: name, Code: code})
+		i = k - 1
 	}
 	return out
 }
 
-// returnLast prefixes the last non-blank line of code with `return ` (unless it
-// already returns), so a value snippet's trailing expression is reported as the
-// run's result. Indentation is preserved.
-func returnLast(code string) string {
-	lines := strings.Split(code, "\n")
-	i := len(lines) - 1
-	for i >= 0 && strings.TrimSpace(lines[i]) == "" {
-		i--
+func trimBlank(lines []string) []string {
+	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
+		lines = lines[1:]
 	}
-	if i >= 0 {
-		t := strings.TrimSpace(lines[i])
-		if t != "return" && !strings.HasPrefix(t, "return ") {
-			indent := lines[i][:len(lines[i])-len(strings.TrimLeft(lines[i], " \t"))]
-			lines[i] = indent + "return " + t
-		}
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
 	}
-	return strings.Join(lines, "\n")
+	return lines
 }
 
-// snippetContext returns the concatenated code of a snippet's `uses` contexts
-// (transitively, each once, in order), each terminated by a newline, to be
-// prepended when the snippet runs.
-func snippetContext(s *bridgeSnippet, snips map[string]*bridgeSnippet) string {
-	var (
-		b    strings.Builder
-		seen = map[string]bool{s.name: true}
-		add  func(names []string)
-	)
-	add = func(names []string) {
-		for _, n := range names {
-			if seen[n] {
-				continue
-			}
-			seen[n] = true
-			ctx, ok := snips[n]
-			if !ok {
-				continue
-			}
-			add(ctx.uses)
-			b.WriteString(ctx.code)
-			b.WriteString("\n")
-		}
-	}
-	add(s.uses)
-	return b.String()
-}
-
-// extractBridgeSnippets scans src for `//snippet NAME [uses A B] … //endsnippet`
-// regions, returning them by name plus the names in source order.
-func extractBridgeSnippets(src []byte) (map[string]*bridgeSnippet, []string) {
-	out := map[string]*bridgeSnippet{}
-	var order []string
-	var cur *bridgeSnippet
-	var body []string
-	for _, ln := range strings.Split(string(src), "\n") {
-		t := strings.TrimSpace(ln)
-		switch {
-		case cur == nil:
-			if name, uses, ok := parseSnippetOpen(t); ok {
-				cur = &bridgeSnippet{name: name, uses: uses}
-				body = nil
-			}
-		case t == "//endsnippet":
-			cur.code, cur.kind, cur.expected = splitBridgeResult(body)
-			out[cur.name] = cur
-			order = append(order, cur.name)
-			cur = nil
-		default:
-			body = append(body, ln)
-		}
-	}
-	return out, order
-}
-
-// parseSnippetOpen matches `//snippet NAME` and `//snippet NAME uses A B …`.
-func parseSnippetOpen(trimmed string) (name string, uses []string, ok bool) {
-	if !strings.HasPrefix(trimmed, "//") {
-		return "", nil, false
-	}
-	f := strings.Fields(strings.TrimPrefix(trimmed, "//"))
-	if len(f) < 2 || f[0] != "snippet" {
-		return "", nil, false
-	}
-	rest := f[2:]
-	if len(rest) > 0 {
-		if rest[0] != "uses" || len(rest) < 2 {
-			return "", nil, false
-		}
-		uses = rest[1:]
-	}
-	return f[1], uses, true
-}
-
-// splitBridgeResult separates the snippet code from a `/**= EXPR **/` (value) or
-// `/**< TEXT **/` (output) result marker (single- or multi-line).
-func splitBridgeResult(body []string) (code, kind, expected string) {
-	var codeLines, marker []string
-	inMarker := false
-	var sigil string
-	for _, ln := range body {
-		t := strings.TrimSpace(ln)
-		if inMarker {
-			if i := strings.LastIndex(ln, "**/"); i >= 0 {
-				marker = append(marker, strings.TrimSpace(ln[:i]))
-				inMarker = false
-			} else {
-				marker = append(marker, ln)
-			}
+// dedent strips the indentation common to the non-blank lines.
+func dedent(lines []string) []string {
+	indent := -1
+	for _, ln := range lines {
+		if strings.TrimSpace(ln) == "" {
 			continue
 		}
-		switch {
-		case strings.HasPrefix(t, "/**="):
-			kind, sigil = "value", "/**="
-		case strings.HasPrefix(t, "/**<"):
-			kind, sigil = "output", "/**<"
-		default:
-			codeLines = append(codeLines, ln)
-			continue
-		}
-		rest := strings.TrimPrefix(t, sigil)
-		if i := strings.LastIndex(rest, "**/"); i >= 0 {
-			marker = append(marker, strings.TrimSpace(rest[:i]))
-		} else {
-			marker = append(marker, strings.TrimSpace(rest))
-			inMarker = true
+		if n := len(ln) - len(strings.TrimLeft(ln, " \t")); indent < 0 || n < indent {
+			indent = n
 		}
 	}
-	return strings.Trim(strings.Join(codeLines, "\n"), "\n"), kind, strings.TrimSpace(strings.Join(marker, "\n"))
+	for i, ln := range lines {
+		if indent > 0 && len(ln) >= indent {
+			lines[i] = ln[indent:]
+		} else if indent > 0 {
+			lines[i] = strings.TrimLeft(ln, " \t")
+		}
+	}
+	return lines
+}
+
+// gadxSnippet reads the gadx example opened at lines[i]: the lines indented
+// deeper than indent (blank ones within it kept), then the output checks at
+// indent — `<<< text`, or `<<<` and the lines indented under it. It returns
+// the snippet and the index of its last line.
+func gadxSnippet(lines []string, i int, indent, name string) (DocSnippet, int) {
+	deeper := func(l string) bool {
+		return strings.TrimSpace(l) == "" || (strings.HasPrefix(l, indent) && len(l) > len(indent) &&
+			(l[len(indent)] == ' ' || l[len(indent)] == '\t'))
+	}
+	j := i + 1
+	for j < len(lines) && deeper(lines[j]) {
+		j++
+	}
+	body := dedent(trimBlank(append([]string(nil), lines[i+1:j]...)))
+	last := j - 1
+	k := j
+	for k < len(lines) && strings.TrimSpace(lines[k]) == "" {
+		k++
+	}
+	var after []string
+	for k < len(lines) && strings.HasPrefix(lines[k], indent+"<<<") {
+		after = append(after, strings.TrimPrefix(lines[k], indent))
+		block := strings.TrimSpace(lines[k]) == "<<<"
+		last = k
+		k++
+		for block && k < len(lines) && strings.TrimSpace(lines[k]) != "" && deeper(lines[k]) {
+			after = append(after, strings.TrimPrefix(lines[k], indent))
+			last = k
+			k++
+		}
+		for k < len(lines) && strings.TrimSpace(lines[k]) == "" {
+			k++
+		}
+	}
+	code := strings.Join(body, "\n")
+	if len(after) > 0 {
+		code += "\n\n" + strings.Join(after, "\n")
+	}
+	return DocSnippet{Name: name, Code: code}, last
 }

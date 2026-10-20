@@ -51,58 +51,58 @@ name — or `nil` when none matches.
 @snippet method_from_args
 **/
 
-//snippet typed
-/**
-A parameter may declare a type; the argument is checked against it.
-**/
-repeat := func(s str, n int) {
-    out := ""
-    for i := 0; i < n; i++ {
-        out += s
+example typed {
+    /**
+    A parameter may declare a type; the argument is checked against it.
+    **/
+    repeat := func(s str, n int) {
+        out := ""
+        for i := 0; i < n; i++ {
+            out += s
+        }
+        return out
     }
-    return out
+    repeat("ab", 3)
+    = "ababab"
 }
-repeat("ab", 3)
-/**= "ababab" **/
-//endsnippet
 
-//snippet methods
-func area {
-    (r float)          => 3.14159 * r * r // circle
-    (w float, h float) => w * h           // rectangle
+example methods {
+    func area {
+        (r float)          => 3.14159 * r * r // circle
+        (w float, h float) => w * h           // rectangle
+    }
+    [area(2.0), area(2.0, 3.0)]
+    = [12.56636, 6.0]
 }
-[area(2.0), area(2.0, 3.0)]
-/**= [12.56636, 6.0] **/
-//endsnippet
 
-//snippet met uses methods
-/**
-`met` adds a method to an existing callable afterwards.
-**/
-met area(side int) => side * side // square (int), extends the `area` above
-[area(4), area(2.0, 3.0)]         // the new method beside the existing ones
-/**= [16, 6.0] **/
-//endsnippet
+example met {
+    /**
+    `met` adds a method to an existing callable afterwards.
+    **/
+    met area(side int) => side * side // square (int), extends the `area` above
+    [area(4), area(2.0, 3.0)]         // the new method beside the existing ones
+    = [16, 6.0]
+}
 
-//snippet override
-func step(n int) => n * 10
-met ~step($old, n int) => $old(n) + 1 // wrap the previous `step`
-step(3)                               // 30 + 1
-/**= 31 **/
-//endsnippet
+example override {
+    func step(n int) => n * 10
+    met ~step($old, n int) => $old(n) + 1 // wrap the previous `step`
+    step(3)                               // 30 + 1
+    = 31
+}
 
-//snippet method_from_args
-func size(n int) => n * 2
-// the (int) method, chosen by an example value or by a type name:
-[gad.methodFromArgs(size, 4)(10), gad.methodFromArgs(size, int)(10)]
-/**= [20, 20] **/
-//endsnippet
+example method_from_args {
+    func size(n int) => n * 2
+    // the (int) method, chosen by an example value or by a type name:
+    [gad.methodFromArgs(size, 4)(10), gad.methodFromArgs(size, int)(10)]
+    = [20, 20]
+}
 
-//snippet add_method
-func kind { (x int) => "int" }
-addMethod(kind, func(x str) => "str", func(x float) => "float")
-[kind(1), kind("a"), kind(1.5)]
-/**= ["int", "str", "float"] **/
-//endsnippet
+example add_method {
+    func kind { (x int) => "int" }
+    addMethod(kind, func(x str) => "str", func(x float) => "float")
+    [kind(1), kind("a"), kind(1.5)]
+    = ["int", "str", "float"]
+}
 
 return area(4)
