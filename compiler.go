@@ -82,9 +82,12 @@ type (
 		// enterMatchExpr): while one is active, a `return` inside a block arm yields
 		// the match's value instead of returning from the function. Empty in
 		// statement-context matches and reset in forked function bodies.
-		matchExprs         []*matchExprCtx
-		tryCatchIndex      int
-		iotaVal            int
+		matchExprs    []*matchExprCtx
+		tryCatchIndex int
+		iotaVal       int
+		// indexOwners: what `end` is the last index of, the innermost last
+		// (compileIndexEnd)
+		indexOwners        []node.Expr
 		opts               CompileOptions
 		trace              io.Writer
 		stack              CompileStack
@@ -790,6 +793,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileArrayComprehension(nt)
 	case *node.DictComprehension:
 		return c.compileDictComprehension(nt)
+	case *node.IndexEndExpr:
+		return c.compileIndexEnd(nt)
 	case *node.IntLit:
 		c.emit(nt, OpConstant, c.addConstant(Int(nt.Value)))
 	case *node.UintLit:
@@ -1356,6 +1361,8 @@ func (c *Compiler) fork(
 	child.parent = c
 	child.cfuncCache = c.cfuncCache
 	child.stack = c.stack
+	// `end` in a function in the brackets: of what they index, a free variable
+	child.indexOwners = c.indexOwners[:len(c.indexOwners):len(c.indexOwners)]
 	return child
 }
 

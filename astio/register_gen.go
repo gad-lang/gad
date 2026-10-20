@@ -86,6 +86,7 @@ func init() {
 		(*node.ImportExpr)(nil),
 		(*node.IncDecStmt)(nil),
 		(*node.IncludeStmt)(nil),
+		(*node.IndexEndExpr)(nil),
 		(*node.IndexExpr)(nil),
 		(*node.IntLit)(nil),
 		(*node.InterfaceContextFuncExpr)(nil),

@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -1324,6 +1325,15 @@ func (c *Compiler) compileDefineAssign(
 	allowRedefine bool,
 ) error {
 	ident, identExpr, selectors := resolveAssignLHS(lhs)
+	owners := assignOwners(lhs)
+	// a selector with `end` (`a[end] = v`): the last index of what it indexes,
+	// evaluated again for it
+	compileSel := func(i int) error {
+		if usesIndexEnd(selectors[i]) {
+			return c.withOwner(owners[i], func() error { return c.Compile(selectors[i]) })
+		}
+		return c.Compile(selectors[i])
+	}
 
 	numSel := len(selectors)
 	if numSel == 0 && op == token.Define {
@@ -1369,18 +1379,30 @@ func (c *Compiler) compileDefineAssign(
 
 	if numSel > 1 {
 		for i := 0; i < numSel-1; i++ {
-			if err := c.Compile(selectors[i]); err != nil {
+			if err := compileSel(i); err != nil {
 				return err
 			}
 		}
 		c.emit(nd, OpGetIndex, numSel-1)
 	}
 
-	if err := c.Compile(selectors[numSel-1]); err != nil {
+	if err := compileSel(numSel - 1); err != nil {
 		return err
 	}
 
 	c.emit(nd, OpSetIndex)
+	return nil
+}
+
+// assignOwners are, for each selector of resolveAssignLHS, what it selects
+// from.
+func assignOwners(expr node.Expr) []node.Expr {
+	switch term := expr.(type) {
+	case *node.SelectorExpr:
+		return append(assignOwners(term.X), term.X)
+	case *node.IndexExpr:
+		return append(assignOwners(term.X), term.X)
+	}
 	return nil
 }
 
@@ -3475,6 +3497,15 @@ func resolveSelectorExprs(nd node.Expr) (expr node.Expr, selectors []node.Expr) 
 }
 
 func (c *Compiler) compileIndexExpr(nd *node.IndexExpr) error {
+	if usesIndexEnd(nd.Index) {
+		return c.withIndexOwner(nd.X, func() error {
+			if err := c.Compile(nd.Index); err != nil {
+				return err
+			}
+			c.emit(nd, OpGetIndex, 1)
+			return nil
+		})
+	}
 	expr, indexes := resolveIndexExprs(nd)
 	if err := c.Compile(expr); err != nil {
 		return err
@@ -3490,7 +3521,9 @@ func (c *Compiler) compileIndexExpr(nd *node.IndexExpr) error {
 
 func resolveIndexExprs(nd node.Expr) (expr node.Expr, indexes []node.Expr) {
 	expr = nd
-	if v, ok := nd.(*node.IndexExpr); ok {
+	// an index with `end` is not merged: what it is the last index of is
+	// evaluated on its own (compileIndexExpr)
+	if v, ok := nd.(*node.IndexExpr); ok && !usesIndexEnd(v.Index) {
 		expr, indexes = resolveIndexExprs(v.X)
 		indexes = append(indexes, v.Index)
 	}
@@ -3498,9 +3531,16 @@ func resolveIndexExprs(nd node.Expr) (expr node.Expr, indexes []node.Expr) {
 }
 
 func (c *Compiler) compileSliceExpr(nd *node.SliceExpr) error {
+	if usesIndexEnd(nd.Low) || usesIndexEnd(nd.High) {
+		return c.withIndexOwner(nd.Expr, func() error { return c.compileSliceBounds(nd) })
+	}
 	if err := c.Compile(nd.Expr); err != nil {
 		return err
 	}
+	return c.compileSliceBounds(nd)
+}
+
+func (c *Compiler) compileSliceBounds(nd *node.SliceExpr) error {
 
 	if nd.Low != nil {
 		if err := c.Compile(nd.Low); err != nil {
@@ -3519,6 +3559,68 @@ func (c *Compiler) compileSliceExpr(nd *node.SliceExpr) error {
 	}
 
 	c.emit(nd, OpSliceIndex)
+	return nil
+}
+
+// usesIndexEnd reports whether e holds an `end` of the brackets it is in: not
+// one of other brackets inside it (`b[end]` in `a[b[end]]`), whose X may.
+func usesIndexEnd(e node.Expr) (found bool) {
+	if e == nil {
+		return false
+	}
+	node.Walk(e, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		switch t := n.(type) {
+		case *node.IndexEndExpr:
+			found = true
+		case *node.IndexExpr:
+			found = usesIndexEnd(t.X)
+			return false
+		case *node.SliceExpr:
+			found = usesIndexEnd(t.Expr)
+			return false
+		}
+		return true
+	})
+	return
+}
+
+// withIndexOwner compiles x once into a hidden local, left on the stack, and
+// then f, where `end` is the last index of it.
+func (c *Compiler) withIndexOwner(x node.Expr, f func() error) error {
+	c.symbolTable = c.symbolTable.Fork(true)
+	defer func() { c.symbolTable = c.symbolTable.Parent(false) }()
+	if err := c.Compile(x); err != nil {
+		return err
+	}
+	name := fmt.Sprintf(":end%d", len(c.indexOwners))
+	sym, _ := c.symbolTable.DefineLocal(name)
+	c.emit(x, OpDefineLocal, sym.Index)
+	c.emit(x, OpGetLocal, sym.Index)
+	return c.withOwner(&node.IdentExpr{Name: name, NamePos: x.Pos()}, f)
+}
+
+// withOwner compiles f with `end` the last index of owner.
+func (c *Compiler) withOwner(owner node.Expr, f func() error) error {
+	c.indexOwners = append(c.indexOwners, owner)
+	defer func() { c.indexOwners = c.indexOwners[:len(c.indexOwners)-1] }()
+	return f()
+}
+
+// compileIndexEnd compiles `end`: `len(owner) - 1`.
+func (c *Compiler) compileIndexEnd(nd *node.IndexEndExpr) error {
+	if len(c.indexOwners) == 0 {
+		return c.Errorf(nd, "`end` outside the brackets of an index")
+	}
+	c.emit(nd, OpGetBuiltin, int(BuiltinLen))
+	if err := c.Compile(c.indexOwners[len(c.indexOwners)-1]); err != nil {
+		return err
+	}
+	c.emit(nd, OpCall, 1, 0)
+	c.emit(nd, OpConstant, c.addConstant(Int(1)))
+	c.emit(nd, OpBinary, int(token.Sub))
 	return nil
 }
 

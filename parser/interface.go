@@ -288,7 +288,8 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 	}
 
 	// A method (single `name(...)` or block `name { (…), … }`) or a typed field
-	// (`name [Type]`).
+	// (`name [Type]`) — a keyword is its name here (`if? any`).
+	p.keywordAsName(token.Prop)
 	name := p.ParseIdent()
 	if name == nil {
 		return

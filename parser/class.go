@@ -358,6 +358,8 @@ func (p *Parser) parseClassParent() *node.ClassParentExpr {
 // parseClassField parses `name`, `name Type`, `name = value`, `name Type =
 // value` or a computed default `name = (= expr)`.
 func (p *Parser) parseClassField() *node.ClassFieldExpr {
+	// a keyword is the field's name here (`if? any`)
+	p.keywordAsName()
 	name := p.ParseTypedIdent()
 	if name == nil {
 		return nil
@@ -397,6 +399,7 @@ func (p *Parser) parseClassMemberBlock() (members []*node.ClassMemberExpr) {
 func (p *Parser) parseClassMember() *node.ClassMemberExpr {
 	p.parseMemberMeta()
 	doc := p.leadComment
+	p.keywordAsName() // a keyword is the member's name here
 	m := &node.ClassMemberExpr{NameExpr: p.ParseIdent(), Doc: doc, Meta: p.takeMeta()}
 
 	switch p.Token.Token {

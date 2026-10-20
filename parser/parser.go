@@ -48,10 +48,13 @@ var stmtStart = map[token.Token]bool{
 // Parser parses the Tengo source files. It's based on ToInterface's parser
 // implementation.
 type Parser struct {
-	File             *source.File
-	Errors           ErrorList
-	Scanner          ScannerInterface
-	Token            PToken
+	File    *source.File
+	Errors  ErrorList
+	Scanner ScannerInterface
+	Token   PToken
+	// indexDepth > 0 inside the brackets of an index or a slice: there `end`
+	// is the last index (node.IndexEndExpr).
+	indexDepth       int
 	tokenBuffer      []PToken
 	PrevToken        PToken
 	ExprLevel        int        // < 0: in control clause, >= 0: in expression
@@ -795,6 +798,8 @@ func (p *Parser) ParseIndexOrSlice(x node.Expr) node.Expr {
 
 	lbrack := p.Expect(token.LBrack)
 	p.ExprLevel++
+	p.indexDepth++
+	defer func() { p.indexDepth-- }()
 
 	var index [2]node.Expr
 	if p.Token.Token != token.Colon {
@@ -1178,6 +1183,14 @@ func (p *Parser) ParsePrimitiveOperand() node.Expr {
 func (p *Parser) ParseOperand() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "Operand"))
+	}
+
+	// `end` in an index's brackets — scanned as a `}` (the `begin … end`
+	// block) — is the last index: `a[end]`, `a[end-1]`, `a[2:end]`.
+	if p.indexDepth > 0 && p.Token.Token == token.RBrace && p.Token.Literal == "end" {
+		pos := p.Token.Pos
+		p.Next()
+		return &node.IndexEndExpr{TokenPos: pos}
 	}
 
 	// Contextual `type` keyword: `type <T1|T2|…>` is a first-class type-union
@@ -2485,6 +2498,23 @@ loop:
 			}
 		}
 	}
+}
+
+// keywordAsName takes the current token, when it is a keyword, as the name it
+// is written as: a member of a body — of an interface, a class, the meta of a
+// contract — is a name, never a statement, so `if? any` is the field `if`.
+// The keywords of the body itself (except) stay keywords.
+func (p *Parser) keywordAsName(except ...token.Token) {
+	if !p.Token.Token.IsKeyword() {
+		return
+	}
+	for _, e := range except {
+		if p.Token.Token == e {
+			return
+		}
+	}
+	p.Token.Literal = p.Token.Token.String()
+	p.Token.Token = token.Ident
 }
 
 func (p *Parser) ParseIdent() *node.IdentExpr {

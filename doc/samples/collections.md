@@ -20,6 +20,26 @@ a = a + [4, 5] // concatenate (`a += x` appends x as a single element)
 // => [[1, 20, 3, 4, 5], 5, 1, 5, [20, 3], [1, 20, 3, 4]]
 ```
 
+### `end`: the last index
+
+Inside the brackets of an index or a slice, `end` is the **last index** of what
+is indexed, as in Julia: `len(x) - 1` (gad counts from 0). `a[end]` is the last
+item, `a[end-k]` the k-th before it, and it works in slices (`a[1:end]` — the
+high bound excluded, as always —, `a[end-1:]`) and assignments
+(`a[end] = v`, `a[end] += v`). What is indexed is evaluated once; the innermost
+brackets own `end` (in `a[b[end]]` it is b's). Outside brackets `end` closes a
+`begin … end` block, as before.
+
+```gad
+xs := [10, 20, 30, 40]
+k := 2
+ys := [1, 2, 3]
+ys[end] = 30     // assign the last
+ys[end-1] += 20
+[xs[end], xs[end-1], xs[end-k], xs[1:end], xs[end-1:], xs[[0, 3][end]], ys]
+// => [40, 30, 20, [20, 30], [30, 40], 40, [1, 22, 30]]
+```
+
 ## Dicts
 
 A dict maps string keys to values (items separated by commas or newlines). Read
@@ -45,13 +65,18 @@ config := ({
 
 A keyword (`class`, `if`, `else`, `func`, `false`, `nil`, …) may be used as a
 **bare name** in any key position — it is taken as the string of its spelling.
-This holds for `.name`, a dict key, `[name=value]` and `(;name=value)`. Only the
-key position is affected; on the value side keywords keep their meaning.
+This holds for `.name`, a dict key, `[name=value]` and `(;name=value)`, and for
+the **names of members**: a field of an [interface](interfaces.gad) or a class,
+a member, a key of a [contract](contracts.gad)'s `meta { … }` (`if? any`) — a
+body item is never a statement there. Only the name position is affected; on
+the value side keywords keep their meaning.
 
 ```gad
 mk := {class: 1, else: 2, func: 3} // keywords as bare string keys
-[mk.class, mk["else"], mk.func]    // read via selector and index
-// => [1, 2, 3]
+interface Rule { if? str; for? int } // keywords as field names
+r := {if: "x > 1", for: 2} :> Rule
+[mk.class, mk["else"], mk.func, r.if, r.for]    // read via selector and index
+// => [1, 2, 3, "x > 1", 2]
 ```
 
 ### Concurrent dicts
@@ -120,8 +145,17 @@ config := ({
 })
 [m.b, m["d"], config.server.port]
 
+xs := [10, 20, 30, 40]
+k := 2
+ys := [1, 2, 3]
+ys[end] = 30     // assign the last
+ys[end-1] += 20
+[xs[end], xs[end-1], xs[end-k], xs[1:end], xs[end-1:], xs[[0, 3][end]], ys]
+
 mk := {class: 1, else: 2, func: 3} // keywords as bare string keys
-[mk.class, mk["else"], mk.func]    // read via selector and index
+interface Rule { if? str; for? int } // keywords as field names
+r := {if: "x > 1", for: 2} :> Rule
+[mk.class, mk["else"], mk.func, r.if, r.for]    // read via selector and index
 
 sa := [1, 2]
 sb := [3, 4]
