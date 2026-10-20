@@ -149,6 +149,8 @@ func init() {
 		(*node.TypeLitExpr)(nil),
 		(*node.TypeUnionExpr)(nil),
 		(*node.TypedArrayTypeStmt)(nil),
+		(*node.TypedDictTypeExpr)(nil),
+		(*node.TypedDictTypeStmt)(nil),
 		(*node.TypedIdentExpr)(nil),
 		(*node.UintLit)(nil),
 		(*node.UnaryExpr)(nil),
