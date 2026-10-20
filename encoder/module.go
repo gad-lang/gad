@@ -58,9 +58,13 @@ func CompileModuleWith(name string, src []byte, kind gad.SourceKind, mm *gad.Mod
 	if err != nil {
 		return nil, err
 	}
-	res.Bytecode.Builtins = make(map[string]int, len(names))
+	// the builtins it uses: a program links it when they are its own
+	used := gad.UsedBuiltins(res.Bytecode)
+	res.Bytecode.Builtins = make(map[string]int, len(used))
 	for n, i := range names {
-		res.Bytecode.Builtins[n] = int(i)
+		if used[int(i)] {
+			res.Bytecode.Builtins[n] = int(i)
+		}
 	}
 	var buf bytes.Buffer
 	if _, err = EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), res.Bytecode); err != nil {

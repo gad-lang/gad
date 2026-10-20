@@ -80,6 +80,9 @@ type linker struct {
 	syms    map[*SymbolInfo]bool
 	seen    map[Object]bool
 	modules map[int]int
+	// builtins, when set, collects the builtins the module uses, by index:
+	// nothing is moved (UsedBuiltins).
+	builtins map[int]bool
 }
 
 // linkImport is the index in the program of the module name, which a linked
@@ -117,7 +120,7 @@ var constOperands = map[Opcode]bool{
 // function links f: the constant operands of its instructions, the symbols of
 // the types of its params and returns, its module.
 func (l *linker) function(f *CompiledFunction) error {
-	if f.module == nil || f.module == l.from {
+	if l.builtins == nil && (f.module == nil || f.module == l.from) {
 		f.module = l.spec
 	}
 	ins := f.Instructions
@@ -131,6 +134,10 @@ func (l *linker) function(f *CompiledFunction) error {
 		var read int
 		operands, read = ReadOperands(widths, ins[i+1:], operands)
 		switch {
+		case l.builtins != nil:
+			if op == OpGetBuiltin {
+				l.builtins[operands[0]] = true
+			}
 		case op == OpLoadModule:
 			n, ok := l.modules[operands[0]]
 			if !ok {
@@ -170,6 +177,12 @@ func (l *linker) symbol(s *SymbolInfo) {
 		return
 	}
 	l.syms[s] = true
+	if l.builtins != nil {
+		if s.Scope == ScopeBuiltin {
+			l.builtins[s.Index] = true
+		}
+		return
+	}
 	if s.Scope == ScopeConstant || s.Scope == ScopeGlobal {
 		s.Index += l.off
 	}
@@ -206,7 +219,7 @@ func (l *linker) object(o Object) error {
 	case *TypedIdent:
 		l.symbols(t.TypesSymbols)
 	case *FuncHeaderObject:
-		if t.Module == l.from {
+		if l.builtins == nil && t.Module == l.from {
 			t.Module = l.spec
 		}
 		for _, list := range []Array{t.Params, t.NamedParams, t.Return} {
@@ -220,7 +233,7 @@ func (l *linker) object(o Object) error {
 		l.symbols(t.TypesSymbols)
 		return l.object(t.Default)
 	case *Interface:
-		if t.Module == l.from {
+		if l.builtins == nil && t.Module == l.from {
 			t.Module = l.spec
 		}
 		l.symbols(t.Extends)
@@ -314,4 +327,19 @@ func BytecodeImports(bc *Bytecode) bool {
 		}
 	}
 	return false
+}
+
+// UsedBuiltins are the builtins bc uses, by index: of its instructions
+// (OpGetBuiltin) and of the types its constants and functions name — what a
+// module compiled on its own keeps (Bytecode.Builtins): a program links it
+// when they are the same there.
+func UsedBuiltins(bc *Bytecode) map[int]bool {
+	l := &linker{syms: map[*SymbolInfo]bool{}, seen: map[Object]bool{}, builtins: map[int]bool{}}
+	for _, o := range bc.Constants {
+		_ = l.object(o)
+	}
+	if bc.Main != nil {
+		_ = l.function(bc.Main)
+	}
+	return l.builtins
 }
