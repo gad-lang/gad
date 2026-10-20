@@ -370,3 +370,27 @@ test("`#` + quotes stays an interpolated string, not a symbol", () => {
     expect(tokenize(line).some((t) => t.scopes.some((s) => s.startsWith("constant.other.symbol")))).toBe(false);
   }
 });
+
+test("a keyword where only a name may be is a name", () => {
+  // selectors, keys, named args, optional members
+  expect(isKeyword("x.if", "if")).toBe(false);
+  expect(isKeyword("d := {if: 1, for: 2}", "if")).toBe(false);
+  expect(isKeyword("d := {if: 1, for: 2}", "for")).toBe(false);
+  expect(isKeyword("f(;if=1)", "if")).toBe(false);
+  expect(isKeyword("interface I { if? any }", "if")).toBe(false);
+  expect(isKeyword("    return? int", "return")).toBe(false);
+  // statements and values keep their keywords
+  expect(isKeyword("if x { return 1 }", "if")).toBe(true);
+  expect(isKeyword("if x { return 1 }", "return")).toBe(true);
+  expect(isKeyword("x := c ? true : false", "true")).toBe(false); // an atom, not a control keyword
+  expect(isKeyword("for i in x {}", "for")).toBe(true);
+  expect(isKeyword("x.f() else 1", "else")).toBe(true);
+});
+
+test("`end` in an index's brackets is the last index", () => {
+  for (const line of ["a[end]", "a[end-1]", "a[1:end]", "a[end] = 1"]) {
+    expect(scopesOf(line, "end").some((s) => s.includes("variable.language.gad"))).toBe(true);
+  }
+  const blockEnd = tokenize("if x begin y() end").filter((t) => t.text.includes("end"));
+  expect(blockEnd.some((t) => t.scopes.some((s) => s.includes("variable.language.gad")))).toBe(false);
+});

@@ -209,6 +209,22 @@ func TextMateGrammar() ([]byte, error) {
 		"numbers": {Patterns: []tmRule{
 			{Name: "constant.numeric.gad", Match: `\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][-+]?\d+)?[uUdD]?\b`},
 		}},
+		// A keyword where only a name may be is a name (the parser's
+		// keywordAsName): a selector (`x.if`), a key (`{if: 1}`, `(;if=1)`), an
+		// optional member of an interface, a class or a contract's meta
+		// (`if? any`). Matched before #keywords.
+		"keywordNames": {Patterns: []tmRule{
+			{Name: "variable.other.property.gad", Match: `(?<=\.)` + wordRegex(plainKeywords) + `(?!\s*\()`},
+			// a key opens an item: after `{`, `(`, `[`, `;`, `,` or at a line's
+			// start — `c ? true : false` keeps its keywords
+			{Name: "variable.other.property.gad", Match: `(?:(?<=[{(\[;,])|^)\s*\K` + wordRegex(plainKeywords) + `(?=\s*(?::(?![:=>])|=(?![=>])))`},
+			{Name: "variable.other.property.gad", Match: `(?:(?<=[{;])|^)\s*\K` + wordRegex(plainKeywords) + `(?=\?(?![?!.=]))`},
+		}},
+		// `end` in the brackets of an index or a slice is the last index
+		// (`a[end]`, `a[end-1]`, `a[1:end]`); elsewhere it closes a `begin` block.
+		"indexEnd": {Patterns: []tmRule{
+			{Name: "variable.language.gad", Match: `(?<=\[)\s*\bend\b|\bend\b(?=\s*[\]:+\-*/])`},
+		}},
 		"keywords": {Patterns: []tmRule{
 			{Name: "keyword.control.gad", Match: wordRegex(plainKeywords)},
 			// Contextual declaration keywords: `class`/`mixin` before `{` or a
@@ -274,6 +290,8 @@ func TextMateGrammar() ([]byte, error) {
 			{Include: "#strings"},
 			{Include: "#dollarIdentifiers"},
 			{Include: "#numbers"},
+			{Include: "#keywordNames"},
+			{Include: "#indexEnd"},
 			{Include: "#keywords"},
 			{Include: "#specials"},
 			{Include: "#operators"},
