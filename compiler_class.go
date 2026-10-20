@@ -552,7 +552,7 @@ func classMemberFunc(name *node.IdentExpr, m *node.FuncMethod, typeIdent node.Ex
 	params.Args.PrependValue(thisParam(typeIdent))
 	return &node.FuncExpr{
 		Type: &node.FuncType{
-			FuncHeader: node.FuncHeader{NameExpr: name, Params: params, Return: m.Return},
+			FuncHeader: node.FuncHeader{NameExpr: name, TypeParams: m.TypeParams, Params: params, Return: m.Return},
 		},
 		Body:      m.Body,
 		BodyExpr:  m.BodyExpr,

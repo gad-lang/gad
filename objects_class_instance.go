@@ -659,7 +659,62 @@ func (o *ClassInstance) IndexGet(vm *VM, index Object) (Object, error) {
 	case "@parents":
 		return o.Parents(), nil
 	}
-	return o.GetFieldValue(vm, name)
+	v, err := o.GetFieldValue(vm, name)
+	if err != nil {
+		// `inst.method`: the method, bound to the instance
+		if m := o.GetMethod(name); m != nil {
+			return m, nil
+		}
+	}
+	return v, err
+}
+
+// indexGetTyped is `inst.name[A, B]` (issue #23): its generic method bound to
+// the types, or what its generic property's getter, bound to them, gives. It
+// reports false when name is neither.
+func (o *ClassInstance) indexGetTyped(vm *VM, name string, types Object) (_ Object, handled bool, err error) {
+	if inst, m := o.ResolveMethod(name); m != nil {
+		g := m.f.genericFunc()
+		if g == nil {
+			return
+		}
+		var b Object
+		if b, err = g.BindTypes(vm, types); err != nil {
+			return nil, true, err
+		}
+		b.(*CompiledFunction).receiverBound = true
+		return &Function{
+			FuncName: name,
+			ToStringFunc: func() string {
+				return ReprQuote("structInstanceMethod of " + o.class.ToString() + "#" + name + types.ToString())
+			},
+			Value: func(c Call) (Object, error) {
+				c.Args = append([]Array{{inst}}, c.Args...)
+				return YieldCall(b.(CallerObject), &c), nil
+			},
+		}, true, nil
+	}
+	var (
+		g    *CompiledFunction
+		inst *ClassInstance
+	)
+	o.WalkProperty(name, func(i *ClassInstance, p *ClassProperty) bool {
+		if g = p.f.genericGetter(); g != nil {
+			inst = i
+			return false
+		}
+		return true
+	})
+	if g == nil {
+		return
+	}
+	var b Object
+	if b, err = g.BindTypes(vm, types); err != nil {
+		return nil, true, err
+	}
+	b.(*CompiledFunction).receiverBound = true
+	v, err := vm.Call(b, Args{{inst}}, nil)
+	return v, true, err
 }
 
 // BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports

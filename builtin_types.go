@@ -69,8 +69,12 @@ type BuiltinObjType struct {
 	setters     Dict
 	methods     Dict
 	builtinType BuiltinType
-	Module      *ModuleSpec
-	name        string
+	// genericArity is the number of type parameters of a generic type
+	// (DictType's two), whose generic methods are generics (issue #23)
+	genericArity int
+	generics     genericMethods
+	Module       *ModuleSpec
+	name         string
 	*FuncSpec
 }
 
@@ -92,6 +96,22 @@ func (t *BuiltinObjType) GadObjectType() {}
 
 // WithIndexType makes the type indexable by a type: `T[E]` is f(E) — a type
 // of T of elements E (`Range[time.CalendarDate]`).
+// WithGenericArity makes t a generic type of n type parameters: `met T[K,
+// V](…)` a method of its instances.
+func (t *BuiltinObjType) WithGenericArity(n int) *BuiltinObjType {
+	t.genericArity = n
+	return t
+}
+
+// addGenericMethod takes `met T[K, V](…)` of a generic type.
+func (t *BuiltinObjType) addGenericMethod(cf *CompiledFunction) bool {
+	if t.genericArity == 0 || len(cf.TypeParams) != t.genericArity {
+		return false
+	}
+	t.generics = t.generics.with(cf)
+	return true
+}
+
 func (t *BuiltinObjType) WithIndexType(f func(vm *VM, index Object) (Object, error)) *BuiltinObjType {
 	t.indexType = f
 	return t
@@ -310,9 +330,9 @@ func init() {
 	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, NewArrayFunc).TypeKey()
 	TArrayType = RegisterBuiltinType(BuiltinArrayType, "arrayType", ArrayType{}, NewArrayTypeFunc).TypeKey()
 	TDictType = RegisterBuiltinType(BuiltinDictType, "DictType", DictOfType{}, NewDictTypeFunc).
-		WithIndexType(dictTypeOf).TypeKey()
+		WithIndexType(dictTypeOf).WithGenericArity(2).TypeKey()
 	TKeyValueArrayType = RegisterBuiltinType(BuiltinKeyValueArrayType, "KeyValueArrayType", KVAOfType{}, NewKVATypeFunc).
-		WithIndexType(kvaTypeOf).TypeKey()
+		WithIndexType(kvaTypeOf).WithGenericArity(2).TypeKey()
 	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, NewDictFunc).TypeKey()
 	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncDict{}, NewSyncDictFunc).TypeKey()
 	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, NewKeyValueFunc).TypeKey()

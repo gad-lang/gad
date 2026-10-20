@@ -254,17 +254,18 @@ func (e *DictElementLit) Func() (f *FuncDefLit) {
 		if t.BodyExpr != nil {
 			return &FuncDefLit{
 				Expr: &ClosureExpr{
-					Params: t.Type.Params,
-					Return: t.Type.Return,
-					Lambda: Token{Token: token.Colon},
-					Body:   t.BodyExpr,
+					TypeParams: t.Type.TypeParams,
+					Params:     t.Type.Params,
+					Return:     t.Type.Return,
+					Lambda:     Token{Token: token.Colon},
+					Body:       t.BodyExpr,
 				},
 			}
 		}
 		return &FuncDefLit{
 			Expr: &FuncExpr{
 				Type: &FuncType{
-					FuncHeader: FuncHeader{Params: t.Type.Params, Return: t.Type.Return},
+					FuncHeader: FuncHeader{TypeParams: t.Type.TypeParams, Params: t.Type.Params, Return: t.Type.Return},
 				},
 				Body:     t.Body,
 				BodyExpr: t.BodyExpr,
@@ -705,17 +706,18 @@ func (e *KeyValuePairLit) Func() (f *FuncDefLit) {
 		if t.BodyExpr != nil {
 			return &FuncDefLit{
 				Expr: &ClosureExpr{
-					Params: t.Type.Params,
-					Return: t.Type.Return,
-					Lambda: Token{Token: token.Colon},
-					Body:   t.BodyExpr,
+					TypeParams: t.Type.TypeParams,
+					Params:     t.Type.Params,
+					Return:     t.Type.Return,
+					Lambda:     Token{Token: token.Colon},
+					Body:       t.BodyExpr,
 				},
 			}
 		}
 		return &FuncDefLit{
 			Expr: &FuncExpr{
 				Type: &FuncType{
-					FuncHeader: FuncHeader{Params: t.Type.Params, Return: t.Type.Return},
+					FuncHeader: FuncHeader{TypeParams: t.Type.TypeParams, Params: t.Type.Params, Return: t.Type.Return},
 				},
 				Body:     t.Body,
 				BodyExpr: t.BodyExpr,

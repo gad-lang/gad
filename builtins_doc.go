@@ -356,7 +356,7 @@ package gad
 // = [true, false]
 // ```
 //
-// filter(it iterable, callback <(v any, k any, it iterable) <bool>>) <iterator>
+// filter[K, V](it iterable[K, V], callback <(v V, k K, it iterable[K, V]) <bool>>) <iterator[K, V]>
 // Returns a lazy iterator over the elements of iterable for which callback
 // returns a truthy value. The callback is called as `callback(value, key,
 // iterable)` (key: the index or dict key).
@@ -368,7 +368,7 @@ package gad
 // = [2]
 // ```
 //
-// map(it iterable, callback <(v any, k any) <any>>; update=no, nokey=no) <iterator>
+// map[K, V, R](it iterable[K, V], callback <(v V, k K) <R>>; update=no, nokey=no) <iterator[K, R]>
 // Returns a lazy iterator applying callback to each element of iterable, called
 // as `callback(value, key)`; `nokey=yes` passes only the value. `update=yes`
 // also writes each result back into the collection — as the iterator is
@@ -383,7 +383,7 @@ package gad
 // = [1, 1]
 // ```
 //
-// each(it iterable, callback <(k any, v any)>) <any>
+// each[K, V](it iterable[K, V], callback <(k K, v V)>) <iterable[K, V]>
 // Calls callback for every element of iterable (for its side effects) and
 // returns the iterable. The callback is called as `callback(key, value)` — key
 // first, unlike map/filter.
@@ -393,7 +393,7 @@ package gad
 // <<< a 1
 // ```
 //
-// reduce(it iterable, callback <(acc any, v any, k any) <any>>, initial any) <any>
+// reduce[K, V, A](it iterable[K, V], callback <(acc A, v V, k K) <A>>, initial A) <A>
 // Folds the elements of iterable with callback into a single value, starting
 // from initial (or the first element when initial is omitted). The callback is
 // called as `callback(accumulator, value, key)` and returns the next

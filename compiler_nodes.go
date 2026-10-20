@@ -2128,10 +2128,49 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		st          = c.symbolTable.Fork(false)
 	)
 
+	// the type parameters (issue #23): each a hidden local of the scope around
+	// the function holding its type — its constraint —, captured by it
+	var (
+		typeParamNames []string
+		deps           *typeDepsState
+	)
+	if typ != nil && len(typ.TypeParams) > 0 {
+		saved := c.typeParamCells
+		cells := make(map[string]string, len(saved)+len(typ.TypeParams))
+		for k, v := range saved {
+			cells[k] = v
+		}
+		for _, tp := range typ.TypeParams {
+			hidden := fmt.Sprintf("%s%d.%s", typeParamMark, len(c.constants), tp.Ident.Name)
+			var constraint node.Expr
+			switch len(tp.Type) {
+			case 0:
+				constraint = node.EIdent("any", tp.Pos())
+			case 1:
+				constraint = tp.Type[0].Expr
+			default:
+				constraint = &node.TypeUnionExpr{TypePos: tp.Pos(), Types: tp.Type}
+			}
+			// resolved without the type parameters of this function
+			if err = c.Compile(constraint); err != nil {
+				return
+			}
+			sym, _ := c.symbolTable.DefineLocal(hidden)
+			c.emit(nd, OpDefineLocal, sym.Index)
+			cells[tp.Ident.Name] = hidden
+			typeParamNames = append(typeParamNames, hidden)
+		}
+		c.typeParamCells = cells
+		deps = &typeDepsState{}
+		for _, tp := range typ.TypeParams {
+			deps.names = append(deps.names, tp.Ident.Name)
+		}
+		savedDeps := c.typeDeps
+		c.typeDeps = deps
+		defer func() { c.typeParamCells = saved; c.typeDeps = savedDeps }()
+	}
+
 	if typ != nil {
-		// Make the signature's type parameters available while its parameter and
-		// return types are resolved, so `T`/`K`/`V` expand to their constraints.
-		defer c.withTypeParams(typ.TypeParams)()
 
 		for _, ident := range typ.Params.Args.Values {
 			p := &Param{}
@@ -2187,6 +2226,11 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		}
 	}
 
+	// the body is not the signature: a type it computes is computed where
+	// it is, from the type parameters' cells
+	if deps != nil {
+		c.typeDeps = nil
+	}
 	fork := c.fork(c.file, c.moduleMap, st)
 
 	if typ != nil {
@@ -2260,6 +2304,16 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		}
 	}
 
+	// the closures computing the signature's types from the type parameters:
+	// captured, so that binding the function computes them again
+	for _, hidden := range typeParamNames {
+		st.Resolve(hidden)
+	}
+	if deps != nil {
+		for _, d := range deps.deps {
+			st.Resolve(d.thunk)
+		}
+	}
 	freeSymbols := fork.symbolTable.FreeSymbols()
 	for _, s := range freeSymbols {
 		switch s.Scope {
@@ -2273,6 +2327,29 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	bc := fork.Bytecode()
 	bc.Main.module = c.module
 	bc.Main.ReturnVars = returnTypes
+	for i, hidden := range typeParamNames {
+		for j, s := range freeSymbols {
+			if s.Name == hidden {
+				bc.Main.TypeParams = append(bc.Main.TypeParams, FuncTypeParam{Name: typ.TypeParams[i].Ident.Name, Free: j})
+			}
+		}
+	}
+	if deps != nil {
+		for _, d := range deps.deps {
+			dep := FuncTypeDep{Free: -1, Thunk: -1}
+			for j, s := range freeSymbols {
+				switch s.Name {
+				case d.computed:
+					dep.Free = j
+				case d.thunk:
+					dep.Thunk = j
+				}
+			}
+			if dep.Free >= 0 && dep.Thunk >= 0 {
+				bc.Main.TypeDeps = append(bc.Main.TypeDeps, dep)
+			}
+		}
+	}
 
 	if typ != nil {
 		if typ.NameExpr != nil {
@@ -3516,6 +3593,13 @@ func (c *Compiler) compileIndexExpr(nd *node.IndexExpr) error {
 		})
 	}
 	expr, indexes := resolveIndexExprs(nd)
+	// `x.name[A, B]`: one chain, so that an instance sees the name with what
+	// indexes it — its generic method or property, bound (issue #23)
+	if sel, ok := expr.(*node.SelectorExpr); ok && !c.isBuiltinModuleSelector(sel) {
+		var selectors []node.Expr
+		expr, selectors = resolveSelectorExprs(sel)
+		indexes = append(selectors, indexes...)
+	}
 	if err := c.Compile(expr); err != nil {
 		return err
 	}
@@ -3526,6 +3610,17 @@ func (c *Compiler) compileIndexExpr(nd *node.IndexExpr) error {
 	}
 	c.emit(nd, OpGetIndex, len(indexes))
 	return nil
+}
+
+// isBuiltinModuleSelector reports whether sel is `module.NAME` of a builtin
+// module, compiled to its builtin (compileSelectorExpr).
+func (c *Compiler) isBuiltinModuleSelector(sel *node.SelectorExpr) bool {
+	ident, ok := sel.X.(*node.IdentExpr)
+	if !ok {
+		return false
+	}
+	base, ok := c.symbolTable.Resolve(ident.Name)
+	return ok && base.Scope == ScopeBuiltin
 }
 
 func resolveIndexExprs(nd node.Expr) (expr node.Expr, indexes []node.Expr) {
@@ -4569,6 +4664,11 @@ func (c *Compiler) compilePtr(nd *node.Ptr) error {
 }
 
 func (c *Compiler) compileIdent(nd *node.IdentExpr) error {
+	if hidden, ok := c.typeParamCells[nd.Name]; ok {
+		if _, local := c.symbolTable.Resolve(nd.Name); !local {
+			nd = &node.IdentExpr{Name: hidden, NamePos: nd.NamePos}
+		}
+	}
 	symbol, ok := c.symbolTable.Resolve(nd.Name)
 	if !ok {
 		if c.iotaVal < 0 || nd.Name != "iota" {
@@ -5141,6 +5241,12 @@ func (c *Compiler) typeExprSymbolsV(t *node.TypeExpr, visiting map[string]bool) 
 		return []*SymbolInfo{s}, nil
 	}
 	if id := t.Ident(); id != nil {
+		// a type parameter of a function (issue #23): its cell
+		if hidden, ok := c.typeParamCells[id.Name]; ok && c.typeParams[id.Name] == nil {
+			if s, found := c.symbolTable.Resolve(hidden); found {
+				return []*SymbolInfo{&s.SymbolInfo}, nil
+			}
+		}
 		// Expand a type-parameter reference to its constraint types. `visiting`
 		// guards against a constraint that (transitively) names itself.
 		if c.typeParams != nil && !visiting[id.Name] {
@@ -5215,6 +5321,9 @@ const computedTypeMark = "#"
 // TypeName is the name of the type a symbol is: a computed type's as it was
 // written (computedTypeSymbol), without its number.
 func TypeName(s *SymbolInfo) string {
+	if name, ok := typeParamName(s.Name); ok {
+		return name
+	}
 	if i := strings.LastIndex(s.Name, computedTypeMark); i > 0 {
 		return s.Name[:i]
 	}
@@ -5227,6 +5336,57 @@ func TypeName(s *SymbolInfo) string {
 // expression's value, read as any variable a type names is (a closure
 // captures it; an interface binds its cell). A symbol of the expression's
 // root alone would be the module, not the type.
+// typeDepsState is what compileFunc gathers of a generic function's
+// signature: its type parameters, and the types computed from them.
+type typeDepsState struct {
+	names []string
+	deps  []typeDep
+}
+
+// typeDep is a type computed from type parameters: the variable holding it and
+// the closure computing it, given the type parameters in order.
+type typeDep struct {
+	computed, thunk string
+}
+
+// namesAny reports whether e names any of names.
+func namesAny(e node.Expr, names []string) (found bool) {
+	node.Walk(e, func(n ast.Node) bool {
+		if id, ok := n.(*node.IdentExpr); ok {
+			for _, name := range names {
+				if id.Name == name {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return
+}
+
+// compileTypeDep defines, beside the computed type named computed, the closure
+// `(T1, T2, …) => e` that computes it again from the type parameters.
+func (c *Compiler) compileTypeDep(d *typeDepsState, computed string, e node.Expr) error {
+	thunk := computed + ":dep"
+	params := make([]*node.TypedIdentExpr, len(d.names))
+	for i, name := range d.names {
+		params[i] = &node.TypedIdentExpr{Ident: node.EIdent(name, e.Pos())}
+	}
+	c.typeDeps = nil
+	defer func() { c.typeDeps = d }()
+	fn := &node.ClosureExpr{
+		Params: node.FuncParams{Args: node.ArgsList{Values: params}},
+		Lambda: node.Token{Token: token.Lambda},
+		Body:   e,
+	}
+	id := node.EIdent(thunk, e.Pos())
+	if err := c.Compile(&node.AssignStmt{LHS: []node.Expr{id}, RHS: []node.Expr{fn}, Token: token.Define, TokenPos: e.Pos()}); err != nil {
+		return err
+	}
+	d.deps = append(d.deps, typeDep{computed: computed, thunk: thunk})
+	return nil
+}
+
 func (c *Compiler) computedTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 	e = typeIndexUnions(e)
 	// named as written — what a message says (TypeName) —, made unique
@@ -5234,6 +5394,11 @@ func (c *Compiler) computedTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 	id := node.EIdent(name, e.Pos())
 	if err := c.Compile(&node.AssignStmt{LHS: []node.Expr{id}, RHS: []node.Expr{e}, Token: token.Define, TokenPos: e.Pos()}); err != nil {
 		return nil, err
+	}
+	if d := c.typeDeps; d != nil && namesAny(e, d.names) {
+		if err := c.compileTypeDep(d, name, e); err != nil {
+			return nil, err
+		}
 	}
 	sym, ok := c.symbolTable.Resolve(name)
 	if !ok {

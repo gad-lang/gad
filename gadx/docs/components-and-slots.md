@@ -440,15 +440,15 @@ a concrete type, a named interface or an inline `interface { … }`.
 ### Type parameters
 
 A `[T constraint, …]` list between the name and the parameters introduces type
-parameters. References to a type parameter in a parameter or return type are
-substituted by the constraint at compile time, and the constraint is enforced at
-call time.
+parameters, as a gad function's do: bound at each call to the type arguments
+(`cell[str]("x")`) or inferred from the arguments, else their constraint — which
+every binding must satisfy (see gad's `samples/type_parameters.gad`).
 
 ```gadx
 @func cell[T any](v T) <T>
     | {= v}
 
-@comp list[T stringer](items array)
+@comp list[T str|int](items []T)
     ul
         @for it in items
             li {= it}

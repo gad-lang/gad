@@ -18,8 +18,29 @@ func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
 		return binSameFallback(vm, left, right)
 	case token.Ain:
 		return binAinFallback(vm, left, right)
+	case token.Or:
+		// `int|float`: the union of two types (issue #23: `f[int|float]`)
+		if isUnionMember(left) && isUnionMember(right) {
+			return NewTypeUnion(left, right), nil
+		}
 	}
 	return nil, NewOperandTypeError(tok.String(), left.Type().Name(), right.Type().Name())
+}
+
+// isUnionMember reports whether o is a type that a `|` unites: a type, a
+// union, or a structural type (an interface, an array or dict type, …) — not a
+// value.
+func isUnionMember(o Object) bool {
+	switch o.(type) {
+	case ObjectType, *TypeUnion:
+		return true
+	case *ClassInstance:
+		return false
+	}
+	if _, ok := o.(TypeAssigner); ok {
+		return !IsPrimitive(o)
+	}
+	return false
 }
 
 // binAinFallback computes `left ain right` (every value of the left operand is a
@@ -74,6 +95,11 @@ func binaryOpDispatch(vm *VM, op BinaryOperatorType, left, right Object) (Object
 		return binSameFallback(vm, left, right)
 	case token.Ain:
 		return binAinFallback(vm, left, right)
+	case token.Or:
+		// `int|float`: the union of two types (issue #23: `f[int|float]`)
+		if isUnionMember(left) && isUnionMember(right) {
+			return NewTypeUnion(left, right), nil
+		}
 	}
 	return Nil, NewOperandTypeError(op.Token().String(), left.Type().Name(), right.Type().Name())
 }

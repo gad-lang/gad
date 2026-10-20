@@ -1,0 +1,197 @@
+// Type parameters of functions, closures, methods and properties (issue #23):
+// binding (f[int]), `_`, inference, unions, generic methods of the generic types.
+refused := func(f) { try { f(); return false } catch { return true } }
+
+example binding {
+    func first[T](xs []T) => xs[0]
+    first[int]([1, 2])
+    = 1
+    first(["a"])
+    = "a"
+    refused(() => first[int](["a"]))
+    = true
+    g := first[str]
+    g(["x"])
+    = "x"
+    conv := func[T](v) => T(v)
+    conv[str](12)
+    = "12"
+    f := func[T number](v T) => v * 2
+    f(3)
+    = 6
+    refused(() => f("a"))
+    = true
+    pair := func[K, V](k K, v V) => [k, v]
+    pair[_, int]("a", 1)
+    = ["a", 1]
+    refused(() => pair[_, int]("a", "b"))
+    = true
+}
+
+example closures_methods_props {
+    func outer[T](x T) { return func(y T) => [x, y] }
+    outer(1)(2)
+    = [1, 2]
+    o := outer[int]
+    o(1)(2)
+    = [1, 2]
+    refused(() => o(1)("a"))
+    = true
+    func pairs[K, V](d DictType[K, V]) => collect(keys(d))
+    pairs({a: 1})
+    = ["a"]
+    pi := pairs[str, int]
+    pi({a: 1})
+    = ["a"]
+    refused(() => pi({a: "x"}))
+    = true
+    num := func[T number](v T) => v
+    num[int](2)
+    = 2
+    refused(() => num[str])
+    = true
+    iu := func[T int|uint](v T) => v
+    iu[uint](2u)
+    = 2u
+    refused(() => iu[float])
+    = true
+    class Animal { name str = "?" }
+    class Dog { *Animal }
+    an := func[T Animal](v T) => v.name
+    an[Animal](Animal(; name="rex"))
+    = "rex"
+    refused(() => an[Dog])
+    = true
+    class Box {
+        v = 0
+        methods {
+            conv[R](f) => R(f(this.v))
+        }
+        props {
+            as[R]() => R(this.v)
+        }
+    }
+    b := Box(; v=3)
+    b.conv((x) => x * 2)
+    = 6
+    b.conv[str]((x) => x * 2)
+    = "6"
+    b.as
+    = 3
+    b.as[str]
+    = "3"
+}
+
+example inference {
+    conv := func[T](v, w T) => T(v)
+    conv(12, "x")
+    = "12"
+    conv(12, 1.5)
+    = 12.0
+    func first[T](xs []T) <T> => T(xs[0])
+    first(["a", "b"])
+    = "a"
+    same := func[T](a T, b T) => [a, b]
+    refused(() => same(1, "a"))
+    = true
+    same(1, 2)
+    = [1, 2]
+    num := func[T number](a T, b T) => a + b
+    num(1, 2)
+    = 3
+    refused(() => num("a", "b"))
+    = true
+}
+
+example unions {
+    func id[T](v T) => v
+    id[int|float](1.5)
+    = 1.5
+    id[int|float](2)
+    = 2
+    refused(() => id[int|float]("a"))
+    = true
+    func num[T int|float](v T) => v
+    num(2)
+    = 2
+    num[int](2)
+    = 2
+    refused(() => num("a"))
+    = true
+    refused(() => num[str])
+    = true
+    num[int|float](2.5)
+    = 2.5
+    refused(() => num[int|str])
+    = true
+    c := func[T int|float|str](a T, b T) => [a, b]
+    c[int|str](1, "a")
+    = [1, "a"]
+    refused(() => c[int|float](1, "a"))
+    = true
+    a := [T](x T) => x
+    a[int|uint](1u)
+    = 1u
+    refused(() => a[int|uint]("x"))
+    = true
+    func first[T int|str](xs []T) => xs[0]
+    first[int|str]([1, "a"])
+    = 1
+    refused(() => first[int|str]([1.5]))
+    = true
+    class Box {
+        v = 0
+        methods {
+            put[T int|float](x T) => x
+        }
+        props {
+            as[R int|str]() => R(this.v)
+        }
+    }
+    b := Box(; v=3)
+    b.put[int|float](1.5)
+    = 1.5
+    refused(() => b.put[int](1.5))
+    = true
+    refused(() => b.put[str])
+    = true
+    b.as[str]
+    = "3"
+}
+
+example generic_types {
+    met DictType[K, V](arr []V) { d := {}; for i, v in arr { d[str(i * 10)] = v }; return d }
+    D := DictType[str, int]
+    D([1, 2])
+    = {"0": 1, "10": 2}
+    D({a: 1})
+    = {a: 1}
+    refused(() => D(["x"]))
+    = true
+    type scores dict[str, int]
+    sort(collect(keys(scores([5, 6]))))
+    = ["0", "10"]
+    met ~scores[_, V](arr []V) { d := {}; for i, v in arr { d["s" + str(i)] = v }; return d }
+    sort(collect(keys(scores([5, 6]))))
+    = ["s0", "s1"]
+    sort(collect(keys(DictType[str, str](["a"]))))
+    = ["0"]
+    met KeyValueArrayType[K, V](n int) => keyValueArray(*[[(i) = i] for i in [0, 1][:n]])
+    len(KeyValueArrayType[int, int](2))
+    = 2
+    func anyDict(x DictType) => len(x)
+    anyDict({a: 1})
+    = 1
+    anyDict(scores(; a=1, b=2))
+    = 2
+    anyDict(DictType[str, int])
+    = 0
+    refused(() => anyDict([1]))
+    = true
+    func anyKVA(x KeyValueArrayType) => len(x)
+    anyKVA((;a=1))
+    = 1
+    refused(() => anyKVA({a: 1}))
+    = true
+}
+return true

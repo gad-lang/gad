@@ -17,6 +17,17 @@ type TypedKeyValueArrayType struct {
 	Module     *ModuleSpec
 	Meta       KeyValueArray
 	Key, Value Object
+	// generics are its generic methods, `met ~NAME[_, V](…)`
+	generics genericMethods
+}
+
+// addGenericMethod takes `met NAME[K, V](…)`.
+func (t *TypedKeyValueArrayType) addGenericMethod(cf *CompiledFunction) bool {
+	if len(cf.TypeParams) != 2 {
+		return false
+	}
+	t.generics = t.generics.with(cf)
+	return true
 }
 
 var (
@@ -127,6 +138,10 @@ func (t *TypedKeyValueArrayType) AssignTo(_ *VM, obj Object, to TypeAssigner) (O
 }
 
 func (t *TypedKeyValueArrayType) construct(c Call) (Object, error) {
+	c, err := callGenerics(c, t.generics, BuiltinKeyValueArrayType, Array{t.Key, t.Value})
+	if err != nil {
+		return nil, err
+	}
 	pairs, err := buildKVAPairs(c, t.Name(), t.Key, t.Value)
 	if err != nil {
 		return nil, err
@@ -252,6 +267,13 @@ func isTypedCollection(obj Object) bool {
 // registered here, not in BuiltinObjects' literal: its constructor reaches the
 // casts, which reach the builtins (an initialization cycle)
 func init() {
+	// in an init: their constructors call generic methods, which reach the
+	// builtins (an initialization cycle otherwise)
+	BuiltinObjects[BuiltinNewTypedDictType] = &BuiltinFunction{
+		FuncName:              "TypedDictType",
+		Value:                 NewTypedDictTypeFunc,
+		AcceptMethodsDisabled: true,
+	}
 	BuiltinObjects[BuiltinNewTypedKVAType] = &BuiltinFunction{
 		FuncName:              "TypedKeyValueArrayType",
 		Value:                 NewTypedKVATypeFunc,

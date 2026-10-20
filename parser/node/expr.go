@@ -2130,12 +2130,14 @@ func (e *FuncWithMethodsExpr) WriteCode(ctx *CodeWriteContext) {
 }
 
 type FuncMethod struct {
-	Params    FuncParams
-	Return    []*TypedIdentExpr
-	Body      *BlockStmt
-	LambdaPos source.Pos
-	BodyExpr  Expr
-	Doc       *ast.CommentGroup // doc comment preceding the method header; or nil
+	// TypeParams are the method's type parameters, `name[R](…)` (issue #23)
+	TypeParams []*TypedIdentExpr
+	Params     FuncParams
+	Return     []*TypedIdentExpr
+	Body       *BlockStmt
+	LambdaPos  source.Pos
+	BodyExpr   Expr
+	Doc        *ast.CommentGroup // doc comment preceding the method header; or nil
 	// Override reports whether the method header was prefixed with `~`, so
 	// re-adding an existing signature replaces it instead of erroring.
 	Override bool
@@ -2160,6 +2162,7 @@ func (m *FuncMethod) String() string {
 	if m.Override {
 		b.WriteString("~")
 	}
+	b.WriteString(FormatTypeParams(m.TypeParams))
 	b.WriteString(m.Params.String())
 	b.WriteString(FormatFuncReturn(m.Return))
 	b.WriteString(" ")
@@ -2177,6 +2180,7 @@ func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
 	if m.Override {
 		ctx.WriteString("~")
 	}
+	ctx.WriteString(FormatTypeParams(m.TypeParams))
 	m.Params.WriteCode(ctx)
 	WriteFuncReturn(ctx, m.Return)
 	ctx.WriteString(" ")
@@ -2198,7 +2202,7 @@ func (m *FuncMethod) Func() *FuncExpr {
 	return &FuncExpr{
 		Type: &FuncType{
 			FuncPos:    m.Params.Pos(),
-			FuncHeader: FuncHeader{Params: m.Params, Return: m.Return},
+			FuncHeader: FuncHeader{TypeParams: m.TypeParams, Params: m.Params, Return: m.Return},
 		},
 		Body:      m.Body,
 		BodyExpr:  m.BodyExpr,

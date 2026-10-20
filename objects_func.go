@@ -80,6 +80,12 @@ func (f *Func) IndexGet(vm *VM, index Object) (Object, error) {
 	if v, ok, err := f.reflectIndex(vm, f.name, index); ok {
 		return v, err
 	}
+	// `f[A, B]` of a generic function (issue #23): its one method bound
+	if _, isStr := index.(Str); !isStr {
+		if g := f.genericFunc(); g != nil {
+			return g.BindTypes(vm, index)
+		}
+	}
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
 
@@ -366,4 +372,39 @@ func AddMethodOverride(override bool, target Object, method ...TypedCallerObject
 	default:
 		panic(fmt.Errorf("unknown type %T", target))
 	}
+}
+
+// genericFunc is the one compiled function of f when it has type parameters
+// (a generic named function, `func g[T](…)`); nil otherwise.
+func (s *FuncSpec) genericFunc() *CompiledFunction {
+	if cf, ok := s.defaul.(*CompiledFunction); ok && len(cf.TypeParams) > 0 {
+		return cf
+	}
+	ms := s.callerMethods()
+	if len(ms) == 1 {
+		return genericOf(ms[0])
+	}
+	return nil
+}
+
+// genericGetter is the getter of a property when it has type parameters
+// (`as[R]() => …`, its one parameter `this`); nil otherwise.
+func (s *FuncSpec) genericGetter() *CompiledFunction {
+	for _, m := range s.callerMethods() {
+		if cf := genericOf(m); cf != nil && cf.Params.Len() == 1 {
+			return cf
+		}
+	}
+	return nil
+}
+
+// genericOf is the compiled function a caller is, when it has type parameters.
+func genericOf(co Object) *CompiledFunction {
+	if tcm, ok := co.(*TypedCallerMethod); ok {
+		co = tcm.CallerObject
+	}
+	if cf, ok := co.(*CompiledFunction); ok && len(cf.TypeParams) > 0 {
+		return cf
+	}
+	return nil
 }

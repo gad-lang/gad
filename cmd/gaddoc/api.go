@@ -33,7 +33,7 @@ var (
 	reRet = regexp.MustCompile(`\s*<([^>]*)>\s*$`)
 	// reArrayType matches a `[elem]` array type (return grammar accepts only the
 	// bare `array`, not the element form).
-	reArrayType = regexp.MustCompile(`\[[^\]]*\]`)
+	reArrayType = regexp.MustCompile(`(^|[^\w])\[[^\]]*\]`)
 	// reFuncParamType matches a function-typed parameter (`cb func(...) ret`),
 	// unsupported in a parameter type position; the type is dropped.
 	reFuncParamType = regexp.MustCompile(`(\b\w+)\s+func\([^)]*\)(\s*\w+)?`)
@@ -112,7 +112,7 @@ func normalizeSig(sig string) string {
 		case inner == "" || inner == "nil":
 			sig = head // drop a valueless / nil return
 		default:
-			inner = reArrayType.ReplaceAllString(inner, "array")
+			inner = reArrayType.ReplaceAllString(inner, "${1}array")
 			inner = rePipeSpaces.ReplaceAllString(inner, "|")
 			// A bare union (no result name) needs one: `a|b` -> `_ a|b`.
 			if strings.Contains(inner, "|") && !strings.Contains(inner, " ") {

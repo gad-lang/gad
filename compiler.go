@@ -124,6 +124,14 @@ type (
 		// typeExprSymbols). Set for the duration of one signature's type
 		// resolution and restored afterwards.
 		typeParams map[string][]*node.TypeExpr
+		// typeParamCells maps the type parameters of the functions being
+		// compiled to the hidden locals holding their types (issue #23): a
+		// parameter's type, or the body, naming T reads its cell
+		typeParamCells map[string]string
+		// typeDeps collects, while the signature of a generic function is
+		// compiled, the types it computes from its type parameters
+		// (`DictType[K, V]`): each recomputed when the function is bound
+		typeDeps *typeDepsState
 		// includeActive tracks the source URLs currently being compiled inline via
 		// `include`, so a cyclic include (a file that includes itself, directly or
 		// transitively) is reported instead of recursing forever.
@@ -1434,6 +1442,8 @@ func (c *Compiler) fork(
 	child.stack = c.stack
 	// `end` in a function in the brackets: of what they index, a free variable
 	child.indexOwners = c.indexOwners[:len(c.indexOwners):len(c.indexOwners)]
+	// the type parameters of an enclosing function: free variables here
+	child.typeParamCells = c.typeParamCells
 	return child
 }
 

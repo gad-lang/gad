@@ -1804,6 +1804,12 @@ func BuiltinAddMethodFunc(c Call) (ret Object, err error) {
 	}
 
 	err = c.Args.DestructureVarMinCb(1, func(i int, arg Object) (err error) {
+		// `met G[K, V](…)`: a method of the instances of the generic G
+		if ga, ok := target.Value.(genericMethodAdder); ok {
+			if cf := genericCallee(arg); cf != nil && ga.addGenericMethod(cf) {
+				return nil
+			}
+		}
 		if err = SplitCaller(c.VM, arg, func(co CallerObject, types ParamsTypes) (err error) {
 			return target.Value.(MethodAdder).AddMethodByTypes(c.VM, types, co, override, nil)
 		}); err != nil {

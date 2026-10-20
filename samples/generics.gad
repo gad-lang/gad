@@ -5,6 +5,9 @@ A `class`, an `interface` or a `mixin` may declare **type parameters** after its
 name, as a [function does](type_parameters.gad): `class Pair[K str, V int] { … }`.
 Each is a name and, optionally, the type it stands for — its **alias**. A space
 before the brackets is allowed: `class P [X int, Y float] { … }`.
+A class is monomorphized — `Pair[str, int]` a class of its own —; a function,
+a method and a property are not: their type parameters are bound at each call
+(`f[int](…)`, or inferred), see [type parameters](type_parameters.gad).
 
 - **`Name[A, B]`** is the declaration with its parameters replaced by the
   arguments — K by A, V by B —: a class (interface, mixin) of its own, named so

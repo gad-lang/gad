@@ -433,6 +433,8 @@ VMLoop:
 				NamedParams:    fn.NamedParams,
 				module:         fn.module,
 				LocalNames:     fn.LocalNames,
+				TypeParams:     fn.TypeParams,
+				TypeDeps:       fn.TypeDeps,
 			}
 			vm.stack[vm.sp] = newFn
 			vm.sp++

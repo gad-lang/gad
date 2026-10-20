@@ -1025,6 +1025,13 @@ func metaObject(m KeyValueArray) Object {
 }
 
 func (i *Interface) IndexGet(vm *VM, index Object) (Object, error) {
+	// `iterable[K, V]` (issue #23): an iterable of those keys and values —
+	// its types named, not checked: an iteration is lazy
+	if i == IterableInterface {
+		if _, isStr := index.(Str); !isStr {
+			return iterableOf(index), nil
+		}
+	}
 	switch index.ToString() {
 	case "name":
 		return Str(i.IName), nil
@@ -1633,4 +1640,41 @@ func (i *Interface) extendsParents(vm *VM) ([]*Interface, error) {
 		return nil, err
 	}
 	return cp.ExtendsIface, nil
+}
+
+// iteratorOf is `iterator[K, V]`: an interface of the iterators, named with
+// types (not checked: an iteration is lazy).
+func iteratorOf(types Object) *Interface {
+	return &Interface{
+		IName: "iterator[" + typeArgNames(types) + "]",
+		Native: func(_ *VM, obj Object) (bool, error) {
+			_, ok := obj.(Iterator)
+			return ok, nil
+		},
+	}
+}
+
+// iterableOf is `iterable[K, V]`: the iterable interface named with types.
+func iterableOf(types Object) *Interface {
+	cp := *IterableInterface
+	cp.IName = "iterable[" + typeArgNames(types) + "]"
+	return &cp
+}
+
+// typeArgNames are type arguments (an array of them, or one) as a message
+// names them: `K, V`, `_` for nil.
+func typeArgNames(types Object) string {
+	args, ok := types.(Array)
+	if !ok {
+		args = Array{types}
+	}
+	names := make([]string, len(args))
+	for i, t := range args {
+		if t == nil || t == Nil {
+			names[i] = "_"
+		} else {
+			names[i] = typeArgName(t)
+		}
+	}
+	return strings.Join(names, ", ")
 }

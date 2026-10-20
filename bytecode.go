@@ -114,6 +114,164 @@ type CompiledFunction struct {
 
 	// Meta is the function's `[k=v, …]` metadata (or nil); read as `fn.@meta`.
 	Meta KeyValueArray
+
+	// TypeParams are the function's type parameters (issue #23): each the free
+	// variable holding its type — its constraint until bound by `fn[A, B]`.
+	TypeParams []FuncTypeParam
+	// TypeDeps are the types of its signature computed from its type
+	// parameters (`DictType[K, V]`), computed again when it is bound.
+	TypeDeps []FuncTypeDep
+	// receiverBound: a class's method bound to its types for an instance,
+	// which gives `this` itself (ClassInstance.indexGetTyped): not checked
+	receiverBound bool
+	// typesBound: its type parameters were bound (BindTypes, inferTypes),
+	// so a call infers nothing
+	typesBound bool
+}
+
+// FuncTypeParam is a type parameter of a function: its name and the index of
+// the free variable holding its type.
+// inferTypes is fn called without type arguments (issue #23): each type
+// parameter bound to the type of the first argument whose parameter is it —
+// `v T` the argument's type, `xs []T` the type of its items when they all
+// have one —, else left its constraint. A type that does not satisfy the
+// constraint is left to the argument check, which reports it.
+func (o *CompiledFunction) inferTypes(vm *VM, args Args) (*CompiledFunction, error) {
+	var (
+		types Array
+		n     = args.Length()
+	)
+	for j, p := range o.Params.Items {
+		if j >= n || p.Var {
+			break
+		}
+		if len(p.TypesSymbols) != 1 || (j == 0 && p.Name == "this") {
+			continue
+		}
+		var (
+			sym = p.TypesSymbols[0]
+			arg = args.GetOnly(j)
+			i   = o.typeParamIndex(sym)
+			t   Object
+		)
+		if i >= 0 {
+			t = vm.ResolveType(arg.Type())
+		} else if sym.Scope == ScopeConstant {
+			v, err := vm.GetSymbolValue(sym)
+			if err != nil {
+				return nil, err
+			}
+			if at, ok := v.(*ArrayType); ok && len(at.Elem) == 1 && len(at.SizeSyms) == 0 {
+				if i = o.typeParamIndex(at.Elem[0]); i >= 0 {
+					t = itemsType(vm, arg)
+				}
+			}
+		}
+		if i < 0 || t == nil || (types != nil && types[i] != nil) {
+			continue
+		}
+		if !typeSatisfies(t, *o.Free[o.TypeParams[i].Free].Value) {
+			continue
+		}
+		if types == nil {
+			types = make(Array, len(o.TypeParams))
+		}
+		types[i] = t
+	}
+	if types == nil {
+		return o, nil
+	}
+	b, err := o.BindTypes(vm, types)
+	if err != nil {
+		return nil, err
+	}
+	return b.(*CompiledFunction), nil
+}
+
+// typeParamIndex is the type parameter whose cell sym reads, or -1.
+func (o *CompiledFunction) typeParamIndex(sym *SymbolInfo) int {
+	if sym.Scope != ScopeFree {
+		return -1
+	}
+	for i, tp := range o.TypeParams {
+		if tp.Free == sym.Index {
+			return i
+		}
+	}
+	return -1
+}
+
+// itemsType is the type of the items of an array when they all have the same
+// one; nil otherwise (none, or several).
+func itemsType(vm *VM, v Object) (t Object) {
+	arr, ok := v.(Array)
+	if !ok || len(arr) == 0 {
+		return nil
+	}
+	first := vm.ResolveType(arr[0].Type())
+	for _, item := range arr[1:] {
+		if !vm.ResolveType(item.Type()).Equal(first) {
+			return nil
+		}
+	}
+	return first
+}
+
+// typeSatisfies reports whether the type t may be a type parameter
+// constrained by c (issue #23): c itself, a type assignable to it, or, for a
+// union, to a member of it. Other constraints (interfaces, method interfaces)
+// are left to the calls, which check the values.
+func typeSatisfies(t, c Object) bool {
+	switch ct := c.(type) {
+	case *TypeUnion:
+		if t.Equal(ct) {
+			return true
+		}
+		if tu, ok := t.(*TypeUnion); ok {
+			for _, m := range tu.Types {
+				if !typeSatisfies(m, ct) {
+					return false
+				}
+			}
+			return true
+		}
+		for _, m := range ct.Types {
+			if typeSatisfies(t, m) {
+				return true
+			}
+		}
+		return false
+	case ObjectType:
+		if ct.Equal(TAny) || t.Equal(ct) {
+			return true
+		}
+		if ot, ok := t.(ObjectType); ok {
+			return IsAssignableTo(ot, ct) || IsTypeAssignableTo(ot, ct)
+		}
+		return false
+	}
+	return true
+}
+
+// typeArgName is a type as a message names it.
+func typeArgName(t Object) string {
+	if ot, ok := t.(ObjectType); ok {
+		return ot.Name()
+	}
+	return t.ToString()
+}
+
+// FuncTypeDep is a type of a generic function's signature computed from its
+// type parameters: the free variable holding it, and the free variable holding
+// the closure that computes it given the type parameters, in order.
+type FuncTypeDep struct {
+	Free  int
+	Thunk int
+}
+
+type FuncTypeParam struct {
+	Name string
+	Free int
 }
 
 // IndexGet implements the function reflection keys:
@@ -123,7 +281,13 @@ type CompiledFunction struct {
 //	fn.@nargs  — the named parameter names (array of str)
 //	fn.@ret    — the return-type signature (str, e.g. "<int, str>"; "" when none)
 //	fn.@meta   — the `[k=v, …]` metadata (a key-value array, empty when none)
-func (o *CompiledFunction) IndexGet(_ *VM, index Object) (Object, error) {
+func (o *CompiledFunction) IndexGet(vm *VM, index Object) (Object, error) {
+	// `fn[A, B]`: the function with its type parameters bound (issue #23)
+	if len(o.TypeParams) > 0 {
+		if _, isStr := index.(Str); !isStr {
+			return o.BindTypes(vm, index)
+		}
+	}
 	switch index.ToString() {
 	case "@name":
 		return Str(o.FuncName), nil
@@ -230,6 +394,8 @@ func (o *CompiledFunction) Copy() Object {
 		ReturnVars:   o.ReturnVars,
 		LocalNames:   o.LocalNames,
 		Meta:         o.Meta,
+		TypeParams:   o.TypeParams,
+		TypeDeps:     o.TypeDeps,
 	}
 }
 
@@ -455,8 +621,11 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 			// typed (its class, or a mixin's `@interface`) and verified by default —
 			// the check is memoised on the root VM's interface-sat cache. Skip it when
 			// RunFlagSkipReceiverTypeCheck is set (the receiver's shape is trusted).
+			// A generic method (issue #23) is checked by value (it has type
+			// parameters), but its receiver is given by the dispatch, its type
+			// not captured (compileFunc): not checked either.
 			if i == 0 && o.Params.Items[0].Name == "this" &&
-				vm.runFlags.Has(RunFlagSkipReceiverTypeCheck) {
+				(o.receiverBound || len(o.TypeParams) > 0 || vm.runFlags.Has(RunFlagSkipReceiverTypeCheck)) {
 				continue
 			}
 			arg := args.GetOnly(i)
@@ -464,7 +633,7 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 				return
 			} else if !accept {
 				// argType is only needed for the error message; resolve it here.
-				return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), vm.ResolveType(arg.Type()).Name())
+				return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.stringResolve(resolveSym), vm.ResolveType(arg.Type()).Name())
 			}
 		}
 
@@ -472,7 +641,7 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 			t = last.TypesSymbols
 			args.WalkSkip(l, func(i int, arg Object) any {
 				if accept, err = t.AcceptResolve(vm, arg, resolveSym); err == nil && !accept {
-					err = NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), arg.Type().Name())
+					err = NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.stringResolve(resolveSym), arg.Type().Name())
 				}
 				return err
 			})
@@ -490,6 +659,11 @@ func (o *CompiledFunction) CanValidateParamTypes() bool {
 // constant (ScopeConstant). Such params cannot be matched by identity in the
 // dispatch tree, so a match against them must always be validated by value.
 func (o *CompiledFunction) HasStructuralParamTypes() bool {
+	// a type parameter's cell holds its constraint or its bound type — a
+	// union, an interface —: always checked by value (issue #23)
+	if len(o.TypeParams) > 0 {
+		return true
+	}
 	switch atomic.LoadInt32(&o.structuralParams) {
 	case 1:
 		return false
@@ -545,6 +719,12 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 						// a category (`type<class>`): no key of its own —
 						// structural, checked by value (CanAssign)
 						ok = false
+					}
+					if bt, isGeneric := typ.(*BuiltinObjType); isGeneric && bt.genericArity > 0 {
+						// `x DictType`: a dict of any of its types, or one of
+						// its types — checked by value (genericAccepts)
+						ok = false
+						atomic.StoreInt32(&o.structuralParams, 2)
 					}
 					if _, isContract := typ.(*Contract); isContract {
 						// a contract: a field, a type, an instance fits it —
@@ -671,4 +851,48 @@ func hashData32(hash uint32, data []byte) uint32 {
 		hash ^= uint32(c)
 	}
 	return hash
+}
+
+// BindTypes is `fn[A, B]` (issue #23): a copy of fn whose type parameters hold
+// the types given — types an array of them, or one —, in order; a nil (`_`)
+// leaves its parameter as it is.
+func (o *CompiledFunction) BindTypes(vm *VM, types Object) (Object, error) {
+	args, ok := types.(Array)
+	if !ok {
+		args = Array{types}
+	}
+	if len(args) > len(o.TypeParams) {
+		return nil, ErrType.NewErrorf("%s has %d type parameters, given %d type arguments", o.FuncName, len(o.TypeParams), len(args))
+	}
+	cp := *o
+	cp.typesBound = true
+	cp.Free = make([]*ObjectPtr, len(o.Free))
+	copy(cp.Free, o.Free)
+	for i, a := range args {
+		if a == Nil || a == nil {
+			continue // `_`: its constraint
+		}
+		if _, ok := a.(TypeAssigner); !ok && a != TAny {
+			return nil, ErrType.NewErrorf("%s: type argument %s: %s is not a type", o.FuncName, o.TypeParams[i].Name, ReprQuote(a.ToString()))
+		}
+		if c := *o.Free[o.TypeParams[i].Free].Value; !typeSatisfies(a, c) {
+			return nil, ErrType.NewErrorf("%s: type argument %s: %s does not satisfy %s", o.FuncName, o.TypeParams[i].Name, typeArgName(a), typeArgName(c))
+		}
+		v := a
+		cp.Free[o.TypeParams[i].Free] = &ObjectPtr{Value: &v}
+	}
+	if len(o.TypeDeps) > 0 {
+		targs := make(Array, len(o.TypeParams))
+		for i, tp := range o.TypeParams {
+			targs[i] = *cp.Free[tp.Free].Value
+		}
+		for _, d := range o.TypeDeps {
+			v, err := vm.Call(*cp.Free[d.Thunk].Value, Args{targs}, nil)
+			if err != nil {
+				return nil, err
+			}
+			cp.Free[d.Free] = &ObjectPtr{Value: &v}
+		}
+	}
+	return &cp, nil
 }

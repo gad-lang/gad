@@ -20,6 +20,59 @@ func (t ParamType) String() string {
 	}
 }
 
+// genericAccepts reports whether obj is a value of an instance of the generic
+// type bt: a dict (typed or not) for DictType, a key-value array for
+// KeyValueArrayType.
+func genericAccepts(bt BuiltinType, obj Object) bool {
+	switch bt {
+	case BuiltinDictType:
+		switch obj.(type) {
+		case Dict, *TypedDict:
+			return true
+		}
+	case BuiltinKeyValueArrayType:
+		switch obj.(type) {
+		case KeyValueArray, *TypedKeyValueArray:
+			return true
+		}
+	}
+	return false
+}
+
+// typeParamMark starts the name of the hidden local holding a function's
+// type parameter (issue #23): `:tp<n>.T`.
+const typeParamMark = ":tp"
+
+// typeParamName is the type parameter a hidden local holds (`T` of `:tp3.T`).
+func typeParamName(s string) (string, bool) {
+	if !strings.HasPrefix(s, typeParamMark) {
+		return "", false
+	}
+	if i := strings.IndexByte(s, '.'); i > 0 {
+		return s[i+1:], true
+	}
+	return "", false
+}
+
+// stringResolve is String with the type parameters read through resolve: what
+// they hold (`number` for `T number`, `int` for `f[int]`), as a message says.
+func (t ParamType) stringResolve(resolve func(*SymbolInfo) (Object, error)) string {
+	s := make([]string, len(t))
+	for i, symbol := range t {
+		s[i] = TypeName(symbol)
+		if _, ok := typeParamName(symbol.Name); ok {
+			if v, err := resolve(symbol); err == nil && v != nil {
+				if ot, ok := v.(ObjectType); ok {
+					s[i] = ot.Name()
+				} else {
+					s[i] = v.ToString()
+				}
+			}
+		}
+	}
+	return strings.Join(s, "|")
+}
+
 // Accept reports whether obj satisfies the parameter type list. An ObjectType
 // entry is matched by the (resolved) type of obj (assignability); a structural
 // entry (a meti/interface, i.e. a TypeAssigner that is not an ObjectType) is
@@ -68,6 +121,10 @@ func (t ParamType) AcceptResolve(vm *VM, obj Object, resolve func(*SymbolInfo) (
 				return
 			}
 		} else if stot, isOT := st.(ObjectType); isOT {
+			// `x DictType`: a dict of any of its types too (issue #23)
+			if bt, ok := stot.(*BuiltinObjType); ok && bt.genericArity > 0 && genericAccepts(bt.builtinType, obj) {
+				return true, nil
+			}
 			if !otDone {
 				ot, otDone = vm.ResolveType(obj.Type()), true
 			}

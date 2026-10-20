@@ -476,6 +476,19 @@ func init() {
 				)
 			case 10:
 				o.Meta, err = DecodeT[gad.KeyValueArray](ctx)
+			case 11:
+				err = DecodeIterator(ctx,
+					func(l int) {
+						o.TypeParams = make([]gad.FuncTypeParam, l)
+					},
+					func(i int) (err error) {
+						if o.TypeParams[i].Name, err = readString(ctx); err != nil {
+							return
+						}
+						o.TypeParams[i].Free, err = readInt(ctx)
+						return
+					},
+				)
 			}
 			return
 		})

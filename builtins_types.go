@@ -121,6 +121,12 @@ func (t *Type) Print(state *PrinterState) (err error) {
 }
 
 func (t *Type) IndexGet(vm *VM, index Object) (value Object, err error) {
+	// `iterator[K, V]` (issue #23): an iterator of those keys and values
+	if t == TIterator {
+		if _, isStr := index.(Str); !isStr {
+			return iteratorOf(index), nil
+		}
+	}
 	if t.Static == nil {
 		return Dict{}.IndexGet(vm, index)
 	}
@@ -226,4 +232,17 @@ func RegisterBuiltinType(typ BuiltinType, name string, val any, init CallableFun
 	}
 	Types[rt] = ot
 	return ot
+}
+
+func init() {
+	// any(v) is v: what a type parameter constrained by nothing converts to
+	TAny.defaul = &Function{
+		FuncName: "any",
+		Value: func(c Call) (Object, error) {
+			if err := c.Args.CheckLen(1); err != nil {
+				return nil, err
+			}
+			return c.Args.GetOnly(0), nil
+		},
+	}
 }

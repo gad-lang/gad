@@ -23,6 +23,17 @@ type TypedDictType struct {
 	// Key and Value are the types of its generic instance (str and any for
 	// `type NAME dict`).
 	Key, Value Object
+	// generics are its generic methods, `met ~NAME[_, V](…)`
+	generics genericMethods
+}
+
+// addGenericMethod takes `met NAME[K, V](…)`.
+func (t *TypedDictType) addGenericMethod(cf *CompiledFunction) bool {
+	if len(cf.TypeParams) != 2 {
+		return false
+	}
+	t.generics = t.generics.with(cf)
+	return true
 }
 
 var (
@@ -155,6 +166,10 @@ func (t *TypedDictType) check(vm *VM, k string, v Object) error {
 // construct makes an instance: the entries of the call (DictOfType.Call's
 // forms), each checked.
 func (t *TypedDictType) construct(c Call) (Object, error) {
+	c, err := callGenerics(c, t.generics, BuiltinDictType, Array{t.Key, t.Value})
+	if err != nil {
+		return nil, err
+	}
 	d, err := buildDictEntries(c, t.Key, func(k string, v Object) error { return t.check(c.VM, k, v) })
 	if err != nil {
 		return nil, err
@@ -224,7 +239,9 @@ func (o *TypedDict) Copy() Object {
 	return &TypedDict{Value: o.Value.Copy().(Dict), DictType: o.DictType}
 }
 
-func (o *TypedDict) IndexGet(vm *VM, index Object) (Object, error) { return o.Value.IndexGet(vm, index) }
+func (o *TypedDict) IndexGet(vm *VM, index Object) (Object, error) {
+	return o.Value.IndexGet(vm, index)
+}
 
 // IndexSet sets an entry, checked against the type.
 func (o *TypedDict) IndexSet(vm *VM, index, value Object) error {

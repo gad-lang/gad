@@ -458,6 +458,23 @@ func init() {
 			}
 		}
 
+		if l := len(cf.TypeParams); l > 0 {
+			if err = ctx.WriteByte(11); err != nil {
+				return
+			}
+			if err = writeInt(ctx, l); err != nil {
+				return
+			}
+			for _, tp := range cf.TypeParams {
+				if err = writeString(ctx, tp.Name); err != nil {
+					return
+				}
+				if err = writeInt(ctx, tp.Free); err != nil {
+					return
+				}
+			}
+		}
+
 		err = ctx.WriteByte(FieldEOF)
 		return
 	}

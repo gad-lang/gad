@@ -279,6 +279,10 @@ func (t *DictOfType) CanCall() bool { return true }
 // [key, value] pair, a dict or a key-value array (their entries) —, or one
 // array alone: its indexes the keys (`i ::> K`), its items the values.
 func (t *DictOfType) Call(c Call) (Object, error) {
+	c, err := callGenerics(c, nil, BuiltinDictType, Array{t.Key, t.Value})
+	if err != nil {
+		return nil, err
+	}
 	d, err := buildDictEntries(c, t.Key, func(k string, v Object) error {
 		if !keyOK(t.Key, k) {
 			return ErrType.NewErrorf("%s: key %q is not of %s", t.Name(), k, ReprQuote(typeName(t.Key)))

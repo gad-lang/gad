@@ -155,6 +155,10 @@ func (t *KVAOfType) CanCall() bool { return true }
 // [key, value] pair, a key-value array or a dict —, or one array alone: its
 // indexes the keys.
 func (t *KVAOfType) Call(c Call) (Object, error) {
+	c, err := callGenerics(c, nil, BuiltinKeyValueArrayType, Array{t.Key, t.Value})
+	if err != nil {
+		return nil, err
+	}
 	return buildKVAPairs(c, t.Name(), t.Key, t.Value)
 }
 

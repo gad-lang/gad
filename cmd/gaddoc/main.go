@@ -50,7 +50,7 @@ var (
 	rePropHeader    = regexp.MustCompile(`^\s*##\s+Properties`)
 	// Function header annotation: `Name(params) <ret>` (new syntax) or the
 	// legacy `Name(params) -> ret`. The params may include named params (`;`).
-	reFuncAnnot    = regexp.MustCompile(`^\s*(\w+)\(.*\)\s*(?:<[^>]*>|->\s+\S.*)\s*$`)
+	reFuncAnnot    = regexp.MustCompile(`^\s*(\w+)(?:\[[^\]]*\])?\(.*\)\s*(?:<[^>]*>|->\s+\S.*)\s*$`)
 	reLevel2header = regexp.MustCompile(`^\s*##\s`)
 	reWordStart    = regexp.MustCompile(`^\s*\w+`)
 	// A `gad:samples [flags] <path>` directive links a module to a `.gad` file of

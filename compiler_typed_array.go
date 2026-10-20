@@ -129,6 +129,11 @@ func (c *Compiler) compileTypedArrayTypeStmt(nd *node.TypedArrayTypeStmt) error 
 func typeArgsIndex(nt *node.TypeArgsExpr) node.Expr {
 	args := make([]node.Expr, len(nt.Args))
 	for i, a := range nt.Args {
+		// `_` skips a type parameter (issue #23): nil, its constraint kept
+		if id, ok := a.(*node.IdentExpr); ok && id.Name == "_" {
+			args[i] = &node.NilLit{TokenPos: id.NamePos}
+			continue
+		}
 		args[i] = typeIndexUnions(&node.IndexExpr{X: nt.X, Index: a}).(*node.IndexExpr).Index
 	}
 	return &node.IndexExpr{X: nt.X, LBrack: nt.LBrack, RBrack: nt.RBrack,

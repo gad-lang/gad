@@ -403,7 +403,7 @@ func (p *Parser) parseClassMember() *node.ClassMemberExpr {
 	m := &node.ClassMemberExpr{NameExpr: p.ParseIdent(), Doc: doc, Meta: p.takeMeta()}
 
 	switch p.Token.Token {
-	case token.LParen:
+	case token.LParen, token.LBrack:
 		fm := p.parsePropMethod()
 		if fm == nil {
 			return nil

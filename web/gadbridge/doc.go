@@ -260,7 +260,7 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 			// and return types, without the name — so `name + signature` reads
 			// `f(a int, b int) <int>`.
 			if v.Type != nil {
-				sym.Signature = v.Type.Params.String() + gnode.FormatFuncReturn(v.Type.Return)
+				sym.Signature = gnode.FormatTypeParams(v.Type.TypeParams) + v.Type.Params.String() + gnode.FormatFuncReturn(v.Type.Return)
 			}
 		case *gnode.FuncWithMethodsExpr:
 			// A multi-signature export (`export func NAME { (sig) => … … }`): each
@@ -270,7 +270,7 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 			}
 			for _, m := range v.Methods {
 				sym.Overloads = append(sym.Overloads, DocOverload{
-					Signature: m.Params.String() + gnode.FormatFuncReturn(m.Return),
+					Signature: gnode.FormatTypeParams(m.TypeParams) + m.Params.String() + gnode.FormatFuncReturn(m.Return),
 					Doc:       gadDocText(m.Doc),
 				})
 			}
@@ -364,7 +364,7 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 	switch d := es.Prelude.(type) {
 	case *gnode.FuncStmt:
 		if d.Func != nil && d.Func.Type != nil {
-			sym.Signature = d.Func.Type.Params.String() + gnode.FormatFuncReturn(d.Func.Type.Return)
+			sym.Signature = gnode.FormatTypeParams(d.Func.Type.TypeParams) + d.Func.Type.Params.String() + gnode.FormatFuncReturn(d.Func.Type.Return)
 			sym.Meta = gnode.MetaCode(d.Func.Meta)
 		}
 	case *gnode.FuncWithMethodsStmt:
@@ -373,7 +373,7 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 		}
 		for _, m := range d.Methods {
 			sym.Overloads = append(sym.Overloads, DocOverload{
-				Signature: m.Params.String() + gnode.FormatFuncReturn(m.Return),
+				Signature: gnode.FormatTypeParams(m.TypeParams) + m.Params.String() + gnode.FormatFuncReturn(m.Return),
 				Doc:       gadDocText(m.Doc),
 			})
 		}

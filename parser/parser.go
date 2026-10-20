@@ -564,13 +564,28 @@ L:
 			paren := p.ParseParemExpr(token.LParen, token.RParen)
 			ih := p.inHeader
 
+			// `[T](x T) => x`, `[K, V](k K, v V) => …`: an arrow with type
+			// parameters (issue #23)
+			if arr, _ := x.(*node.ArrayExpr); arr != nil && !ih && p.Token.Token == token.Lambda {
+				if tps := arrayTypeParams(arr); tps != nil {
+					c := p.ParseClosureExpr(token.Lambda, paren.ToMultiParenExpr())
+					c.TypeParams = tps
+					x = c
+					continue
+				}
+			}
 			if !ih && (p.Token.Token.Is(token.LBrace, token.Lambda) ||
 				p.peekFuncReturnTypeThenBody()) {
+				// `name[K, V](…) => …`: a named function with type parameters
+				var typeParams []*node.TypedIdentExpr
+				if name, tps := indexTypeParams(x); name != nil {
+					x, typeParams = name, tps
+				}
 				if ident, _ := x.(*node.IdentExpr); ident != nil {
 					if params, err := paren.ToMultiParenExpr().ToFuncParams(); err == nil {
 						f := &node.FuncExpr{
 							Type: &node.FuncType{
-								FuncHeader: node.FuncHeader{NameExpr: ident, Params: params},
+								FuncHeader: node.FuncHeader{NameExpr: ident, TypeParams: typeParams, Params: params},
 							},
 						}
 						x = f
@@ -615,6 +630,52 @@ L:
 		}
 	}
 	return x
+}
+
+// indexTypeParams is the name and the type parameters of `name[K, V]` written
+// before a function's parameters; nil when x is anything else.
+func indexTypeParams(x node.Expr) (*node.IdentExpr, []*node.TypedIdentExpr) {
+	var (
+		base node.Expr
+		args []node.Expr
+	)
+	switch t := x.(type) {
+	case *node.IndexExpr:
+		base, args = t.X, []node.Expr{t.Index}
+	case *node.TypeArgsExpr:
+		base, args = t.X, t.Args
+	default:
+		return nil, nil
+	}
+	name, ok := base.(*node.IdentExpr)
+	if !ok {
+		return nil, nil
+	}
+	tps := make([]*node.TypedIdentExpr, len(args))
+	for i, a := range args {
+		id, ok := a.(*node.IdentExpr)
+		if !ok {
+			return nil, nil
+		}
+		tps[i] = &node.TypedIdentExpr{Ident: id}
+	}
+	return name, tps
+}
+
+// arrayTypeParams is the type parameters an array of names written before an
+// arrow's parameters is (`[K, V]`); nil when it is anything else.
+func arrayTypeParams(arr *node.ArrayExpr) (tps []*node.TypedIdentExpr) {
+	if len(arr.Elements) == 0 {
+		return nil
+	}
+	for _, e := range arr.Elements {
+		id, ok := e.(*node.IdentExpr)
+		if !ok {
+			return nil
+		}
+		tps = append(tps, &node.TypedIdentExpr{Ident: id})
+	}
+	return
 }
 
 func (p *Parser) ParseCall(x node.Expr) *node.CallExpr {
@@ -2052,6 +2113,11 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 				p.Expect(token.Tilde)
 			}
 
+			// `[T](x T) => …`: the method's type parameters (issue #23)
+			if p.Token.Token == token.LBrack {
+				f.TypeParams = p.parseTypeParams()
+			}
+
 			if paren := p.ParseParemExpr(token.LParen, token.RParen); paren != nil && p.Errors.Len() == 0 {
 				var err *node.NodeError
 
@@ -2233,12 +2299,16 @@ func (p *Parser) parsePropBody(prop *node.PropExpr) (e node.Expr) {
 // `(params) <ret> {body}` (or `=> expr`). It returns nil on error.
 func (p *Parser) parsePropMethod() (m *node.FuncMethod) {
 	doc := p.leadComment
+	var typeParams []*node.TypedIdentExpr
+	if p.Token.Token == token.LBrack {
+		typeParams = p.parseTypeParams()
+	}
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 	if paren == nil || p.Errors.Len() != 0 {
 		return nil
 	}
 
-	m = &node.FuncMethod{Doc: doc}
+	m = &node.FuncMethod{Doc: doc, TypeParams: typeParams}
 
 	var err *node.NodeError
 	if m.Params, err = paren.ToMultiParenExpr().ToFuncParams(); err != nil {
@@ -2588,7 +2658,7 @@ func (p *Parser) peekTypeParamsAfterLBrack() bool {
 			return true
 		}
 		toks = append(toks, t)
-		return len(toks) < 2
+		return len(toks) < 3
 	})
 	if len(toks) < 2 || toks[0].Token != token.Ident {
 		return false
@@ -2596,6 +2666,12 @@ func (p *Parser) peekTypeParamsAfterLBrack() bool {
 	switch toks[1].Token {
 	case token.Ident, token.Meti, token.Interface, token.Method:
 		return true
+	case token.Comma:
+		// `[K, V]` — names, a list (issue #23)
+		return true
+	case token.RBrack:
+		// `[T](…)` — one name, then the params (issue #23)
+		return len(toks) > 2 && toks[2].Token == token.LParen
 	}
 	return false
 }
@@ -2778,7 +2854,25 @@ func (p *Parser) ParseFuncReturnTypes() (types []*node.TypedIdentExpr) {
 
 	for p.Token.Token != token.Greater && p.Token.Token != token.EOF {
 		ti := p.ParseTypedIdent()
+
+		// An unnamed generic or selector return type (`<iterable[K, V]>`,
+		// `<mod.T>`): ParseTypedIdent read its name as the ident and stopped
+		// at `[` / `.`.
+		if len(ti.Type) == 0 && p.Token.Token.Is(token.LBrack, token.Period) {
+			ti.Type = []*node.TypeExpr{{Expr: p.ParseSimpleSelectorExpr(ti.Ident)}}
+			ti.Ident = node.EIdent("", ti.Ident.Pos())
+		}
 		p.SkipSpace()
+
+		// a union whose first member was read as the type above
+		if len(ti.Type) == 1 && ti.Ident.Name == "" && p.Token.Token == token.Or {
+			for p.Token.Token == token.Or {
+				p.Next() // consume '|'
+				p.SkipSpace()
+				ti.Type = append(ti.Type, p.parseType())
+				p.SkipSpace()
+			}
+		}
 
 		// An unnamed union return type (`<int|str>`): ParseTypedIdent read the
 		// first member as the ident and stopped at `|` (a named return `<x int|str>`
@@ -5507,6 +5601,11 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 	default:
 		stmt.KeyExpr = p.ParseLiteral()
 		if ident, _ := stmt.KeyExpr.(*node.IdentExpr); ident != nil {
+			// `export f[K, V](…) …`: its type parameters (issue #23)
+			var typeParams []*node.TypedIdentExpr
+			if p.Token.Token == token.LBrack && p.peekTypeParamsAfterLBrack() {
+				typeParams = p.parseTypeParams()
+			}
 			if p.Token.Token == token.LParen {
 				exp := p.ParseParenOrClosure(token.LParen, token.RParen)
 				switch t := exp.(type) {
@@ -5515,7 +5614,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 					fe := &node.FuncExpr{
 						LambdaPos: t.Lambda.Pos,
 						Type: &node.FuncType{
-							FuncHeader: node.FuncHeader{NameExpr: ident, Params: t.Params, Return: t.Return},
+							FuncHeader: node.FuncHeader{NameExpr: ident, TypeParams: typeParams, Params: t.Params, Return: t.Return},
 						},
 						BodyExpr: t.Body,
 					}
@@ -5529,7 +5628,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 							// export f() { … } — like `func f() { … }; export f`.
 							fe := &node.FuncExpr{
 								Type: &node.FuncType{
-									FuncHeader: node.FuncHeader{Params: params, NameExpr: ident, Return: returnTypes},
+									FuncHeader: node.FuncHeader{Params: params, NameExpr: ident, TypeParams: typeParams, Return: returnTypes},
 								},
 								Body: block,
 							}

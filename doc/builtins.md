@@ -525,7 +525,7 @@ Example:
 ---
 
 ```gad ignore
-filter(it iterable, callback <(v any, k any, it iterable) <bool>>) <iterator>
+filter[K, V](it iterable[K, V], callback <(v V, k K, it iterable[K, V]) <bool>>) <iterator[K, V]>
 ```
 
 Returns a lazy iterator over the elements of iterable for which callback
@@ -542,7 +542,7 @@ collect(filter({a: 1, b: 2}, (v, k) => k == "b"))
 ---
 
 ```gad ignore
-map(it iterable, callback <(v any, k any) <any>>; update=no, nokey=no) <iterator>
+map[K, V, R](it iterable[K, V], callback <(v V, k K) <R>>; update=no, nokey=no) <iterator[K, R]>
 ```
 
 Returns a lazy iterator applying callback to each element of iterable, called
@@ -562,7 +562,7 @@ collect(map([1, 2], func(*a) => len(a); nokey))
 ---
 
 ```gad ignore
-each(it iterable, callback <(k any, v any)>) <any>
+each[K, V](it iterable[K, V], callback <(k K, v V)>) <iterable[K, V]>
 ```
 
 Calls callback for every element of iterable (for its side effects) and
@@ -577,7 +577,7 @@ each({a: 1}, (k, v) => println(k, v))
 ---
 
 ```gad ignore
-reduce(it iterable, callback <(acc any, v any, k any) <any>>, initial any) <any>
+reduce[K, V, A](it iterable[K, V], callback <(acc A, v V, k K) <A>>, initial A) <A>
 ```
 
 Folds the elements of iterable with callback into a single value, starting

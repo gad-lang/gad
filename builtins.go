@@ -995,11 +995,6 @@ var BuiltinObjects = BuiltinObjectsMap{
 		Value:                 NewTypedArrayTypeFunc,
 		AcceptMethodsDisabled: true,
 	},
-	BuiltinNewTypedDictType: &BuiltinFunction{
-		FuncName:              "TypedDictType",
-		Value:                 NewTypedDictTypeFunc,
-		AcceptMethodsDisabled: true,
-	},
 	BuiltinTypeOf: &BuiltinFunction{
 		FuncName:              "typeof",
 		Value:                 BuiltinTypeOfFunc,

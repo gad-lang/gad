@@ -62,4 +62,3 @@ func TestTypedRangeUnion(t *testing.T) {
 		return [str(C.@fields["n"].@types[0]), ok({n: 1.5 .. 3.0}, I), ok({n: 1 .. 2}, I), ok({n: "a" .. "b"}, I), f(1 .. 3), 5|3]`,
 		nil, Array{Str("Range[int|float]"), True, True, False, Str("1 .. 3"), Int(7)})
 }
-

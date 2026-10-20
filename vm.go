@@ -626,7 +626,27 @@ func (vm *VM) xIndexGet(numSel int, target Object, getPtr bool) (value Object, n
 		index := vm.stack[ptr]
 		vm.stack[ptr] = nil
 		if ig, _ := target.(IndexGetter); ig != nil {
-			v, err := Val(ig.IndexGet(vm, index))
+			var (
+				v   Object
+				err error
+				typ bool
+			)
+			// `inst.name[A, B]`: a generic method or property, bound (issue #23)
+			if numSel > 1 {
+				if ci, ok := target.(*ClassInstance); ok {
+					if name, ok := index.(Str); ok {
+						if types := vm.stack[ptr+1]; !isStr(types) {
+							if v, typ, err = ci.indexGetTyped(vm, string(name), types); typ {
+								vm.stack[ptr+1] = nil
+								numSel--
+							}
+						}
+					}
+				}
+			}
+			if !typ {
+				v, err = Val(ig.IndexGet(vm, index))
+			}
 			if err != nil {
 				switch err {
 				case ErrNotIndexable:
@@ -1134,8 +1154,11 @@ do:
 		return vm.xOpCallCompiled(t, numArgs, flags)
 	case RawCallerWithMethods:
 		if !t.HasCallerMethods() {
-			callee = t.Caller()
-			goto do
+			// a type without a constructor has no caller: its own error
+			if c := t.Caller(); c != nil {
+				callee = c
+				goto do
+			}
 		}
 	}
 	return vm.xOpCallObject(callee, numArgs, flags)
@@ -1293,6 +1316,14 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	} else {
 		for i := numParams; i < numLocals; i++ {
 			vm.stack[basePointer+i] = Nil
+		}
+	}
+
+	// a generic function called without type arguments: bound to the types
+	// of the arguments (issue #23)
+	if len(cfunc.TypeParams) > 0 && !cfunc.typesBound {
+		if cfunc, err = cfunc.inferTypes(vm, args); err != nil {
+			return
 		}
 	}
 
@@ -1818,4 +1849,10 @@ func setNamedLocal(locals []Object, i int, fresh bool, na *NamedArgs, name strin
 	} else if fresh {
 		locals[i] = No
 	}
+}
+
+// isStr reports whether o is a Str.
+func isStr(o Object) bool {
+	_, ok := o.(Str)
+	return ok
 }
