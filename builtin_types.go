@@ -106,6 +106,12 @@ func (t *BuiltinObjType) IndexGet(vm *VM, index Object) (Object, error) {
 			return v, nil
 		}
 	}
+	// `dict` is `DictType[str, any]`
+	if t.builtinType == BuiltinDict {
+		if v, ok := anyDictReflect(index); ok {
+			return v, nil
+		}
+	}
 	if t.indexType == nil {
 		return nil, ErrNotIndexable.NewError(t.name)
 	}
@@ -179,8 +185,11 @@ func (t *BuiltinObjType) FullName() string {
 
 func (t *BuiltinObjType) Type() ObjectType {
 	// `array` is `type []any`, an array type
-	if t.builtinType == BuiltinArray {
+	switch t.builtinType {
+	case BuiltinArray:
 		return TArrayType
+	case BuiltinDict: // `dict` is `DictType[str, any]`
+		return TDictType
 	}
 	return TBase
 }
@@ -192,7 +201,8 @@ func (t *BuiltinObjType) IsFalsy() bool {
 func (t *BuiltinObjType) Equal(right Object) bool {
 	switch r := right.(type) {
 	case *BuiltinObjType:
-		return t == r
+		// a VM holds copies of the builtin types: the same builtin, equal
+		return t == r || (t.builtinType != 0 && t.builtinType == r.builtinType)
 	case BuiltinObjTypeKey:
 		return t.TypeKey() == r
 	default:
@@ -237,6 +247,7 @@ var (
 	TBuffer,
 	TArray,
 	TArrayType,
+	TDictType,
 	TDict,
 	TSyncDict,
 	TKeyValue,
@@ -289,6 +300,8 @@ func init() {
 	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, NewBufferFunc).TypeKey()
 	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, NewArrayFunc).TypeKey()
 	TArrayType = RegisterBuiltinType(BuiltinArrayType, "arrayType", ArrayType{}, NewArrayTypeFunc).TypeKey()
+	TDictType = RegisterBuiltinType(BuiltinDictType, "DictType", DictOfType{}, NewDictTypeFunc).
+		WithIndexType(dictTypeOf).TypeKey()
 	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, NewDictFunc).TypeKey()
 	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncDict{}, NewSyncDictFunc).TypeKey()
 	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, NewKeyValueFunc).TypeKey()

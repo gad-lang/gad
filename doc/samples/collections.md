@@ -44,7 +44,9 @@ ys[end-1] += 20
 
 ## Dicts
 
-A dict maps string keys to values (items separated by commas or newlines). Read
+A dict maps string keys to values (items separated by commas or newlines); a
+dict of typed keys and values is a [typed dict](typed_dicts.gad) —
+`DictType[K, V]`, `type NAME dict[K, V]` — and `dict` is `DictType[str, any]`. Read
 with `.name` or `["name"]`, add/remove keys, and iterate key/value pairs. Nested
 dicts may use block-style nesting (the outer parentheses are required because a
 bare `{` at statement position starts a block).

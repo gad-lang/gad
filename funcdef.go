@@ -74,6 +74,11 @@ func (t ParamType) AcceptResolve(vm *VM, obj Object, resolve func(*SymbolInfo) (
 			if ot == stot || IsTypeAssignableTo(stot, ot) {
 				return true, nil
 			}
+			// a typed dict's instance is a dict (issue #19): its type's chain
+			// reaches the param's
+			if _, typed := obj.(*TypedDict); typed && IsTypeAssignableTo(ot, stot) {
+				return true, nil
+			}
 		} else if vta, isVTA := st.(vmCanAssigner); isVTA {
 			// Structural types (meti/interface) may need the VM to resolve
 			// candidate signatures (SplitCaller -> ParamTypes(vm)).

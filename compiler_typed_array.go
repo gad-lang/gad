@@ -123,3 +123,53 @@ func (c *Compiler) compileTypedArrayTypeStmt(nd *node.TypedArrayTypeStmt) error 
 		}},
 	}})
 }
+
+// typeArgsIndex is `X[A, B]` as `X[[A, B]]` (each argument a union when written
+// `a|b`): a builtin generic type indexed by its type arguments.
+func typeArgsIndex(nt *node.TypeArgsExpr) node.Expr {
+	args := make([]node.Expr, len(nt.Args))
+	for i, a := range nt.Args {
+		args[i] = typeIndexUnions(&node.IndexExpr{X: nt.X, Index: a}).(*node.IndexExpr).Index
+	}
+	return &node.IndexExpr{X: nt.X, LBrack: nt.LBrack, RBrack: nt.RBrack,
+		Index: &node.ArrayExpr{Elements: args, LBrack: nt.LBrack, RBrack: nt.RBrack}}
+}
+
+// typedDictTypeCall is a typed dict type (issue #19) as the call
+// `TypedDictType(NAME, DictType[K, V]; meta=[…])` (NAME nil when anonymous; the
+// generic `dict` when no type arguments are written).
+func typedDictTypeCall(nd *node.TypedDictTypeExpr) *node.CallExpr {
+	pos := nd.Pos()
+	var generic node.Expr = node.EIdent("dict", pos)
+	if len(nd.Args) > 0 {
+		generic = typeArgsIndex(&node.TypeArgsExpr{X: node.EIdent("DictType", pos), LBrack: pos, Args: nd.Args})
+	}
+	var name node.Expr = &node.NilLit{TokenPos: pos}
+	if nd.Name != nil {
+		name = node.Str(nd.Name.Name, pos)
+	}
+	var named node.CallExprNamedArgs
+	if m := metaArgExpr(nd.Meta); m != nil {
+		named.AppendS("meta", m)
+	}
+	return &node.CallExpr{
+		Func: node.EIdent(BuiltinNewTypedDictType.String(), pos),
+		CallArgs: node.CallArgs{
+			Args:      node.CallExprPositionalArgs{Values: []node.Expr{name, generic}},
+			NamedArgs: named,
+		},
+	}
+}
+
+// compileTypedDictTypeStmt compiles `type NAME dict[K, V]` to
+// `const NAME = TypedDictType("NAME", DictType[K, V])`.
+func (c *Compiler) compileTypedDictTypeStmt(nd *node.TypedDictTypeStmt) error {
+	return c.Compile(&node.DeclStmt{Decl: &node.GenDecl{
+		TokPos: nd.Pos(),
+		Tok:    token.Const,
+		Specs: []node.Spec{&node.ValueSpec{
+			Idents: []*node.IdentExpr{nd.Name},
+			Values: []node.Expr{typedDictTypeCall(&nd.TypedDictTypeExpr)},
+		}},
+	}})
+}

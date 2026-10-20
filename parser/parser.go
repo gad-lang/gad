@@ -1200,6 +1200,11 @@ func (p *Parser) ParseOperand() node.Expr {
 	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.Less {
 		return p.parseTypeUnionExpr()
 	}
+	// `type dict[K, V]`, `type NAME dict[K, V]` — a typed dict type as a value
+	// (issue #19)
+	if p.Token.Token == token.Ident && p.Token.Literal == "type" && (p.isTypedDictStart(false) || p.isTypedDictStart(true)) {
+		return p.parseTypedDictType()
+	}
 	// `type []int`, `type [2..3][2]str` — an array type as a value. The space
 	// tells it from indexing a variable named type (`type[0]`).
 	if p.Token.Token == token.Ident && p.Token.Literal == "type" && p.Peek().Token == token.LBrack &&
@@ -3030,6 +3035,42 @@ func (p *Parser) typeParamsThenBrace(n int) bool {
 	return ok
 }
 
+// isTypedDictStart reports whether the current `type` begins a typed dict
+// type (issue #19): `type NAME dict[…]` / `type NAME dict` — named: a
+// declaration in statement position, a named value elsewhere —, or, unnamed,
+// `type dict[…]` / `type dict`.
+func (p *Parser) isTypedDictStart(named bool) bool {
+	toks := p.PeekC(3)
+	if named {
+		return toks[0].Token == token.Ident && toks[0].Literal != "dict" &&
+			toks[1].Token == token.Ident && toks[1].Literal == "dict"
+	}
+	return toks[0].Token == token.Ident && toks[0].Literal == "dict"
+}
+
+// parseTypedDictType parses `type [NAME] dict[ [K, ] V ]`.
+func (p *Parser) parseTypedDictType() *node.TypedDictTypeExpr {
+	e := &node.TypedDictTypeExpr{TypePos: p.Token.Pos}
+	p.Next() // `type`
+	if p.Token.Literal != "dict" {
+		e.Name = p.ParseIdent()
+	}
+	e.EndPos = p.Token.Pos + source.Pos(len("dict"))
+	p.Next() // `dict`
+	if p.Token.Token == token.LBrack {
+		p.Next()
+		for p.Token.Token != token.RBrack && p.Token.Token != token.EOF {
+			e.Args = append(e.Args, p.ParseExpr())
+			if p.Token.Token != token.Comma {
+				break
+			}
+			p.Next()
+		}
+		e.EndPos = p.Expect(token.RBrack) + 1
+	}
+	return e
+}
+
 // isTypedArrayDeclStart reports whether the current `type` identifier begins a
 // `type NAME []…` typed-array type declaration (`type` + a name + `[]`).
 func (p *Parser) isTypedArrayDeclStart() bool {
@@ -3447,6 +3488,15 @@ do:
 			}
 			if p.isTypedArrayDeclStart() {
 				return p.parseTypedArrayTypeStmt()
+			}
+			if p.isTypedDictStart(true) {
+				// `type NAME dict[K, V]` (issue #19)
+				s := &node.TypedDictTypeStmt{Doc: p.leadComment}
+				s.Meta = p.takeMeta()
+				meta := s.Meta
+				s.TypedDictTypeExpr = *p.parseTypedDictType()
+				s.Meta = meta
+				return s
 			}
 			if p.isDeclBodyStart() {
 				return p.ParseStaticTypeStmt()
@@ -5288,6 +5338,15 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 				cls.Doc = doc
 			}
 			p.declExport(stmt, name, &node.TypeDeclStmt{TypeLitExpr: *cls})
+			return
+		case p.Token.Literal == "type" && p.isTypedDictStart(true):
+			// export type NAME dict[K, V] — a typed dict type (issue #19)
+			td := &node.TypedDictTypeStmt{Doc: doc}
+			td.TypedDictTypeExpr = *p.parseTypedDictType()
+			if p.Failed() {
+				return
+			}
+			p.declExport(stmt, td.Name, td)
 			return
 		case p.Token.Literal == "type" && p.isTypedArrayDeclStart():
 			// export type NAME []… — a typed array type.

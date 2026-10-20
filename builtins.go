@@ -76,6 +76,9 @@ const (
 	// BuiltinArrayType is `arrayType`, the type of the array types (`type
 	// []int`): its constructor builds one (`arrayType(int; depth=2)`).
 	BuiltinArrayType
+	// BuiltinDictType is `DictType`, the generic of the dict types:
+	// `DictType[K, V]` (issue #19).
+	BuiltinDictType
 	BuiltinTypesEnd_
 
 	BuiltinStaticTypesStart_
@@ -133,6 +136,7 @@ const (
 	BuiltinNewMixin
 	BuiltinNewStaticType
 	BuiltinNewTypedArrayType
+	BuiltinNewTypedDictType
 	BuiltinTypeOf
 	BuiltinAddMethod
 	BuiltinRawCaller
@@ -389,6 +393,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"Contract":            BuiltinContract,
 	"StaticType":          BuiltinNewStaticType,
 	"TypedArrayType":      BuiltinNewTypedArrayType,
+	"TypedDictType":       BuiltinNewTypedDictType,
 	"Mixin":               BuiltinNewMixin,
 	"typeof":              BuiltinTypeOf,
 	"addMethod":           BuiltinAddMethod,
@@ -984,6 +989,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinNewTypedArrayType: &BuiltinFunction{
 		FuncName:              "TypedArrayType",
 		Value:                 NewTypedArrayTypeFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinNewTypedDictType: &BuiltinFunction{
+		FuncName:              "TypedDictType",
+		Value:                 NewTypedDictTypeFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinTypeOf: &BuiltinFunction{

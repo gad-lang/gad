@@ -1631,7 +1631,7 @@ func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString("export ")
 		d.WriteCode(ctx)
 		return
-	case *TypedArrayTypeStmt:
+	case *TypedArrayTypeStmt, *TypedDictTypeStmt:
 		ctx.WriteString("export ")
 		d.WriteCode(ctx)
 		return

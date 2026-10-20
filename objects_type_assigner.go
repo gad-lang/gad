@@ -184,6 +184,12 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 		}
 	}
 	switch t := to.(type) {
+	case *DictOfType:
+		return t.transform(vm, obj)
+	case *TypedDictType:
+		return t.transform(vm, obj)
+	}
+	switch t := to.(type) {
 	case *Enum:
 		// `"Name" :> Enum` (or its value): the member — an int or a uint
 		// value only, never a float, a decimal or a bool
@@ -259,8 +265,8 @@ func transformCallee(to Object) (CallerObject, bool) {
 		return t, true
 	case *Interface, *Class:
 		return nil, false
-	case *ArrayType:
-		// a constructor, but `::>` converts each leaf (ArrayType.transform)
+	case *ArrayType, *DictOfType:
+		// a constructor, but `::>` converts each leaf (transform)
 		return nil, false
 	case ObjectType:
 		// any (a *Type) and any other type object: identity/checked cast.

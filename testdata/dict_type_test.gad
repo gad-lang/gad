@@ -1,0 +1,71 @@
+example dict_type {
+    D := DictType[str, int]
+    [str(D), D === DictType[str, int], D == DictType(str, int), DictType[int] === D]
+    = ["DictType[str, int]", true, true, true]
+    [DictType[str, any] === dict, typeof({}) === DictType[str, any], typeof(D) === DictType, typeof(dict) === DictType]
+    = [true, true, true, true]
+    [dict.@key == str, dict.@value == any, D.@value == int]
+    = [true, true, true]
+    ({a: 1} :: D)
+    = {a: 1}
+    f := func(x DictType[str, int]) => x.a
+    f({a: 7})
+    = 7
+    D(; a=1, b=2)
+    = {a: 1, b: 2}
+    D([a=1], ["b", 2], {c: 3})
+    = {a: 1, b: 2, c: 3}
+    D([10, 20])
+    = {"0": 10, "1": 20}
+    ({a: "1"} ::> D)
+    = {a: 1}
+    enum Svc { Kitchen, Bath }
+    E := DictType[Svc, bool]
+    E(; Kitchen=true)
+    = {Kitchen: true}
+    ({Kitchen: true} :: E)
+    = {Kitchen: true}
+    type scores dict[str, int]
+    s := scores(; ana=1)
+    [typeName(s), s.ana, s :: dict == s, s :: DictType[str, int] == s]
+    = ["scores", 1, true, true]
+    s.bia = 2
+    len(s)
+    = 2
+    const anon = type dict[str, bool]
+    const named = type myD dict[str, bool]
+    [str(anon), named.@name, typeName(named(; x=true))]
+    = ["‹typedDictType: dict[str, bool]›", "myD", "myD"]
+}
+
+example typed_dict {
+    type scores dict[str, int]
+    s := scores(; ana=1, bia=2)
+    r := []
+    for k, v in s { r += k + "=" + str(v) }
+    [sort(r), "ana" in s, dict(s), len(copy(s))]
+    = [["ana=1", "bia=2"], true, {ana: 1, bia: 2}, 2]
+    delete s.ana
+    len(s)
+    = 1
+    met scores(n int) => scores(; n=n)
+    scores(5).n
+    = 5
+    x := {a: "1"} ::> scores
+    [typeName(x), x.a]
+    = ["scores", 1]
+    syncDict({a: 1}) :: DictType[str, int]
+    = {a: 1}
+    f := func(d dict) => len(d)
+    f(s)
+    = 1
+}
+
+example meta {
+    [x=1]
+    type tagged dict
+    [tagged.@meta, typeName(tagged(; a=1))]
+    = [(;x=1), "tagged"]
+}
+
+return true

@@ -134,3 +134,22 @@ Members are read with indexing:
 (type [2]int).@size[0].eq        // 2
 (type [..3]int).@size[0] == [nil, nil, 3]
 ```
+
+## Type DictType
+DictType is the generic of the dict types: `DictType[K, V]` the type of a dict
+whose keys are of K (a type of strings: str, an enum, a union of them) and
+whose values are of V; `DictType[V]` is `DictType[str, V]`, and `dict` is
+`DictType[str, any]` itself. It is structural (a plain dict of those keys and
+values is of it) and a constructor (named args, `[k=v]`, `[key, value]`
+pairs, a dict or a key-value array as entries; one array alone its indexes as
+keys), checking each entry; `::>` converts. `DictType(K, V)` makes it from
+types held in variables. `type NAME dict[K, V]` declares a nominal typed dict
+type, its writes checked (see the typed dicts sample).
+
+Members are read with indexing: `t.@key`, `t.@value`, `t.@name`.
+
+```gad
+D := DictType[str, int]
+[D(; a=1), D.@value == int, dict === DictType[str, any]]
+= [{a: 1}, true, true]
+```

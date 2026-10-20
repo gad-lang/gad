@@ -1021,6 +1021,15 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileStructuralTypeExpr(nt)
 	case *node.TypedArrayTypeStmt:
 		return c.compileTypedArrayTypeStmt(nt)
+	case *node.TypedDictTypeStmt:
+		return c.compileTypedDictTypeStmt(nt)
+	case *node.TypedDictTypeExpr:
+		return c.Compile(typedDictTypeCall(nt))
+	case *node.TypeArgsExpr:
+		// `X[A, B]` of a type that is not a generic of gad (those are
+		// expanded): X indexed by the array of its type arguments —
+		// `DictType[str, int]`
+		return c.Compile(typeArgsIndex(nt))
 	case *node.ContractStmt:
 		return c.compileContractStmt(nt)
 	case *node.ContractExpr:
