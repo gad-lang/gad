@@ -286,6 +286,14 @@ func NewBufferFunc(c Call) (ret Object, err error) {
 }
 
 func NewArrayFunc(c Call) (ret Object, err error) {
+	// `array(; size=[3], fill=0)`: built by its dimensions, as `type []any`
+	if c.Args.Length() == 0 && hasDimsArgs(&c.NamedArgs) {
+		size, fill, hasFill, err := arrayDimsArgs(&c)
+		if err != nil {
+			return nil, err
+		}
+		return buildArrayDims(c.VM, "array", 1, nil, size, fill, hasFill, nil)
+	}
 	// The returned array is retained by the caller, so copy the values instead of
 	// aliasing the (possibly stack-backed) argument group. See Args.Values.
 	return c.Args.CopyValues(), nil

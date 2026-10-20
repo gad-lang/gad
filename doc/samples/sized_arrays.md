@@ -135,6 +135,81 @@ type ints []int
 // => [true, 2, nil, 2, true, true, 5, 2, true, true, "[2..3][2]str", "options"]
 ```
 
+## Building: calling an array type
+
+An array type is a **constructor**. Its items: `(type [2]str)("a", "b")` —
+each level checked, as `::` checks it (the leaves are not converted: `::>`
+converts) —; `(type […]T)()` is the empty array. The value is a **plain
+array**: an array type is structural, not bound to its values (a declared
+[typed array](typed_arrays.gad) is).
+
+```gad
+pair := type [2]str
+refused := func(f) { try { f(); return false } catch { return true } }
+[pair("a", "b"), (type [][]int)([1], [2, 3]), (type []int)(),
+ refused(() => pair("a")),                  // level 1: 1 item, wants 2
+ refused(() => (type []int)("x"))]          // item 0: not an int
+// => [["a", "b"], [[1], [2, 3]], [], true, true]
+```
+
+### By its dimensions: `size`, `fill`
+
+With no items, the named arguments `size` and `fill` build it by its
+dimensions:
+
+- `size=[n1, n2, …]` — a size a level, or a size a level **with no exact
+  size** (`(type [2][]int)(; size=[3])`): a level of a range takes a size in
+  it. A type whose levels are all exact needs none.
+- `fill` — every leaf: a value of the element types, or a **function of the
+  indexes** of the leaf (as many as the levels). With no `fill` a leaf is
+  `nil`, when the element types take it (`[2]any`) — else it is an error.
+
+```gad
+n := 2
+[(type [2][3]int)(; fill=0),
+ (type [][]int)(; size=[2, 2], fill=(i, j) => i + j),
+ (type [2][]str)(; size=[1], fill="x"),     // the level with no size
+ (type [n]any)(; size=[n])]                 // nil leaves: any takes nil
+// => [[[0, 0, 0], [0, 0, 0]], [[0, 1], [1, 2]], [["x"], ["x"]], [nil, nil]]
+```
+
+## `arrayType`: the type of the array types
+
+An array type's type is `arrayType` (`typeof(type []int) === arrayType`), a
+type with a constructor: `arrayType(elem; depth, size)` builds an array type
+at run time — `elem` a type or an array of types (a union), `depth` the levels
+(1 when not given), `size` a level each: an int (exactly), or the `[eq, min,
+max]` of `@size` (`nil` where unset). It is the inverse of the reflection
+keys; as any type with a constructor it takes **overloads** (`met
+arrayType(x MyType) => …`).
+
+Two array types of the same depth, sizes and element types are `==`.
+
+```gad
+T := type [2][1..3]int
+grid := arrayType(int; size=[3, 3])
+[str(arrayType(int; depth=2)), str(arrayType([int, str])), str(grid),
+ grid(; fill=0)[2],
+ arrayType(T.@elem; depth=T.@depth, size=T.@size) == T,   // the round trip
+ typeof(T) === arrayType]
+// => ["[][]int", "[]<int|str>", "[3][3]int", [0, 0, 0], true, true]
+```
+
+## `array` is `type []any`
+
+The builtin `array` is the array type of `any` items with no size — the
+**same object**: `array === type []any`, `typeof([1, 2]) === type []any`, and
+`array.@elem`, `@depth`, `@size` answer as an array type's. `type []any`
+written anywhere — a value, a parameter, a field — is `array`; `array(1, 2)`
+builds as it always did, and by its dimensions too.
+
+```gad
+f := func(x []any) => len(x)       // the same param as `x array`
+[array === type []any, typeof([1, 2]) === type []any, arrayType(any) === array,
+ array.@depth, f([1, 2]), array(; size=[2], fill=0)]
+// => [true, true, true, 1, 2, [0, 0]]
+```
+
 ## Example — `sized_arrays.gad`
 
 ```gad
@@ -171,6 +246,29 @@ kind := func {
     (a []int) => "any"
 }
 [kind([1, 2, 3]), kind([1, 2]), kind([1, 2, 3, 4]), kind([])]
+
+pair := type [2]str
+refused := func(f) { try { f(); return false } catch { return true } }
+[pair("a", "b"), (type [][]int)([1], [2, 3]), (type []int)(),
+ refused(() => pair("a")),                  // level 1: 1 item, wants 2
+ refused(() => (type []int)("x"))]          // item 0: not an int
+
+n := 2
+[(type [2][3]int)(; fill=0),
+ (type [][]int)(; size=[2, 2], fill=(i, j) => i + j),
+ (type [2][]str)(; size=[1], fill="x"),     // the level with no size
+ (type [n]any)(; size=[n])]                 // nil leaves: any takes nil
+
+T := type [2][1..3]int
+grid := arrayType(int; size=[3, 3])
+[str(arrayType(int; depth=2)), str(arrayType([int, str])), str(grid),
+ grid(; fill=0)[2],
+ arrayType(T.@elem; depth=T.@depth, size=T.@size) == T,   // the round trip
+ typeof(T) === arrayType]
+
+f := func(x []any) => len(x)       // the same param as `x array`
+[array === type []any, typeof([1, 2]) === type []any, arrayType(any) === array,
+ array.@depth, f([1, 2]), array(; size=[2], fill=0)]
 
 [[1, 2] ::> []str, [[1, 2], [3, 4]] ::> [][2]str, [1, "a"] ::> []<int|str>]
 

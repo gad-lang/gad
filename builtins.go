@@ -73,6 +73,9 @@ const (
 	BuiltinMethodInterface
 	// BuiltinInterface is the builtin object type for `interface { … }` values.
 	BuiltinInterface
+	// BuiltinArrayType is `arrayType`, the type of the array types (`type
+	// []int`): its constructor builds one (`arrayType(int; depth=2)`).
+	BuiltinArrayType
 	BuiltinTypesEnd_
 
 	BuiltinStaticTypesStart_

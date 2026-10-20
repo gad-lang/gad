@@ -47,7 +47,7 @@ var (
 // An array type is STRUCTURAL, not an ObjectType: it answers about the shape of
 // a value (an array nested so deep, of such elements), and there is no type
 // chain to walk to it.
-func (t *ArrayType) Type() ObjectType { return TArray }
+func (t *ArrayType) Type() ObjectType { return TArrayType }
 
 func (t *ArrayType) Name() string {
 	var b strings.Builder
@@ -70,9 +70,14 @@ func (t *ArrayType) ToString() string { return t.Name() }
 func (t *ArrayType) String() string   { return t.Name() }
 func (t *ArrayType) IsFalsy() bool    { return false }
 
+// Equal is structural: the same depth, sizes and element types (`type []int
+// == arrayType(int)`).
 func (t *ArrayType) Equal(right Object) bool {
 	r, ok := right.(*ArrayType)
-	return ok && r == t
+	if !ok {
+		return false
+	}
+	return r == t || (t.Depth == r.Depth && t.sameLevels(r) && t.sameElems(r))
 }
 
 // AssignTo is how a structural type is asked "does this value satisfy you":

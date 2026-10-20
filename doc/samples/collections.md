@@ -10,7 +10,9 @@ destructuring in [destructuring.gad](destructuring.gad).
 ## Arrays
 
 Indexable and mutable; `len` reports the length, `+=` concatenates, and slicing
-returns a sub-array (negative indices count from the end).
+returns a sub-array (negative indices count from the end). Their type, `array`,
+is the array type of `any` items: `array === type []any` (see
+[sized arrays](sized_arrays.gad#array-is-type-any)).
 
 ```gad
 a := [1, 2, 3]

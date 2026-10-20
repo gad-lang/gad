@@ -15,7 +15,10 @@ type.
   [sized arrays](sized_arrays.gad)).
 
 Calling the type builds a value — each positional argument is an item
-(`numerics(1, 2.5)`; spread an array with `numerics(*arr)`). A typed array
+(`numerics(1, 2.5)`; spread an array with `numerics(*arr)`) —, or, with no
+items, by its dimensions: `grid(; fill=0)`, `rows(; size=[3], fill="")` (`size`
+and `fill` as for [any array type](sized_arrays.gad#by-its-dimensions-size-fill),
+unless the type has a field of that name). A typed array
 **behaves as an array**: int indexes, slicing, iteration, `len`, `sort`, `in`,
 `copy`, `+`, `++`, `+=` and `delete` — but every write is checked. Its
 `typeName` is the declared name.
@@ -28,8 +31,10 @@ type grid [][]int                          // arrays of int
 n := numerics(1, 2.5, 3u)
 u := users({name: "ana", id: 1})
 g := grid([1, 2], [3])
-[typeName(n), str(n), u[0].name, str(g)]
-// => ["numerics", "numerics[1, 2.5, 3]", "ana", "grid[[1, 2], [3]]"]
+type board [2][2]str
+b := board(; fill=".")                     // by its dimensions
+[typeName(n), str(n), u[0].name, str(g), str(b)]
+// => ["numerics", "numerics[1, 2.5, 3]", "ana", "grid[[1, 2], [3]]", "board[[\".\", \".\"], [\".\", \".\"]]"]
 ```
 
 ```gad
@@ -196,7 +201,9 @@ type grid [][]int                          // arrays of int
 n := numerics(1, 2.5, 3u)
 u := users({name: "ana", id: 1})
 g := grid([1, 2], [3])
-[typeName(n), str(n), u[0].name, str(g)]
+type board [2][2]str
+b := board(; fill=".")                     // by its dimensions
+[typeName(n), str(n), u[0].name, str(g), str(b)]
 
 type ints []int
 

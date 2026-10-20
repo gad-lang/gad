@@ -2951,6 +2951,10 @@ func (c *Compiler) compileStructuralTypeExpr(nd node.Expr) error {
 	if err != nil {
 		return err
 	}
+	if sym.Scope == ScopeBuiltin { // `type []any`: the builtin array
+		c.emit(nd, OpGetBuiltin, sym.Index)
+		return nil
+	}
 	// element types naming a variable of this frame: TypeCells(<type>,
 	// keys, cell…) binds them where it is written (objects_type_cells.go)
 	keys, cells := structuralCells(c.constants[sym.Index])
@@ -5320,11 +5324,29 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 		if err := c.arrayTypeLevels(st, t.Depth, t.Dims); err != nil {
 			return nil, err
 		}
+		// `[]any` is the builtin `array` itself: `array === type []any`
+		if s := c.anyArraySymbol(st); s != nil {
+			return s, nil
+		}
 		obj, name = st, st.Name()
 	default:
 		return nil, c.Errorf(e, "unsupported structural type %T", e)
 	}
 	return &SymbolInfo{Name: name, Index: c.addConstant(obj), Scope: ScopeConstant}, nil
+}
+
+// anyArraySymbol is the symbol of the builtin `array` when st is `[]any` (one
+// level, no size, the builtin any); nil otherwise.
+func (c *Compiler) anyArraySymbol(st *ArrayType) *SymbolInfo {
+	if st.Depth != 1 || st.Levels != nil || len(st.Elem) != 1 {
+		return nil
+	}
+	e := st.Elem[0]
+	anyIdx, arrIdx := c.symbolTable.builtins["any"], c.symbolTable.builtins["array"]
+	if e.Scope != ScopeBuiltin || anyIdx == 0 || arrIdx == 0 || e.Index != int(anyIdx) {
+		return nil
+	}
+	return &SymbolInfo{Name: "array", Index: int(arrIdx), Scope: ScopeBuiltin}
 }
 
 func simplifyExpr(e node.Expr) node.Expr {

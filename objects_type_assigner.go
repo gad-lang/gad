@@ -259,6 +259,9 @@ func transformCallee(to Object) (CallerObject, bool) {
 		return t, true
 	case *Interface, *Class:
 		return nil, false
+	case *ArrayType:
+		// a constructor, but `::>` converts each leaf (ArrayType.transform)
+		return nil, false
 	case ObjectType:
 		// any (a *Type) and any other type object: identity/checked cast.
 		return nil, false

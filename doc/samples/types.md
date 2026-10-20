@@ -104,6 +104,22 @@ t.@elem[0] == str // true
 t.@size[0]        // [nil, 2, 3]
 ```
 
+An array type is a constructor: from its items, checked as `::` checks
+them (`(type [2]str)("a", "b")`), or by its dimensions — `size=[…]` for the
+levels with no exact size, `fill` each leaf, a value or a function of the
+indexes of the leaf. The value is a plain array. Its type is `arrayType`,
+whose constructor builds one at run time: `arrayType(elem; depth, size)`,
+`size` a level each (an int, or the `[eq, min, max]` of `@size`). Two array
+types of the same depth, sizes and element types are `==`. `type []any` is
+the builtin `array` itself (`array === type []any`).
+
+```gad ignore
+(type [2][3]int)(; fill=0)               // [[0, 0, 0], [0, 0, 0]]
+(type [][]int)(; size=[2, 2], fill=(i, j) => i + j)  // [[0, 1], [1, 2]]
+arrayType(int; size=[2]) == type [2]int  // true
+typeof([1, 2]) === type []any            // true
+```
+
 ## Type ArraySize
 ArraySize is the size of a level of an array type (`t.@size[i]`): an
 `[eq, min, max]`, each an int or nil where unset. It equals the array of the

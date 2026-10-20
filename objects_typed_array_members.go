@@ -94,6 +94,11 @@ func (in *TypedArrayInitiator) Call(c Call) (Object, error) {
 			return in.instance, nil
 		}
 	}
+	// `grid(; fill=0)`: built by its dimensions — when the type has no field
+	// of those names
+	if c.Args.Length() == 0 && in.t.dimsArgs(&c.NamedArgs) {
+		return in.t.buildDims(c)
+	}
 	ta, err := in.t.build(c.VM, c.Args.Values(), c.NamedArgs.Dict())
 	if err != nil {
 		return nil, err
