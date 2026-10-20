@@ -27,7 +27,7 @@ perform compromise assessment dynamically.
 
 **Fibonacci Example**
 
-```gad
+```gad ignore
 param arg0
 
 var fib
@@ -70,7 +70,7 @@ return fib(int(arg0))
 
 A few of the syntax additions over a Go-like base:
 
-```gad
+```gad ignore
 // or: error fallback (re-throws if the fallback is itself an error)
 z := mayThrow() or 2
 y := 1 + (mayThrow() or 10)
@@ -264,7 +264,7 @@ Build a builtin function with the fluent `NewBuiltinFunction` constructor,
 declaring its module and its parameter name/type pairs — do not hand-populate
 the struct fields:
 
-```gad
+```gad ignore
 fn := NewBuiltinFunction("binOpAdd", func(c Call) (Object, error) {
     // ...
 }).WithModule(gadModuleSpec).WithParamsPairs("left", TAny, "right", TAny)

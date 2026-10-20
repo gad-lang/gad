@@ -89,7 +89,7 @@ templates/
 
 `index.gadx`:
 
-```gadx
+```gadx ignore
 @import { page } from "components.gadx"
 
 @main

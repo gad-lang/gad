@@ -50,7 +50,7 @@ Routes load templates by name:
 
 Each page imports components:
 
-```gadx
+```gadx ignore
 @import "components.gadx"
 ```
 
@@ -74,7 +74,7 @@ inspection.
 
 Create `public/landing.gadx`:
 
-```gadx
+```gadx ignore
 @import "components.gadx"
 
 @main

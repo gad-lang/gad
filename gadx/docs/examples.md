@@ -18,7 +18,7 @@ extend it for your application.
 
 ## Page With Model
 
-```gadx
+```gadx ignore
 ~~
 global (Model)
 ~~
@@ -39,7 +39,7 @@ gad.Dict{
 
 ## Blog Index
 
-```gadx
+```gadx ignore
 @main
     section.hero
         h1 {= Model.Title}
@@ -53,7 +53,7 @@ gad.Dict{
 
 ## Blog Post
 
-```gadx
+```gadx ignore
 @main
     article.post
         h1 {= Post.Title}
@@ -63,7 +63,7 @@ gad.Dict{
 
 ## Navigation Menu
 
-```gadx
+```gadx ignore
 @export comp menu(items)
     nav.menu
         @for item in items
@@ -85,7 +85,7 @@ gad.Dict{
 
 ## Empty State
 
-```gadx
+```gadx ignore
 @if Model.Posts
     div.grid
         @for post in Model.Posts
@@ -130,7 +130,7 @@ Group related attributes in one `[ … ]` and let long tags wrap across lines.
 
 Usage:
 
-```gadx
+```gadx ignore
 form[action="/signup"][method="post"]
     +field("Email", "email" ; type="email", required=true)
     button[type="submit"] Join
@@ -158,7 +158,7 @@ form[action="/signup"][method="post"]
 
 ## Table
 
-```gadx
+```gadx ignore
 table.table
     thead
         tr

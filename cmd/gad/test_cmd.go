@@ -41,12 +41,17 @@ func testCommand() *cc.Command {
 	return &cc.Command{
 		Name:  "test",
 		Usage: "[flags] [PATH...]",
-		Description: "Run Gad tests found in *_test.gad files.\n" +
+		Description: "Run Gad tests found in *_test.gad / *_test.gadx files and .md files.\n" +
 			"\nEach file is executed, then its top-level functions whose name starts with\n" +
 			"\"test\" are run with a fresh test context: func testFoo(t) { t.equal(1, 1) }.\n" +
 			"A failed assertion (t.equal, t.true, …) records the failure and aborts that\n" +
 			"test. Functions starting with \"bench\" are benchmarks run with -bench: they\n" +
 			"loop t.n times, e.g. func benchFoo(t) { for i := 0; i < t.n; i++ { work() } }.\n" +
+			"\nThe inline checks run too: `= EXPR` (the value of the statement before) and\n" +
+			"`<<< text` (the output since the previous check).\n" +
+			"\nA Markdown file (.md) is a test file too: each ```gad, ```gadt or ```gadx fence\n" +
+			"(exactly three backticks) runs on its own, its checks on; a fence tagged\n" +
+			"`ignore` (or `no-run`) and other languages are skipped.\n" +
 			"\nPATH may be a file or a directory; write DIR/... to recurse. With no PATH the\n" +
 			"current directory is scanned recursively. Exits non-zero if any test fails.",
 		New: func(ctx *cc.CommandContext) error {
@@ -109,7 +114,7 @@ func (o *testOptions) run(ctx *cc.CommandContext) error {
 		}
 	}
 	if len(files) == 0 {
-		fmt.Fprintln(ctx.Out, "no *_test.gad files found")
+		fmt.Fprintln(ctx.Out, "no *_test.gad, *_test.gadx or .md files found")
 		return nil
 	}
 
@@ -130,6 +135,9 @@ func (o *testOptions) run(ctx *cc.CommandContext) error {
 // runFile executes one *_test.gad file, runs its discovered test/bench
 // functions and reports results, returning the pass/fail/skip counts.
 func (o *testOptions) runFile(ctx *cc.CommandContext, path string) (pass, fail, skip int) {
+	if strings.HasSuffix(path, ".md") {
+		return o.runMarkdown(ctx, path)
+	}
 	src, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Fprintf(ctx.Err, "FAIL %s: %s\n", path, err)
@@ -398,13 +406,14 @@ func testFiles(arg string) ([]string, error) {
 	if !info.IsDir() {
 		return []string{path}, nil
 	}
-	all, err := scanDir(path, recursive, &fileFilter{})
+	all, err := scanDirOf(path, recursive, &fileFilter{}, isFmtSource)
 	if err != nil {
 		return nil, err
 	}
 	var out []string
 	for _, f := range all {
-		if strings.HasSuffix(f, "_test.gad") || strings.HasSuffix(f, "_test.gadx") {
+		// the test files, and the Markdown files: their code fences (issue #21)
+		if strings.HasSuffix(f, "_test.gad") || strings.HasSuffix(f, "_test.gadx") || strings.HasSuffix(f, ".md") {
 			out = append(out, f)
 		}
 	}

@@ -77,7 +77,7 @@ The `test` / `bench` **statements** are shorthand for the functions above: `t` i
 available directly (no parameter to write), and NAME may be a string, so a test
 can carry a spaces-and-all description. A `///` doc comment is allowed.
 
-```gad
+```gad ignore
 /// add is commutative
 test addCommutes {
 	t.equal(add(2, 3), add(3, 2))
@@ -105,7 +105,7 @@ child context and is reported under a `parent/child` path; a subtest failure
 fails its parent but does not abort it. Nesting may go arbitrarily deep, and each
 level may carry its own `///` doc comment.
 
-```gad
+```gad ignore
 /// arithmetic
 test sum {
 	/// integers
@@ -167,7 +167,7 @@ Read-only fields via indexing: `t.name`, `t.failed`, and `t.n` (benchmark count)
 
 The named `msg` argument (note the `;` that begins named arguments in Gad):
 
-```gad
+```gad ignore
 func testFib(t) {
 	t.equal(55, fib(10); msg="fib(10) should be 55")
 }
@@ -178,7 +178,7 @@ func testFib(t) {
 The module mirrors Go's testify/require: the same assertions as free functions
 that take `t` first. `test.equal(t, a, b)` is exactly `t.equal(a, b)`.
 
-```gad
+```gad ignore
 test := import("test")
 
 func testHelpers(t) {
@@ -222,7 +222,7 @@ A benchmark function loops `t.n` times. The runner scales `t.n` up until the run
 lasts at least `-benchtime` (default 1s), then reports the iteration count and
 nanoseconds per iteration:
 
-```gad
+```gad ignore
 func benchFib(t) {
 	for i := 0; i < t.n; i++ {
 		fib(15)

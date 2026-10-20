@@ -49,7 +49,7 @@ func main() {
 
 `templates/index.gadx`:
 
-```gadx
+```gadx ignore
 @main
     html
         head
@@ -106,7 +106,7 @@ globals := gad.Dict{
 
 Inside the template these are ordinary globals:
 
-```gadx
+```gadx ignore
 @main
     h1 {= Page.Title }
     @if User

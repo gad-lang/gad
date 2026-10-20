@@ -380,6 +380,17 @@ func BuiltinSortReverseFunc(vm *VM, arg Object, less CallerObject) (Object, erro
 	)
 }
 
+// callbackArgs are the arguments a callback of map/filter/each/reduce takes
+// of args (issue #21): a function of fixed params is called with as many as it
+// declares — `filter(xs, (v) => v > 1)` —; any other with all. The slice shares
+// args' array, so what the iteration writes into args is what it gets.
+func callbackArgs(cb Object, args Array) Array {
+	if f, ok := cb.(*CompiledFunction); ok && !f.Params.Variadic() && f.Params.Len() < len(args) {
+		return args[:f.Params.Len()]
+	}
+	return args
+}
+
 func BuiltinFilterFunc(c Call) (_ Object, err error) {
 	var (
 		iterabler = &Arg{
@@ -409,7 +420,7 @@ func BuiltinFilterFunc(c Call) (_ Object, err error) {
 		caller VMCaller
 	)
 
-	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{callbackArgs(callback.Value, args)}, &c.NamedArgs); err != nil {
 		return
 	}
 
@@ -487,7 +498,7 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 		args = append(args, Nil)
 	}
 
-	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{callbackArgs(callback.Value, args)}, &c.NamedArgs); err != nil {
 		return
 	}
 
@@ -594,7 +605,7 @@ func BuiltinEachFunc(c Call) (_ Object, err error) {
 		caller VMCaller
 	)
 
-	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{callbackArgs(callback.Value, args)}, &c.NamedArgs); err != nil {
 		return
 	}
 
@@ -643,7 +654,7 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 		}
 	}
 
-	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{callbackArgs(callback.Value, args)}, &c.NamedArgs); err != nil {
 		return
 	}
 
@@ -656,17 +667,21 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 		return
 	}
 
-	fe := NewPipedInvokeIterator(it, args, 1, caller)
-
-	if args[0] == Nil {
-		fe.preCall = func(k, v Object) (Object, error) {
-			args[0] = v
-			return v, nil
+	// with no initial value the first element is it: the callback is called
+	// from the second on
+	first := args[0] == Nil
+	err = Iterate(c.VM, it, nil, func(e *KeyValue) error {
+		if first {
+			first = false
+			args[0] = e.V
+			return nil
 		}
-	}
-
-	err = Iterate(c.VM, fe, nil, func(e *KeyValue) error {
-		args[0] = e.V
+		args[1], args[2] = e.V, e.K
+		ret, err := Val(caller.Call())
+		if err != nil {
+			return err
+		}
+		args[0] = ret
 		return nil
 	})
 	return args[0], err

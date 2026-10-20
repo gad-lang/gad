@@ -396,7 +396,7 @@ func (dg *docgroup) processFuncBlock(line string) {
 		dg.addError(fmt.Sprintf("function not exist in module:%s", line))
 	}
 
-	dg.funcs = append(dg.funcs, fmt.Sprintf("```gad\n%s\n```\n", sig))
+	dg.funcs = append(dg.funcs, fmt.Sprintf("```gad ignore\n%s\n```\n", sig))
 
 	if usage != "" {
 		dg.funcs = append(dg.funcs, "", usage, "")

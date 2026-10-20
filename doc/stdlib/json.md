@@ -72,7 +72,7 @@ type RawMessage struct {
 
 ## Functions
 
-```gad
+```gad ignore
 Marshal(v any) <bytes>
 ```
 
@@ -80,7 +80,7 @@ Returns the JSON encoding v or error.
 
 ---
 
-```gad
+```gad ignore
 MarshalIndent(v any, prefix str, indent str) <bytes>
 ```
 
@@ -88,7 +88,7 @@ MarshalIndent is like Marshal but applies IndentCount to format the output.
 
 ---
 
-```gad
+```gad ignore
 IndentCount(src bytes, prefix str, indent str) <bytes>
 ```
 
@@ -96,7 +96,7 @@ Returns indented form of the JSON-encoded src or error.
 
 ---
 
-```gad
+```gad ignore
 RawMessage(v bytes) <rawMessage>
 ```
 
@@ -105,7 +105,7 @@ functions.
 
 ---
 
-```gad
+```gad ignore
 Compact(data bytes, escape bool) <bytes>
 ```
 
@@ -113,7 +113,7 @@ Returns elided insignificant space characters from data or error.
 
 ---
 
-```gad
+```gad ignore
 Quote(v any) <encoderOptions>
 ```
 
@@ -121,7 +121,7 @@ Returns a wrapped object to provide Marshal functions to quote v.
 
 ---
 
-```gad
+```gad ignore
 NoQuote(v any) <encoderOptions>
 ```
 
@@ -131,7 +131,7 @@ This can be used not to quote all array or map items.
 
 ---
 
-```gad
+```gad ignore
 NoEscape(v any) <encoderOptions>
 ```
 
@@ -140,7 +140,7 @@ while encoding.
 
 ---
 
-```gad
+```gad ignore
 Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any>
 ```
 
@@ -151,7 +151,7 @@ Unmarshal parses the JSON-encoded p and returns the result or error.
 
 ---
 
-```gad
+```gad ignore
 Valid(p bytes) <bool>
 ```
 

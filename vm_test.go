@@ -1139,7 +1139,7 @@ func TestVMIterator(t *testing.T) {
 	››
 ›`)})
 	testExpectRun(t, `return reduce([1,2,3], ((cur, v, k) => cur + v), 10)`, nil, Int(16))
-	testExpectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(4))
+	testExpectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(3)) // the first element the initial value
 	testExpectRun(t, `return str(reduce([1,2,3], ((cur, v, k) => {cur.tot += v; cur[str(k+'a')] ??= v; cur}), {tot:100}))`,
 		nil, Str("{a: 1, b: 2, c: 3, tot: 106}"))
 
@@ -1488,7 +1488,7 @@ keyValueArray(keyValue("d",4),[e=5])))`,
 	testExpectRun(t, `return collect(values(map([1,2], (v, k) => v+k)))`, nil, Array{Int(1), Int(3)})
 	testExpectRun(t, `return collect(values(map([1,2], str)))`, nil, Array{Str("10") /* 0 is index */, Str("21") /* 1 index */})
 	testExpectRun(t, `return collect(values(map([1,2], str;nokey)))`, nil, Array{Str("1"), Str("2")})
-	testExpectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(4))
+	testExpectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(3)) // the first element the initial value
 	testExpectRun(t, `return reduce([1,2], (cur, v, k) => cur + v, 10)`, nil, Int(13))
 	testExpectRun(t, `cur := 10; each([1,2], func(k, v) { cur += v });return cur`, nil, Int(13))
 

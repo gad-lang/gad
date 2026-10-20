@@ -45,7 +45,7 @@ fmt.println(bool(arg3))  // false, not scanned
 
 ## Functions
 
-```gad
+```gad ignore
 print(*any) <int>
 ```
 
@@ -56,7 +56,7 @@ throws a runtime error.
 
 ---
 
-```gad
+```gad ignore
 printf(format str, *any) <int>
 ```
 
@@ -66,7 +66,7 @@ throws a runtime error.
 
 ---
 
-```gad
+```gad ignore
 println(*any) <int>
 ```
 
@@ -77,7 +77,7 @@ write error throws a runtime error.
 
 ---
 
-```gad
+```gad ignore
 sprint(*any) <str>
 ```
 
@@ -87,7 +87,7 @@ str.
 
 ---
 
-```gad
+```gad ignore
 sprintf(format str, *any) <str>
 ```
 
@@ -95,7 +95,7 @@ Formats according to a format specifier and returns the resulting str.
 
 ---
 
-```gad
+```gad ignore
 sprintln(*any) <str>
 ```
 
@@ -105,7 +105,7 @@ is appended.
 
 ---
 
-```gad
+```gad ignore
 sscan(str str, *scanArg) <int>
 ```
 
@@ -116,7 +116,7 @@ is less than the number of arguments, a scan error is thrown.
 
 ---
 
-```gad
+```gad ignore
 sscanf(str str, format str, *scanArg) <int>
 ```
 
@@ -127,7 +127,7 @@ Newlines in the input must match newlines in the format.
 
 ---
 
-```gad
+```gad ignore
 scanArg(typeName str) <scanArg>
 ```
 

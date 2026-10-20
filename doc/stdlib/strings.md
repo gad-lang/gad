@@ -10,7 +10,7 @@
 
 ## Functions
 
-```gad
+```gad ignore
 contains(s str, substr str) <bool>
 ```
 
@@ -18,7 +18,7 @@ Reports whether substr is within s.
 
 ---
 
-```gad
+```gad ignore
 containsAny(s str, chars str) <bool>
 ```
 
@@ -26,7 +26,7 @@ Reports whether any char in chars are within s.
 
 ---
 
-```gad
+```gad ignore
 containsChar(s str, c char) <bool>
 ```
 
@@ -34,7 +34,7 @@ Reports whether the char c is within s.
 
 ---
 
-```gad
+```gad ignore
 count(s str, substr str) <int>
 ```
 
@@ -42,7 +42,7 @@ Counts the number of non-overlapping instances of substr in s.
 
 ---
 
-```gad
+```gad ignore
 equalFold(s str, t str) <bool>
 ```
 
@@ -52,7 +52,7 @@ case-insensitivity.
 
 ---
 
-```gad
+```gad ignore
 fields(s str) <array>
 ```
 
@@ -62,7 +62,7 @@ if s contains only white space.
 
 ---
 
-```gad
+```gad ignore
 fieldsFunc(s str, f func(char) bool) <array>
 ```
 
@@ -72,7 +72,7 @@ f(c) or the string is empty, an empty array is returned.
 
 ---
 
-```gad
+```gad ignore
 hasPrefix(s str, prefix str) <bool>
 ```
 
@@ -80,7 +80,7 @@ Reports whether the string s begins with prefix.
 
 ---
 
-```gad
+```gad ignore
 hasSuffix(s str, suffix str) <bool>
 ```
 
@@ -88,7 +88,7 @@ Reports whether the string s ends with prefix.
 
 ---
 
-```gad
+```gad ignore
 index(s str, substr str) <int>
 ```
 
@@ -97,7 +97,7 @@ is not present in s.
 
 ---
 
-```gad
+```gad ignore
 indexAny(s str, chars str) <int>
 ```
 
@@ -106,7 +106,7 @@ Returns the index of the first instance of any char from chars in s, or
 
 ---
 
-```gad
+```gad ignore
 indexByte(s str, c char|int) <int>
 ```
 
@@ -115,7 +115,7 @@ of c is not present in s. c's integer value must be between 0 and 255.
 
 ---
 
-```gad
+```gad ignore
 indexChar(s str, c char) <int>
 ```
 
@@ -124,7 +124,7 @@ not present in s.
 
 ---
 
-```gad
+```gad ignore
 indexFunc(s str, f func(char) bool) <int>
 ```
 
@@ -133,7 +133,7 @@ or -1 if none do.
 
 ---
 
-```gad
+```gad ignore
 join(arr array, sep str) <str>
 ```
 
@@ -143,7 +143,7 @@ resulting string.
 
 ---
 
-```gad
+```gad ignore
 joinAnd(arr array, sep, lastSep str) <str>
 ```
 
@@ -154,7 +154,7 @@ resulting string.
 
 ---
 
-```gad
+```gad ignore
 lastIndex(s str, substr str) <int>
 ```
 
@@ -163,7 +163,7 @@ is not present in s.
 
 ---
 
-```gad
+```gad ignore
 lastIndexAny(s str, chars str) <int>
 ```
 
@@ -172,7 +172,7 @@ Returns the index of the last instance of any char from chars in s, or
 
 ---
 
-```gad
+```gad ignore
 lastIndexByte(s str, c char|int) <int>
 ```
 
@@ -181,7 +181,7 @@ if c is not present in s. c's integer value must be between 0 and 255.
 
 ---
 
-```gad
+```gad ignore
 lastIndexFunc(s str, f func(char) bool) <int>
 ```
 
@@ -190,7 +190,7 @@ or -1 if none do.
 
 ---
 
-```gad
+```gad ignore
 dict(f func(char) char, s str) <str>
 ```
 
@@ -200,7 +200,7 @@ character is dropped from the string with no replacement.
 
 ---
 
-```gad
+```gad ignore
 padLeft(s str, padLen int, padWith any) <str>
 ```
 
@@ -210,7 +210,7 @@ used as default padding.
 
 ---
 
-```gad
+```gad ignore
 padRight(s str, padLen int, padWith any) <str>
 ```
 
@@ -220,7 +220,7 @@ used as default padding.
 
 ---
 
-```gad
+```gad ignore
 repeat(s str, count int) <str>
 ```
 
@@ -231,7 +231,7 @@ Returns a new string consisting of count copies of the string s.
 
 ---
 
-```gad
+```gad ignore
 replace(s str, old str, new str, n int) <str>
 ```
 
@@ -241,7 +241,7 @@ instances.
 
 ---
 
-```gad
+```gad ignore
 split(s str, sep str, n int) <[str]>
 ```
 
@@ -256,7 +256,7 @@ n determines the number of substrings to return:
 
 ---
 
-```gad
+```gad ignore
 splitAfter(s str, sep str, n int) <[str]>
 ```
 
@@ -271,7 +271,7 @@ n determines the number of substrings to return:
 
 ---
 
-```gad
+```gad ignore
 title(s str) <str>
 ```
 
@@ -280,7 +280,7 @@ begin words mapped to their Unicode title case.
 
 ---
 
-```gad
+```gad ignore
 toLower(s str) <str>
 ```
 
@@ -288,7 +288,7 @@ Returns s with all Unicode letters mapped to their lower case.
 
 ---
 
-```gad
+```gad ignore
 toTitle(s str) <str>
 ```
 
@@ -297,7 +297,7 @@ Unicode title case.
 
 ---
 
-```gad
+```gad ignore
 toUpper(s str) <str>
 ```
 
@@ -305,7 +305,7 @@ Returns s with all Unicode letters mapped to their upper case.
 
 ---
 
-```gad
+```gad ignore
 toValidUTF8(s str, replacement str) <str>
 ```
 
@@ -314,7 +314,7 @@ sequences replaced by the replacement string, which may be empty.
 
 ---
 
-```gad
+```gad ignore
 trim(s str, cutset str) <str>
 ```
 
@@ -323,7 +323,7 @@ code points contained in cutset removed.
 
 ---
 
-```gad
+```gad ignore
 trimFunc(s str, f func(char) bool) <str>
 ```
 
@@ -332,7 +332,7 @@ code points satisfying f removed.
 
 ---
 
-```gad
+```gad ignore
 trimLeft(s str, cutset str) <str>
 ```
 
@@ -341,7 +341,7 @@ contained in cutset removed.
 
 ---
 
-```gad
+```gad ignore
 trimLeftFunc(s str, f func(char) bool) <str>
 ```
 
@@ -350,7 +350,7 @@ c satisfying f(c) removed.
 
 ---
 
-```gad
+```gad ignore
 trimPrefix(s str, prefix str) <str>
 ```
 
@@ -359,7 +359,7 @@ with prefix, s is returned unchanged.
 
 ---
 
-```gad
+```gad ignore
 trimRight(s str, cutset str) <str>
 ```
 
@@ -368,7 +368,7 @@ contained in cutset removed.
 
 ---
 
-```gad
+```gad ignore
 trimRightFunc(s str, f func(char) bool) <str>
 ```
 
@@ -377,7 +377,7 @@ c satisfying f(c) removed.
 
 ---
 
-```gad
+```gad ignore
 trimSpace(s str) <str>
 ```
 
@@ -386,7 +386,7 @@ space removed, as defined by Unicode.
 
 ---
 
-```gad
+```gad ignore
 trimSuffix(s str, suffix str) <str>
 ```
 
@@ -395,7 +395,7 @@ with suffix, s is returned unchanged.
 
 ---
 
-```gad
+```gad ignore
 trunc(s str, maxLen int; emph="...") <str>
 ```
 
@@ -403,7 +403,7 @@ Truncate s to maxLen concatenated with emph.
 
 ---
 
-```gad
+```gad ignore
 slitWords(s str|rawstr) <array>
 ```
 
@@ -412,7 +412,7 @@ If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
 
 ---
 
-```gad
+```gad ignore
 truncWords(s str|rawstr, max int; emph="...", atlimit=off) <str|rawstr>
 ```
 

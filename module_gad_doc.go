@@ -68,7 +68,7 @@ package gad
 // = "hi"
 // ```
 //
-// invoker(fn any, args array; **nargs) <ret callable>
+// invoker(fn callable, args array; **nargs) <ret callable>
 // Returns a repeatable, pre-resolved call: it resolves `fn`'s overload for the
 // parameter types held in `args` (the initial elements are the types) and binds
 // it to that same array. Calling the result runs the resolved overload with the
@@ -87,7 +87,8 @@ package gad
 // transform(value any; **paths) <any>
 // Rewrites a JSON-like `value` — nested dicts and arrays — by mapping yq-style
 // path patterns to transformer functions. Each named arg is a `".path" = fn` rule:
-// `fn` receives a matched node and returns its replacement. It is the imperative,
+// `fn` — a `<(node any) <any>>` — receives a matched node and returns its
+// replacement. It is the imperative,
 // path-driven sibling of the `:>` transforming cast — where `:>` coerces by an
 // interface's declared shape, `transform` names exactly which nodes to rewrite.
 //

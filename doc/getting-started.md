@@ -100,7 +100,7 @@ it ideal for exploring the language:
 The script below joins its positional arguments and accepts named arguments
 `--sep` and `--ln`:
 
-```gad
+```gad ignore
 param (*args, sep=",", ln=no)
 if !args { return }
 for _, arg in args[:-1] { print(arg, sep) }

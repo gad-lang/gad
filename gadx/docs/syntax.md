@@ -84,7 +84,7 @@ Output:
 
 ## Attributes
 
-```gadx
+```gadx ignore
 a.button[href="/docs"][target="_blank"] Read docs
 img.cover[src=Post.CoverImage][alt=Post.Title]
 input[type="email"][name="email"][required]
@@ -120,7 +120,7 @@ div[
 Commas and newlines inside strings, parentheses, brackets or braces do not split
 a group, so call arguments and array/dict literals work as attribute values:
 
-```gadx
+```gadx ignore
 div[title=join(items, ", "), data-ids=[1, 2, 3]]
 ```
 
@@ -131,7 +131,7 @@ A trailing `? condition` applies to every attribute in the group.
 `class` accepts several value shapes, all merged with any static `.token`
 classes on the tag into a single space-separated list:
 
-```gadx
+```gadx ignore
 // string
 div[class="card"]                          // class="card"
 
@@ -210,7 +210,7 @@ attribute); an interpolated name builds the attribute name from the expression
 is `{= expr }` to emit and `{ expr }` for control (see below), so a value inside a
 tag is `{= expr }`. Interpolation source positions are preserved.
 
-```gadx
+```gadx ignore
 @main
     <a href={post.URL} data-{key}={value}>
         {= post.Title }
@@ -226,7 +226,7 @@ and it renders as a child of the enclosing element, in source order alongside
 sibling HTML. `@else` / `@else if` clauses continue the block at the same
 indentation.
 
-```gadx
+```gadx ignore
 @main
     <ul class="menu">
         <li>Home</li>
@@ -255,7 +255,7 @@ comes in two forms:
   for side effects (`{ log(x) }`) or, more usually, just prefer the `@if` / `@for`
   directives.
 
-```gadx
+```gadx ignore
 p
     | Hello {= name }        # emits: "Hello Ada"
     { track("seen") }        # runs, emits nothing
@@ -334,7 +334,7 @@ stay words), line breaks and blank lines preserved. `{= expr }` still
 interpolates. Use it for preformatted content (license headers, ASCII art,
 `<pre>` bodies). `@p` is the paragraph variant (blank lines split `<p>` tags).
 
-```gadx
+```gadx ignore
 @text
     License (c) {= year }
       indented lines keep their spaces
@@ -377,7 +377,7 @@ program can replace or extend it before compiling. See `samples/gadx/markdown.ga
 
 ## Expressions
 
-```gadx
+```gadx ignore
 h1 {= Model.Title}
 p {= "Hello " + User.Name}
 ```
@@ -391,14 +391,14 @@ attribute values, so untrusted data cannot inject markup (XSS-safe): a `<b>` in
 `userInput` becomes `&lt;b&gt;`, and a `"` in an attribute value becomes `&#34;`
 so it cannot break out of the quoted attribute.
 
-```gadx
+```gadx ignore
 p {= userInput}
 a[title=userInput] link
 ```
 
 Opt out for **trusted** HTML with `raw` (a `gad.RawStr` is written verbatim):
 
-```gadx
+```gadx ignore
 article {= raw Post.Body}
 ```
 
@@ -432,7 +432,7 @@ So `@main`'s parameters are the `main` component's **own parameters** — they a
 with no arguments, a parameter is only usable if it has a **default** (and a
 defaulted parameter is *named*, so it needs the leading `;`):
 
-```gadx
+```gadx ignore
 @main(; title = "Home", theme = "light")
     h1 {= title }
     body[class={theme}]
@@ -446,7 +446,7 @@ defaulted parameter is *named*, so it needs the leading `;`):
 
 A `@global` (or `@param`) is visible inside `@main`'s body as a free variable:
 
-```gadx
+```gadx ignore
 @global user
 @main
     p Welcome, {= user.name }
@@ -466,7 +466,7 @@ A single `~` line is one Gad statement. It is **not** limited to one physical
 line: it continues across lines until its brackets `()`/`[]`/`{}` balance, so a
 call or func literal can span several lines:
 
-```gadx
+```gadx ignore
 @main
     ~ items := ["a", "b", "c"]
     ~ t.run("group", func(t) {
@@ -490,7 +490,7 @@ const items = ["a", "b"]
 A `+comp(…)` component call likewise reads across lines until its parentheses
 close, so its arguments may be written one per line:
 
-```gadx
+```gadx ignore
 +card(;
     title = "Hello",
     body = "…",
@@ -506,7 +506,7 @@ and `_`, an optional leading `$`, no `-`); that is what tells an assignment apar
 from a tag, so a name with a `-` stays a tag. Like a `~` line, the value may span
 several lines while its brackets are unbalanced.
 
-```gadx
+```gadx ignore
 @main
     total := len(Items)
     widths := [
@@ -521,7 +521,7 @@ or for module-level declarations shared across components.
 
 ## Conditions
 
-```gadx
+```gadx ignore
 @if User
     p Welcome {= User.Name}
 @else
@@ -530,7 +530,7 @@ or for module-level declarations shared across components.
 
 ## Loops
 
-```gadx
+```gadx ignore
 ul
     @for item in Items
         li {= item.Title}
@@ -538,7 +538,7 @@ ul
 
 ## Empty States
 
-```gadx
+```gadx ignore
 @if Posts
     div.grid
         @for post in Posts
@@ -551,7 +551,7 @@ ul
 
 Match a value against `@case` clauses; the default clause is written `@else`.
 
-```gadx
+```gadx ignore
 @match Status
     @case "draft"
         span.badge Draft
@@ -565,7 +565,7 @@ Match a value against `@case` clauses; the default clause is written `@else`.
 
 ### Bare Import
 
-```gadx
+```gadx ignore
 @import "components.gadx"
 ```
 
@@ -573,7 +573,7 @@ Imports the module for its side effects.
 
 ### Named Import
 
-```gadx
+```gadx ignore
 @import "components.gadx" as comps
 ```
 
@@ -582,7 +582,7 @@ the module are accessed via `+comps.name(...)`.
 
 ### Destructured Import
 
-```gadx
+```gadx ignore
 @import { page_wrapper, hero } from "components.gadx"
 ```
 
@@ -598,7 +598,7 @@ Supports Gad destructuring syntax including:
 
 ### Main Import
 
-```gadx
+```gadx ignore
 @import color from "form/fields/color.gadx"
 ```
 
@@ -619,7 +619,7 @@ Declare mutable variables with `@var`. A single name, a comma-separated list
 (with optional initializers), or a parenthesized group that may span multiple
 lines are all accepted. Indentation inside the parentheses is ignored.
 
-```gadx
+```gadx ignore
 @var a                          // single
 @var a, b                       // multiple, no initializers
 @var a, b = {name: "test"}, x   // with an initializer
@@ -710,7 +710,7 @@ Declare globals with `@global`. Names may be space-separated (legacy) or
 comma-separated, may carry a default, and may be grouped in parentheses spanning
 multiple lines (indentation inside is ignored).
 
-```gadx
+```gadx ignore
 @global Model User            // space-separated
 @global t, Req, Context       // comma-separated
 @global page = 1, limit = 20  // `= v` default: applied when nil OR absent
@@ -752,7 +752,7 @@ declaration. It accepts the same forms as Gad's `param`: positional names, a
 trailing variadic `*rest`, and — after a `;` — named parameters (which may carry
 defaults) and a named-variadic `**named`.
 
-```gadx
+```gadx ignore
 @param a                        // single positional
 @param (a, b, *rest)            // positional + variadic
 @param (a; b = 1, **named)      // positional; named (with default) + named-variadic
@@ -771,7 +771,7 @@ arguments supplied when the template is invoked. See `samples/gadx/param.gadx`.
 
 Parameters may be **typed** — again like Gad's `param`, and unlike `@var`/`@const`:
 
-```gadx
+```gadx ignore
 @param a int                    // typed positional
 @param (a int, b str)           // several typed positionals
 @param (id int|uint)            // a type union

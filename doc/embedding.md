@@ -395,7 +395,7 @@ mm.AddBuiltinModuleInit("counter", counter.ModuleInit)
 opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{ModuleMap: mm}}
 ```
 
-```gad
+```gad ignore
 c := import("counter")
 c.inc(); c.inc()
 c.get()        // 2 — the function sees the exported var
@@ -461,7 +461,7 @@ globals := gad.Dict{
 }
 ```
 
-```gad
+```gad ignore
 global number
 addOne := func(v number) <number> => v + 1
 addOne(2)        // 3
@@ -490,7 +490,7 @@ posInt := &gad.Interface{
 globals := gad.Dict{"posInt": posInt}
 ```
 
-```gad
+```gad ignore
 global posInt
 f := func(v posInt) => v
 f(5)             // 5

@@ -32,7 +32,7 @@ reflect.get(d, "x")   // prop {…}  — the Prop object itself
 Writes `value` at `key` verbatim, overwriting (and thus removing) any `Prop`
 stored there **without** running its setter.
 
-```gad
+```gad ignore
 reflect.set(d, "x", 3)   // d becomes { x: 3 } — the prop is replaced
 d.x                      // 3
 ```

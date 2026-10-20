@@ -13,7 +13,7 @@ arguments, named arguments, and slot content.
 
 Call it:
 
-```gadx
+```gadx ignore
 @main
     +button("Read more" ; href="/docs", kind="secondary")
 ```
@@ -37,7 +37,7 @@ branch, an entry looked up at render time.
 Arguments and a call block work the same in all three; the head only decides
 which component runs:
 
-```gadx
+```gadx ignore
 +(cfg.comp ?? button)("Read more")
     @slot #main
         p filled by the caller
@@ -78,7 +78,7 @@ file. A helper invoked with `+helper` is called with none, so its defaults
 render even when the caller filled a slot of that name on the surrounding
 component. Forward them and it resolves:
 
-```gadx
+```gadx ignore
 @comp outer()
     @func inner()
         @slot main
@@ -109,7 +109,7 @@ that builds markup. See `samples/gadx/func.gadx`.
 
 Use it:
 
-```gadx
+```gadx ignore
 @main
     +page("About")
         h1 About
@@ -133,7 +133,7 @@ Component:
 
 Caller:
 
-```gadx
+```gadx ignore
 @main
     +shell("Dashboard")
         @slot #sidebar
@@ -193,7 +193,7 @@ parameter** — you do not declare or bind it. Just call `super(…)`:
 You may name the first parameter `super` explicitly (for example when you also
 declare scope parameters) — it will not be injected twice:
 
-```gadx
+```gadx ignore
         @slot #main(super)
             em ★
             +super
@@ -213,7 +213,7 @@ forward them when rendering the default via `super`, e.g. `+super(item)`.
 A slot may declare parameters (a *scoped slot*): the component supplies the
 values when it renders the slot, and the override receives them.
 
-```gadx
+```gadx ignore
 @export comp list(items)
     ul
         @for item in items
@@ -231,7 +231,7 @@ An override of a scoped slot still receives `super` as its auto-injected first
 parameter. To render the component's default for that item, forward the scope to
 `super`:
 
-```gadx
+```gadx ignore
 @main
     +list(Posts)
         @slot #item(super, post)
@@ -298,7 +298,7 @@ A simple slot name is a bare identifier (`@slot header`, `@slot #header`). A
 `{expr}` interpolation is evaluated at render time and used as the `slots[…]`
 key. This works for both the declaration and the pass (override):
 
-```gadx
+```gadx ignore
 @slot "item[{i}]"        // declaration — one slot per value of i
 @slot #"item[{index}]"   // pass — override the slot named item[<index>]
 ```
@@ -310,7 +310,7 @@ name reports the correct line.
 
 A component can therefore give each item its own overridable slot:
 
-```gadx
+```gadx ignore
 @comp list(items)
     @for i, it in items
         @slot "item[{i}]"(it)
@@ -330,7 +330,7 @@ are **hoisted to the call scope, before the slot-pass declarations**. An
 interpolated slot name (and any slot body) can therefore reference the values
 they declare:
 
-```gadx
+```gadx ignore
 +list(Posts)
     ~ const index = 3
     @slot #"item[{index}]"(super, it)
@@ -358,7 +358,7 @@ A runnable version is in `samples/gadx/slot_dynamic_name.gadx`.
 
 Usage:
 
-```gadx
+```gadx ignore
 +card(Post.Title ; href=Post.URL)
     p {= Post.Summary}
 ```
@@ -376,7 +376,7 @@ templates/
 
 Then import what your application resolver supports:
 
-```gadx
+```gadx ignore
 @import "components.gadx"
 @import "forms.gadx"
 
@@ -491,7 +491,7 @@ parameter is named, so it needs the leading `;`):
 For values injected by the host, declare a `@global` (or a module `@param`) —
 they are visible inside `@main`'s body as free variables:
 
-```gadx
+```gadx ignore
 @global user
 @param (count = 0)
 @main

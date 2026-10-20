@@ -20,7 +20,7 @@ and old samples were removed.
 
 ## Quick Template
 
-```gadx
+```gadx ignore
 @main
     !!! 5
     html[lang="en"]

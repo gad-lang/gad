@@ -79,7 +79,7 @@ declaration keyword.
 
 Two or more specs are grouped in parentheses. Short groups stay on one line:
 
-```gad
+```gad ignore
 var (x, y)
 var (x = 1, y = 2)
 const (Min = 0, Max = 10)
@@ -90,7 +90,7 @@ const (Min = 0, Max = 10)
 When a group mixes specs with and without an initial value, put the
 value-less declarations **first**:
 
-```gad
+```gad ignore
 var (
     // group declarations without value as first
     a, b, c
@@ -129,7 +129,7 @@ they are declared — several of each, in any order —, and the class's
 A member's `[k=v, …]` metadata is written on the line **above** it, and the
 member on its own line; so is a class's, above the class:
 
-```gad
+```gad ignore
 [label="Grid"]
 class Grid {
     *Base
@@ -171,7 +171,7 @@ defaults, so their groups are two:
 6. `**<rest>` — the rest capture (the keys the interface does not name);
 7. `funcs { … }` — the context functions.
 
-```gad
+```gad ignore
 interface Shape {
     *Base
     color
@@ -220,7 +220,7 @@ When items are split one per line, the newline **is** the separator: no comma is
 written between items (and none trails the last). Inline lists keep the `, `
 separator.
 
-```gad
+```gad ignore
 // inline: comma-separated
 x := [1, 2, 3]
 d := {a: 1, b: 2}
@@ -256,7 +256,7 @@ an extra indent level:
 | type unions (params, returns)          | ` \| `    | yes                          |
 | match arm conditions                   | `, `      | yes                          |
 
-```gad
+```gad ignore
 // array / key-value array / value-less declaration: no extra indent
 x := [
     1, 2, 3, 4
@@ -297,7 +297,7 @@ apply:
   would overflow. A wrapped line ends with a trailing `|` (no space after it) and
   the continuation is indented one extra level:
 
-  ```gad
+  ```gad ignore
   func(
       verylongname int | boolean |
           string | number
@@ -311,7 +311,7 @@ A function's return-type list is written in angle brackets after the
 parameters: ` <T1, T2, ...>`. Each return type follows the same **union spacing**
 rule as parameters — a space around each `|` when it stays on one line:
 
-```gad
+```gad ignore
 func() <x int | bool, y str> {
     return 1
 }
@@ -330,7 +330,7 @@ multi-line layout:
   and is **not** preceded by a comma; conditions sharing a line keep the `, `
   separator. The arm's `: result` / `{ body }` follows the last condition.
 
-```gad
+```gad ignore
 match i {
     1, 2, 3
         4, 5, 6
@@ -342,7 +342,7 @@ When **every** non-else arm's conditions are primitive literals of one comparabl
 kind (all numeric, or all string), the formatter **sorts** them ascending — the
 conditions within each arm and the arms themselves — keeping the `else` arm last:
 
-```gad
+```gad ignore
 // match n { 3: "c", 1: "a", 2: "b", else: "z" }  formats as:
 match n { 1: "a", 2: "b", 3: "c", else: "z" }
 ```
@@ -356,7 +356,7 @@ Write `::` **tightly**, with no spaces around it, and **without** redundant
 grouping parentheses — it is left-associative, so a chain reads `v::A::B`, not
 `(v::A)::B`:
 
-```gad
+```gad ignore
 x := v::int              // not `v :: int`
 y := v::A::B             // not `(v::A)::B`
 ```
@@ -458,6 +458,16 @@ A statement that returns and prints is checked on both: the return first, then
 the output — a value check does not take the output. Outside a test, an example
 or a doc fence (`gad run`, an embedding host) a check compiles to nothing. See
 [inline checks](samples/testing/inline_checks_test.md).
+
+### The Markdown files
+
+The `.md` files `gad doc` does not make — `README.md`, `doc/*.md`,
+`doc/stdlib/*.md`, `gadx/README.md`, `gadx/docs/*.md` — are tested too:
+`gad test FILE.md` runs each ` ```gad `, ` ```gadt ` and ` ```gadx ` fence
+(exactly three backticks) on its own, its checks on, and `make verify` runs
+them (`make test-md`) after regenerating the docs, before each commit. A
+fragment that is not meant to run — a partial snippet, a syntax illustration,
+code that shows an error, an embedding host's — is tagged ` ```gad ignore `.
 
 ### Rules that are easy to miss
 

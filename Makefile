@@ -264,6 +264,12 @@ web-test:
 		echo "==> web: no test files yet (bun test auto-discovers web/**/*.test.ts)"; \
 	fi
 
+# test-md runs the gad/gadt/gadx code fences of the hand-written and gaddoc
+# Markdown files (gad test on .md; a fence tagged `ignore` is skipped).
+.PHONY: test-md
+test-md:
+	go run ./cmd/gad test README.md doc doc/stdlib gadx/README.md gadx/docs
+
 .PHONY: test
 test: version generate lint
 	go test -count=1 -cover ./...
@@ -287,6 +293,9 @@ verify: version
 	@git diff --quiet -- doc/ || { \
 		echo "==> docs are stale — regenerated; review and 'git add' doc/:"; \
 		git diff --name-only -- doc/; exit 1; }
+	# the code fences of the Markdown files gad doc does not make (doc/samples
+	# is made, and checked, by it): each gad/gadt/gadx fence runs, its checks on
+	$(MAKE) test-md
 	$(MAKE) lint
 	go test -count=1 ./...
 	$(MAKE) build
@@ -344,6 +353,7 @@ generate-docs: version samples-doc
 	go run ./cmd/gaddoc . ./doc/stdlib/fmt.md fmt
 	go run ./cmd/gaddoc . ./doc/stdlib/strings.md strings
 	go run ./cmd/gaddoc ./stdlib/json ./doc/stdlib/json.md
+	go run ./cmd/gaddoc . ./doc/builtins.md builtins
 
 .PHONY: version
 version:
