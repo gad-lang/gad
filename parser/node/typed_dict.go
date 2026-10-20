@@ -16,7 +16,9 @@ type TypedDictTypeExpr struct {
 	TypePos source.Pos
 	// Name is the type's name; nil: anonymous.
 	Name *IdentExpr
-	// Args are K and V (or V alone); none: [str, any].
+	// Kind is "dict" or "keyValueArray" (a typed key-value array, issue #20).
+	Kind string
+	// Args are K and V (or V alone); none: the generic's defaults.
 	Args   []Expr
 	EndPos source.Pos
 	Meta   *KeyValueArrayLit
@@ -34,7 +36,11 @@ func (e *TypedDictTypeExpr) String() string {
 	if e.Name != nil {
 		b.WriteString(e.Name.Name + " ")
 	}
-	b.WriteString("dict")
+	kind := e.Kind
+	if kind == "" {
+		kind = "dict"
+	}
+	b.WriteString(kind)
 	if len(e.Args) > 0 {
 		b.WriteString("[")
 		for i, a := range e.Args {

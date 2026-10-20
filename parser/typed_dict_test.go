@@ -21,3 +21,13 @@ func TestTypedDictType(t *testing.T) {
 		test.New(t, src).Code(want)
 	}
 }
+
+func TestTypedKeyValueArrayType(t *testing.T) {
+	for src, want := range map[string]string{
+		"type opts keyValueArray[str, int]": "type opts keyValueArray[str, int]",
+		"x := type keyValueArray[int]":      "x := type keyValueArray[int]",
+		"y := keyValueArray(; a=1)":         "y := keyValueArray(; a=1)",
+	} {
+		test.New(t, src).Code(want)
+	}
+}

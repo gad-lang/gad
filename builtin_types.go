@@ -112,6 +112,12 @@ func (t *BuiltinObjType) IndexGet(vm *VM, index Object) (Object, error) {
 			return v, nil
 		}
 	}
+	// `keyValueArray` is `KeyValueArrayType[any, any]`
+	if t.builtinType == BuiltinKeyValueArray {
+		if v, ok := anyKVAReflect(index); ok {
+			return v, nil
+		}
+	}
 	if t.indexType == nil {
 		return nil, ErrNotIndexable.NewError(t.name)
 	}
@@ -190,6 +196,8 @@ func (t *BuiltinObjType) Type() ObjectType {
 		return TArrayType
 	case BuiltinDict: // `dict` is `DictType[str, any]`
 		return TDictType
+	case BuiltinKeyValueArray: // `keyValueArray` is `KeyValueArrayType[any, any]`
+		return TKeyValueArrayType
 	}
 	return TBase
 }
@@ -248,6 +256,7 @@ var (
 	TArray,
 	TArrayType,
 	TDictType,
+	TKeyValueArrayType,
 	TDict,
 	TSyncDict,
 	TKeyValue,
@@ -302,6 +311,8 @@ func init() {
 	TArrayType = RegisterBuiltinType(BuiltinArrayType, "arrayType", ArrayType{}, NewArrayTypeFunc).TypeKey()
 	TDictType = RegisterBuiltinType(BuiltinDictType, "DictType", DictOfType{}, NewDictTypeFunc).
 		WithIndexType(dictTypeOf).TypeKey()
+	TKeyValueArrayType = RegisterBuiltinType(BuiltinKeyValueArrayType, "KeyValueArrayType", KVAOfType{}, NewKVATypeFunc).
+		WithIndexType(kvaTypeOf).TypeKey()
 	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, NewDictFunc).TypeKey()
 	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncDict{}, NewSyncDictFunc).TypeKey()
 	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, NewKeyValueFunc).TypeKey()

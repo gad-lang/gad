@@ -188,6 +188,10 @@ func AssignToTypeTransform(vm *VM, obj, to Object) (Object, error) {
 		return t.transform(vm, obj)
 	case *TypedDictType:
 		return t.transform(vm, obj)
+	case *KVAOfType:
+		return t.transform(vm, obj)
+	case *TypedKeyValueArrayType:
+		return t.transform(vm, obj)
 	}
 	switch t := to.(type) {
 	case *Enum:
@@ -265,7 +269,7 @@ func transformCallee(to Object) (CallerObject, bool) {
 		return t, true
 	case *Interface, *Class:
 		return nil, false
-	case *ArrayType, *DictOfType:
+	case *ArrayType, *DictOfType, *KVAOfType:
 		// a constructor, but `::>` converts each leaf (transform)
 		return nil, false
 	case ObjectType:

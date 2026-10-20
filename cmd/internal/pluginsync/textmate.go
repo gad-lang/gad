@@ -264,7 +264,7 @@ func TextMateGrammar() ([]byte, error) {
 			// — and an ordinary identifier elsewhere (`x.type`, `type := 1`,
 			// `{type: 1}`, `type[0]`).
 			// `type [NAME] dict[…]` — a typed dict type (issue #19)
-			{Name: "keyword.control.gad", Match: `\btype\b(?=\s+(?:[A-Za-z_]\w*\s+)?dict\b)`},
+			{Name: "keyword.control.gad", Match: `\btype\b(?=\s+(?:[A-Za-z_]\w*\s+)?(?:dict|keyValueArray)\b)`},
 			{Name: "keyword.control.gad", Match: `\btype\b(?=\s*[<{]|\s+\[|\s+[A-Za-z_]\w*\s*(?:[{<]|\[\s*\]|\[[^\]\n]+\]\s*[\[A-Za-z_<{]))`},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Atoms)},
 			{Name: "constant.language.gad", Match: wordRegex(lang.Constants)},

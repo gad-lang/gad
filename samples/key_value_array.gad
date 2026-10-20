@@ -88,6 +88,28 @@ of a name. Indexing yields the `keyValue`, and entries are mutable.
 spreads into a call's named arguments.
 
 @snippet kva_spread
+
+## Typed key-value arrays (`KeyValueArrayType[K, V]`)
+
+`KeyValueArrayType[K, V]` is the type of a key-value array whose keys are of
+`K` — **any type**: a key-value array's keys are — and whose values are of
+`V`, as [typed dicts](typed_dicts.gad) are for dicts. `KeyValueArrayType[V]` is
+`KeyValueArrayType[any, V]`, and **`keyValueArray` is
+`KeyValueArrayType[any, any]`** — the same object.
+
+- The pairs keep their **order and duplicates**, each checked; a **reset**
+  (`key=no`) is no value: never checked.
+- It is **structural** (a plain key-value array of those pairs is of it) and a
+  **constructor**: named args, `[k=v]`, `[key, value]` pairs, a key-value array
+  or a dict as pairs — one array alone its indexes as keys —, each checked;
+  `::>` converts each key and value.
+- `type NAME keyValueArray[K, V]` declares a **nominal** type, a child of the
+  generic: its instances are key-value arrays (`o :: keyValueArray`), each pair
+  added (`+`, `++`) checked, a new instance; its constructors and overloads are
+  its own. Written where a value goes: `type keyValueArray[K, V]` (anonymous),
+  `type NAME keyValueArray[…]` (named).
+
+@snippet kva_type
 **/
 
 example kv_pair {
@@ -169,3 +191,13 @@ b = 2
 >>>
 
 return str(kva)
+
+example kva_type {
+    K := KeyValueArrayType[str, int]
+    [K(; a=1, a=2), (;a="1") ::> K, keyValueArray === KeyValueArrayType[any, any]]
+    = [(;a=1, a=2), (;a=1), true]
+    type opts keyValueArray[str, int|bool]
+    o := opts(; width=2, wrap=true) + [height=3]
+    [typeName(o), len(o), o :: keyValueArray == o]
+    = ["opts", 3, true]
+}

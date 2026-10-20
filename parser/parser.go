@@ -3041,22 +3041,24 @@ func (p *Parser) typeParamsThenBrace(n int) bool {
 // `type dict[…]` / `type dict`.
 func (p *Parser) isTypedDictStart(named bool) bool {
 	toks := p.PeekC(3)
+	kind := func(t PToken) bool { return t.Literal == "dict" || t.Literal == "keyValueArray" }
 	if named {
-		return toks[0].Token == token.Ident && toks[0].Literal != "dict" &&
-			toks[1].Token == token.Ident && toks[1].Literal == "dict"
+		return toks[0].Token == token.Ident && !kind(toks[0]) &&
+			toks[1].Token == token.Ident && kind(toks[1])
 	}
-	return toks[0].Token == token.Ident && toks[0].Literal == "dict"
+	return toks[0].Token == token.Ident && kind(toks[0])
 }
 
 // parseTypedDictType parses `type [NAME] dict[ [K, ] V ]`.
 func (p *Parser) parseTypedDictType() *node.TypedDictTypeExpr {
 	e := &node.TypedDictTypeExpr{TypePos: p.Token.Pos}
 	p.Next() // `type`
-	if p.Token.Literal != "dict" {
+	if p.Token.Literal != "dict" && p.Token.Literal != "keyValueArray" {
 		e.Name = p.ParseIdent()
 	}
-	e.EndPos = p.Token.Pos + source.Pos(len("dict"))
-	p.Next() // `dict`
+	e.Kind = p.Token.Literal
+	e.EndPos = p.Token.Pos + source.Pos(len(e.Kind))
+	p.Next() // `dict` / `keyValueArray`
 	if p.Token.Token == token.LBrack {
 		p.Next()
 		for p.Token.Token != token.RBrack && p.Token.Token != token.EOF {

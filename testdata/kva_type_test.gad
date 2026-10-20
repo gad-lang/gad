@@ -1,0 +1,39 @@
+example generic {
+    K := KeyValueArrayType[str, int]
+    [str(K), K === KeyValueArrayType[str, int], KeyValueArrayType[int] === KeyValueArrayType[any, int]]
+    = ["KeyValueArrayType[str, int]", true, true]
+    [keyValueArray === KeyValueArrayType[any, any], typeof((;a=1)) === keyValueArray, typeof(K) === KeyValueArrayType]
+    = [true, true, true]
+    (;a=1, a=2) :: K
+    = (;a=1, a=2)
+    K(; a=1, b=2)
+    = (;a=1, b=2)
+    K([a=1], ["b", 2])
+    = (;a=1, b=2)
+    KeyValueArrayType[int, str](["x", "y"])
+    = (;0="x", 1="y")
+    (;a="1") ::> K
+    = (;a=1)
+    f := func(o KeyValueArrayType[str, int]) => len(o)
+    f((;a=1, b=2))
+    = 2
+    (;a=1, b=no) :: K
+    = (;a=1, b=no)
+}
+example typed {
+    type opts keyValueArray[str, int|bool]
+    o := opts(; width=2, wrap=true)
+    [typeName(o), len(o), o :: keyValueArray == o]
+    = ["opts", 2, true]
+    o2 := o + [height=3]
+    [typeName(o2), len(o2)]
+    = ["opts", 3]
+    refused := func(f) { try { f(); return false } catch { return true } }
+    refused(() => o + [x="no"])
+    = true
+    const k = type keyValueArray[int, str]
+    typeName(k([1="a"]))
+    = "keyValueArray[int, str]"
+}
+
+return true

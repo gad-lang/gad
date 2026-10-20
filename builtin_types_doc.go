@@ -178,3 +178,19 @@ package gad
 // [D(; a=1), D.@value == int, dict === DictType[str, any]]
 // = [{a: 1}, true, true]
 // ```
+
+// gad:doc
+// ## Type KeyValueArrayType
+// KeyValueArrayType is the generic of the key-value array types:
+// `KeyValueArrayType[K, V]` the type of a key-value array whose keys are of K
+// (any type) and whose values are of V, the pairs in order, duplicates kept, a
+// reset (`key=no`) never checked; `KeyValueArrayType[V]` is
+// `KeyValueArrayType[any, V]`, and `keyValueArray` is
+// `KeyValueArrayType[any, any]` itself. Structural and a constructor, as
+// DictType is; `type NAME keyValueArray[K, V]` declares a nominal one.
+//
+// ```gad
+// K := KeyValueArrayType[str, int]
+// [K(; a=1, a=2), keyValueArray === KeyValueArrayType[any, any]]
+// = [(;a=1, a=2), true]
+// ```

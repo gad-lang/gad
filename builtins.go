@@ -79,6 +79,8 @@ const (
 	// BuiltinDictType is `DictType`, the generic of the dict types:
 	// `DictType[K, V]` (issue #19).
 	BuiltinDictType
+	// BuiltinKeyValueArrayType is `KeyValueArrayType` (issue #20).
+	BuiltinKeyValueArrayType
 	BuiltinTypesEnd_
 
 	BuiltinStaticTypesStart_
@@ -137,6 +139,7 @@ const (
 	BuiltinNewStaticType
 	BuiltinNewTypedArrayType
 	BuiltinNewTypedDictType
+	BuiltinNewTypedKVAType
 	BuiltinTypeOf
 	BuiltinAddMethod
 	BuiltinRawCaller
@@ -362,46 +365,47 @@ func NewBuiltinType() (t BuiltinType) {
 var BuiltinsMap = map[string]BuiltinType{
 	// @binaryOperator / @selfAssignOperator are exposed as gad.binOp /
 	// gad.selfAssignOp (registered in registerGadModule).
-	"cast":                BuiltinCast,
-	"copy":                BuiltinCopy,
-	"dcopy":               BuiltinDeepCopy,
-	"repeat":              BuiltinRepeat,
-	"contains":            BuiltinContains,
-	"len":                 BuiltinLen,
-	"sort":                BuiltinSort,
-	"sortReverse":         BuiltinSortReverse,
-	"filter":              BuiltinFilter,
-	"map":                 BuiltinMap,
-	"each":                BuiltinEach,
-	"reduce":              BuiltinReduce,
-	"typeName":            BuiltinTypeName,
-	"chars":               BuiltinChars,
-	"close":               BuiltinClose,
-	"read":                BuiltinRead,
-	"write":               BuiltinWrite,
-	"print":               BuiltinPrint,
-	"printf":              BuiltinPrintf,
-	"println":             BuiltinPrintln,
-	"sprintf":             BuiltinSprintf,
-	"stdio":               BuiltinStdIO,
-	"wrap":                BuiltinWrap,
-	"Class":               BuiltinNewClass,
-	"InterfaceSpread":     BuiltinInterfaceSpread,
-	"InterfaceTypeParams": BuiltinInterfaceTypeParams,
-	"InterfaceTypes":      BuiltinInterfaceTypes,
-	"TypeCells":           BuiltinTypeCells,
-	"Contract":            BuiltinContract,
-	"StaticType":          BuiltinNewStaticType,
-	"TypedArrayType":      BuiltinNewTypedArrayType,
-	"TypedDictType":       BuiltinNewTypedDictType,
-	"Mixin":               BuiltinNewMixin,
-	"typeof":              BuiltinTypeOf,
-	"addMethod":           BuiltinAddMethod,
-	"rawCaller":           BuiltinRawCaller,
-	"repr":                BuiltinRepr,
-	"userData":            BuiltinUserData,
-	"namedParamTypeCheck": BuiltinNamedParamTypeCheck,
-	"toArray":             BuiltinToArray,
+	"cast":                   BuiltinCast,
+	"copy":                   BuiltinCopy,
+	"dcopy":                  BuiltinDeepCopy,
+	"repeat":                 BuiltinRepeat,
+	"contains":               BuiltinContains,
+	"len":                    BuiltinLen,
+	"sort":                   BuiltinSort,
+	"sortReverse":            BuiltinSortReverse,
+	"filter":                 BuiltinFilter,
+	"map":                    BuiltinMap,
+	"each":                   BuiltinEach,
+	"reduce":                 BuiltinReduce,
+	"typeName":               BuiltinTypeName,
+	"chars":                  BuiltinChars,
+	"close":                  BuiltinClose,
+	"read":                   BuiltinRead,
+	"write":                  BuiltinWrite,
+	"print":                  BuiltinPrint,
+	"printf":                 BuiltinPrintf,
+	"println":                BuiltinPrintln,
+	"sprintf":                BuiltinSprintf,
+	"stdio":                  BuiltinStdIO,
+	"wrap":                   BuiltinWrap,
+	"Class":                  BuiltinNewClass,
+	"InterfaceSpread":        BuiltinInterfaceSpread,
+	"InterfaceTypeParams":    BuiltinInterfaceTypeParams,
+	"InterfaceTypes":         BuiltinInterfaceTypes,
+	"TypeCells":              BuiltinTypeCells,
+	"Contract":               BuiltinContract,
+	"StaticType":             BuiltinNewStaticType,
+	"TypedArrayType":         BuiltinNewTypedArrayType,
+	"TypedDictType":          BuiltinNewTypedDictType,
+	"TypedKeyValueArrayType": BuiltinNewTypedKVAType,
+	"Mixin":                  BuiltinNewMixin,
+	"typeof":                 BuiltinTypeOf,
+	"addMethod":              BuiltinAddMethod,
+	"rawCaller":              BuiltinRawCaller,
+	"repr":                   BuiltinRepr,
+	"userData":               BuiltinUserData,
+	"namedParamTypeCheck":    BuiltinNamedParamTypeCheck,
+	"toArray":                BuiltinToArray,
 
 	"is":         BuiltinIs,
 	"isError":    BuiltinIsError,

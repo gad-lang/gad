@@ -140,9 +140,13 @@ func typeArgsIndex(nt *node.TypeArgsExpr) node.Expr {
 // generic `dict` when no type arguments are written).
 func typedDictTypeCall(nd *node.TypedDictTypeExpr) *node.CallExpr {
 	pos := nd.Pos()
-	var generic node.Expr = node.EIdent("dict", pos)
+	base, genericName, ctor := "dict", "DictType", BuiltinNewTypedDictType.String()
+	if nd.Kind == "keyValueArray" {
+		base, genericName, ctor = "keyValueArray", "KeyValueArrayType", BuiltinNewTypedKVAType.String()
+	}
+	var generic node.Expr = node.EIdent(base, pos)
 	if len(nd.Args) > 0 {
-		generic = typeArgsIndex(&node.TypeArgsExpr{X: node.EIdent("DictType", pos), LBrack: pos, Args: nd.Args})
+		generic = typeArgsIndex(&node.TypeArgsExpr{X: node.EIdent(genericName, pos), LBrack: pos, Args: nd.Args})
 	}
 	var name node.Expr = &node.NilLit{TokenPos: pos}
 	if nd.Name != nil {
@@ -153,7 +157,7 @@ func typedDictTypeCall(nd *node.TypedDictTypeExpr) *node.CallExpr {
 		named.AppendS("meta", m)
 	}
 	return &node.CallExpr{
-		Func: node.EIdent(BuiltinNewTypedDictType.String(), pos),
+		Func: node.EIdent(ctor, pos),
 		CallArgs: node.CallArgs{
 			Args:      node.CallExprPositionalArgs{Values: []node.Expr{name, generic}},
 			NamedArgs: named,
