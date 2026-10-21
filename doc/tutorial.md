@@ -518,9 +518,9 @@ raw 1                   // rawStr value "1"
 -9.22 + 1e10            // float values
 2d                      // decimal values
 dur 1h30m               // duration value (Go duration string)
-2026-01-31D             // calendarDate value (YYYY-MM-DD)
+2026-01-31D             // cdate value (YYYY-MM-DD)
 2026-01-31T             // time value at 00:00:00 UTC
-2026-01-31t             // calendarTime value (zone-less, nanosecond)
+2026-01-31t             // ctime value (zone-less, nanosecond)
 1781609136U             // time value from unix seconds
 true || false           // bool values
 yes || no               // flag values
@@ -552,8 +552,8 @@ types](runtime-types.md) for more information.
 | nil              | [nil](#nil-values) value           | -                     |
 | compiledFunction | [function](#function-values) value | -                     |
 | duration         | time span                          | `time.Duration`       |
-| calendarDate     | calendar date (YYYYMMDD)           | `uint`                |
-| calendarTime     | zone-less wall clock (nanoseconds) | `uint64`              |
+| cdate     | calendar date (YYYYMMDD)           | `uint`                |
+| ctime     | zone-less wall clock (nanoseconds) | `uint64`              |
 | time             | instant with location              | `time.Time`           |
 
 ### Date and Time Values
@@ -564,9 +564,9 @@ literal form and a string constructor:
 | Literal         | Type           | Meaning                                   |
 |:----------------|:---------------|:------------------------------------------|
 | `dur 1h30m`     | `duration`     | a Go duration string                      |
-| `2026-01-31D`   | `calendarDate` | a calendar date (also `20260131D`)        |
+| `2026-01-31D`   | `cdate` | a calendar date (also `20260131D`)        |
 | `2026-01-31T`   | `time`         | that date at `00:00:00` UTC               |
-| `2026-01-31t`   | `calendarTime` | zone-less wall clock (nanosecond)         |
+| `2026-01-31t`   | `ctime` | zone-less wall clock (nanosecond)         |
 | `1781609136U`   | `time`         | unix seconds (optional `.fraction`)       |
 
 A digit-suffix literal must be glued to the number (a space breaks it), so
@@ -576,8 +576,8 @@ literals carry a calendar date only; time-of-day comes from the string parsers:
 ```gad
 time.strToTime("2026-01-31T23:59:55Z")      // RFC3339 -> time
 time.strToTime("2026-01-31 23:59:55")       // UTC (no zone)
-time.strToCalendarTime("2026-01-31 23:59:55.001")  // zone-less calendarTime
-time.strToDate("2026-01-31")                // calendarDate
+time.strToCalendarTime("2026-01-31 23:59:55.001")  // zone-less ctime
+time.strToDate("2026-01-31")                // cdate
 time.strToDuration("1h30m")                 // duration
 time.strToLocation("-03:00")                // Location
 
@@ -591,10 +591,10 @@ t.hour(); t.minute(); t.second(); t.ns()    // accessors
 #### Arithmetic
 
 `duration` supports `+ - * / %` and unary `-`; dividing two durations yields a
-`float` ratio. A `time`, `calendarTime` or `calendarDate` plus/minus a
+`float` ratio. A `time`, `ctime` or `cdate` plus/minus a
 `duration` shifts it, and subtracting two of the same kind yields a `duration`.
-A `calendarDate ± duration` stays a `calendarDate` when the result lands on
-midnight, otherwise it becomes a `calendarTime`:
+A `cdate ± duration` stays a `cdate` when the result lands on
+midnight, otherwise it becomes a `ctime`:
 
 ```gad
 dur 1h + dur 30m            // 1h30m0s
@@ -603,8 +603,8 @@ dur 1h / dur 30m            // 2.0   (ratio)
 
 2026-01-31T + dur 90m       // 2026-01-31 01:30:00 UTC
 2026-02-01t - 2026-01-31t   // 24h0m0s  (a duration)
-2025-01-01D + dur 24h       // 2025-01-02   (still a calendarDate)
-2025-01-01D + dur 1s        // 2025-01-01 00:00:01  (now a calendarTime)
+2025-01-01D + dur 24h       // 2025-01-02   (still a cdate)
+2025-01-01D + dur 1s        // 2025-01-01 00:00:01  (now a ctime)
 ```
 
 #### Truncating and rounding
@@ -622,7 +622,7 @@ t.trunc("ms")               // 2026-08-17 14:37:52.123 UTC
 t.round('h')                // 2026-08-17 15:00:00 UTC  (52m rounds up)
 t.round('d')                // 2026-08-18 00:00:00 UTC
 
-(2026-08-17D).trunc('M')    // 2026-08-01 (calendarDate)
+(2026-08-17D).trunc('M')    // 2026-08-01 (cdate)
 (dur 1h37m52s).trunc('m')   // 1h37m0s   ('y'/'M' are rejected for durations)
 (dur 1h37m52s).round('m')   // 1h38m0s
 ```

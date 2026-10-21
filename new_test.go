@@ -316,9 +316,9 @@ func TestVMRangeRepr(t *testing.T) {
 	// repr(Range; indent) dumps the headers of every typed constructor method
 	// (one per element kind), tab-indented and sorted by parameter types.
 	want := "‹Range: ‹builtin type ‹Range› with 8 methods: [\n" +
-		"\t⨍(calendarDate, calendarDate) 🠆 ‹function Range(from calendarDate, to calendarDate; step)›,\n" +
-		"\t⨍(calendarTime, calendarTime) 🠆 ‹function Range(from calendarTime, to calendarTime; step)›,\n" +
+		"\t⨍(cdate, cdate) 🠆 ‹function Range(from cdate, to cdate; step)›,\n" +
 		"\t⨍(char, char) 🠆 ‹function Range(from char, to char; step)›,\n" +
+		"\t⨍(ctime, ctime) 🠆 ‹function Range(from ctime, to ctime; step)›,\n" +
 		"\t⨍(decimal, decimal) 🠆 ‹function Range(from decimal, to decimal; step)›,\n" +
 		"\t⨍(float, float) 🠆 ‹function Range(from float, to float; step)›,\n" +
 		"\t⨍(int, int) 🠆 ‹function Range(from int, to int; step)›,\n" +
@@ -345,9 +345,9 @@ func TestVMTimeModuleTypesRepr(t *testing.T) {
 		member string
 		want   Str
 	}{
-		{"Type", dump("time", "calendarDate", "calendarTime", "int", "rawstr", "str", "time", "uint")},
-		{"CalendarDate", dump("calendarDate", "calendarDate", "calendarTime", "int", "str", "time", "uint")},
-		{"CalendarTime", dump("calendarTime", "calendarDate", "calendarTime", "int", "str", "time", "uint")},
+		{"Type", dump("time", "cdate", "ctime", "int", "rawstr", "str", "time", "uint")},
+		{"cdate", dump("cdate", "cdate", "ctime", "int", "str", "time", "uint")},
+		{"ctime", dump("ctime", "cdate", "ctime", "int", "str", "time", "uint")},
 		{"Duration", dump("duration", "duration", "int", "str", "uint")},
 		{"Location", dump("Location", "Location", "int", "rawstr", "str")},
 	} {
@@ -1446,10 +1446,10 @@ func TestVMTimeDurationDate(t *testing.T) {
 		`Compile Error: invalid duration literal`)
 
 	// the Date type: constructor + accessors (gad methods are camelCase)
-	testExpectRun(t, `dt := time.CalendarDate(20260131); return [dt.year(), dt.month(), dt.day()]`,
+	testExpectRun(t, `dt := time.cdate(20260131); return [dt.year(), dt.month(), dt.day()]`,
 		nil, Array{Int(2026), Int(1), Int(31)})
-	testExpectRun(t, `return str(time.CalendarDate("2026-01-31"))`, nil, Str("2026-01-31"))
-	testExpectRun(t, `return typeName(time.CalendarDate(20260131))`, nil, Str("calendarDate"))
+	testExpectRun(t, `return str(time.cdate("2026-01-31"))`, nil, Str("2026-01-31"))
+	testExpectRun(t, `return typeName(time.cdate(20260131))`, nil, Str("cdate"))
 }
 
 func TestVMTimeArithmetic(t *testing.T) {
@@ -1470,21 +1470,21 @@ func TestVMTimeArithmetic(t *testing.T) {
 	testExpectRun(t, `return str(2026-01-01T - dur 1h)`,
 		nil, Str("2025-12-31 23:00:00 +0000 UTC"))
 
-	// calendarTime ± duration -> calendarTime; difference -> duration
+	// ctime ± duration -> ctime; difference -> duration
 	testExpectRun(t, `return str(2026-01-31t + dur 25h)`, nil, Str("2026-02-01 01:00:00"))
 	testExpectRun(t, `return str(2026-02-01t - 2026-01-31t)`, nil, Str("24h0m0s"))
 	testExpectRun(t, `return str(2026-01-31t.add(dur 1h))`, nil, Str("2026-01-31 01:00:00"))
 
-	// calendarDate + duration: stays a date when day-aligned, else calendarTime
-	testExpectRun(t, `return typeName(2025-01-01D + dur 1s)`, nil, Str("calendarTime"))
+	// cdate + duration: stays a date when day-aligned, else ctime
+	testExpectRun(t, `return typeName(2025-01-01D + dur 1s)`, nil, Str("ctime"))
 	testExpectRun(t, `return str(2025-01-01D + dur 1s)`, nil, Str("2025-01-01 00:00:01"))
-	testExpectRun(t, `return typeName(2025-01-01D + dur 24h)`, nil, Str("calendarDate"))
+	testExpectRun(t, `return typeName(2025-01-01D + dur 24h)`, nil, Str("cdate"))
 	testExpectRun(t, `return str(2025-01-01D + dur 24h)`, nil, Str("2025-01-02"))
 	testExpectRun(t, `return str(2025-02-01D - 2025-01-01D)`, nil, Str("744h0m0s"))
 
 	// cross-type conversions
-	testExpectRun(t, `return typeName(time.CalendarTime(2026-01-31T))`, nil, Str("calendarTime"))
-	testExpectRun(t, `return typeName(time.CalendarDate(2026-01-31t))`, nil, Str("calendarDate"))
+	testExpectRun(t, `return typeName(time.ctime(2026-01-31T))`, nil, Str("ctime"))
+	testExpectRun(t, `return typeName(time.cdate(2026-01-31t))`, nil, Str("cdate"))
 	testExpectRun(t, `return typeName(time.Type(2026-01-31t))`, nil, Str("time"))
 }
 
@@ -1499,10 +1499,10 @@ func TestVMTimeTruncate(t *testing.T) {
 	testExpectRun(t, `return str(`+src+`.trunc('h'))`, nil, Str("2026-08-17 14:00:00 +0000 UTC"))
 	testExpectRun(t, `return str(`+src+`.trunc("ms"))`, nil, Str("2026-08-17 14:37:52.123 +0000 UTC"))
 
-	// calendarTime and calendarDate keep their own types
+	// ctime and cdate keep their own types
 	testExpectRun(t, `return str(time.strToCalendarTime("2026-08-17 14:37:52.5").trunc('h'))`,
 		nil, Str("2026-08-17 14:00:00"))
-	testExpectRun(t, `return typeName((2026-08-17D).trunc('M'))`, nil, Str("calendarDate"))
+	testExpectRun(t, `return typeName((2026-08-17D).trunc('M'))`, nil, Str("cdate"))
 	testExpectRun(t, `return str((2026-08-17D).trunc('M'))`, nil, Str("2026-08-01"))
 
 	// durations truncate toward zero by a fixed unit
@@ -1527,7 +1527,7 @@ func TestVMTimeTruncate(t *testing.T) {
 }
 
 func TestVMTimeMethods(t *testing.T) {
-	// addDate, weekday and format on calendarDate / calendarTime
+	// addDate, weekday and format on cdate / ctime
 	testExpectRun(t, `return str((2026-08-17D).addDate(0, 0, 5))`, nil, Str("2026-08-22"))
 	testExpectRun(t, `return str((2026-08-17D).addDate(1, 1, 0))`, nil, Str("2027-09-17"))
 	testExpectRun(t, `return (2026-08-17D).weekday()`, nil, Int(1)) // Monday
@@ -1566,7 +1566,7 @@ func TestVMTimeStrTo(t *testing.T) {
 func TestVMDateTimeLit(t *testing.T) {
 	// digit-suffix literals fold to constants at compile time:
 	// 2006-01-02D -> date, 2006-01-02T -> time (midnight UTC), 123U -> unix.
-	testExpectRun(t, `return typeName(2026-01-31D)`, nil, Str("calendarDate"))
+	testExpectRun(t, `return typeName(2026-01-31D)`, nil, Str("cdate"))
 	testExpectRun(t, `return typeName(2026-01-31T)`, nil, Str("time"))
 	testExpectRun(t, `return typeName(1781609136U)`, nil, Str("time"))
 
@@ -1574,12 +1574,12 @@ func TestVMDateTimeLit(t *testing.T) {
 	testExpectRun(t, `return str(2026-01-31T)`, nil, Str("2026-01-31 00:00:00 +0000 UTC"))
 	testExpectRun(t, `return str(1781609136U)`, nil, Str("2026-06-16 11:25:36 +0000 UTC"))
 
-	// lowercase `t` is the zone-less calendarTime
-	testExpectRun(t, `return typeName(2026-01-31t)`, nil, Str("calendarTime"))
+	// lowercase `t` is the zone-less ctime
+	testExpectRun(t, `return typeName(2026-01-31t)`, nil, Str("ctime"))
 	testExpectRun(t, `return str(2026-01-31t)`, nil, Str("2026-01-31 00:00:00"))
 	testExpectRun(t, `return 2026-01-31t.day()`, nil, Int(31))
 	testExpectRun(t, `return 2026-01-31t < 2026-02-01t`, nil, True)
-	// calendarTime stores nanoseconds (via the string parser / constructor)
+	// ctime stores nanoseconds (via the string parser / constructor)
 	testExpectRun(t, `return time.strToCalendarTime("2026-01-31 23:59:55.001").ns()`,
 		nil, Int(1000000))
 

@@ -3,7 +3,7 @@ package gad
 import "strings"
 
 // RangeOfType is `Range[T]`: the type of a range whose bounds are each of
-// T — `Range[int]`, `Range[time.CalendarDate]`, `Range[int|float]` —, a
+// T — `Range[int]`, `Range[time.cdate]`, `Range[int|float]` —, a
 // type as a field's or a parameter's is. It is STRUCTURAL, as an array type
 // is: a value is of it when it is a Range whose From and To are of T.
 type RangeOfType struct {

@@ -13,13 +13,13 @@ import (
 )
 
 // CalendarTimeType is the object type of CalendarTime values (the gad
-// `calendarTime` type). It is callable as a constructor:
+// `ctime` type). It is callable as a constructor:
 // CalendarTime(uint|int) from a nanosecond count, or CalendarTime(str) parsing
 // a zone-less timestamp. See also strToCalendarTime.
-var CalendarTimeType = NewBuiltinObjType("calendarTime").WithNew(NewCalendarTimeFunc)
+var CalendarTimeType = NewBuiltinObjType("ctime").WithNew(NewCalendarTimeFunc)
 
-// NewCalendarTimeFunc is the calendarTime(...) constructor: a calendarTime
-// pass-through, a time/calendarDate (its wall-clock value), an int/uint
+// NewCalendarTimeFunc is the ctime(...) constructor: a ctime
+// pass-through, a time/cdate (its wall-clock value), an int/uint
 // (UnixNano) or a string (see strToCalendarTime).
 func NewCalendarTimeFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
@@ -134,9 +134,9 @@ func (o CalendarTime) Equal(right Object) bool {
 }
 
 // BinaryOp supports duration arithmetic and ordered comparisons:
-//   - `calendarTime ± int|duration` -> calendarTime (the int is nanoseconds)
-//   - `calendarTime - calendarTime`  -> duration
-//   - `calendarTime <|<=|>|>= calendarTime` -> bool
+//   - `ctime ± int|duration` -> ctime (the int is nanoseconds)
+//   - `ctime - ctime`  -> duration
+//   - `ctime <|<=|>|>= ctime` -> bool
 func (o CalendarTime) BinOpAdd(_ *VM, right Object) (Object, error) {
 	if ns, ok := calendarTimeShiftRHS(right); ok {
 		return o.shift(token.Add, ns)

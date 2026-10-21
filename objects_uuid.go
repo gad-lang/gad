@@ -15,7 +15,7 @@ func init() {
 	typ := RegisterBuiltinType(BuiltinUUID, "uuid", UUID{}, NewUUIDFunc)
 	TUUID = typ.TypeKey()
 	// the constructor's forms, typed: uuid(v str), uuid(v rawstr),
-	// uuid(v bytes), uuid(v uuid) — as calendarDate's
+	// uuid(v bytes), uuid(v uuid) — as cdate's
 	addTypeCtors(typ, "uuid", NewUUIDFunc, TStr, TRawStr, TBytes, TUUID)
 }
 

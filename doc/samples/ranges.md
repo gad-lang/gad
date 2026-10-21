@@ -53,18 +53,18 @@ for d in 2026-01-30D .. 2026-02-05D / (dur 48h) {
 
 `Range[T]` is the type of a range whose bounds are of `T` — a type as a
 parameter's, an interface's field's or a class's field's is: `Range[int]`,
-`Range[time.CalendarDate]`, `Range[int|float]` (a union of types — in a type,
+`Range[time.cdate]`, `Range[int|float]` (a union of types — in a type,
 the same as `Range[type <int|float>]`). It reflects the type of its bounds as
 `@elem`.
 
 ```gad
-interface Booking { nights Range[time.CalendarDate]; guests? Range[int|float] }
+interface Booking { nights Range[time.cdate]; guests? Range[int|float] }
 fits := func(v, T) { try { v :: T; return true } catch { return false } }
 [
     fits({nights: 2026-03-01D .. 2026-03-05D}, Booking),
     fits({nights: 1 .. 4}, Booking),                       // ints, not dates
     fits({nights: 2026-03-01D .. 2026-03-05D, guests: 2 .. 4}, Booking),
-    Booking.fields[0].types[0].@elem == time.CalendarDate,
+    Booking.fields[0].types[0].@elem == time.cdate,
 ]
 = [true, false, true, true]
 ```
@@ -105,13 +105,13 @@ example range_dates {
 }
 
 example range_typed {
-    interface Booking { nights Range[time.CalendarDate]; guests? Range[int|float] }
+    interface Booking { nights Range[time.cdate]; guests? Range[int|float] }
     fits := func(v, T) { try { v :: T; return true } catch { return false } }
     [
         fits({nights: 2026-03-01D .. 2026-03-05D}, Booking),
         fits({nights: 1 .. 4}, Booking),                       // ints, not dates
         fits({nights: 2026-03-01D .. 2026-03-05D, guests: 2 .. 4}, Booking),
-        Booking.fields[0].types[0].@elem == time.CalendarDate,
+        Booking.fields[0].types[0].@elem == time.cdate,
     ]
     = [true, false, true, true]
 }

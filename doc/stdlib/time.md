@@ -354,7 +354,7 @@ zone is present).
 ---
 
 ```gad ignore
-strToCalendarTime(s str) <calendarTime>
+strToCalendarTime(s str) <ctime>
 ```
 
 Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.

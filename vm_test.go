@@ -4327,13 +4327,13 @@ func TestVMUnaryTemporal(t *testing.T) {
 	testExpectRun(t, `x := 2026-02-01D; return --x`, nil, NewCalendarDate(2026, 1, 31))
 
 	// A calendar time steps by its least-significant non-zero clock component.
-	testExpectRun(t, `x := time.CalendarTime("2026-01-31 08:05:00"); return ++x`, nil,
+	testExpectRun(t, `x := time.ctime("2026-01-31 08:05:00"); return ++x`, nil,
 		NewCalendarTime(2026, 1, 31, 8, 6, 0, 0)) // minute (seconds are zero)
-	testExpectRun(t, `x := time.CalendarTime("2026-01-31 08:05:30"); return ++x`, nil,
+	testExpectRun(t, `x := time.ctime("2026-01-31 08:05:30"); return ++x`, nil,
 		NewCalendarTime(2026, 1, 31, 8, 5, 31, 0)) // second
-	testExpectRun(t, `x := time.CalendarTime("2026-01-31 08:00:00"); return ++x`, nil,
+	testExpectRun(t, `x := time.ctime("2026-01-31 08:00:00"); return ++x`, nil,
 		NewCalendarTime(2026, 1, 31, 9, 0, 0, 0)) // hour
-	testExpectRun(t, `x := time.CalendarTime("2026-01-31 08:05:00"); return --x`, nil,
+	testExpectRun(t, `x := time.ctime("2026-01-31 08:05:00"); return --x`, nil,
 		NewCalendarTime(2026, 1, 31, 8, 4, 0, 0)) // minute, decreasing
 }
 

@@ -376,7 +376,7 @@ time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02")
 ### strToCalendarTime
 
 ```gad
-strToCalendarTime(s str) <calendarTime>
+strToCalendarTime(s str) <ctime>
 ```
 
 Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.
@@ -901,7 +901,7 @@ time.strToCalendarTime("2026-01-31 09:30:00.001").ns()
 = 1000000
 ```
 **/
-export strToCalendarTime(s str) <calendarTime> => nil
+export strToCalendarTime(s str) <ctime> => nil
 
 /**
 Parses a Go duration string (e.g. "1h30m").

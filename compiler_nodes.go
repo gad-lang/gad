@@ -5326,7 +5326,7 @@ func orMembers(e node.Expr) []node.Expr {
 var computedTypeSeq atomic.Int64
 
 // computedTypeMark parts the name of a computed type's variable — the type as
-// written — from its number: "time.CalendarDate#3".
+// written — from its number: "time.cdate#3".
 const computedTypeMark = "#"
 
 // TypeName is the name of the type a symbol is: a computed type's as it was
@@ -5342,7 +5342,7 @@ func TypeName(s *SymbolInfo) string {
 }
 
 // computedTypeSymbol is the symbol of a type that is an expression — a
-// selector (`time.CalendarDate`, `lc.PostList`), an index (`Range[int]`) —:
+// selector (`time.cdate`, `lc.PostList`), an index (`Range[int]`) —:
 // a variable of its own (the type as written, numbered), defined where the type is written with the
 // expression's value, read as any variable a type names is (a closure
 // captures it; an interface binds its cell). A symbol of the expression's

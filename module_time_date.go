@@ -13,13 +13,13 @@ import (
 )
 
 // CalendarDateType is the object type of CalendarDate values (the gad
-// `calendarDate` type). It is callable as a constructor:
+// `cdate` type). It is callable as a constructor:
 // CalendarDate(uint|int) from a YYYYMMDD integer, or CalendarDate(str) parsing
 // "YYYYMMDD"/"YYYY-MM-DD". See also strToDate.
-var CalendarDateType = NewBuiltinObjType("calendarDate").WithNew(NewCalendarDateFunc)
+var CalendarDateType = NewBuiltinObjType("cdate").WithNew(NewCalendarDateFunc)
 
-// NewCalendarDateFunc is the calendarDate(...) constructor: a calendarDate
-// pass-through, a calendarTime/time (its date part), an int/uint (YYYYMMDD) or
+// NewCalendarDateFunc is the cdate(...) constructor: a cdate
+// pass-through, a ctime/time (its date part), an int/uint (YYYYMMDD) or
 // a string (see strToDate).
 func NewCalendarDateFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
@@ -115,9 +115,9 @@ func (o CalendarDate) Equal(right Object) bool {
 
 // BinaryOp supports duration arithmetic, date difference and ordered
 // comparisons:
-//   - `calendarDate ± duration`  -> calendarDate when the result lands on
-//     midnight (a whole number of days), otherwise calendarTime
-//   - `calendarDate - calendarDate` -> duration
+//   - `cdate ± duration`  -> cdate when the result lands on
+//     midnight (a whole number of days), otherwise ctime
+//   - `cdate - cdate` -> duration
 //   - ordered comparisons        -> bool (the YYYYMMDD encoding is monotonic)
 func (o CalendarDate) BinOpAdd(_ *VM, right Object) (Object, error) {
 	if v, ok := right.(Duration); ok {

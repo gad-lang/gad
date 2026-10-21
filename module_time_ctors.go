@@ -20,9 +20,9 @@ func addTypeCtors(typ *BuiltinObjType, name string, ctor func(Call) (Object, err
 func init() {
 	addTypeCtors(TimeType, "time", NewTimeFunc,
 		TimeType, TStr, TRawStr, CalendarDateType, CalendarTimeType, TInt, TUint)
-	addTypeCtors(CalendarDateType, "calendarDate", NewCalendarDateFunc,
+	addTypeCtors(CalendarDateType, "cdate", NewCalendarDateFunc,
 		CalendarDateType, CalendarTimeType, TimeType, TUint, TInt, TStr)
-	addTypeCtors(CalendarTimeType, "calendarTime", NewCalendarTimeFunc,
+	addTypeCtors(CalendarTimeType, "ctime", NewCalendarTimeFunc,
 		CalendarTimeType, TimeType, CalendarDateType, TUint, TInt, TStr)
 	addTypeCtors(DurationType, "duration", NewDurationFunc,
 		DurationType, TInt, TUint, TStr)

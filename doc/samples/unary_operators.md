@@ -44,8 +44,8 @@ component.
 
 ```gad
 day := 2026-01-31D
-t := time.CalendarTime("2026-01-31 08:05:00")
-t2 := time.CalendarTime("2026-01-31 08:05:30")
+t := time.ctime("2026-01-31 08:05:00")
+t2 := time.ctime("2026-01-31 08:05:30")
 [
     str(++day),     // one day
     str(++t),       // a minute (the seconds are 0)
@@ -93,8 +93,8 @@ example unary_incdec {
 
 example unary_temporal {
     day := 2026-01-31D
-    t := time.CalendarTime("2026-01-31 08:05:00")
-    t2 := time.CalendarTime("2026-01-31 08:05:30")
+    t := time.ctime("2026-01-31 08:05:00")
+    t2 := time.ctime("2026-01-31 08:05:30")
     [
         str(++day),     // one day
         str(++t),       // a minute (the seconds are 0)

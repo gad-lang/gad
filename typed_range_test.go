@@ -6,24 +6,24 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
-// A type written as a selector or an index — `time.CalendarDate`,
+// A type written as a selector or an index — `time.cdate`,
 // `Range[int]` — is the type it names where a type goes: a parameter's, an
 // interface's field's, a class's field's; not the module it starts with.
 func TestComputedTypes(t *testing.T) {
 	testExpectRun(t, okFn+`
-		f := func(x time.CalendarDate) { return x }
-		interface I { d time.CalendarDate }
+		f := func(x time.cdate) { return x }
+		interface I { d time.cdate }
 		return [
 			str(f(2026-01-30D)),
 			ok({d: 2026-01-30D}, I),
 			ok({d: "2026-01-30"}, I),
-			I.fields[0].types[0] == time.CalendarDate,
+			I.fields[0].types[0] == time.cdate,
 		]`,
 		nil, Array{Str("2026-01-30"), True, False, True})
 
 	// the message names the type as written
-	expectErrHas(t, `f := func(x time.CalendarDate) { return x }; f("a")`,
-		newOpts(), "expected time.CalendarDate")
+	expectErrHas(t, `f := func(x time.cdate) { return x }; f("a")`,
+		newOpts(), "expected time.cdate")
 }
 
 // Range[T] is the type of a range whose bounds are of T: a class's field, an
@@ -32,8 +32,8 @@ func TestComputedTypes(t *testing.T) {
 func TestTypedRange(t *testing.T) {
 	testExpectRun(t, okFn+`
 		mk := func() {
-			class Form { period Range[time.CalendarDate]; rooms? Range[int] }
-			interface I { p Range[time.CalendarDate]; n? Range[type <int|float>] }
+			class Form { period Range[time.cdate]; rooms? Range[int] }
+			interface I { p Range[time.cdate]; n? Range[type <int|float>] }
 			return [Form, I]
 		}
 		[Form, I] := mk()
@@ -41,7 +41,7 @@ func TestTypedRange(t *testing.T) {
 		T := Form.@fields["period"].@types[0]
 		return [
 			str(T),
-			T.@elem == time.CalendarDate,
+			T.@elem == time.cdate,
 			ok(2026-01-30D .. 2026-02-02D, T),
 			ok(1 .. 3, T),
 			ok({p: 2026-01-30D .. 2026-02-02D}, I),
@@ -49,7 +49,7 @@ func TestTypedRange(t *testing.T) {
 			ok({p: 2026-01-30D .. 2026-02-02D, n: 1.5 .. 3.0}, I),
 			ok({p: 2026-01-30D .. 2026-02-02D, n: 1 .. 2}, I),
 		]`,
-		nil, Array{Str("Range[calendarDate]"), True, True, False, True, False, True, True})
+		nil, Array{Str("Range[cdate]"), True, True, False, True, False, True, True})
 }
 
 // In a type, `Range[int|float]` is `Range[type <int|float>]`: the index's

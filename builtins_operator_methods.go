@@ -199,8 +199,8 @@ func unaryOperatorMethod(name string, h CallableFunc, t ObjectType) *Function {
 // and custom Go objects still work. Called from builtin_types.go's init.
 func registerOperatorMethods() {
 	// Only types with a registered builtin-type key can be used as distinct
-	// method param types. The time-module types (time/duration/calendarDate/
-	// calendarTime) are NewBuiltinObjType values without such a key, so they are
+	// method param types. The time-module types (time/duration/cdate/
+	// ctime) are NewBuiltinObjType values without such a key, so they are
 	// left to the operator builtins' default handler.
 	binaryTypes := []ObjectType{
 		TInt, TUint, TFloat, TDecimal, TChar, TBool, TFlag,
@@ -217,7 +217,7 @@ func registerOperatorMethods() {
 		operatorMethod("selfAssignOp", operatorSelfAssignMethod, TArray))
 
 	// Expose the primitive types' UnOp implementations as typed methods of
-	// gad.unOp. The temporal types (time/duration/calendarDate/calendarTime)
+	// gad.unOp. The temporal types (time/duration/cdate/ctime)
 	// have no builtin-type key, so their UnOp implementations are reached through
 	// the default handler (unOpObject) instead.
 	unaryTypes := []ObjectType{

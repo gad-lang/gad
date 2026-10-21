@@ -68,10 +68,10 @@ func newTimeModule() StdModuleData {
 			// ## Types
 			// Type is a type of Time Value
 			"Type": TimeType,
-			// CalendarDate is the `calendarDate` value type (YYYYMMDD); a constructor.
-			"CalendarDate": CalendarDateType,
-			// CalendarTime is the zone-less `calendarTime` value type; a constructor.
-			"CalendarTime": CalendarTimeType,
+			// cdate is the calendar date value type (YYYYMMDD); a constructor.
+			"cdate": CalendarDateType,
+			// ctime is the zone-less calendar time value type; a constructor.
+			"ctime": CalendarTimeType,
 			// Duration is the `duration` value type; callable as a constructor.
 			"Duration": DurationType,
 			// Location is the `Location` value type.
@@ -342,7 +342,7 @@ func newTimeModule() StdModuleData {
 				}),
 			},
 			// gad:doc
-			// strToCalendarTime(s str) <calendarTime>
+			// strToCalendarTime(s str) <ctime>
 			// Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.
 			"strToCalendarTime": &BuiltinFunction{
 				FuncName: "strToCalendarTime",

@@ -95,7 +95,7 @@ func (t *BuiltinObjType) GetModule() *ModuleSpec {
 func (t *BuiltinObjType) GadObjectType() {}
 
 // WithIndexType makes the type indexable by a type: `T[E]` is f(E) — a type
-// of T of elements E (`Range[time.CalendarDate]`).
+// of T of elements E (`Range[time.cdate]`).
 // WithGenericArity makes t a generic type of n type parameters: `met T[K,
 // V](…)` a method of its instances.
 func (t *BuiltinObjType) WithGenericArity(n int) *BuiltinObjType {
