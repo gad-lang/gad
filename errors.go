@@ -36,6 +36,10 @@ var (
 	// ErrInvalidIndex represents an invalid index error.
 	ErrInvalidIndex = &Error{Name: "InvalidIndexError"}
 
+	// ErrNotImportable is a module the Go init of a module imports that is
+	// not an import of it (issue #17).
+	ErrNotImportable = &Error{Name: "NotImportableError"}
+
 	// ErrNotIterable is an error where an Object is not iterable.
 	ErrNotIterable = &Error{Name: "NotIterableError"}
 

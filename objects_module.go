@@ -282,6 +282,11 @@ type ModuleSpec struct {
 	Flags            ModuleFlags
 	InitCompiledFunc *CompiledFunction
 	InitGoFunc       func(module *Module) CallerObject
+	// GoInit is the Go init of a module shipped in Go (LinkedModule): it runs
+	// after the module's gad part; GoImports are the modules it may import, by
+	// name: their indexes.
+	GoInit    ModuleGoInit
+	GoImports map[string]int
 }
 
 // IsMain reports whether this is the entrypoint (main) module.

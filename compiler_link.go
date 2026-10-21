@@ -70,6 +70,30 @@ func (c *Compiler) linkModule(nd ast.Node, spec *ModuleSpec, bc *Bytecode) error
 	return nil
 }
 
+// linkGoImports gives spec, a linked module with a Go init, the modules the
+// init may import: its gad part's and the declared ones (imported now), by
+// name; and the init.
+func (c *Compiler) linkGoImports(nd ast.Node, spec *ModuleSpec, lm *LinkedModule) error {
+	spec.GoInit = lm.Init
+	spec.GoImports = map[string]int{}
+	for _, ms := range lm.Bytecode.Modules {
+		if ms == nil || ms.Name == spec.Name || (lm.Bytecode.Main.module != nil && ms.Name == lm.Bytecode.Main.module.Name) {
+			continue
+		}
+		if item, ok := c.getModule(ms.Name); ok {
+			spec.GoImports[ms.Name] = item.storeIndex
+		}
+	}
+	for _, name := range lm.Imports {
+		idx, err := c.linkImport(nd, name)
+		if err != nil {
+			return err
+		}
+		spec.GoImports[name] = idx
+	}
+	return nil
+}
+
 // linker moves the constant indexes of a module by off, gives its functions
 // the module they are now of (spec, for the one they were of: from), and moves
 // the indexes of the modules it imports (modules: its index to the program's).

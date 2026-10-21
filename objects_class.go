@@ -912,6 +912,17 @@ func (t *Class) AddMethod(name string) (_ *ClassMethod, err error) {
 	return m, nil
 }
 
+// AddGoMethod adds the method name, fn in Go: called with the instance
+// (`this`) first, then the call's arguments.
+func (t *Class) AddGoMethod(name string, fn func(c Call) (Object, error)) error {
+	m, err := t.AddMethod(name)
+	if err != nil {
+		return err
+	}
+	m.f.defaul = &Function{FuncName: name, Value: fn}
+	return nil
+}
+
 func (t *Class) Constructor() *ClassConstructor {
 	return t.new
 }

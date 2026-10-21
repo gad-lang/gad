@@ -72,3 +72,26 @@ func CompileModuleWith(name string, src []byte, kind gad.SourceKind, mm *gad.Mod
 	}
 	return buf.Bytes(), nil
 }
+
+// GoModule is a module written in gad shipped in Go (`gad gomodule`, issue
+// #17): Data its gad part compiled (a `.gadb`), linked as BytecodeModule's;
+// Imports the modules its Go init imports, by name; Init the init (nil: none),
+// run after the gad part in the VM that imports the module.
+//
+//	mm.Add(contracts.ModuleName, contracts.Module())
+type GoModule struct {
+	Data    []byte
+	Imports []string
+	Init    gad.ModuleGoInit
+}
+
+func (m *GoModule) Import(_ context.Context, module *gad.ModuleSpec) (any, string, error) {
+	bc, err := DecodeModule(m.Data)
+	if err != nil {
+		return nil, "", err
+	}
+	if m.Init == nil && len(m.Imports) == 0 {
+		return bc, "gomodule:" + module.Name, nil
+	}
+	return &gad.LinkedModule{Bytecode: bc, Imports: m.Imports, Init: m.Init}, "gomodule:" + module.Name, nil
+}

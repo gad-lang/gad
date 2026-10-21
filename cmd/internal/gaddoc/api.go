@@ -8,7 +8,7 @@
 // `gad doc <module>_api.gad` produces the module documentation from a single
 // source of truth. See emitAPIGad.
 
-package main
+package gaddoc
 
 import (
 	"fmt"
@@ -349,6 +349,8 @@ func emitAPIGad(dg *docgroup, sf *sampleFile) (string, []string) {
 			desc = append(desc, exampleDoc(sf, s.name)...)
 			writeDocBlock(&b, desc)
 			b.WriteString("export const " + s.name + " = " + s.sig + "\n\n")
+		case "decl":
+			b.WriteString(s.sig + "\n\n")
 		}
 	}
 
@@ -464,6 +466,25 @@ func trimBlankEdges(lines []string) []string {
 }
 
 // runAPIMode implements `gaddoc api <srcDir> <outFile> <module>`.
+// API is the API stub (`gaddoc api`) of the module documented by the
+// gad:doc comments of the Go package in srcDir, and the warnings of its
+// emitter.
+func API(srcDir, module string) (string, []string, error) {
+	moduleFilter = module
+	dg, err := apiDocgroup(srcDir)
+	if err != nil {
+		return "", nil, err
+	}
+	var sf *sampleFile
+	if dg.samplesPath != "" {
+		if sf, err = parseSampleFile(dg.samplesPath); err != nil {
+			return "", nil, fmt.Errorf("read samples %q: %w", dg.samplesPath, err)
+		}
+	}
+	src, warnings := emitAPIGad(dg, sf)
+	return src, warnings, nil
+}
+
 func runAPIMode(srcDir, outFile, module string) error {
 	moduleFilter = module
 	dg, err := apiDocgroup(srcDir)

@@ -8,4 +8,5 @@
 
 ## Subdirectories
 
+- [gomodule](gomodule/README.md)
 - [plugins](plugins/README.md)

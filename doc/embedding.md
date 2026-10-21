@@ -442,6 +442,80 @@ opts.ModuleMap = gad.NewModuleMap().
     AddSourceModuleKind("page", []byte(`{% export title = "Hi" %}`), gad.SourceKindGadt)
 ```
 
+### Modules written in Gad, shipped in Go (`gad gomodule`)
+
+A module written in Gad can be made a builtin module of a Go package: imported
+by name (`import("shapes")`) like `strings` or `json`, already compiled, with
+its API documented as gad's own builtin modules are.
+
+```sh
+gad gomodule --out shapes [--pkg NAME] [--module NAME] [--api FILE] [--import a,b] shapes.gad
+```
+
+writes into the package directory:
+
+- `shapes.gadb` — the module compiled once (`encoder.CompileModuleWith`, with
+  the default builtins and the builtin modules: a module that imports a file
+  is refused, the host could not resolve it). Imported, it is linked into the
+  program, not compiled again.
+- `shapes.go` — the package: `ModuleName`, the bytecode (`//go:embed`),
+  `Module()` (the importable, an `encoder.GoModule`), `AddTo(mm)`, `Imports`,
+  the `Init` hook, a `//go:generate` line that makes the package again
+  (`go generate`) and the module's docs as `gad:doc` comments: the file's
+  leading `/** … **/`, each exported function's signature and doc
+  (`## Functions`) and every other export — classes, interfaces, enums,
+  constants — as written, its bodies `nil` (`## Declarations`).
+- `shapes_test.go` — links the module in a program of the default builtins.
+- the API stub (`--api`, default `shapes/shapes.gad`): what `gaddoc api` makes
+  of the package's `gad:doc`, so `gad doc` renders it.
+
+```go
+mm := shapes.AddTo(helper.NewModuleMap())
+```
+
+**The Go init.** A hand-written file of the package (never overwritten) may set
+`Init`: it runs once per import, in the VM that imports the module, **after** the
+gad part. Its `*gad.ModuleInitContext` gives the VM (`VM()`), the module's spec
+(`Spec()`), the gad part's exports (`Self()`, `Get(name)`) and `Import(name)` —
+a module, as `import(name)` gives it: one the gad part imports, or one declared
+(`--import`, or a `//gad:import NAME[,NAME]` line in a Go file of the package);
+any other is a `NotImportableError`. What it returns is exported beside the gad
+part's exports; a name of both is an error, unless the init replaces it
+(`ctx.Replace(name, obj)`). Its objects are documented by `gad:doc` comments of
+its own file (a `# shapes module` header, `## Declarations`), merged into the
+API stub.
+
+```go
+//gad:import strings
+
+func init() {
+	Init = func(ctx *gad.ModuleInitContext) (gad.Dict, error) {
+		base, err := ctx.Get("Shape") // a class of the gad part
+		if err != nil {
+			return nil, err
+		}
+		strs, err := ctx.Import("strings")
+		if err != nil {
+			return nil, err
+		}
+		cls := gad.NewClass("GoShape", ctx.Spec())
+		cls.Extends(base.(*gad.Class), "")
+		err = cls.AddGoMethod("label", func(c gad.Call) (gad.Object, error) {
+			name, err := c.Args.Get(0).(gad.IndexGetter).IndexGet(c.VM, gad.Str("name"))
+			if err != nil {
+				return nil, err
+			}
+			return strs.Call(c.VM, "toUpper", name)
+		})
+		return gad.Dict{"GoShape": cls}, err
+	}
+}
+```
+
+The whole example: `samples/modules/gomodule/` (`shapes.gad`, the package
+`shapes/` and its `init.go`). A program compiled with such a module keeps its
+Go init only in the process: it is not written into a `.gadb` of the program.
+
 ## Type unions and interfaces from Go
 
 A Go host can build **types** — type unions and interfaces — and expose them to a

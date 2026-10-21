@@ -130,6 +130,7 @@ func buildRootCommand() *cc.Command {
 	root.Sub(doctestCommand())
 	root.Sub(testCommand())
 	root.Sub(gomodCommand())
+	root.Sub(gomoduleCommand())
 	for _, f := range optionalCommands {
 		root.Sub(f())
 	}

@@ -4353,6 +4353,17 @@ func (c *Compiler) compileImportModule(nd *node.ImportExpr, moduleName string, a
 			if err = c.linkModule(nd, spec, v); err != nil {
 				return err
 			}
+		case *LinkedModule:
+			// a module compiled on its own with a Go init (issue #17): linked,
+			// its declared imports imported with it
+			spec.URL = url
+			moduleStoreEntry = c.addModule(1, spec)
+			if err = c.linkModule(nd, spec, v.Bytecode); err != nil {
+				return err
+			}
+			if err = c.linkGoImports(nd, spec, v); err != nil {
+				return err
+			}
 		case BuiltinCompileModuleFunc:
 			var (
 				st = NewSymbolTable(c.symbolTable.builtins).

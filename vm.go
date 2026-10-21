@@ -1127,6 +1127,23 @@ func (vm *VM) xOpInitModule() (err error) {
 	ptr := &vm.stack[vm.sp-numArgs-kwCount-1]
 	module := (*ptr).(*Module)
 
+	// a module with a Go init (issue #17): its gad part, then the init
+	if module.Spec.GoInit != nil {
+		if numArgs > 0 || kwCount > 0 {
+			return ErrType.NewErrorf("module %s: takes no init arguments", module.Spec.Name)
+		}
+		if cf := module.Spec.InitCompiledFunc; cf != nil {
+			if _, err = vm.callCompiledInline(cf, Args{}, NewNamedArgs(), false); err != nil {
+				return
+			}
+		}
+		if err = vm.runGoInit(module); err != nil {
+			return
+		}
+		vm.ip += 2
+		return
+	}
+
 	curFrame := vm.curFrame
 
 	if err = vm.xOpCallAny(module.Spec.InitFunc(module), numArgs, flags); err != nil {
