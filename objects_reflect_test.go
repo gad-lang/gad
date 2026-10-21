@@ -639,7 +639,7 @@ func TestReflect_ToString(t *testing.T) {
 		require.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
 
 		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeDescending)})
-		require.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
+		require.Equal(t, "{\n\tF2: 0,\n\tF1: 0\n}", s)
 
 		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeAscending), "anonymous": Yes})
 		require.Equal(t, "{\n\tA,\n\tF1: 0,\n\tF2: 0\n}", s)
@@ -686,15 +686,15 @@ func TestReflect_ToString(t *testing.T) {
 	t.Run("map", func(t *testing.T) {
 		options := Dict{PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeDescending)}
 		s := toStr(t, d1, options)
-		require.Equal(t, "{a: {}, i: 2}", s)
+		require.Equal(t, "{i: 2, a: {}}", s)
 
 		options[PrintStateOptionZeros] = Yes
 		s = toStr(t, d1, options)
-		require.Equal(t, "{a: {F1: 0}, i: 2}", s)
+		require.Equal(t, "{i: 2, a: {F1: 0}}", s)
 
 		options[PrintStateOptionIndent] = Yes
 		s = toStr(t, d1, options)
-		require.Equal(t, "{\n\ta: {\n\t\tF1: 0\n\t},\n\ti: 2\n}", s)
+		require.Equal(t, "{\n\ti: 2,\n\ta: {\n\t\tF1: 0\n\t}\n}", s)
 	})
 
 	t.Run("printable", func(t *testing.T) {

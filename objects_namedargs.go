@@ -258,8 +258,10 @@ func (o *KeyValue) Print(state *PrinterState) (err error) {
 			state.WriteString("no")
 			return nil
 		}
-		state.QuoteNextStr(0)
+		// the value as its literal (`[a="x"]`), not around it (#25)
+		restore := state.options.WithBackup(PrintStateOptionQuoteStr, Yes)
 		state.Print(o.V)
+		restore()
 	}
 	return nil
 }

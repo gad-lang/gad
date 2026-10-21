@@ -212,13 +212,6 @@ func (o *Regexp) Equal(right Object) bool {
 	}
 }
 
-func (o *Regexp) Print(state *PrinterState) error {
-	if state.IsRepr {
-		defer state.WrapRepr(o)()
-	}
-	return state.WriteString(o.Go().String())
-}
-
 type RegexpStrsResult []string
 
 func (o RegexpStrsResult) IsFalsy() bool {

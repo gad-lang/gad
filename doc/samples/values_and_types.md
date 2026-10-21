@@ -43,7 +43,7 @@ The same holds for the other kinds — `uint`, `decimal` (arbitrary precision),
 
 ```gad
 [uint(3), decimal("1.10") + decimal("2.2"), rawstr("a\\b"), typeName(rawstr("x")), array(1, "a"), bool(0), bool("x")]
-= [3u, 3.3d, `a\b`, "rawstr", [1, "a"], false, true]
+= [3u, 3.30d, `a\b`, "rawstr", [1, "a"], false, true]
 ```
 
 ## Type checks
@@ -173,7 +173,7 @@ example constructors {
 
 example constructors_more {
     [uint(3), decimal("1.10") + decimal("2.2"), rawstr("a\\b"), typeName(rawstr("x")), array(1, "a"), bool(0), bool("x")]
-    = [3u, 3.3d, `a\b`, "rawstr", [1, "a"], false, true]
+    = [3u, 3.30d, `a\b`, "rawstr", [1, "a"], false, true]
 }
 
 example type_checks {

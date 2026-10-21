@@ -1737,7 +1737,7 @@ func TestVMRegexpReplace(t *testing.T) {
 		nil, Str("ab:ba cd:dc"))
 	// the named arg `re` is the regexp itself
 	testExpectRun(t, `r := /\d+/; return r.replace("a12 b3", func(whole; re) { return "<" + str(re) + ">" })`,
-		nil, Str("a<\\d+> b<\\d+>"))
+		nil, Str("a</\\d+/> b</\\d+/>"))
 	// bytes subject -> bytes result
 	testExpectRun(t, `r := /o/; return str(r.replace(bytes("foo"), "0"))`,
 		nil, Str("f00"))

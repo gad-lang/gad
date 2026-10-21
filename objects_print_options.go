@@ -60,9 +60,12 @@ func (o PrinterStateOptions) WithIndent() PrinterStateOptions {
 func (o PrinterStateOptions) MaxDepth() (v int64, ok bool) {
 	var vo Object
 	if vo, ok = o[PrintStateOptionMaxDepth]; ok {
-		var vi Int
-		vi, _ = vo.(Int)
-		v = int64(vi)
+		switch t := vo.(type) {
+		case Int:
+			v = int64(t)
+		case Uint:
+			v = int64(t)
+		}
 	}
 	return
 }
@@ -96,9 +99,7 @@ func (o PrinterStateOptions) WithTrimEmbedPath(v Array) PrinterStateOptions {
 func (o PrinterStateOptions) Raw() (v bool, ok bool) {
 	var vo Object
 	if vo, ok = o[PrintStateOptionRaw]; ok {
-		var vb Bool
-		vb, _ = vo.(Bool)
-		v = bool(vb)
+		v = !vo.IsFalsy()
 	}
 	return
 }
@@ -177,12 +178,24 @@ func (o PrinterStateOptions) WithIndexes() PrinterStateOptions {
 	return o
 }
 
+// SortKeys is the order of a dict's keys: `sortKeys=gad.SortOrder.desc` (a
+// member of gad.SortOrder), `sortKeys` (or any true value) ascending; from Go,
+// the PrintStateOptionSortType number.
 func (o PrinterStateOptions) SortKeys() (v PrintStateOptionSortType, ok bool) {
 	var vo Object
-	if vo, ok = o[PrintStateOptionIndexes]; ok {
-		var vi Int
-		vi, _ = vo.(Int)
-		v = PrintStateOptionSortType(vi)
+	if vo, ok = o[PrintStateOptionSortKeys]; ok {
+		switch t := vo.(type) {
+		case *EnumValue:
+			if i, isInt := t.Value.(Int); isInt {
+				v = PrintStateOptionSortType(i)
+			}
+		case Int:
+			v = PrintStateOptionSortType(t)
+		default:
+			if !vo.IsFalsy() {
+				v = PrintStateOptionSortTypeAscending
+			}
+		}
 	}
 	return
 }
@@ -193,7 +206,7 @@ func (o PrinterStateOptions) IsSortKeys() (v PrintStateOptionSortType) {
 }
 
 func (o PrinterStateOptions) SetSortKeys(v PrintStateOptionSortType) {
-	o[PrintStateOptionIndexes] = Int(v)
+	o[PrintStateOptionSortKeys] = Int(v)
 }
 
 func (o PrinterStateOptions) SetTypesAsFullNames(v bool) {
@@ -259,9 +272,7 @@ func (o PrinterStateOptions) WithBytesToHex() {
 func (o PrinterStateOptions) QuoteStr() (v bool, ok bool) {
 	var vo Object
 	if vo, ok = o[PrintStateOptionQuoteStr]; ok {
-		var vb Bool
-		vb, _ = vo.(Bool)
-		v = bool(vb)
+		v = !vo.IsFalsy()
 	}
 	return
 }

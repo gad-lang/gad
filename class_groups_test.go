@@ -30,7 +30,7 @@ func TestClassGroups(t *testing.T) {
 		return [sort(collect(keys(C.@fields))), str(c)]`,
 		nil, Array{
 			Array{Str("$1"), Str("$2"), Str("a"), Str("z")},
-			Str("‹class instance of ‹(main).C›: {z: 1, $1: nil, a: 2, $2: nil}›"),
+			Str("‹class instance of ‹(main).C›: {z: \"1\", $1: nil, a: \"2\", $2: nil}›"),
 		})
 
 	// a group's field holds an instance of the group's class, by its name

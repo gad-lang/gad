@@ -929,7 +929,7 @@ func TestVMKeyValueArray(t *testing.T) {
 
 func TestVMRegexp(t *testing.T) {
 	re := `"a([bc])"`
-	testExpectRun(t, `return repr(regexp(`+re+`))`, nil, Str(ReprQuote("regexp: a([bc])")))
+	testExpectRun(t, `return repr(regexp(`+re+`))`, nil, Str(ReprQuote("regexp: /a([bc])/")))
 	testExpectRun(t, `re := regexp(`+re+`); return [
 	re ~ "ab", 
 	re ~ `+"`ab`"+`, 
@@ -2333,9 +2333,9 @@ return repr([
 		fields: ‹dict: {}›,
 		methods: ‹dict: {}›,
 		new: ‹ClassConstructor: ‹class constructor of ‹(main).Point› with 3 methods: [
-			0 🠆 ⨍(any) 🠆 ‹compiledFunction: (main).#1(new any; **fields)›,
-			1 🠆 ⨍(any, any) 🠆 ‹compiledFunction: (main).#3(new any, x any)›,
-			2 🠆 ⨍(any, any, any) 🠆 ‹compiledFunction: (main).#2(new any, x any, y any)›
+			⨍(any) 🠆 ‹compiledFunction: (main).#1(new any; **fields)›,
+			⨍(any, any) 🠆 ‹compiledFunction: (main).#3(new any, x any)›,
+			⨍(any, any, any) 🠆 ‹compiledFunction: (main).#2(new any, x any, y any)›
 		]››,
 		props: ‹dict: {}›
 	}›,
@@ -2456,8 +2456,8 @@ Point := Class(
 		y: nil
 	}›,
 	‹class instance of ‹(main).Point›: {
-		x: ‹uint: 1›,
-		y: ‹uint: 2›
+		x: ‹uint: 1u›,
+		y: ‹uint: 2u›
 	}›
 ]›`))
 
@@ -2699,7 +2699,7 @@ return [
 			Str("m2,int=1,int=2,*args=[3, 4]"),
 			Str("m4,int=1,bool=true,*args=[]"),
 			Str("m4,int=1,bool=true,*args=[2]"),
-			Str("m1,int=1,*args=[true, 2, on, 1.5]"),
+			Str("m1,int=1,*args=[true, 2, yes, 1.5]"),
 		})
 
 	testExpectRun(t, `
@@ -3098,7 +3098,7 @@ func TestVMForIn(t *testing.T) {
 			r += keyValue("else", true) 
 		}; 
 		r += keyValue("done", yes)
-		return str(r)`, nil, Str("(;0=a, 1=b, 2=c, done)"))
+		return str(r)`, nil, Str("(;0='a', 1='b', 2='c', done)"))
 	testExpectRun(t, `var r = (;); 
 		for k, v in bytes("") { 
 			r += keyValue(k, char(v)) 

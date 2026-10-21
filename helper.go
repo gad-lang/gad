@@ -1,27 +1,25 @@
 package gad
 
 import (
-	"fmt"
 	"io"
 	"reflect"
-	"strconv"
 	"strings"
 	"unsafe"
 
 	"github.com/gad-lang/gad/repr"
 )
 
+// ToCode is o as gad code writes it — its literal (#25): `"a"`, `2u`,
+// `2.0`, `'a'`, `bytes("ab")`, `Color.red` —, what the Go-side ToString of a
+// collection shows of its items.
 func ToCode(o Object) string {
-	switch v := o.(type) {
-	case Str:
-		return strconv.Quote(v.ToString())
-	case Char:
-		return strconv.QuoteRune(rune(v))
-	case Bytes:
-		return fmt.Sprint([]byte(v))
-	default:
-		return v.ToString()
+	var sb strings.Builder
+	s := NewPrinterState(nil, &sb)
+	s.options.WithQuoteStr()
+	if err := s.Print(o); err != nil {
+		return o.ToString()
 	}
+	return sb.String()
 }
 
 func ObjectsStrW(w io.Writer, vm *VM, len int, get func(i int) Object) (err error) {

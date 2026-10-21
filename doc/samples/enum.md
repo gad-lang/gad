@@ -37,7 +37,7 @@ enum Perm {
 }
 
 [Perm.Read.value, Perm.Write.value, Perm.Exec.value, Perm.Delete.value]
-= [1, 2, 10, 11]
+= [1u, 2u, 10, 11]
 ```
 
 A field without an explicit `= value` takes the previous magnitude **+ 1** (or
@@ -49,7 +49,7 @@ to later defaulted fields):
 ```gad
 Values := enum { Read, Write, Exec = 10, Delete }
 [Values.Read.value, Values.Exec.value, Values.Delete.value]
-= [1, 10, 11]
+= [1u, 10, 11]
 ```
 
 ## Signs
@@ -100,7 +100,7 @@ enum Flags {
     Read = List | Detail
 }
 [Flags.Create.value, Flags.Read.value]
-= [4, 3]
+= [4u, 3u]
 ```
 
 ## The `_` placeholder
@@ -112,7 +112,7 @@ it can be used to skip values:
 Skip1 := enum { _, Read, Write }        // Read = 2, Write = 3
 Skip2 := enum { Read, _ = 6, Write }    // Read = 1, Write = 7
 [Skip1.Read.value, Skip1.Write.value, Skip2.Read.value, Skip2.Write.value]
-= [2, 3, 1, 7]
+= [2u, 3u, 1u, 7]
 ```
 
 ## Using an enum
@@ -171,9 +171,9 @@ println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sor
 println(dict(Bulk))       // same name -> value mapping
 <<<
 ["Read", "Write", "Exec"]
-[1, 2, 10]
-{Exec: 10, Read: 1, Write: 2}
-{Exec: 10, Read: 1, Write: 2}
+[1u, 2u, 10]
+{Exec: 10, Read: 1u, Write: 2u}
+{Exec: 10, Read: 1u, Write: 2u}
 >>>
 ```
 
@@ -192,7 +192,7 @@ member reflects too: `@name`, `@value`, `@index` (its position) and `@enum`
     [[m.@name, m.@value, m.@index] for m in Room.@items],
     Room.Bath.@enum.@name,
 ]
-= ["Room", "(;label=\"Rooms\")", [["Kitchen", 1, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"]
+= ["Room", "(;label=\"Rooms\")", [["Kitchen", 1u, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"]
 ```
 
 ## Enums as types
@@ -259,13 +259,13 @@ example define {
     }
 
     [Perm.Read.value, Perm.Write.value, Perm.Exec.value, Perm.Delete.value]
-    = [1, 2, 10, 11]
+    = [1u, 2u, 10, 11]
 }
 
 example values {
     Values := enum { Read, Write, Exec = 10, Delete }
     [Values.Read.value, Values.Exec.value, Values.Delete.value]
-    = [1, 10, 11]
+    = [1u, 10, 11]
 }
 
 example signed {
@@ -306,14 +306,14 @@ example flags {
         Read = List | Detail
     }
     [Flags.Create.value, Flags.Read.value]
-    = [4, 3]
+    = [4u, 3u]
 }
 
 example placeholder {
     Skip1 := enum { _, Read, Write }        // Read = 2, Write = 3
     Skip2 := enum { Read, _ = 6, Write }    // Read = 1, Write = 7
     [Skip1.Read.value, Skip1.Write.value, Skip2.Read.value, Skip2.Write.value]
-    = [2, 3, 1, 7]
+    = [2u, 3u, 1u, 7]
 }
 
 example iterate {
@@ -357,9 +357,9 @@ example bulk {
 }
 <<<
 ["Read", "Write", "Exec"]
-[1, 2, 10]
-{Exec: 10, Read: 1, Write: 2}
-{Exec: 10, Read: 1, Write: 2}
+[1u, 2u, 10]
+{Exec: 10, Read: 1u, Write: 2u}
+{Exec: 10, Read: 1u, Write: 2u}
 >>>
 
 example reflect {
@@ -370,7 +370,7 @@ example reflect {
         [[m.@name, m.@value, m.@index] for m in Room.@items],
         Room.Bath.@enum.@name,
     ]
-    = ["Room", "(;label=\"Rooms\")", [["Kitchen", 1, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"]
+    = ["Room", "(;label=\"Rooms\")", [["Kitchen", 1u, 0], ["Bath", 5, 1], ["Garage", 6, 2]], "Room"]
 }
 
 example as_types {

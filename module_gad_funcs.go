@@ -91,6 +91,19 @@ func newSourceTypeEnum() *Enum {
 	return e
 }
 
+// SortOrderEnum is the builtin `enum SortOrder (asc, desc)` exposed as
+// gad.SortOrder: the order of the `sortKeys` printing option
+// (`str(d; sortKeys=gad.SortOrder.desc)`), its values the
+// PrintStateOptionSortType ones.
+var SortOrderEnum = newSortOrderEnum()
+
+func newSortOrderEnum() *Enum {
+	e := NewEnum("SortOrder", gadModuleSpec)
+	e.AddValue("asc", Int(PrintStateOptionSortTypeAscending))
+	e.AddValue("desc", Int(PrintStateOptionSortTypeDescending))
+	return e
+}
+
 // sourceKindFromArg reads a gad.SourceType member (or a plain int) into a
 // SourceKind, defaulting to SourceKindGad when the argument is nil.
 func sourceKindFromArg(o Object) (SourceKind, error) {

@@ -34,7 +34,7 @@ g := grid([1, 2], [3])
 type board [2][2]str
 b := board(; fill=".")                     // by its dimensions
 [typeName(n), str(n), u[0].name, str(g), str(b)]
-= ["numerics", "numerics[1, 2.5, 3]", "ana", "grid[[1, 2], [3]]", "board[[\".\", \".\"], [\".\", \".\"]]"]
+= ["numerics", "numerics[1, 2.5, 3u]", "ana", "grid[[1, 2], [3]]", "board[[\".\", \".\"], [\".\", \".\"]]"]
 ```
 
 ```gad
@@ -205,7 +205,7 @@ example declare {
     type board [2][2]str
     b := board(; fill=".")                     // by its dimensions
     [typeName(n), str(n), u[0].name, str(g), str(b)]
-    = ["numerics", "numerics[1, 2.5, 3]", "ana", "grid[[1, 2], [3]]", "board[[\".\", \".\"], [\".\", \".\"]]"]
+    = ["numerics", "numerics[1, 2.5, 3u]", "ana", "grid[[1, 2], [3]]", "board[[\".\", \".\"], [\".\", \".\"]]"]
 }
 
 example behaves_as_array {

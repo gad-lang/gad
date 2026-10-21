@@ -14,7 +14,7 @@ func TestTypedArrayConstruct(t *testing.T) {
 		type numerics []<int|uint|float>
 		n := numerics(1, 2.5, 3u)
 		return [typeName(n), len(n), n[0], n[-1], str(n)]`,
-		nil, Array{Str("numerics"), Int(3), Int(1), Uint(3), Str("numerics[1, 2.5, 3]")})
+		nil, Array{Str("numerics"), Int(3), Int(1), Uint(3), Str("numerics[1, 2.5, 3u]")})
 
 	// A wrong item is rejected by the constructor.
 	testExpectRun(t, `

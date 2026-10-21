@@ -115,9 +115,7 @@ func binCmpAfterNil(tok token.Token, self, right Object) (Object, error) {
 	return nil, NewOperandTypeError(tok.String(), self.Type().Name(), right.Type().Name())
 }
 
+// Print writes `nil`: its text, its literal and its repr alike.
 func (o *NilType) Print(state *PrinterState) error {
-	if state.IsRepr {
-		return state.WriteString(ReprQuote("nil"))
-	}
 	return state.WriteString("nil")
 }

@@ -341,6 +341,10 @@ const (
 	// (NewContractFunc). Appended after every earlier builtin, so existing
 	// builtin indexes do not shift.
 	BuiltinContract
+	// BuiltinSortOrder is `gad.SortOrder`, the enum (asc, desc) of the
+	// `sortKeys` printing option (#25). Appended after every earlier builtin,
+	// so existing builtin indexes do not shift.
+	BuiltinSortOrder
 
 	BuiltinEnd_
 )

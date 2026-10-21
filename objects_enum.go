@@ -339,20 +339,30 @@ func (e *EnumValue) ToString() string {
 	return e.Value.ToString()
 }
 
-// Print writes the member as its plain value (str/print) or, in repr mode, as
-// the detailed form `‹enum ‹FullName›: Name = ‹int|uint: value››`.
+// Print writes the member: its value as its text (str/print); as gad code
+// writes it as its literal, inside a collection (`Color.red`,
+// `gad.SortOrder.desc`); in repr mode, in detail —
+// `‹enum ‹FullName›: red = ‹uint: 1u››`.
 func (e *EnumValue) Print(s *PrinterState) error {
 	if !s.IsRepr {
+		if s.IsLiteral() {
+			return s.WriteString(e.Code())
+		}
 		return s.Print(e.Value)
 	}
-	typName := "uint"
-	if e.IsInt() {
-		typName = "int"
+	defer s.WrapReprString("enum " + ReprQuote(e.Enum.FullName()))()
+	s.WriteString(e.Name + " = ")
+	return s.Print(e.Value)
+}
+
+// Code is the member as gad code writes it: `Color.red`, a builtin enum's
+// with its namespace (`gad.SortOrder.desc`).
+func (e *EnumValue) Code() string {
+	name := e.Enum.EnumName
+	if e.Enum.Module == gadModuleSpec {
+		name = "gad." + name
 	}
-	return s.WriteString(ReprQuoteTyped(
-		"enum "+ReprQuote(e.Enum.FullName()),
-		e.Name+" = "+ReprQuoteTyped(typName, e.Value.ToString()),
-	))
+	return name + "." + e.Name
 }
 
 func (e *EnumValue) Equal(right Object) bool {

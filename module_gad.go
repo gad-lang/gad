@@ -23,6 +23,7 @@ func GadModule() Dict {
 		"StmtsObject":      StmtsType,
 		"StmtObject":       StmtType,
 		"SourceType":       SourceTypeEnum,
+		"SortOrder":        SortOrderEnum,
 		"SourceFileObject": SourceFileType,
 		"Env":              EnvType,
 		// Non-literal meta/structural type objects (no source literal of their
@@ -74,6 +75,8 @@ func registerGadModule() {
 	BuiltinsMap[name+".StmtsObject"] = BuiltinStmts
 	BuiltinsMap[name+".StmtObject"] = BuiltinStmt
 	BuiltinsMap[name+".SourceType"] = BuiltinSourceType
+	BuiltinObjects[BuiltinSortOrder] = SortOrderEnum
+	BuiltinsMap[name+".SortOrder"] = BuiltinSortOrder
 	BuiltinsMap[name+".SourceFileObject"] = BuiltinSourceFile
 	BuiltinsMap[name+".Env"] = BuiltinEnvType
 

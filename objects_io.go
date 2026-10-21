@@ -2,11 +2,11 @@ package gad
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"strconv"
 
-	"github.com/dustin/go-humanize"
 )
 
 type ToWriter interface {
@@ -231,11 +231,19 @@ func (o *Buffer) WriteTo(_ *VM, w io.Writer) (int64, error) {
 	return io.Copy(w, &o.Buffer)
 }
 
-func (o *Buffer) Print(state *PrinterState) error {
-	return state.WithRepr(func(s *PrinterState) (err error) {
-		defer s.WrapRepr(o)()
-		return s.WriteString(humanize.Bytes(uint64(o.Len())))
-	})
+// Print writes the buffer's content; in repr mode, its size and its content
+// as hex: `‹buffer(5 B): h"68656c6c6f"›`.
+func (o *Buffer) Print(state *PrinterState) (err error) {
+	if !state.IsRepr {
+		_, err = state.Write(o.Bytes())
+		return
+	}
+	defer state.WrapRepr(o)()
+	state.WriteString("h\"")
+	if _, err = hex.NewEncoder(state).Write(o.Bytes()); err == nil {
+		err = state.WriteString("\"")
+	}
+	return
 }
 
 type discardWriter struct {

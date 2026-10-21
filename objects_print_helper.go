@@ -1,7 +1,6 @@
 package gad
 
 import (
-	"encoding/hex"
 	"fmt"
 	"io"
 	"sort"
@@ -122,17 +121,12 @@ func (s *PrinterState) PrintKeySafe(safe bool, o Object) (err error) {
 				defer s.WrapRepr(o)()
 			}
 			_, err = s.Write([]byte(t.Quoted()))
-		case Int, Uint, Float, Decimal, Bool, Flag:
-			if !safe && s.IsRepr {
-				defer s.WrapRepr(o)()
+		case Int, Uint, Float, Decimal, Bool, Flag, Char, Bytes:
+			if safe && s.IsRepr {
+				// a key of a dict: its literal, not wrapped
+				return s.WithoutRepr(func(s *PrinterState) error { return t.(Printabler).Print(s) })
 			}
-			_, err = s.Write([]byte(t.ToString()))
-		case Bytes:
-			if !safe && s.IsRepr {
-				defer s.WrapRepr(o)()
-			}
-
-			err = t.ToStringF(s)
+			err = t.(Printabler).Print(s)
 		case Printabler:
 			err = t.Print(s)
 		default:
@@ -153,46 +147,11 @@ func (s *PrinterState) PrintKeySafe(safe bool, o Object) (err error) {
 
 func (s *PrinterState) Print(o Object) (err error) {
 	return s.DoVisit(o, func() (err error) {
-	try:
+		// every value through its own Print (#25): its text, its literal or
+		// its repr, as the state asks
 		switch t := o.(type) {
-		case Str:
-			if s.IsRepr {
-				defer s.WrapRepr(o)()
-				_, err = s.Write([]byte(t.Quoted()))
-			} else if s.options.IsQuoteStr() {
-				_, err = s.Write([]byte(t.Quoted()))
-			} else {
-				_, err = s.Write([]byte(t))
-			}
-		case RawStr:
-			if s.IsRepr {
-				defer s.WrapRepr(o)()
-				_, err = s.Write([]byte(t.Quoted()))
-			} else if s.options.IsQuoteStr() {
-				_, err = s.Write([]byte(t.Quoted()))
-			} else {
-				_, err = s.Write([]byte(t))
-			}
-		case Char, Int, Uint, Float, Decimal, Bool, Flag, *NilType:
-			if s.IsRepr {
-				defer s.WrapRepr(o)()
-			}
-			_, err = s.Write([]byte(t.ToString()))
-		case *Buffer:
-			if s.IsRepr {
-				defer s.WrapRepr(o)()
-				s.WriteString("h\"")
-				if _, err = hex.NewEncoder(s).Write(t.Bytes()); err == nil {
-					err = s.WriteString("\"")
-				}
-			} else {
-				_, err = s.Write(t.Bytes())
-			}
 		case Printabler:
 			err = t.Print(s)
-		case *Error:
-			o = Str(o.ToString())
-			goto try
 		default:
 			if s.VM == nil {
 				if s.IsRepr {

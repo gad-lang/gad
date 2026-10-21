@@ -623,11 +623,6 @@ func (o Str) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, format, string(o))
 }
 
-func (o Str) Print(state *PrinterState) error {
-	state.WriteString(strconv.Quote(string(o)))
-	return nil
-}
-
 // Bytes represents byte slice and implements Object interface.
 type Bytes []byte
 
@@ -843,18 +838,6 @@ func (o Bytes) WriteTo(_ *VM, w io.Writer) (int64, error) {
 func (o Bytes) ToStringF(w io.Writer) (err error) {
 	if _, err = w.Write([]byte{'0', 'x'}); err == nil {
 		_, err = hex.NewEncoder(w).Write(o)
-	}
-	return
-}
-
-func (o Bytes) Print(state *PrinterState) (err error) {
-	if state.IsRepr {
-		defer state.WrapRepr(o)()
-		fmt.Fprintf(state, "len=%d", len(o))
-	} else if state.options.IsBytesToHex() {
-		err = o.ToStringF(state)
-	} else {
-		_, err = state.Write(o)
 	}
 	return
 }
@@ -1388,7 +1371,6 @@ func (o Array) Print(state *PrinterState) (err error) {
 	if state.IsRepr {
 		defer state.WrapReprString(TArray.Name())()
 	}
-	state.QuoteNextStr(1)
 	return o.PrintObject(state, nil)
 }
 

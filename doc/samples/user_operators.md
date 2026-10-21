@@ -31,7 +31,7 @@ concrete type; object identity for non-primitives), customizable via
     [0 || "fallback", "x" && "y"],         // logical ops return an operand
     ["ab" + "c", [1] + 2],                 // + concatenates / appends
 ]
-= [[3, 1, 1024, -3], [2, 7, 5, 4], [16, 64, -6], ["fallback", "y"], ["abc", [1, 2]]]
+= [[3, 1, 1024d, -3], [2, 7, 5, 4], [16, 64, -6], ["fallback", "y"], ["abc", [1, 2]]]
 ```
 
 ## Ranges, ternary, nullish
@@ -194,7 +194,7 @@ example binary_ops {
         [0 || "fallback", "x" && "y"],         // logical ops return an operand
         ["ab" + "c", [1] + 2],                 // + concatenates / appends
     ]
-    = [[3, 1, 1024, -3], [2, 7, 5, 4], [16, 64, -6], ["fallback", "y"], ["abc", [1, 2]]]
+    = [[3, 1, 1024d, -3], [2, 7, 5, 4], [16, 64, -6], ["fallback", "y"], ["abc", [1, 2]]]
 }
 
 example nullish {

@@ -165,14 +165,14 @@ func (s *PrinterState) Update() *PrinterState {
 
 func (s *PrinterState) ParseOptions(na *NamedArgs) *PrinterState {
 	var (
-		maxDepth, _   = na.GetValue(PrintStateOptionMaxDepth).(Int)
+		maxDepth, _   = PrinterStateOptions{PrintStateOptionMaxDepth: na.GetValue(PrintStateOptionMaxDepth)}.MaxDepth()
 		indent        = na.GetValue(PrintStateOptionIndent)
 		trimEmbedPath = na.GetValue(PrintStateOptionTrimEmbedPath)
 	)
 
 	options := PrinterStateOptions(na.unreadDict())
 	options.SetRaw(!na.GetValue(PrintStateOptionRaw).IsFalsy())
-	options.SetMaxDepth(int64(maxDepth))
+	options.SetMaxDepth(maxDepth)
 
 	switch t := trimEmbedPath.(type) {
 	case Array:
