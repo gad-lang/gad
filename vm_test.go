@@ -2301,12 +2301,7 @@ return str([
 ]; indent)
 `,
 		nil, Str(`[
-	‹class (main).Point: {
-		fields: {},
-		methods: {},
-		new: ‹class constructor of ‹(main).Point› with 3 methods›,
-		props: {}
-	}›,
+	Point,
 	Point(;
 		x=10,
 		y=20

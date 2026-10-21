@@ -195,6 +195,8 @@ func (o Celsius) Print(state *gad.PrinterState) error {
   `typesAsFullNames`. A boolean option is any true value (`yes`, `true`).
 - A key of a dict prints by `state.PrintKey`: an identifier as it is, any
   other text quoted.
+- A type in a collection prints its name, the code that names it (`[int,
+  time.cdate, P]`); alone, its description (`‹builtin type ‹int› …›`).
 - A value of a declared type prints by its name: a class instance `P{x: 1}`,
   its literal the constructor's call `P(;x=1)`, its repr `‹P: {x: ‹int: 1›}›`;
   its nil and zero fields only with `zeros`, the class's full name with

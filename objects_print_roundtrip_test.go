@@ -118,3 +118,12 @@ return [str(p), str([p]), repr(p), str(p; zeros), str(p; typesAsFullNames)]`).(g
 		gad.Str(`P{x: 1, y: nil, name: nil}`), gad.Str(`(main).P{x: 1}`),
 	}, r)
 }
+
+// A type in a collection prints its name — the code that names it.
+func TestPrintTypeLiteral(t *testing.T) {
+	r := evalReturn(t, `
+class P { x int }
+type ints []int
+return [str([int, str, P, ints, time.cdate, int|str, any]), str([P]; typesAsFullNames)]`).(gad.Array)
+	require.Equal(t, gad.Array{gad.Str(`[int, str, P, ints, time.cdate, int|str, any]`), gad.Str(`[(main).P]`)}, r)
+}

@@ -149,6 +149,12 @@ func (s *PrinterState) Print(o Object) (err error) {
 	return s.DoVisit(o, func() (err error) {
 		// every value through its own Print (#25): its text, its literal or
 		// its repr, as the state asks
+		if t, ok := o.(ObjectType); ok && s.IsLiteral() && !s.IsRepr {
+			if name := typeLiteral(s, t); name != "" {
+				// a type in a collection: its name, as code names it
+				return s.WriteString(name)
+			}
+		}
 		switch t := o.(type) {
 		case Printabler:
 			err = t.Print(s)
@@ -398,4 +404,14 @@ func (b *PrintBuilder) MustString(o ...Object) string {
 		panic(err)
 	}
 	return s
+}
+
+// typeLiteral is the gad code that names the type t: a builtin type by its
+// name in its namespace (`int`, `time.cdate`), a declared one by its name
+// (`P`, `ints`; its full name with typesAsFullNames); "" when it has none.
+func typeLiteral(s *PrinterState, t ObjectType) string {
+	if _, ok := t.(*BuiltinObjType); ok || s.options.IsTypesAsFullNames() {
+		return t.FullName()
+	}
+	return t.Name()
 }
