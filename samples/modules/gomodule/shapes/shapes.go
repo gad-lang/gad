@@ -30,17 +30,6 @@ import (
 // A host registers it: `shapes.AddTo(mm)`; a program imports it by name:
 // `import("shapes")`.
 //
-// ## Functions
-//
-// area(w number, h number) <number>
-// The area of a rectangle w by h.
-//
-// surface(r number) <number>
-// The area of a circle of radius r, or of a square of side s (by name).
-//
-// surface(; side number) <number>
-//
-//
 // ## Declarations
 //
 // ```gad
@@ -69,6 +58,17 @@ import (
 // **/
 // export enum Unit { cm; m }
 // ```
+//
+//
+// ## Functions
+//
+// area(w number, h number) <number>
+// The area of a rectangle w by h.
+//
+// surface(r number) <number>
+// The area of a circle of radius r, or of a square of side s (by name).
+//
+// surface(; side number) <number>
 //
 
 // ModuleName is the import name of the module.

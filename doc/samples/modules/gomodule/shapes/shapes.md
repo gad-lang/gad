@@ -16,26 +16,6 @@ A host registers it: `shapes.AddTo(mm)`; a program imports it by name:
 
 ## Public API
 
-### area
-
-```gad
-area(w number, h number) <number>
-```
-
-The area of a rectangle w by h.
-
-### surface
-
-```gad
-surface(r number) <number>
-```
-
-The area of a circle of radius r, or of a square of side s (by name).
-
-```gad
-surface(; side number) <number>
-```
-
 ### PI
 
 ```gad
@@ -84,6 +64,26 @@ cm
 m
 ```
 
+### area
+
+```gad
+area(w number, h number) <number>
+```
+
+The area of a rectangle w by h.
+
+### surface
+
+```gad
+surface(r number) <number>
+```
+
+The area of a circle of radius r, or of a square of side s (by name).
+
+```gad
+surface(; side number) <number>
+```
+
 ### GoShape
 
 ```gad
@@ -105,17 +105,6 @@ the name, in upper case
 
 ```gad
 /**
-The area of a rectangle w by h.
-**/
-export area(w number, h number) <number> => nil
-
-export func surface {
-/// The area of a circle of radius r, or of a square of side s (by name).
-(r number) <number> => nil
-(; side number) <number> => nil
-}
-
-/**
 The ratio of a circle's circumference to its diameter.
 **/
 export const PI = 3.141592653589793
@@ -135,6 +124,17 @@ export class Shape {
 The units the areas are given in.
 **/
 export enum Unit { cm; m }
+
+/**
+The area of a rectangle w by h.
+**/
+export area(w number, h number) <number> => nil
+
+export func surface {
+/// The area of a circle of radius r, or of a square of side s (by name).
+(r number) <number> => nil
+(; side number) <number> => nil
+}
 
 /**
 A Shape whose label is its name in upper case (a class in Go: the module's

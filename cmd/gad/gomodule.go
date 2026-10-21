@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -131,7 +132,7 @@ func runGomodule(srcPath string, o gomoduleOpts) error {
 	if err != nil {
 		rel = srcPath
 	}
-	gen := "go run github.com/gad-lang/gad/cmd/gad gomodule --pkg " + o.pkg + " --module " + o.module + " --out ."
+	gen := "go run " + gadCmdPath() + " gomodule --pkg " + o.pkg + " --module " + o.module + " --out ."
 	if apiRel, err := filepath.Rel(o.out, o.api); err == nil && apiRel != o.module+".gad" {
 		gen += " --api " + filepath.ToSlash(apiRel)
 	}
@@ -179,6 +180,19 @@ func runGomodule(srcPath string, o gomoduleOpts) error {
 	}
 	fmt.Println("wrote", o.api)
 	return nil
+}
+
+// gadCmdPath is the package `go generate` runs gad from: of the version of
+// this gad (`…/cmd/gad@VERSION`, run apart from the module of the package,
+// which need not depend on gad's command), or as it is in gad's own module.
+func gadCmdPath() string {
+	const path = "github.com/gad-lang/gad/cmd/gad"
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		if v := bi.Main.Version; bi.Main.Path == "github.com/gad-lang/gad" && v != "" && v != "(devel)" {
+			return path + "@" + v
+		}
+	}
+	return path
 }
 
 // gomoduleImports are the modules the Go init imports: --import, and the
@@ -322,13 +336,14 @@ func gomoduleDoc(module string, src []byte, kind gad.SourceKind) ([]string, erro
 			g.export(es)
 		}
 	}
-	if len(g.funcs) > 0 {
-		lines = append(lines, "", "## Functions", "")
-		lines = append(lines, g.funcs...)
-	}
+	// the declarations first: the functions' types name them
 	if len(g.decls) > 0 {
 		lines = append(lines, "", "## Declarations", "")
 		lines = append(lines, g.decls...)
+	}
+	if len(g.funcs) > 0 {
+		lines = append(lines, "", "## Functions", "")
+		lines = append(lines, g.funcs...)
 	}
 	return lines, nil
 }
