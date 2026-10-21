@@ -91,6 +91,8 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 		rvr = &ReflectArray{orv}
 	case reflect.Func:
 		return &ReflectFunc{orv}, nil
+	case reflect.Chan:
+		return &ReflectChan{orv}, nil
 	default:
 		// A Go pointer to a plain basic value (`*int`, `*string`, …) is a script
 		// `ptr` (`p.v`). A type with methods (e.g. a named `type V int` with a
@@ -392,22 +394,13 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 
 func reflectCallArgsToValues(vm *VM, typ, dddType reflect.Type, numIn int, args Args, argv []reflect.Value) (err error) {
 	args.Walk(func(i int, arg Object) any {
-		var rarg reflect.Value
-		switch t := arg.(type) {
-		case *ReflectValue:
-			rarg = t.RValue
-		default:
-			rarg = reflect.ValueOf(vm.ToInterface(arg))
-		}
-
-		rarg = indirectInterface(rarg)
 		// Compute the expected type. Clumsy because of variadics.
 		argType := dddType
 		if !typ.IsVariadic() || i < numIn-1 {
 			argType = typ.In(i)
 		}
 
-		if argv[i], err = prepareArg(rarg, argType); err != nil {
+		if argv[i], err = objectToReflect(vm, arg, argType); err != nil {
 			err = ErrType.NewError(fmt.Sprintf("arg %d: %s", i, err))
 		}
 		return err
@@ -485,17 +478,14 @@ func (o *ReflectArray) IndexSet(vm *VM, index, value Object) (err error) {
 		return ErrUnexpectedArgValue.NewError("expected index types: int|uint")
 	}
 
-	var v reflect.Value
-	if rv, _ := value.(*ReflectValue); rv != nil {
-		v = rv.RValue
-	} else {
-		v = reflect.ValueOf(vm.ToInterface(value))
-	}
-
 	if ix >= o.RValue.Len() {
 		return ErrIndexOutOfBounds
 	}
 
+	v, err := objectToReflect(vm, value, o.RValue.Type().Elem())
+	if err != nil {
+		return ErrType.NewErrorf("index %d: %v", ix, err)
+	}
 	o.RValue.Index(ix).Set(v)
 	return
 }
@@ -561,7 +551,7 @@ func (o *ReflectSlice) AppendObjects(vm *VM, items ...Object) (_ Object, err err
 	)
 
 	for i, item := range items {
-		if itemV, err = prepareArg(reflect.ValueOf(vm.ToInterface(item)), itemType); err != nil {
+		if itemV, err = objectToReflect(vm, item, itemType); err != nil {
 			return
 		}
 		values.Index(i).Set(itemV)
@@ -594,7 +584,7 @@ func (o *ReflectSlice) Insert(vm *VM, at int, items ...Object) (_ Object, err er
 	}
 
 	for i, item := range items {
-		if itemV, err = prepareArg(reflect.ValueOf(vm.ToInterface(item)), itemType); err != nil {
+		if itemV, err = objectToReflect(vm, item, itemType); err != nil {
 			return
 		}
 		values.Index(i).Set(itemV)
@@ -733,7 +723,15 @@ func (o *ReflectMap) IndexDelete(vm *VM, index Object) (err error) {
 }
 
 func (o *ReflectMap) IndexGet(vm *VM, index Object) (value Object, err error) {
-	v := o.RValue.MapIndex(reflect.ValueOf(vm.ToInterface(index)))
+	key, kerr := objectToReflect(vm, index, o.RValue.Type().Key())
+	if kerr != nil {
+		// not a key of the map: one of its methods, or nothing
+		if index.ToString() == ObjectMethodsGetterFieldName {
+			return o.Methods(), nil
+		}
+		return Nil, nil
+	}
+	v := o.RValue.MapIndex(key)
 	if !v.IsValid() || zeroer.MustIsNil(v) {
 		if index.ToString() == ObjectMethodsGetterFieldName {
 			return o.Methods(), nil
@@ -744,14 +742,16 @@ func (o *ReflectMap) IndexGet(vm *VM, index Object) (value Object, err error) {
 }
 
 func (o *ReflectMap) IndexSet(vm *VM, index, value Object) (err error) {
-	var v reflect.Value
-	if rv, _ := value.(*ReflectValue); rv != nil {
-		v = rv.RValue
-	} else {
-		v = reflect.ValueOf(vm.ToInterface(value))
+	t := o.RValue.Type()
+	key, err := objectToReflect(vm, index, t.Key())
+	if err != nil {
+		return ErrType.NewErrorf("key: %v", err)
 	}
-
-	o.RValue.SetMapIndex(reflect.ValueOf(vm.ToInterface(index)), v)
+	v, err := objectToReflect(vm, value, t.Elem())
+	if err != nil {
+		return ErrType.NewErrorf("key %s: %v", index.ToString(), err)
+	}
+	o.RValue.SetMapIndex(key, v)
 	return
 }
 
@@ -1072,6 +1072,16 @@ func (s *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value any) (err 
 		case ReflectValuer:
 			v = t.Value()
 		case Object:
+			switch field.Kind() {
+			case reflect.Func, reflect.Slice, reflect.Map, reflect.Array:
+				// a callback, an array, a dict: made of the Go type
+				cv, err := objectToReflect(vm, t, field.Type())
+				if err != nil {
+					return ErrType.NewErrorf("field %s: %v", df.Struct.Name, err)
+				}
+				field.Set(cv)
+				return nil
+			}
 			v = reflect.ValueOf(vm.ToInterface(t))
 		default:
 			v = reflect.ValueOf(t)
