@@ -1750,9 +1750,9 @@ func TestVMRegexpReplace(t *testing.T) {
 	// `|` with a group-using callable
 	testExpectRun(t, `
 	redact := /(\d{2})(\d+)/ | func(whole; m) { return m[1] + strings.repeat("*", len(m[2])) }
-	return "card 1234567890".|redact`, nil, Str("card 12********"))
+	return "card 1234567890" |> redact`, nil, Str("card 12********"))
 	// composes with the pipe operator
-	testExpectRun(t, `r := /o/; return "hello world".|(r | "0")`,
+	testExpectRun(t, `r := /o/; return "hello world" |> (r | "0")`,
 		nil, Str("hell0 w0rld"))
 }
 

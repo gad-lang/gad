@@ -51,6 +51,7 @@ layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 | `ranges.gad`               | the `..` range operator, steps, temporal ranges   |
 | `user_operators.gad`       | user operators `<<<` `>>>` `%%` via `gad.binOp`  |
 | `in_operator.gad`          | the `in` membership operator                       |
+| `broadcast.gad`            | item by item operators `.+` `.<` … (`a.op(b; nested)`), the pipe `|>` |
 | `io.gad`                   | printing, `sprintf`/`printf`, `obstart`/`obend`, `STDIN`/`STDOUT`/`STDERR`, `write` |
 | `pointers.gad`             | `&x`, `p.v`, `*T` pointer types, pointers to fields/elements, Go interop |
 | `doc_comments.gad`         | doc comments and `>>>` examples                    |

@@ -69,6 +69,22 @@ VMLoop:
 				vm.err = err
 				return
 			}
+		case OpBroadcast:
+			tok := token.Token(vm.curInsts[vm.ip+1])
+			nested := vm.curInsts[vm.ip+2] != 0
+			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
+			value, err := vm.broadcast(tok, left, right, nested)
+			if err == nil {
+				vm.stack[vm.sp-2] = value
+				vm.sp--
+				vm.stack[vm.sp] = nil
+				vm.ip += 2
+				continue
+			}
+			if err = vm.throwGenErr(err); err != nil {
+				vm.err = err
+				return
+			}
 		case OpAssign:
 			// `obj :: type` -> obj when assignable, else throw a type error.
 			obj, typ := vm.stack[vm.sp-2], vm.stack[vm.sp-1]

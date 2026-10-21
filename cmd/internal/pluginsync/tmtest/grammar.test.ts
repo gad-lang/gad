@@ -411,3 +411,11 @@ test("`example` is contextual: a keyword only before `[NAME] {`", () => {
   expect(isKeyword("example := 1", "example")).toBe(false);
   expect(isKeyword("x.example", "example")).toBe(false);
 });
+
+test("the pipe |> and the item by item operators .op are one operator token", () => {
+  const line = "y := a .+ 1 .<= b |> sort";
+  for (const op of [".+", ".<=", "|>"]) {
+    expect(scopesOf(line, op)).toContain("keyword.operator.gad");
+  }
+  expect(scopesOf("y := a.+(1; nested)", ".+")).toContain("keyword.operator.gad");
+});

@@ -3,7 +3,7 @@
 
 This is the operators chapter. Focused runnable tours live in nearby samples:
 [ranges `..`](ranges.gad), [membership `in`](in_operator.gad),
-[unary](unary_operators.gad) and
+[unary](unary_operators.gad), [item by item `.op` and the pipe `|>`](broadcast.gad) and
 [absent-coalescing `!?`](absent_coalescing.gad). This sample demonstrates the
 **user operators** and `met gad.*` handlers (Example below).
 

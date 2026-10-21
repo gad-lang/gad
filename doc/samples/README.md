@@ -4,6 +4,7 @@
 
 - [absent_coalescing](absent_coalescing.md)
 - [assign_and_append](assign_and_append.md)
+- [broadcast](broadcast.md)
 - [builtins](builtins.md)
 - [collections](collections.md)
 - [comprehensions](comprehensions.md)

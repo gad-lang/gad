@@ -531,12 +531,12 @@ func TestParserErrorList(t *testing.T) {
 }
 
 func TestParsePipe(t *testing.T) {
-	test.ExpectParseString(t, "(a.b.|x().|y().z.|c(1).d.e.|f().g.h.i)", "((((a.b .| x()) .| y().z) .| c(1).d.e) .| f().g.h.i)")
-	test.ExpectParseString(t, "a.b.|x().|y().z.|c(1).d.e.|f().g.h.i", "((((a.b .| x()) .| y().z) .| c(1).d.e) .| f().g.h.i)")
-	test.ExpectParseString(t, "a.b.|x().|y().z.|c(1).d.e", "(((a.b .| x()) .| y().z) .| c(1).d.e)")
-	test.ExpectParseString(t, "a.b.|x().|y()", "((a.b .| x()) .| y())")
-	test.ExpectParseString(t, "a.b.|x().|y().z", "((a.b .| x()) .| y().z)")
-	test.ExpectParseString(t, "a.b.|x().|y().z.|a(1).c", "(((a.b .| x()) .| y().z) .| a(1).c)")
+	test.ExpectParseString(t, "(a.b.|x().|y().z.|c(1).d.e.|f().g.h.i)", "((((a.b |> x()) |> y().z) |> c(1).d.e) |> f().g.h.i)")
+	test.ExpectParseString(t, "a.b.|x().|y().z.|c(1).d.e.|f().g.h.i", "((((a.b |> x()) |> y().z) |> c(1).d.e) |> f().g.h.i)")
+	test.ExpectParseString(t, "a.b.|x().|y().z.|c(1).d.e", "(((a.b |> x()) |> y().z) |> c(1).d.e)")
+	test.ExpectParseString(t, "a.b.|x().|y()", "((a.b |> x()) |> y())")
+	test.ExpectParseString(t, "a.b.|x().|y().z", "((a.b |> x()) |> y().z)")
+	test.ExpectParseString(t, "a.b.|x().|y().z.|a(1).c", "(((a.b |> x()) |> y().z) |> a(1).c)")
 }
 
 func TestParseDecl(t *testing.T) {
@@ -4700,14 +4700,17 @@ func TestParsePrecedence(t *testing.T) {
 	test.ExpectParseString(t, `a + b + c`, `((a + b) + c)`)
 	test.ExpectParseString(t, `a + b * c`, `(a + (b * c))`)
 	test.ExpectParseString(t, `2 * 1 + 3 / 4`, `((2 * 1) + (3 / 4))`)
-	test.ExpectParseString(t, `a .| b`, `(a .| b)`)
-	test.ExpectParseString(t, `a .| b .| c`, `((a .| b) .| c)`)
-	test.ExpectParseString(t, `a .| b + c`, `((a .| b) + c)`)
-	test.ExpectParseString(t, `a .| b * c`, `((a .| b) * c)`)
+	test.ExpectParseString(t, `a .| b`, `(a |> b)`)
+	test.ExpectParseString(t, `a |> b`, `(a |> b)`)
+	test.ExpectParseString(t, `a |> b(1) |> c.d`, `((a |> b(1)) |> c.d)`)
+	test.ExpectParseString(t, `a | b |> c`, `(a | (b |> c))`)
+	test.ExpectParseString(t, `a .| b .| c`, `((a |> b) |> c)`)
+	test.ExpectParseString(t, `a .| b + c`, `((a |> b) + c)`)
+	test.ExpectParseString(t, `a .| b * c`, `((a |> b) * c)`)
 	test.ExpectParseString(t, `a ~ b`, `(a ~ b)`)
 	test.ExpectParseString(t, `a ~ b ~ c`, `((a ~ b) ~ c)`)
 	test.ExpectParseString(t, `a ~ b * c`, `((a ~ b) * c)`)
-	test.ExpectParseString(t, `a ~ b ~ c .| d`, `(((a ~ b) ~ c) .| d)`)
+	test.ExpectParseString(t, `a ~ b ~ c .| d`, `(((a ~ b) ~ c) |> d)`)
 	test.ExpectParseString(t, `a ~ b / c`, `((a ~ b) / c)`)
 	test.ExpectParseString(t, `a ** b * c; d * e ** f`, `((a ** b) * c); (d * (e ** f))`)
 	// the range operator `..` binds tighter than `/` so the `/ step` groups

@@ -393,6 +393,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Tilde, "~"},
 		{token.DoubleTilde, "~~"},
 		{token.Pipe, ".|"},
+		{token.Pipe, "|>"},
 		{token.LParen, "("},
 		{token.LBrack, "["},
 		{token.LBrace, "{"},

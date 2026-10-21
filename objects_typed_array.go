@@ -598,6 +598,12 @@ func (o *TypedArray) BinOpLess(vm *VM, r Object) (Object, error) { return o.Item
 func (o *TypedArray) BinOpGreater(vm *VM, r Object) (Object, error) {
 	return o.Items.BinOpGreater(vm, r)
 }
+func (o *TypedArray) BinOpLessEq(vm *VM, r Object) (Object, error) {
+	return o.Items.BinOpLessEq(vm, r)
+}
+func (o *TypedArray) BinOpGreaterEq(vm *VM, r Object) (Object, error) {
+	return o.Items.BinOpGreaterEq(vm, r)
+}
 
 // Append appends checked items in place.
 func (o *TypedArray) Append(vm *VM, items ...Object) error {

@@ -57,7 +57,7 @@ met gad.binOpAdd(p str, val str) {
 }
 return "a" + "3"`, nil, Str("a-a-a"))
 
-	testExpectRun(t, `return [4 ** 3, -4 ** 3, 4 ** -3, -4 ** -3] .| map(str;nokey) .| collect`, nil, Array{
+	testExpectRun(t, `return [4 ** 3, -4 ** 3, 4 ** -3, -4 ** -3] |> map(str;nokey) |> collect`, nil, Array{
 		Str("64"),
 		Str("-64"),
 		Str("0.015625"),
@@ -105,7 +105,7 @@ yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 67.2345678986987654005678d: 12, 4.56: 13, [
 			"u2":                        Int(10),
 			"yes":                       Int(7),
 		})
-	testExpectRun(t, `param d; return dict((userData(d) + {a:1}).|items()), dict(userData(d))`,
+	testExpectRun(t, `param d; return dict((userData(d) + {a:1}) |> items()), dict(userData(d))`,
 		newOpts().Args(MustNewReflectValue(&d)),
 		Array{Dict{"a": Int(1)}, Dict{"a": Int(1)}})
 	testExpectRun(t, `d := {
@@ -1114,7 +1114,7 @@ func TestVMIterator(t *testing.T) {
 
 	testExpectRun(t, `return str(collect(map(values([1,2]), (v, k) => v+10)))`, nil, Str("[11, 12]"))
 	testExpectRun(t, `return str(collect(values(filter([1,2,3,4,5], (v, k, _) => v%2))))`, nil, Str("[1, 3, 5]"))
-	testExpectRun(t, `it := [1,2] .| map((v, k) => v+10); return str(it), str(it;indent)`, nil,
+	testExpectRun(t, `it := [1,2] |> map((v, k) => v+10); return str(it), str(it;indent)`, nil,
 		Array{
 			Str("‹MapIterator: ‹compiledFunction: (main).#1(v any, k any)› → ‹ArrayIterator: [1, 2]››"),
 			Str(`‹MapIterator: 
@@ -1125,7 +1125,7 @@ func TestVMIterator(t *testing.T) {
 	]›
 ›`),
 		})
-	testExpectRun(t, `it := [1,2] .| map((v, k) => v+10) .| values .| map((v, k) => v+10); return str(it), str(it;indent)`, nil,
+	testExpectRun(t, `it := [1,2] |> map((v, k) => v+10) |> values |> map((v, k) => v+10); return str(it), str(it;indent)`, nil,
 		Array{
 			Str("‹MapIterator: ‹compiledFunction: (main).#2(v any, k any)› → ‹ValuesIterator: ‹MapIterator: ‹compiledFunction: (main).#1(v any, k any)› → ‹ArrayIterator: [1, 2]››››"),
 			Str(`‹MapIterator: 
@@ -5259,42 +5259,42 @@ func TestVMCallCompiledFunction(t *testing.T) {
 }
 
 func TestVMPipe(t *testing.T) {
-	testExpectRun(t, `param arr; v := arr.|map((v, _) => v+1;update).|values.|collect; return [v, str(v)]`, newOpts().Init(func(opts *VMTestOpts, expect Object) (*VMTestOpts, Object) {
+	testExpectRun(t, `param arr; v := arr |> map((v, _) => v+1;update) |> values |> collect; return [v, str(v)]`, newOpts().Init(func(opts *VMTestOpts, expect Object) (*VMTestOpts, Object) {
 		ex := Array{Int(1)}
 		opts.Args(ex)
 		return opts, Array{ex, Str("[2]")}
 	}), Nil)
 
-	testExpectRun(t, `inc := (arr) => arr.|map(func(v, _) => (v+1); update) 
-	return [1,2,3].|inc.|reduce((sum, v,_) => (sum+v), 0).|(v) => (v*(2)).|((v) => [v])`, nil,
+	testExpectRun(t, `inc := (arr) => arr |> map(func(v, _) => (v+1); update) 
+	return [1,2,3] |> inc |> reduce((sum, v,_) => (sum+v), 0) |> (v) => (v*(2)) |> ((v) => [v])`, nil,
 		Array{Int(18)})
 
 	testExpectRun(t, `
 	first := (arr) => arr[0]
-	return [10].|first()`, nil,
+	return [10] |> first()`, nil,
 		Int(10))
 
 	testExpectRun(t, `
 	f := (v) => v*2
-	return (10).|f`, nil,
+	return (10) |> f`, nil,
 		Int(20))
 
 	testExpectRun(t, `
 	first := (arr) => arr[0]
-	return [10].|first()`, nil,
+	return [10] |> first()`, nil,
 		Int(10))
 
 	testExpectRun(t, `
 	first := (arr, v) => arr[0] + v
-	return [10].|first(2)`, nil,
+	return [10] |> first(2)`, nil,
 		Int(12))
 
 	testExpectRun(t, `
-	return [10].|{a:{b:(arr, v) => arr[0] + v}}.a.b(2)`, nil,
+	return [10] |> {a:{b:(arr, v) => arr[0] + v}}.a.b(2)`, nil,
 		Int(12))
 
 	testExpectRun(t, `
-	return (10).|{a:{b:(v) => v*2}}.a.b`, nil,
+	return (10) |> {a:{b:(v) => v*2}}.a.b`, nil,
 		Int(20))
 }
 

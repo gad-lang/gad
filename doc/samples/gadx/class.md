@@ -37,7 +37,7 @@ reads `mod.PageOptions` as any class. Render @main to see the values.
 		layout? listLayout
 		perPage int = 10
 	}
-	**{fields: {module: (; types=[str], nullable=true, meta=(; options=collect(keys(MODULES)).|sort))}}
+	**{fields: {module: (; types=[str], nullable=true, meta=(; options=collect(keys(MODULES)) |> sort))}}
 }
 
 @main

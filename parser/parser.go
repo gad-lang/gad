@@ -380,6 +380,14 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 			return x
 		}
 
+		if op, ok := p.peekBroadcastOp(); ok {
+			if op.Precedence() < prec1 {
+				return x
+			}
+			x = p.parseBroadcast(x, op)
+			continue
+		}
+
 		op, prec := p.Token.Token, p.Token.Precedence()
 		if prec < prec1 {
 			return x
@@ -430,6 +438,98 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 			TokenPos: pos,
 		}
 	}
+}
+
+// peekBroadcastOp is the operator of a broadcast `.op` at the current token:
+// a `.` right before (no space) an operator applied item by item (`a .+ b`).
+func (p *Parser) peekBroadcastOp() (token.Token, bool) {
+	if p.Token.Token != token.Period {
+		return 0, false
+	}
+	next := p.Peek()
+	if next.Token.IsBroadcastOperator() && next.Pos == p.Token.Pos+1 {
+		return next.Token, true
+	}
+	return 0, false
+}
+
+// parseBroadcast parses `.op y` after x: `x .op y`.
+func (p *Parser) parseBroadcast(x node.Expr, op token.Token) node.Expr {
+	pos := p.Expect(token.Period)
+	p.Expect(op)
+	return &node.BroadcastExpr{LHS: x, Token: op, TokenPos: pos,
+		RHS: p.ParseBinaryExpr(op.Precedence() + 1)}
+}
+
+// peekBroadcastCall reports whether the broadcast `.op` at the current token
+// is the call form `x.op(y; nested)`: a `(` right after the operator whose
+// parentheses hold a `;` (without one, `x .+ (y)` is the operator on a
+// parenthesized operand).
+func (p *Parser) peekBroadcastCall(op token.Token) bool {
+	t := p.PeekC(2)
+	if len(t) < 2 || t[1].Token != token.LParen || t[1].Pos != t[0].Pos+source.Pos(len(op.String())) {
+		return false
+	}
+	var (
+		depth, i int
+		found    bool
+	)
+	p.PeekCb(func(t PToken) bool {
+		if i++; i <= 2 { // the operator, the `(`
+			return true
+		}
+		switch t.Token {
+		case token.LParen, token.LBrack, token.LBrace:
+			depth++
+		case token.RParen, token.RBrack, token.RBrace:
+			if depth == 0 {
+				return false // its `)`
+			}
+			depth--
+		case token.Semicolon:
+			if depth == 0 && t.Literal == ";" {
+				found = true
+				return false
+			}
+		case token.EOF:
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+// parseBroadcastCall parses the call form `.op(y; nested)` after x.
+func (p *Parser) parseBroadcastCall(x node.Expr, op token.Token) node.Expr {
+	pos := p.Expect(token.Period)
+	p.Expect(op)
+	e := &node.BroadcastExpr{LHS: x, Token: op, TokenPos: pos}
+	args := p.ParseCallArgs(token.LParen, token.RParen)
+	e.LParen, e.RParen = args.LParen, args.RParen
+	name := "." + op.String() + "(…)"
+	if len(args.Args.Values) != 1 || args.Args.Var != nil {
+		p.Error(args.LParen, name+": one operand expected")
+		e.RHS = &node.BadExpr{From: args.LParen, To: args.RParen}
+	} else {
+		e.RHS = args.Args.Values[0]
+	}
+	for i, n := range args.NamedArgs.Names {
+		if n.Var || n.Name() != "nested" {
+			p.Error(args.LParen, name+": unknown option "+n.Name()+" (nested is the only one)")
+			continue
+		}
+		switch v := args.NamedArgs.Values[i].(type) {
+		case nil:
+			e.Nested = true
+		case *node.BoolLit:
+			e.Nested = v.Value
+		case *node.FlagLit:
+			e.Nested = v.Value
+		default:
+			p.Error(v.Pos(), name+": nested takes yes, no, true or false")
+		}
+	}
+	return e
 }
 
 // isCastToken reports whether tok is a cast, whose right side is a type:
@@ -542,6 +642,15 @@ L:
 				return &node.BadExpr{From: pos, To: p.Token.Pos}
 			}
 		case token.Period:
+			if op, ok := p.peekBroadcastOp(); ok {
+				if p.peekBroadcastCall(op) {
+					// `x.+(y; nested)`: postfix, as a call
+					x = p.parseBroadcastCall(x, op)
+					continue
+				}
+				// `x .+ y`: the broadcast operator, ParseBinaryExpr's
+				break L
+			}
 			p.Next()
 
 			switch p.Token.Token {

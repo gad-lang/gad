@@ -301,7 +301,7 @@ func TextMateGrammar() ([]byte, error) {
 			// `::>` (converting cast) before `::` (checked cast) and `:>` so the longer
 			// operator wins; `**` covers both the power operator and an interface
 			// `**rest` member.
-			{Name: "keyword.operator.gad", Match: `::>|::|:>|\?\?=?|\?!=?|!\?=?|\.\.|=>|:=|\|\||&&|\*\*=?|<<<?=?|>>>?=?|&\^=?|%%=?|===?|!==?|[-+*/%&|^!<>=]=?|[~?:]`},
+			{Name: "keyword.operator.gad", Match: `\|>|\.\||\.(?:===|!==|<<<|>>>|==|!=|<=|>=|<<|>>|\*\*|&\^|%%|[-+*/%&^<>])|::>|::|:>|\?\?=?|\?!=?|!\?=?|\.\.|=>|:=|\|\||&&|\*\*=?|<<<?=?|>>>?=?|&\^=?|%%=?|===?|!==?|[-+*/%&|^!<>=]=?|[~?:]`},
 		}},
 	}
 

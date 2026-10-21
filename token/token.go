@@ -106,7 +106,7 @@ const (
 	Not             // !
 	Null            // a == nil || nil == a
 	NotNull         // a != nil || nil != a
-	Pipe            // .|
+	Pipe            // |>
 	Question        // ?
 	NullishSelector // ?.
 	GroupOperatorEnd
@@ -356,7 +356,7 @@ var tokens = [...]string{
 	DoubleMod:           "%%",
 	Lambda:              "=>",
 	Define:              ":=",
-	Pipe:                ".|",
+	Pipe:                "|>",
 	LParen:              "(",
 	LBrack:              "[",
 	LBrace:              "{",
@@ -664,6 +664,18 @@ func (tok Token) Valid() bool {
 // IsOperator returns true if the token is an operator.
 func (tok Token) IsOperator() bool {
 	return GroupOperatorBegin < tok && tok < GroupOperatorEnd
+}
+
+// IsBroadcastOperator reports whether tok, after a `.`, is applied item by
+// item (`a .+ b`, `a .< b`, Julia's broadcast).
+func (tok Token) IsBroadcastOperator() bool {
+	switch tok {
+	case Add, Sub, Mul, Pow, Quo, Rem, Less, LessEq, Greater, GreaterEq,
+		And, Xor, AndNot, Shl, Shr, Equal, NotEqual, Same, NotSame,
+		TripleLess, TripleGreater, DoubleMod:
+		return true
+	}
+	return false
 }
 
 // IsBinaryOperator reports whether token is a binary operator.

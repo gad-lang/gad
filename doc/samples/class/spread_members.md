@@ -34,7 +34,7 @@ class Grid {
     **{fields: defaults + {gap: 8}}
 }
 g := Grid(; rows = 4)
-[g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
+[g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)) |> sort]
 = ["grid", 3, 4, 8, ["columns", "gap", "name", "rows"]]
 ```
 
@@ -84,7 +84,7 @@ class Languages {
     **{fields: langFields}
 }
 l := Languages(; pt = true)
-[l.en, l.pt, collect(keys(Languages.@fields)).|sort]
+[l.en, l.pt, collect(keys(Languages.@fields)) |> sort]
 = [false, true, ["en", "pt"]]
 ```
 
@@ -112,7 +112,7 @@ example spread_fields {
         **{fields: defaults + {gap: 8}}
     }
     g := Grid(; rows = 4)
-    [g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)).|sort]
+    [g.name, g.columns, g.rows, g.gap, collect(keys(Grid.@fields)) |> sort]
     = ["grid", 3, 4, 8, ["columns", "gap", "name", "rows"]]
 }
 
@@ -156,7 +156,7 @@ example spread_glob {
         **{fields: langFields}
     }
     l := Languages(; pt = true)
-    [l.en, l.pt, collect(keys(Languages.@fields)).|sort]
+    [l.en, l.pt, collect(keys(Languages.@fields)) |> sort]
     = [false, true, ["en", "pt"]]
 }
 

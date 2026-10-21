@@ -191,6 +191,9 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		// runtime state), so they are never constant-folded. OpFiles is the highest
 		// opcode, so the explicit false also sizes the array to include them all.
 		OpPushSource: false, OpPopSource: false, OpFiles: false,
+		// `a .op b` builds an array: never folded (the highest opcode, it also
+		// sizes the array).
+		OpBroadcast: false,
 	}
 
 	allowedBuiltins := [...]bool{

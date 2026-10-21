@@ -162,14 +162,14 @@ all := /\d+/ ~~~ "a1 b22 c333"   // every match
 **template** (`$1`, `${name}`, `$$`) or a **callable** (invoked per match; it
 receives the matched text plus named args `m` — the full submatch — and `re`).
 The `regexp | replacement` operator builds a reusable replacer that composes with
-the pipe `.|`.
+the pipe `|>`.
 
 ```gad
 swapped := (/(\d+)-(\d+)/).replace("12-34", "$2/$1")     // numbered groups
 named := (/(?P<y>\d+)-(?P<m>\d+)/).replace("2024-06", "${m}/${y}")
 upper := (/[a-z]+/).replace("hi bye", strings.toUpper)   // callable per match
 redact := /(\d{2})(\d+)/ | func(whole; m) => m[1] + strings.repeat("*", len(m[2]))
-[swapped, named, upper, "card 1234567890".|redact]
+[swapped, named, upper, "card 1234567890" |> redact]
 = ["34/12", "06/2024", "HI BYE", "card 12********"]
 ```
 
@@ -254,7 +254,7 @@ example replace {
     named := (/(?P<y>\d+)-(?P<m>\d+)/).replace("2024-06", "${m}/${y}")
     upper := (/[a-z]+/).replace("hi bye", strings.toUpper)   // callable per match
     redact := /(\d{2})(\d+)/ | func(whole; m) => m[1] + strings.repeat("*", len(m[2]))
-    [swapped, named, upper, "card 1234567890".|redact]
+    [swapped, named, upper, "card 1234567890" |> redact]
     = ["34/12", "06/2024", "HI BYE", "card 12********"]
 }
 

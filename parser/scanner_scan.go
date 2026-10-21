@@ -586,6 +586,7 @@ do:
 				s.Next()
 				t.Token = token.DotDot
 			} else if s.Ch == '|' {
+				// `.|` the pipe's older spelling: `|>`
 				s.Next()
 				t.Token = token.Pipe
 			} else if '0' <= s.Ch && s.Ch <= '9' {
@@ -812,6 +813,10 @@ do:
 					s.Next()
 					t.Token = token.LOr
 				}
+			} else if s.Ch == '>' {
+				// `x |> f(…)` the pipe (`.|`, its older spelling, too)
+				s.Next()
+				t.Token = token.Pipe
 			} else {
 				t.Token = token.Or
 			}

@@ -134,6 +134,10 @@ const (
 	// interface, then pairs of a field's index and its default. Appended so no
 	// opcode value shifts.
 	OpInterfaceDefaults
+	// OpBroadcast is `a .op b`: op applied item by item, an array of the
+	// results (Julia's broadcast); its flag 1 descends into nested arrays
+	// (`a.op(b; nested)`). Appended so no opcode value shifts.
+	OpBroadcast
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -233,6 +237,7 @@ var OpcodeNames = [...]string{
 	OpAssignTransformStrict: "ASSIGNTS",
 	OpJumpNotNo:             "JUMPNOTNO",
 	OpInterfaceDefaults:     "INTERFACEDEFAULTS",
+	OpBroadcast:             "BROADCAST",
 }
 
 // OpcodeOperands is the number of operands.
@@ -332,6 +337,7 @@ var OpcodeOperands = [...][]int{
 	OpAssignTransformStrict: {},     // obj :> type -> obj transformed into a class/enum value/interface (or throw)
 	OpJumpNotNo:             {2},    // position
 	OpInterfaceDefaults:     {2},    // number of pairs (field index, default) above the interface
+	OpBroadcast:             {1, 1}, // operator, nested (0 or 1)
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

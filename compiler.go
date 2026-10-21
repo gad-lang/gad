@@ -839,6 +839,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.Compile(nt.Expr)
 	case *node.MultiParenExpr:
 		return c.compileMultiParenExpr(nt)
+	case *node.BroadcastExpr:
+		return c.compileBroadcastExpr(nt)
 	case *node.BinaryExpr:
 		switch nt.Token {
 		case token.LAnd, token.LOr, token.Nullich, token.NoCoalesce:
@@ -1550,7 +1552,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]))
 		return buf, nil
-	case OpCall, OpCallName, OpInitModule, OpAddMethod, OpAddMethodOverride, OpSelfAssignN:
+	case OpCall, OpCallName, OpInitModule, OpAddMethod, OpAddMethodOverride, OpSelfAssignN, OpBroadcast:
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]))
 		return buf, nil

@@ -122,6 +122,71 @@ func (e *BinaryExpr) WriteCodeWithParen(ctx *CodeWriteContext, paren bool) {
 	}
 }
 
+// BroadcastExpr is `a .op b`: op applied item by item, an array of the
+// results (Julia's broadcast). Its call form, `a.op(b; nested)`, takes the
+// options: nested descends into nested arrays.
+type BroadcastExpr struct {
+	LHS      Expr
+	RHS      Expr
+	Token    token.Token // the operator
+	TokenPos source.Pos  // the `.`
+	Nested   bool
+	// LParen and RParen of the call form, `a.op(b; nested)`.
+	LParen source.Pos
+	RParen source.Pos
+}
+
+func (e *BroadcastExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *BroadcastExpr) Pos() source.Pos {
+	return e.LHS.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *BroadcastExpr) End() source.Pos {
+	if e.RParen.IsValid() {
+		return e.RParen + 1
+	}
+	return e.RHS.End()
+}
+
+func (e *BroadcastExpr) String() string {
+	if e.LParen.IsValid() {
+		return e.LHS.String() + "." + e.Token.String() + "(" + e.RHS.String() + e.options() + ")"
+	}
+	return "(" + e.LHS.String() + " ." + e.Token.String() + " " + e.RHS.String() + ")"
+}
+
+func (e *BroadcastExpr) options() string {
+	if e.Nested {
+		return "; nested"
+	}
+	return "; nested=no"
+}
+
+func (e *BroadcastExpr) WriteCode(ctx *CodeWriteContext) {
+	if e.LParen.IsValid() {
+		writeOperand(ctx, e.LHS, token.Period.Precedence()+100, false)
+		ctx.WriteString("." + e.Token.String() + "(")
+		e.RHS.WriteCode(ctx)
+		ctx.WriteString(e.options() + ")")
+		return
+	}
+	if ctx.MinimalParens {
+		prec := e.Token.Precedence()
+		writeOperand(ctx, e.LHS, prec, false)
+		ctx.WriteString(" ." + e.Token.String() + " ")
+		writeOperand(ctx, e.RHS, prec, true)
+		return
+	}
+	ctx.WriteSingleByte('(')
+	e.LHS.WriteCode(ctx)
+	ctx.WriteString(" ." + e.Token.String() + " ")
+	e.RHS.WriteCode(ctx)
+	ctx.WriteSingleByte(')')
+}
+
 // exprPrecedence is how tightly x binds as an operand, written with minimal
 // parentheses: a binary its operator's, a conditional the loosest of all, a
 // `x == nil` unary a comparison's; anything else binds tighter than any
@@ -130,6 +195,10 @@ func exprPrecedence(x Expr) int {
 	switch t := x.(type) {
 	case *BinaryExpr:
 		return t.Token.Precedence()
+	case *BroadcastExpr:
+		if !t.LParen.IsValid() {
+			return t.Token.Precedence()
+		}
 	case *CondExpr:
 		return 1
 	case *UnaryExpr:

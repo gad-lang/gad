@@ -3325,6 +3325,26 @@ func rangeCallExpr(from, to, step node.Expr) *node.CallExpr {
 	return call
 }
 
+// compileBroadcastExpr is `a .op b`: both operands, then OpBroadcast (the
+// operator, nested).
+func (c *Compiler) compileBroadcastExpr(nd *node.BroadcastExpr) error {
+	if !nd.Token.IsBroadcastOperator() {
+		return c.Errorf(nd, "invalid broadcast operator: .%s", nd.Token.String())
+	}
+	if err := c.Compile(nd.LHS); err != nil {
+		return err
+	}
+	if err := c.Compile(nd.RHS); err != nil {
+		return err
+	}
+	nested := 0
+	if nd.Nested {
+		nested = 1
+	}
+	c.emit(nd, OpBroadcast, int(nd.Token), nested)
+	return nil
+}
+
 func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 	if nd.Token == token.TripleColon {
 		return c.Errorf(nd, "`:::` was replaced: `:>` transforms into a class, an enum value, an interface, a dict or a key-value array; `::>` converts to any type")

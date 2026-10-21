@@ -104,11 +104,11 @@ f := func() {
     throw "boom"
 }
 
-// regexp literals and replacement (| yields a replacer; composes with .|)
+// regexp literals and replacement (| yields a replacer; composes with |>)
 re := /(\d+)-(\d+)/
 re.match("12-34")                 // true
 re.replace("12-34", "$2/$1")      // "34/12"
-"hello world".|(/o/ | "0")        // "hell0 w0rld"
+"hello world" |> (/o/ | "0")      // "hell0 w0rld"
 ```
 
 ## Why Gad

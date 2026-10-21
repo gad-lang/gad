@@ -27,6 +27,7 @@ func init() {
 		(*node.BlockStmt)(nil),
 		(*node.BoolLit)(nil),
 		(*node.BranchStmt)(nil),
+		(*node.BroadcastExpr)(nil),
 		(*node.BytesLit)(nil),
 		(*node.CallArgs)(nil),
 		(*node.CallExpr)(nil),
