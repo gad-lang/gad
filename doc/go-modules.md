@@ -353,6 +353,66 @@ for i, job in jobs {
 }
 ```
 
+### Gad's arrays and dicts in Go: copies, or the collection itself
+
+A Go parameter of a slice or map type gets a **copy** of a gad array or dict —
+`[]Object` and `map[string]Object` cannot share memory with a `[]int` or a
+`map[string]int` —, **synchronized back** when the Go function returns, as
+Go's semantics are: the items of a slice it changed are seen (its growth is
+not: a callee does not grow its caller's slice), the entries of a map it
+changed, added or deleted are. A Go function that keeps the copy to change it
+later is not seen; a typed array or dict checks what is synchronized.
+
+A parameter of type **`gad.ArrayOf[T]`** or **`gad.DictOf[K, V]`** (or a
+pointer to one) gets the **gad collection itself**: what it changes, gad sees
+at once. `T`, `K` and `V` are Go types — `int`, `uint`, `string`, a struct,
+`gad.Object` —, each item converted when read and written; a typed array or
+dict (`type ints []int`, `type scores dict[str, int]`) checks what is written,
+as its type does. `Key` and `Value` are its gad types (`int` and the items'
+type; `str` and `any` for a dict, a typed dict's `K` and `V`).
+
+| `ArrayOf[T]` | `DictOf[K, V]` |
+| ------------ | -------------- |
+| `Len()`, `Get(i)`, `Set(i, v)`, `Values()` | `Len()`, `Get(k)` (`v, ok, err`), `Has(k)`, `Set(k, v)`, `Delete(k)`, `Keys()`, `Range(fn)` |
+| `Append(vs...)`, `Delete(i)`: of a typed array, or of an array given by its pointer (`&a`, `&obj.list`) — one given by value cannot grow, an error | |
+| `Object()`: the gad value | `Object()` |
+
+```go
+double := func(a *gad.ArrayOf[int]) error {
+	for i := 0; i < a.Len(); i++ {
+		v, err := a.Get(i)
+		if err != nil {
+			return err
+		}
+		if err = a.Set(i, v*2); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+push := func(a gad.ArrayOf[int], v int) error { return a.Append(v) }
+bump := func(d *gad.DictOf[string, uint]) error {
+	n, _, err := d.Get("n")
+	if err == nil {
+		err = d.Set("n", n+1)
+	}
+	return err
+}
+```
+
+```gad ignore
+a := [1, 2]; double(a)        // a is [2, 4]
+b := [1]; push(&b, 5)         // b is [1, 5]: given by its pointer, it grows
+push(b, 6)                    // an error: an array given by value cannot grow
+d := {n: 1u}; bump(d)         // d.n is 2u
+type ints []int
+x := ints(3); push(x, 4)      // a typed array grows (and checks: push(strs("a"), …) fails)
+```
+
+From Go, `gad.NewArrayOf[T](vm, o)` and `gad.NewDictOf[K, V](vm, o)` wrap a gad
+value; `gad.ObjectOf(vm, v)` and `gad.ValueOf[T](vm, o)` convert one value.
+`objects_go_collections_test.go` tests them.
+
 Other hooks of a `ReflectStruct`: `FieldHandler` (what a field gives),
 `FalbackIndexHandler` (a name it has no field for), and a `SetX(v)` method is
 the setter of `x` when there is no field `x`.

@@ -380,6 +380,19 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 
 	var ret reflect.Value
 	ret, err = safeCall(r.RValue, argv)
+	// the copies the function was given of gad's arrays and dicts: what it
+	// changed written back (the typed arrays' and dicts' too)
+	if len(argv) == c.Args.Length() {
+		c.Args.Walk(func(i int, arg Object) any {
+			switch arg.(type) {
+			case Array, Dict, *TypedArray, *TypedDict:
+				if serr := syncBack(c.VM, arg, argv[i]); serr != nil && err == nil {
+					err = serr
+				}
+			}
+			return nil
+		})
+	}
 	if err == nil {
 		if ret.IsValid() {
 			if zeroer.MustIsNil(ret) {

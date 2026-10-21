@@ -20,6 +20,21 @@ func objectToReflect(vm *VM, o Object, t reflect.Type) (reflect.Value, error) {
 	if rv, ok := o.(ReflectValuer); ok && rv.GetRValue() != nil {
 		return prepareArg(indirectInterface(rv.GetRValue().RValue), t)
 	}
+	// ArrayOf[T], DictOf[K, V]: bound to the gad collection itself
+	if v, ok, err := bindGoCollection(vm, o, t); ok {
+		return v, err
+	}
+	// a typed collection's items, for a slice or a map
+	switch x := o.(type) {
+	case *TypedArray:
+		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+			o = x.Items
+		}
+	case *TypedDict:
+		if t.Kind() == reflect.Map {
+			o = x.Value
+		}
+	}
 	switch t.Kind() {
 	case reflect.Func:
 		if _, isGoFunc := o.(*ReflectFunc); !isGoFunc && Callable(o) {
