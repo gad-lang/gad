@@ -265,6 +265,25 @@ func (m *Mixin) ToString() string { return string(MustToStr(nil, m)) }
 
 func (m *Mixin) String() string { return TypeToString("mixin " + m.name) }
 
+// Print writes the mixin as a class prints: its fields, properties, methods
+// and parent mixins. Without it, ToString (a print) printed through ToString:
+// a stack overflow, fatal to the process.
+func (m *Mixin) Print(state *PrinterState) error {
+	if state.options.IsTypesAsFullNames() {
+		return state.WriteString(m.Repr())
+	}
+	d := Dict{
+		"fields":  m.Fields(),
+		"props":   m.Properties(),
+		"methods": m.Methods(),
+		"parents": m.Parents(),
+	}
+	defer state.options.Backup(PrintStateOptionSortKeys)()
+	state.options.SetSortKeys(PrintStateOptionSortTypeAscending)
+	defer state.WrapReprString("mixin " + m.FullName())()
+	return d.PrintObject(state, nil)
+}
+
 func (m *Mixin) Repr() string { return "mixin " + m.FullName() }
 
 func (Mixin) IsFalsy() bool { return false }
