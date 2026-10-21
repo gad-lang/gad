@@ -3,7 +3,10 @@ package gad_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	. "github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/token"
 )
 
 // `a .op b` applies op item by item (Julia's broadcast); `a.op(b; nested)`
@@ -52,6 +55,13 @@ func TestBroadcast(t *testing.T) {
 		{`return [1, [2]].+([10, 20]; nested=yes)`, Array{Int(11), I(22)}},
 		{`return [[1], [2]].+([[3], [4]]; nested=no)`, Array{I(1, 3), I(2, 4)}},
 		{`return [1, 2].+(1; nested)[1]`, Int(3)},
+		// the call form is postfix; without options it is `a .op b`
+		{`return [1, 2].+(1) .* 2`, I(4, 6)},
+		{`return [1, 2] .+ (1) * 2`, I(3, 4)},
+		// options are values: an expression, a spread key-value array
+		{`n := yes; return [1, [2]].+(1; nested=n)`, Array{Int(2), I(3)}},
+		{`n := 0; return [[1], [2]].+([[3], [4]]; nested=n)`, Array{I(1, 3), I(2, 4)}},
+		{`o := (; nested); return [1, [2]].+(1; **o)`, Array{Int(2), I(3)}},
 		// precedence: as its operator
 		{`return [1, 2] .+ 1 * 2`, I(3, 4)},
 		{`return [1, 2] .* 2 + [9]`, I(2, 4, 9)},
@@ -69,4 +79,28 @@ func TestBroadcast(t *testing.T) {
 	}
 	expectErrHas(t, `b := [1]; return [1, 2] .+ b`, nil, ".+: arrays of different lengths (2 and 1)")
 	expectErrIs(t, `b := ["a"]; return [1] .- b`, nil, ErrType)
+	expectErrHas(t, `return [1].+(1; deep)`, nil, `.+: unknown option "deep"`)
+}
+
+// optionsAdd handles `.+` with its options: it returns them.
+type optionsAdd struct{ Array }
+
+func (optionsAdd) BinOpAddOptions(_ *VM, right Object, options BinOpOptions) (Object, error) {
+	return Array{right, options.Dict(), Bool(options.Nested())}, nil
+}
+
+// A left operand's BinOp{Op}Options handler takes `.op` and its options.
+func TestBroadcastHandler(t *testing.T) {
+	r, err := Broadcast(nil, token.Add, optionsAdd{}, Int(1), BinOpOptions{"x": Int(2)}.WithNested(true))
+	require.NoError(t, err)
+	require.Equal(t, Array{Int(1), Dict{"x": Int(2), "nested": Yes}, True}, r)
+
+	var o BinOpOptions
+	require.False(t, o.Nested())
+	require.Equal(t, "", o.Unknown(BinOpOptionNested))
+	o = BinOpOptionsOf(KeyValueArray{{K: Str("nested"), V: Str("yes")}, {K: Str("b"), V: Nil}, {K: Str("a"), V: Nil}})
+	require.True(t, o.Nested())
+	require.Equal(t, "a", o.Unknown(BinOpOptionNested))
+	o.SetNested(false)
+	require.False(t, o.Nested())
 }

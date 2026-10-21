@@ -123,17 +123,18 @@ func (e *BinaryExpr) WriteCodeWithParen(ctx *CodeWriteContext, paren bool) {
 }
 
 // BroadcastExpr is `a .op b`: op applied item by item, an array of the
-// results (Julia's broadcast). Its call form, `a.op(b; nested)`, takes the
-// options: nested descends into nested arrays.
+// results (Julia's broadcast). Its call form, `a.op(b; options)` — a `(`
+// right after the operator —, is postfix (as a call) and passes its named
+// arguments to the operator's handler (`nested`); without them it is
+// `a .op b`.
 type BroadcastExpr struct {
 	LHS      Expr
 	RHS      Expr
 	Token    token.Token // the operator
 	TokenPos source.Pos  // the `.`
-	Nested   bool
-	// LParen and RParen of the call form, `a.op(b; nested)`.
-	LParen source.Pos
-	RParen source.Pos
+	// Args of the call form `a.op(b; …)`: its one positional is RHS; nil
+	// for `a .op b`.
+	Args *CallArgs
 }
 
 func (e *BroadcastExpr) ExprNode() {}
@@ -145,32 +146,30 @@ func (e *BroadcastExpr) Pos() source.Pos {
 
 // End returns the position of first character immediately after the node.
 func (e *BroadcastExpr) End() source.Pos {
-	if e.RParen.IsValid() {
-		return e.RParen + 1
+	if e.Args != nil {
+		return e.Args.RParen + 1
 	}
 	return e.RHS.End()
 }
 
 func (e *BroadcastExpr) String() string {
-	if e.LParen.IsValid() {
-		return e.LHS.String() + "." + e.Token.String() + "(" + e.RHS.String() + e.options() + ")"
+	if e.Args != nil {
+		return e.LHS.String() + "." + e.Token.String() + e.Args.String()
 	}
 	return "(" + e.LHS.String() + " ." + e.Token.String() + " " + e.RHS.String() + ")"
 }
 
-func (e *BroadcastExpr) options() string {
-	if e.Nested {
-		return "; nested"
-	}
-	return "; nested=no"
-}
-
 func (e *BroadcastExpr) WriteCode(ctx *CodeWriteContext) {
-	if e.LParen.IsValid() {
-		writeOperand(ctx, e.LHS, token.Period.Precedence()+100, false)
-		ctx.WriteString("." + e.Token.String() + "(")
-		e.RHS.WriteCode(ctx)
-		ctx.WriteString(e.options() + ")")
+	if e.Args != nil {
+		if exprPrecedence(e.LHS) != 0 {
+			ctx.WriteSingleByte('(')
+			e.LHS.WriteCode(ctx)
+			ctx.WriteSingleByte(')')
+		} else {
+			e.LHS.WriteCode(ctx)
+		}
+		ctx.WriteString("." + e.Token.String())
+		e.Args.WriteCode(ctx)
 		return
 	}
 	if ctx.MinimalParens {
@@ -196,7 +195,7 @@ func exprPrecedence(x Expr) int {
 	case *BinaryExpr:
 		return t.Token.Precedence()
 	case *BroadcastExpr:
-		if !t.LParen.IsValid() {
+		if t.Args == nil {
 			return t.Token.Precedence()
 		}
 	case *CondExpr:

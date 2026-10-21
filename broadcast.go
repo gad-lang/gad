@@ -6,21 +6,32 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-// Broadcast is `left .op right` (Julia's broadcast): op applied item by item,
-// an array of the results.
+// Broadcast is `left .op right` — `left.op(right; options)` with options —:
+// the left operand's ObjectWith{Op}BinOperatorOptions handler (an array's
+// broadcasts, BroadcastEach), else BroadcastEach itself (a value on the left:
+// `10 .- [1, 2]`, `1 .+ 2`).
+func Broadcast(vm *VM, tok token.Token, left, right Object, options BinOpOptions) (Object, error) {
+	if ret, err, handled := binOpOptionsObject(vm, tok, left, right, options); handled {
+		return ret, err
+	}
+	return BroadcastEach(vm, tok, left, right, options)
+}
+
+// BroadcastEach is `left .op right` item by item (Julia's broadcast), an
+// array of the results:
 //
 //   - two arrays (a typed one's items too) of the same length: `a[i] op b[i]`;
 //   - an array and a value: the value with every item (`[1, 2] .+ 1`);
 //   - two values: `left op right`.
 //
 // One level only, as Julia: an item that is an array takes op as a whole
-// (`[[1, 2]] .< [[1, 3]]` is `[true]`); nested descends into nested arrays,
-// broadcasting at every level (`[1, [2]] .+ 1` with nested is `[2, [3]]`).
-func Broadcast(vm *VM, tok token.Token, left, right Object, nested bool) (Object, error) {
-	return vm.broadcast(tok, left, right, nested)
-}
-
-func (vm *VM) broadcast(tok token.Token, left, right Object, nested bool) (Object, error) {
+// (`[[1, 2]] .< [[1, 3]]` is `[true]`). The option nested descends into
+// nested arrays, broadcasting at every level (`[1, [2]].+(1; nested)` is
+// `[2, [3]]`); it is the only one it takes.
+func BroadcastEach(vm *VM, tok token.Token, left, right Object, options BinOpOptions) (Object, error) {
+	if k := options.Unknown(BinOpOptionNested); k != "" {
+		return nil, ErrArgument.NewError(fmt.Sprintf(".%s: unknown option %q", tok.String(), k))
+	}
 	l, lok := broadcastItems(left)
 	r, rok := broadcastItems(right)
 	if !lok && !rok {
@@ -34,6 +45,7 @@ func (vm *VM) broadcast(tok token.Token, left, right Object, nested bool) (Objec
 	if !lok {
 		n = len(r)
 	}
+	nested := options.Nested()
 	out := make(Array, n)
 	for i := range out {
 		a, b := left, right
@@ -48,7 +60,7 @@ func (vm *VM) broadcast(tok token.Token, left, right Object, nested bool) (Objec
 			err error
 		)
 		if nested {
-			v, err = vm.broadcast(tok, a, b, true)
+			v, err = Broadcast(vm, tok, a, b, options)
 		} else {
 			v, err = vm.broadcastOp(tok, a, b)
 		}

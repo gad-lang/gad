@@ -376,6 +376,499 @@ func binOpObject(vm *VM, op BinaryOperatorType, left, right Object) (ret Object,
 	return
 }
 
+// ObjectWithAddBinOperatorOptions is implemented by an object that handles
+// `.+`, the `+` item by item, with its options (`a.+(b; nested)`), as
+// the left operand.
+type ObjectWithAddBinOperatorOptions interface {
+	BinOpAddOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithSubBinOperatorOptions is implemented by an object that handles
+// `.-`, the `-` item by item, with its options (`a.-(b; nested)`), as
+// the left operand.
+type ObjectWithSubBinOperatorOptions interface {
+	BinOpSubOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithMulBinOperatorOptions is implemented by an object that handles
+// `.*`, the `*` item by item, with its options (`a.*(b; nested)`), as
+// the left operand.
+type ObjectWithMulBinOperatorOptions interface {
+	BinOpMulOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithPowBinOperatorOptions is implemented by an object that handles
+// `.**`, the `**` item by item, with its options (`a.**(b; nested)`), as
+// the left operand.
+type ObjectWithPowBinOperatorOptions interface {
+	BinOpPowOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithQuoBinOperatorOptions is implemented by an object that handles
+// `./`, the `/` item by item, with its options (`a./(b; nested)`), as
+// the left operand.
+type ObjectWithQuoBinOperatorOptions interface {
+	BinOpQuoOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithRemBinOperatorOptions is implemented by an object that handles
+// `.%`, the `%` item by item, with its options (`a.%(b; nested)`), as
+// the left operand.
+type ObjectWithRemBinOperatorOptions interface {
+	BinOpRemOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithAndBinOperatorOptions is implemented by an object that handles
+// `.&`, the `&` item by item, with its options (`a.&(b; nested)`), as
+// the left operand.
+type ObjectWithAndBinOperatorOptions interface {
+	BinOpAndOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithXorBinOperatorOptions is implemented by an object that handles
+// `.^`, the `^` item by item, with its options (`a.^(b; nested)`), as
+// the left operand.
+type ObjectWithXorBinOperatorOptions interface {
+	BinOpXorOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithShlBinOperatorOptions is implemented by an object that handles
+// `.<<`, the `<<` item by item, with its options (`a.<<(b; nested)`), as
+// the left operand.
+type ObjectWithShlBinOperatorOptions interface {
+	BinOpShlOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithShrBinOperatorOptions is implemented by an object that handles
+// `.>>`, the `>>` item by item, with its options (`a.>>(b; nested)`), as
+// the left operand.
+type ObjectWithShrBinOperatorOptions interface {
+	BinOpShrOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithAndNotBinOperatorOptions is implemented by an object that handles
+// `.&^`, the `&^` item by item, with its options (`a.&^(b; nested)`), as
+// the left operand.
+type ObjectWithAndNotBinOperatorOptions interface {
+	BinOpAndNotOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithEqualBinOperatorOptions is implemented by an object that handles
+// `.==`, the `==` item by item, with its options (`a.==(b; nested)`), as
+// the left operand.
+type ObjectWithEqualBinOperatorOptions interface {
+	BinOpEqualOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithNotEqualBinOperatorOptions is implemented by an object that handles
+// `.!=`, the `!=` item by item, with its options (`a.!=(b; nested)`), as
+// the left operand.
+type ObjectWithNotEqualBinOperatorOptions interface {
+	BinOpNotEqualOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithLessBinOperatorOptions is implemented by an object that handles
+// `.<`, the `<` item by item, with its options (`a.<(b; nested)`), as
+// the left operand.
+type ObjectWithLessBinOperatorOptions interface {
+	BinOpLessOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithGreaterBinOperatorOptions is implemented by an object that handles
+// `.>`, the `>` item by item, with its options (`a.>(b; nested)`), as
+// the left operand.
+type ObjectWithGreaterBinOperatorOptions interface {
+	BinOpGreaterOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithLessEqBinOperatorOptions is implemented by an object that handles
+// `.<=`, the `<=` item by item, with its options (`a.<=(b; nested)`), as
+// the left operand.
+type ObjectWithLessEqBinOperatorOptions interface {
+	BinOpLessEqOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithGreaterEqBinOperatorOptions is implemented by an object that handles
+// `.>=`, the `>=` item by item, with its options (`a.>=(b; nested)`), as
+// the left operand.
+type ObjectWithGreaterEqBinOperatorOptions interface {
+	BinOpGreaterEqOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithTripleLessBinOperatorOptions is implemented by an object that handles
+// `.<<<`, the `<<<` item by item, with its options (`a.<<<(b; nested)`), as
+// the left operand.
+type ObjectWithTripleLessBinOperatorOptions interface {
+	BinOpTripleLessOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithTripleGreaterBinOperatorOptions is implemented by an object that handles
+// `.>>>`, the `>>>` item by item, with its options (`a.>>>(b; nested)`), as
+// the left operand.
+type ObjectWithTripleGreaterBinOperatorOptions interface {
+	BinOpTripleGreaterOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithDoubleModBinOperatorOptions is implemented by an object that handles
+// `.%%`, the `%%` item by item, with its options (`a.%%(b; nested)`), as
+// the left operand.
+type ObjectWithDoubleModBinOperatorOptions interface {
+	BinOpDoubleModOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithSameBinOperatorOptions is implemented by an object that handles
+// `.===`, the `===` item by item, with its options (`a.===(b; nested)`), as
+// the left operand.
+type ObjectWithSameBinOperatorOptions interface {
+	BinOpSameOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// ObjectWithNotSameBinOperatorOptions is implemented by an object that handles
+// `.!==`, the `!==` item by item, with its options (`a.!==(b; nested)`), as
+// the left operand.
+type ObjectWithNotSameBinOperatorOptions interface {
+	BinOpNotSameOptions(vm *VM, right Object, options BinOpOptions) (Object, error)
+}
+
+// binOpOptionsObject dispatches an item by item operator to left's typed
+// ObjectWith{Op}BinOperatorOptions implementation. handled is false when left
+// does not implement the operator's interface.
+func binOpOptionsObject(vm *VM, tok token.Token, left, right Object, options BinOpOptions) (ret Object, err error, handled bool) {
+	switch tok {
+	case token.Add:
+		if h, ok := left.(ObjectWithAddBinOperatorOptions); ok {
+			ret, err = h.BinOpAddOptions(vm, right, options)
+			handled = true
+		}
+	case token.Sub:
+		if h, ok := left.(ObjectWithSubBinOperatorOptions); ok {
+			ret, err = h.BinOpSubOptions(vm, right, options)
+			handled = true
+		}
+	case token.Mul:
+		if h, ok := left.(ObjectWithMulBinOperatorOptions); ok {
+			ret, err = h.BinOpMulOptions(vm, right, options)
+			handled = true
+		}
+	case token.Pow:
+		if h, ok := left.(ObjectWithPowBinOperatorOptions); ok {
+			ret, err = h.BinOpPowOptions(vm, right, options)
+			handled = true
+		}
+	case token.Quo:
+		if h, ok := left.(ObjectWithQuoBinOperatorOptions); ok {
+			ret, err = h.BinOpQuoOptions(vm, right, options)
+			handled = true
+		}
+	case token.Rem:
+		if h, ok := left.(ObjectWithRemBinOperatorOptions); ok {
+			ret, err = h.BinOpRemOptions(vm, right, options)
+			handled = true
+		}
+	case token.And:
+		if h, ok := left.(ObjectWithAndBinOperatorOptions); ok {
+			ret, err = h.BinOpAndOptions(vm, right, options)
+			handled = true
+		}
+	case token.Xor:
+		if h, ok := left.(ObjectWithXorBinOperatorOptions); ok {
+			ret, err = h.BinOpXorOptions(vm, right, options)
+			handled = true
+		}
+	case token.Shl:
+		if h, ok := left.(ObjectWithShlBinOperatorOptions); ok {
+			ret, err = h.BinOpShlOptions(vm, right, options)
+			handled = true
+		}
+	case token.Shr:
+		if h, ok := left.(ObjectWithShrBinOperatorOptions); ok {
+			ret, err = h.BinOpShrOptions(vm, right, options)
+			handled = true
+		}
+	case token.AndNot:
+		if h, ok := left.(ObjectWithAndNotBinOperatorOptions); ok {
+			ret, err = h.BinOpAndNotOptions(vm, right, options)
+			handled = true
+		}
+	case token.Equal:
+		if h, ok := left.(ObjectWithEqualBinOperatorOptions); ok {
+			ret, err = h.BinOpEqualOptions(vm, right, options)
+			handled = true
+		}
+	case token.NotEqual:
+		if h, ok := left.(ObjectWithNotEqualBinOperatorOptions); ok {
+			ret, err = h.BinOpNotEqualOptions(vm, right, options)
+			handled = true
+		}
+	case token.Less:
+		if h, ok := left.(ObjectWithLessBinOperatorOptions); ok {
+			ret, err = h.BinOpLessOptions(vm, right, options)
+			handled = true
+		}
+	case token.Greater:
+		if h, ok := left.(ObjectWithGreaterBinOperatorOptions); ok {
+			ret, err = h.BinOpGreaterOptions(vm, right, options)
+			handled = true
+		}
+	case token.LessEq:
+		if h, ok := left.(ObjectWithLessEqBinOperatorOptions); ok {
+			ret, err = h.BinOpLessEqOptions(vm, right, options)
+			handled = true
+		}
+	case token.GreaterEq:
+		if h, ok := left.(ObjectWithGreaterEqBinOperatorOptions); ok {
+			ret, err = h.BinOpGreaterEqOptions(vm, right, options)
+			handled = true
+		}
+	case token.TripleLess:
+		if h, ok := left.(ObjectWithTripleLessBinOperatorOptions); ok {
+			ret, err = h.BinOpTripleLessOptions(vm, right, options)
+			handled = true
+		}
+	case token.TripleGreater:
+		if h, ok := left.(ObjectWithTripleGreaterBinOperatorOptions); ok {
+			ret, err = h.BinOpTripleGreaterOptions(vm, right, options)
+			handled = true
+		}
+	case token.DoubleMod:
+		if h, ok := left.(ObjectWithDoubleModBinOperatorOptions); ok {
+			ret, err = h.BinOpDoubleModOptions(vm, right, options)
+			handled = true
+		}
+	case token.Same:
+		if h, ok := left.(ObjectWithSameBinOperatorOptions); ok {
+			ret, err = h.BinOpSameOptions(vm, right, options)
+			handled = true
+		}
+	case token.NotSame:
+		if h, ok := left.(ObjectWithNotSameBinOperatorOptions); ok {
+			ret, err = h.BinOpNotSameOptions(vm, right, options)
+			handled = true
+		}
+	}
+	return
+}
+
+// BinOpAddOptions is `.+` of the array: item by item (BroadcastEach).
+func (o Array) BinOpAddOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Add, o, right, options)
+}
+
+// BinOpSubOptions is `.-` of the array: item by item (BroadcastEach).
+func (o Array) BinOpSubOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Sub, o, right, options)
+}
+
+// BinOpMulOptions is `.*` of the array: item by item (BroadcastEach).
+func (o Array) BinOpMulOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Mul, o, right, options)
+}
+
+// BinOpPowOptions is `.**` of the array: item by item (BroadcastEach).
+func (o Array) BinOpPowOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Pow, o, right, options)
+}
+
+// BinOpQuoOptions is `./` of the array: item by item (BroadcastEach).
+func (o Array) BinOpQuoOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Quo, o, right, options)
+}
+
+// BinOpRemOptions is `.%` of the array: item by item (BroadcastEach).
+func (o Array) BinOpRemOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Rem, o, right, options)
+}
+
+// BinOpAndOptions is `.&` of the array: item by item (BroadcastEach).
+func (o Array) BinOpAndOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.And, o, right, options)
+}
+
+// BinOpXorOptions is `.^` of the array: item by item (BroadcastEach).
+func (o Array) BinOpXorOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Xor, o, right, options)
+}
+
+// BinOpShlOptions is `.<<` of the array: item by item (BroadcastEach).
+func (o Array) BinOpShlOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Shl, o, right, options)
+}
+
+// BinOpShrOptions is `.>>` of the array: item by item (BroadcastEach).
+func (o Array) BinOpShrOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Shr, o, right, options)
+}
+
+// BinOpAndNotOptions is `.&^` of the array: item by item (BroadcastEach).
+func (o Array) BinOpAndNotOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.AndNot, o, right, options)
+}
+
+// BinOpEqualOptions is `.==` of the array: item by item (BroadcastEach).
+func (o Array) BinOpEqualOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Equal, o, right, options)
+}
+
+// BinOpNotEqualOptions is `.!=` of the array: item by item (BroadcastEach).
+func (o Array) BinOpNotEqualOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.NotEqual, o, right, options)
+}
+
+// BinOpLessOptions is `.<` of the array: item by item (BroadcastEach).
+func (o Array) BinOpLessOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Less, o, right, options)
+}
+
+// BinOpGreaterOptions is `.>` of the array: item by item (BroadcastEach).
+func (o Array) BinOpGreaterOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Greater, o, right, options)
+}
+
+// BinOpLessEqOptions is `.<=` of the array: item by item (BroadcastEach).
+func (o Array) BinOpLessEqOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.LessEq, o, right, options)
+}
+
+// BinOpGreaterEqOptions is `.>=` of the array: item by item (BroadcastEach).
+func (o Array) BinOpGreaterEqOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.GreaterEq, o, right, options)
+}
+
+// BinOpTripleLessOptions is `.<<<` of the array: item by item (BroadcastEach).
+func (o Array) BinOpTripleLessOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.TripleLess, o, right, options)
+}
+
+// BinOpTripleGreaterOptions is `.>>>` of the array: item by item (BroadcastEach).
+func (o Array) BinOpTripleGreaterOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.TripleGreater, o, right, options)
+}
+
+// BinOpDoubleModOptions is `.%%` of the array: item by item (BroadcastEach).
+func (o Array) BinOpDoubleModOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.DoubleMod, o, right, options)
+}
+
+// BinOpSameOptions is `.===` of the array: item by item (BroadcastEach).
+func (o Array) BinOpSameOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Same, o, right, options)
+}
+
+// BinOpNotSameOptions is `.!==` of the array: item by item (BroadcastEach).
+func (o Array) BinOpNotSameOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.NotSame, o, right, options)
+}
+
+// BinOpAddOptions is `.+` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpAddOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Add, o, right, options)
+}
+
+// BinOpSubOptions is `.-` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpSubOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Sub, o, right, options)
+}
+
+// BinOpMulOptions is `.*` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpMulOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Mul, o, right, options)
+}
+
+// BinOpPowOptions is `.**` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpPowOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Pow, o, right, options)
+}
+
+// BinOpQuoOptions is `./` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpQuoOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Quo, o, right, options)
+}
+
+// BinOpRemOptions is `.%` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpRemOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Rem, o, right, options)
+}
+
+// BinOpAndOptions is `.&` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpAndOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.And, o, right, options)
+}
+
+// BinOpXorOptions is `.^` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpXorOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Xor, o, right, options)
+}
+
+// BinOpShlOptions is `.<<` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpShlOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Shl, o, right, options)
+}
+
+// BinOpShrOptions is `.>>` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpShrOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Shr, o, right, options)
+}
+
+// BinOpAndNotOptions is `.&^` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpAndNotOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.AndNot, o, right, options)
+}
+
+// BinOpEqualOptions is `.==` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpEqualOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Equal, o, right, options)
+}
+
+// BinOpNotEqualOptions is `.!=` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpNotEqualOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.NotEqual, o, right, options)
+}
+
+// BinOpLessOptions is `.<` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpLessOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Less, o, right, options)
+}
+
+// BinOpGreaterOptions is `.>` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpGreaterOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Greater, o, right, options)
+}
+
+// BinOpLessEqOptions is `.<=` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpLessEqOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.LessEq, o, right, options)
+}
+
+// BinOpGreaterEqOptions is `.>=` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpGreaterEqOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.GreaterEq, o, right, options)
+}
+
+// BinOpTripleLessOptions is `.<<<` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpTripleLessOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.TripleLess, o, right, options)
+}
+
+// BinOpTripleGreaterOptions is `.>>>` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpTripleGreaterOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.TripleGreater, o, right, options)
+}
+
+// BinOpDoubleModOptions is `.%%` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpDoubleModOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.DoubleMod, o, right, options)
+}
+
+// BinOpSameOptions is `.===` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpSameOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.Same, o, right, options)
+}
+
+// BinOpNotSameOptions is `.!==` of the typedArray: item by item (BroadcastEach).
+func (o *TypedArray) BinOpNotSameOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {
+	return BroadcastEach(vm, token.NotSame, o, right, options)
+}
+
 // ObjectWithNotUnaryOperator is implemented by an object that handles the
 // `!` unary operator.
 type ObjectWithNotUnaryOperator interface {

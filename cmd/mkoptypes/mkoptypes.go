@@ -110,6 +110,8 @@ func writeOpAPI(binaryOperators, unaryOperators, selfAssignOperators []token.Tok
 	}
 	f.WriteString("\t}\n\treturn\n}\n\n")
 
+	writeOpOptionsAPI(&f, binaryOperators)
+
 	for _, o := range unaryOperators {
 		fmt.Fprintf(&f,
 			"// ObjectWith%sUnaryOperator is implemented by an object that handles the\n"+
@@ -163,6 +165,53 @@ func writeOpAPI(binaryOperators, unaryOperators, selfAssignOperators []token.Tok
 	}
 	if err := exec.Command("go", "fmt", "op_api.go").Run(); err != nil {
 		panic(err)
+	}
+}
+
+// writeOpOptionsAPI writes the handlers of the operators with options — the
+// item by item `.op` (`a.op(b; nested)`): ObjectWith{Op}BinOperatorOptions with
+// BinOp{Op}Options(vm, right, options), its dispatcher, and the Array's and
+// the TypedArray's, which broadcast (BroadcastEach).
+func writeOpOptionsAPI(f *strings.Builder, binaryOperators []token.Token) {
+	var ops []token.Token
+	for _, o := range binaryOperators {
+		if o.IsBroadcastOperator() {
+			ops = append(ops, o)
+		}
+	}
+	for _, o := range ops {
+		fmt.Fprintf(f,
+			"// ObjectWith%sBinOperatorOptions is implemented by an object that handles\n"+
+				"// `.%s`, the `%[2]s` item by item, with its options (`a.%[2]s(b; nested)`), as\n"+
+				"// the left operand.\n"+
+				"type ObjectWith%[1]sBinOperatorOptions interface {\n"+
+				"\tBinOp%[1]sOptions(vm *VM, right Object, options BinOpOptions) (Object, error)\n}\n\n",
+			o.Name(), o.String())
+	}
+
+	f.WriteString("// binOpOptionsObject dispatches an item by item operator to left's typed\n")
+	f.WriteString("// ObjectWith{Op}BinOperatorOptions implementation. handled is false when left\n")
+	f.WriteString("// does not implement the operator's interface.\n")
+	f.WriteString("func binOpOptionsObject(vm *VM, tok token.Token, left, right Object, options BinOpOptions) (ret Object, err error, handled bool) {\n")
+	f.WriteString("\tswitch tok {\n")
+	for _, o := range ops {
+		fmt.Fprintf(f,
+			"\tcase token.%s:\n"+
+				"\t\tif h, ok := left.(ObjectWith%[1]sBinOperatorOptions); ok {\n"+
+				"\t\t\tret, err = h.BinOp%[1]sOptions(vm, right, options)\n"+
+				"\t\t\thandled = true\n\t\t}\n",
+			o.Name())
+	}
+	f.WriteString("\t}\n\treturn\n}\n\n")
+
+	for _, typ := range []struct{ name, recv string }{{"Array", "o Array"}, {"TypedArray", "o *TypedArray"}} {
+		for _, o := range ops {
+			fmt.Fprintf(f,
+				"// BinOp%sOptions is `.%s` of the %s: item by item (BroadcastEach).\n"+
+					"func (%s) BinOp%[1]sOptions(vm *VM, right Object, options BinOpOptions) (Object, error) {\n"+
+					"\treturn BroadcastEach(vm, token.%[1]s, o, right, options)\n}\n\n",
+				o.Name(), o.String(), strings.ToLower(typ.name[:1])+typ.name[1:], typ.recv)
+		}
 	}
 }
 

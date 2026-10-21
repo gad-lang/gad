@@ -3326,7 +3326,8 @@ func rangeCallExpr(from, to, step node.Expr) *node.CallExpr {
 }
 
 // compileBroadcastExpr is `a .op b`: both operands, then OpBroadcast (the
-// operator, nested).
+// operator, with options); the call form's named arguments, a key-value
+// array above the operands, are the options (`a.op(b; nested)`).
 func (c *Compiler) compileBroadcastExpr(nd *node.BroadcastExpr) error {
 	if !nd.Token.IsBroadcastOperator() {
 		return c.Errorf(nd, "invalid broadcast operator: .%s", nd.Token.String())
@@ -3337,11 +3338,15 @@ func (c *Compiler) compileBroadcastExpr(nd *node.BroadcastExpr) error {
 	if err := c.Compile(nd.RHS); err != nil {
 		return err
 	}
-	nested := 0
-	if nd.Nested {
-		nested = 1
+	withOptions := 0
+	if nd.Args != nil && nd.Args.NamedArgs.Valid() {
+		kva := namedArgsLit(&nd.Args.NamedArgs)
+		if err := c.Compile(kva); err != nil {
+			return err
+		}
+		withOptions = 1
 	}
-	c.emit(nd, OpBroadcast, int(nd.Token), nested)
+	c.emit(nd, OpBroadcast, int(nd.Token), withOptions)
 	return nil
 }
 
@@ -3879,26 +3884,7 @@ func (c *Compiler) compileCallArgs(pos source.Pos, op Opcode, nd *node.CallArgs,
 
 	if numKwargs := len(nd.NamedArgs.Names); numKwargs > 0 {
 		flags |= OpCallFlagNamedArgs
-		namedArgs := &node.KeyValueArrayLit{Elements: make([]node.Expr, numKwargs)}
-
-		for i, name := range nd.NamedArgs.Names {
-			value := nd.NamedArgs.Values[i]
-			if name.Var {
-				namedArgs.Elements[i] = &node.NamedArgVarLit{Value: name.Exp}
-			} else {
-				if value == nil {
-					// is flag
-					value = &node.FlagLit{Value: true}
-				}
-				if name.Exp != nil {
-					namedArgs.Elements[i] = &node.KeyValueLit{Key: name.Expr(), Value: value}
-				} else {
-					namedArgs.Elements[i] = &node.KeyValuePairLit{Key: name.Expr(), Value: value}
-				}
-			}
-		}
-
-		if err := c.compileKeyValueArrayLit(namedArgs); err != nil {
+		if err := c.compileKeyValueArrayLit(namedArgsLit(&nd.NamedArgs)); err != nil {
 			return err
 		}
 	}
@@ -3911,6 +3897,29 @@ func (c *Compiler) compileCallArgs(pos source.Pos, op Opcode, nd *node.CallArgs,
 
 	c.emitPos(pos, nd, op, numArgs, int(flags))
 	return nil
+}
+
+// namedArgsLit is the key-value array of the named arguments of a call (a
+// flag is yes; `**kva` spreads).
+func namedArgsLit(named *node.CallExprNamedArgs) *node.KeyValueArrayLit {
+	kva := &node.KeyValueArrayLit{Elements: make([]node.Expr, len(named.Names))}
+	for i, name := range named.Names {
+		value := named.Values[i]
+		if name.Var {
+			kva.Elements[i] = &node.NamedArgVarLit{Value: name.Exp}
+			continue
+		}
+		if value == nil {
+			// is flag
+			value = &node.FlagLit{Value: true}
+		}
+		if name.Exp != nil {
+			kva.Elements[i] = &node.KeyValueLit{Key: name.Expr(), Value: value}
+		} else {
+			kva.Elements[i] = &node.KeyValuePairLit{Key: name.Expr(), Value: value}
+		}
+	}
+	return kva
 }
 
 func (c *Compiler) compileFile(nd *parser.File) (err error) {

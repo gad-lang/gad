@@ -70,10 +70,18 @@ VMLoop:
 				return
 			}
 		case OpBroadcast:
+			// Stack: [left, right] or, with options (`a.op(b; …)`), [left, right,
+			// the named arguments].
 			tok := token.Token(vm.curInsts[vm.ip+1])
-			nested := vm.curInsts[vm.ip+2] != 0
+			var options BinOpOptions
+			if vm.curInsts[vm.ip+2] != 0 {
+				kva, _ := vm.stack[vm.sp-1].(KeyValueArray)
+				options = BinOpOptionsOf(kva)
+				vm.sp--
+				vm.stack[vm.sp] = nil
+			}
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
-			value, err := vm.broadcast(tok, left, right, nested)
+			value, err := Broadcast(vm, tok, left, right, options)
 			if err == nil {
 				vm.stack[vm.sp-2] = value
 				vm.sp--

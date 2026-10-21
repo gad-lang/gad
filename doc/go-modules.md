@@ -196,6 +196,37 @@ func (o Celsius) Print(state *gad.PrinterState) error {
 - A key of a dict prints by `state.PrintKey`: an identifier as it is, any
   other text quoted.
 
+### Operators: `BinOp{Op}`, and `BinOp{Op}Options` for `.op`
+
+A type handles an operator as its left operand by the method of the
+operator's interface (`gad.ObjectWith{Op}BinOperator`):
+`BinOpAdd(vm, right)` for `a + b`, `BinOpLess` for `<`, …; the user's
+overloads (`met gad.binOpAdd(…)`) come first. The item by item operator
+`.op` (`a .+ b`, `a.+(b; nested)`) goes to
+**`BinOp{Op}Options(vm *gad.VM, right gad.Object, options gad.BinOpOptions)`**
+(`gad.ObjectWith{Op}BinOperatorOptions`) — the options are the named
+arguments of the call form, and `a .+ b` passes none. An array's broadcasts
+(`gad.BroadcastEach`); a type without one is broadcast the same way, its value
+applied to every item of an array on the right.
+
+`gad.BinOpOptions` reads and sets its options as the print options do: the
+known ones by their methods, with their defaults (`Nested()`, false when
+absent; `SetNested`, `WithNested`), any other by its key. A handler errors on
+an option it does not take (`options.Unknown("nested", "mine")`).
+
+```go
+// Matrix handles `m.*(2; rows)`: the item by item product, by rows.
+func (m Matrix) BinOpMulOptions(vm *gad.VM, right gad.Object, options gad.BinOpOptions) (gad.Object, error) {
+	if k := options.Unknown(gad.BinOpOptionNested, "rows"); k != "" {
+		return nil, gad.ErrArgument.NewError(".*: unknown option " + k)
+	}
+	if v, ok := options["rows"]; ok && !v.IsFalsy() {
+		return m.mulRows(vm, right)
+	}
+	return gad.BroadcastEach(vm, token.Mul, m.Array(), right, options)
+}
+```
+
 ## Go values in gad (`ReflectValue`)
 
 Any Go value becomes a gad value by `gad.MustNewReflectValue(v)` (or

@@ -135,8 +135,10 @@ const (
 	// opcode value shifts.
 	OpInterfaceDefaults
 	// OpBroadcast is `a .op b`: op applied item by item, an array of the
-	// results (Julia's broadcast); its flag 1 descends into nested arrays
-	// (`a.op(b; nested)`). Appended so no opcode value shifts.
+	// results (Julia's broadcast), by the left operand's
+	// BinOp{Op}Options handler; its flag 1 says the named arguments of
+	// `a.op(b; …)`, a key-value array, are above the operands (the
+	// options). Appended so no opcode value shifts.
 	OpBroadcast
 )
 
@@ -337,7 +339,7 @@ var OpcodeOperands = [...][]int{
 	OpAssignTransformStrict: {},     // obj :> type -> obj transformed into a class/enum value/interface (or throw)
 	OpJumpNotNo:             {2},    // position
 	OpInterfaceDefaults:     {2},    // number of pairs (field index, default) above the interface
-	OpBroadcast:             {1, 1}, // operator, nested (0 or 1)
+	OpBroadcast:             {1, 1}, // operator, with options (0 or 1: a key-value array above the operands)
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to
