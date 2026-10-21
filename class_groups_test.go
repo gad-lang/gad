@@ -27,10 +27,10 @@ func TestClassGroups(t *testing.T) {
 	testExpectRun(t, `
 		[ordered] class C { z str; { y int }; a str; ? { x str } }
 		c := C(; z="1", a="2")
-		return [sort(collect(keys(C.@fields))), str(c)]`,
+		return [sort(collect(keys(C.@fields))), str(c; zeros)]`,
 		nil, Array{
 			Array{Str("$1"), Str("$2"), Str("a"), Str("z")},
-			Str("‹class instance of ‹(main).C›: {z: \"1\", $1: nil, a: \"2\", $2: nil}›"),
+			Str("C{z: \"1\", $1: nil, a: \"2\", $2: nil}"),
 		})
 
 	// a group's field holds an instance of the group's class, by its name

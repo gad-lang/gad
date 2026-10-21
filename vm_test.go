@@ -2307,18 +2307,18 @@ return str([
 		new: ‹class constructor of ‹(main).Point› with 3 methods›,
 		props: {}
 	}›,
-	‹class instance of ‹(main).Point›: {
-		x: 10,
-		y: 20
-	}›,
-	‹class instance of ‹(main).Point›: {
-		x: 7,
-		y: 20
-	}›,
-	‹class instance of ‹(main).Point›: {
-		x: 3,
-		y: 4
-	}›
+	Point(;
+		x=10,
+		y=20
+	),
+	Point(;
+		x=7,
+		y=20
+	),
+	Point(;
+		x=3,
+		y=4
+	)
 ]`))
 	testExpectRun(t, s0+`
 return repr([
@@ -2339,15 +2339,15 @@ return repr([
 		]››,
 		props: ‹dict: {}›
 	}›,
-	‹class instance of ‹(main).Point›: {
+	‹Point: {
 		x: ‹int: 10›,
 		y: ‹int: 20›
 	}›,
-	‹class instance of ‹(main).Point›: {
+	‹Point: {
 		x: ‹int: 7›,
 		y: ‹int: 20›
 	}›,
-	‹class instance of ‹(main).Point›: {
+	‹Point: {
 		x: ‹int: 3›,
 		y: ‹int: 4›
 	}›
@@ -2372,30 +2372,21 @@ return str([
 ];indent)
 `,
 		nil, Str(`[
-	‹class instance of ‹(main).Point›: {
-		a: nil,
-		b: nil,
-		c: nil,
-		d: 1,
-		e: "abc",
-		f: 1
-	}›,
-	‹class instance of ‹(main).Point›: {
-		a: nil,
-		b: nil,
-		c: nil,
-		d: 1,
-		e: "abc",
-		f: 2
-	}›,
-	‹class instance of ‹(main).Point›: {
-		a: nil,
-		b: nil,
-		c: nil,
-		d: 1,
-		e: "abc",
-		f: 3
-	}›
+	Point(;
+		d=1,
+		e="abc",
+		f=1
+	),
+	Point(;
+		d=1,
+		e="abc",
+		f=2
+	),
+	Point(;
+		d=1,
+		e="abc",
+		f=3
+	)
 ]`))
 
 	s1 := `
@@ -2451,11 +2442,8 @@ Point := Class(
 
 	testExpectRun(t, s1+`;return repr([Point(), Point(1u, 2u)];indent)`,
 		nil, Str(`‹array: [
-	‹class instance of ‹(main).Point›: {
-		x: nil,
-		y: nil
-	}›,
-	‹class instance of ‹(main).Point›: {
+	‹Point: {}›,
+	‹Point: {
 		x: ‹uint: 1u›,
 		y: ‹uint: 2u›
 	}›
@@ -2491,17 +2479,13 @@ return repr([
 	o4pyArr
 ];indent)`,
 		nil, Str(`‹array: [
-	‹class instance of ‹(main).Point›: {
-		x: nil,
-		y: nil
-	}›,
-	‹class instance of ‹(main).Point›: {
+	‹Point: {}›,
+	‹Point: {
 		x: ‹int: 1›,
 		y: ‹int: 2›
 	}›,
-	‹class instance of ‹(main).Point›: {
-		x: ‹int: 10›,
-		y: nil
+	‹Point: {
+		x: ‹int: 10›
 	}›,
 	‹int: 10›,
 	‹array: [
@@ -2624,11 +2608,11 @@ return str([
 		nil, Str(`[
 	"Point as repr",
 	"Point as str",
-	"‹class instance of ‹(main).Point2›: {}›",
+	"‹Point2: {}›",
 	"Point2 as str",
-	"‹class instance of ‹(main).Point3›: {}›",
-	"‹class instance of ‹(main).Point3›: {r: ‹int: 3›}›",
-	"‹class instance of ‹(main).Point3›: {r: ‹int: 6›}›",
+	"‹Point3: {}›",
+	"‹Point3: {r: ‹int: 3›}›",
+	"‹Point3: {r: ‹int: 6›}›",
 	7,
 	16
 ]`))
@@ -4236,9 +4220,9 @@ func TestVMSourceModules(t *testing.T) {
 
 	testExpectRun(t, `
 	mod1 := import("mod1")
-	return str(mod1)
+	return [str(mod1), repr(mod1)]
 	`, newOpts().Module("mod1", ModuleInitWithDataDict(Dict{"x": Int(2)})),
-		Str("‹module \"mod1\" at \"builtinModuleInit:mod1\" {@data: {x: 2}}›"))
+		Array{Str(`import("mod1")`), Str("‹module \"mod1\" at \"builtinModuleInit:mod1\" ‹dict: {@data: ‹dict: {x: ‹int: 2›}›}››")})
 }
 
 func TestVMUnary(t *testing.T) {

@@ -69,12 +69,27 @@ func PtrIndexSet(vm *VM, p Pointer, index, value Object) error {
 
 // ptrString renders a pointer as `&value` (or `&?` when it cannot be read).
 func ptrString(p Pointer) string {
-	v, err := p.PtrGet(nil)
-	if err != nil || v == nil {
-		return "&?"
-	}
-	return "&" + v.ToString()
+	return string(MustToStr(nil, p))
 }
+
+// ptrPrint writes a pointer as `&value`, the value as its literal (`&"a"`,
+// `&2u`); in a repr, `‹ptr: &‹int: 1››`.
+func ptrPrint(state *PrinterState, p Pointer) error {
+	if state.IsRepr {
+		defer state.WrapRepr(p)()
+	}
+	v, err := p.PtrGet(state.VM)
+	if err != nil || v == nil {
+		return state.WriteString("&?")
+	}
+	state.WriteString("&")
+	restore := state.options.WithBackup(PrintStateOptionQuoteStr, Yes)
+	defer restore()
+	return state.Print(v)
+}
+
+func (p *VarPtr) Print(state *PrinterState) error   { return ptrPrint(state, p) }
+func (p *IndexPtr) Print(state *PrinterState) error { return ptrPrint(state, p) }
 
 // --- VarPtr ---
 
@@ -232,7 +247,7 @@ func (p *GoPtr) Copy() Object { return p }
 
 // Print renders the pointer like any other (`&value`), not as a reflected value.
 func (p *GoPtr) Print(state *PrinterState) error {
-	return state.WriteString(p.ToString())
+	return ptrPrint(state, p)
 }
 
 // Equal reports whether x points to the same Go variable.

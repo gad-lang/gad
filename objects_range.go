@@ -41,13 +41,33 @@ func (o *Range) effectiveStep() Object {
 	}
 }
 
-// ToString renders the range as `from .. to` (with ` / step` when a step is set).
+// ToString renders the range as `from..to` (with `/step` when a step is
+// set): its Print.
 func (o *Range) ToString() string {
-	s := o.From.ToString() + " .. " + o.To.ToString()
-	if o.Step != nil {
-		s += " / " + o.Step.ToString()
+	return string(MustToStr(nil, o))
+}
+
+// Print writes the range as gad code, `from..to/step`, its bounds as their
+// literals (`1u..3u`, `2026-01-01D..2026-01-31D/dur 24h0m0s`) —
+// its text too, as an array's; in a repr, each in detail.
+func (o *Range) Print(state *PrinterState) (err error) {
+	if state.IsRepr {
+		defer state.WrapRepr(o)()
 	}
-	return s
+	restore := state.options.WithBackup(PrintStateOptionQuoteStr, Yes)
+	defer restore()
+	if err = state.Print(o.From); err != nil {
+		return
+	}
+	state.WriteString("..")
+	if err = state.Print(o.To); err != nil {
+		return
+	}
+	if o.Step != nil {
+		state.WriteString("/")
+		err = state.Print(o.Step)
+	}
+	return
 }
 
 // Equal reports whether right is a range with equal bounds and effective step.

@@ -105,10 +105,7 @@ func (o CalendarTime) ToString() string {
 // Print writes the timestamp (Printabler); without it the printer's reflection
 // fallback would recurse on this named-uint64 Object.
 func (o CalendarTime) Print(s *PrinterState) error {
-	if s.IsRepr {
-		defer s.WrapRepr(o)()
-	}
-	return s.WriteString(o.ToString())
+	return s.literalOr(o, func() string { return calendarTimeLiteral(o) }, o.ToString())
 }
 
 // MarshalJSON encodes the timestamp as a JSON string "YYYY-MM-DD HH:MM:SS".

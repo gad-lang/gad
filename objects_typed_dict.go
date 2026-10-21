@@ -221,7 +221,23 @@ func (o *TypedDict) ToDict() Dict     { return o.Value.Copy().(Dict) }
 
 func (o *TypedDict) ToString() string { return o.DictType.Name() + o.Value.ToString() }
 
+// Print writes the typed dict: its text `sm{a: 1}`; its literal, the
+// constructor's call `sm({a: 1})` (gad code); its repr `‹sm: {a: ‹int: 1›}›`.
 func (o *TypedDict) Print(state *PrinterState) error {
+	if state.IsRepr {
+		return o.Value.PrintObject(state, o)
+	}
+	if state.IsLiteral() {
+		name := o.DictType.TypeName
+		if name == "" {
+			name = "(type " + o.DictType.Name() + ")"
+		}
+		state.WriteString(name + "(")
+		if err := o.Value.Print(state); err != nil {
+			return err
+		}
+		return state.WriteString(")")
+	}
 	if err := state.WriteString(o.DictType.Name()); err != nil {
 		return err
 	}

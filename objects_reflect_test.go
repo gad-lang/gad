@@ -662,9 +662,9 @@ func TestReflect_ToString(t *testing.T) {
 
 	t.Run("D2", func(t *testing.T) {
 		s := toStr(t, d2, Dict{})
-		require.Equal(t, "{Time: 2025-01-01 00:00:00 +0000 UTC, V1: <Value=1>, V2: <Value=2>, V3: formattedValue:3, V4: formattedValue:4}", s)
+		require.Equal(t, "{Time: 2025-01-01T, V1: <Value=1>, V2: <Value=2>, V3: formattedValue:3, V4: formattedValue:4}", s)
 		s = toStr(t, d2, Dict{"indent": Yes})
-		require.Equal(t, "{\n\tTime: 2025-01-01 00:00:00 +0000 UTC,\n\tV1: <Value=1>,\n\tV2: <Value=2>,\n\tV3: formattedValue:3,\n\tV4: formattedValue:4\n}", s)
+		require.Equal(t, "{\n\tTime: 2025-01-01T,\n\tV1: <Value=1>,\n\tV2: <Value=2>,\n\tV3: formattedValue:3,\n\tV4: formattedValue:4\n}", s)
 	})
 
 	t.Run("slice", func(t *testing.T) {

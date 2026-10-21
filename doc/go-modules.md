@@ -167,7 +167,7 @@ A value prints in one of three forms, which the state tells apart:
 | Form | When | What it writes |
 | ---- | ---- | -------------- |
 | its text | `str(v)`, a value alone | the value's text: a str as it is, `2` for `2u` |
-| its literal | `state.IsLiteral()`: inside a collection (an array's, a dict's, a key-value array's items) or `quoteStr` | **gad code** that reads back as an equal value of the same type — `"a"`, `2u`, `1.50d`, `2.0`, `'a'`, `yes`, `bytes("ab")`, `/a+/`, `Color.red`, `error("x")` —, so a reader knows how to write it |
+| its literal | `state.IsLiteral()`: inside a collection (an array's, a dict's, a key-value array's items) or `quoteStr` | **gad code** that reads back as an equal value of the same type — `"a"`, `2u`, `1.50d`, `2.0`, `'a'`, `yes`, `bytes("ab")`, `/a+/`, `Color.red`, `error("x")`, `2026-01-31D`, `dur 1h30m0s`, `1781609136.500U`, `1u..3u`, `[a=1]`, `ints(1, 2)`, `sm({a: 1})`, `syncDict({a: 1})`, `P(;x=1)`, `import("json")` —, so a reader knows how to write it; a value no literal writes, by the call that makes it (`time.strToCalendarTime("…")`, `time.in(…U, time.strToLocation("America/Sao_Paulo"))`) |
 | its repr | `state.IsRepr`: `repr(v)`, `str(v; repr)` | the literal with its type, `‹uint: 2u›`; its nested values in detail too, each through `state.Print` |
 
 ```go
@@ -195,6 +195,13 @@ func (o Celsius) Print(state *gad.PrinterState) error {
   `typesAsFullNames`. A boolean option is any true value (`yes`, `true`).
 - A key of a dict prints by `state.PrintKey`: an identifier as it is, any
   other text quoted.
+- A value of a declared type prints by its name: a class instance `P{x: 1}`,
+  its literal the constructor's call `P(;x=1)`, its repr `‹P: {x: ‹int: 1›}›`;
+  its nil and zero fields only with `zeros`, the class's full name with
+  `typesAsFullNames`.
+- **Go's fmt** (`sprintf`, the `fmt` module) gets a gad value through
+  `gad.FmtArg`: `%v`/`%s` its str, `%q` the str quoted, `%#v` its repr —
+  never the Go value inside it.
 
 ### Operators: `BinOp{Op}`, and `BinOp{Op}Options` for `.op`
 

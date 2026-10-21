@@ -2207,6 +2207,24 @@ func (o *SyncDict) ToString() string {
 	return o.Value.ToString()
 }
 
+// Print writes the dict: its text `{a: 1}`; its literal, the constructor's
+// call `syncDict({a: 1})` (gad code); its repr `‹syncDict: {a: ‹int: 1›}›`.
+func (o *SyncDict) Print(state *PrinterState) error {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	if state.IsRepr {
+		return o.Value.PrintObject(state, o)
+	}
+	if state.IsLiteral() {
+		state.WriteString("syncDict(")
+		if err := o.Value.Print(state); err != nil {
+			return err
+		}
+		return state.WriteString(")")
+	}
+	return o.Value.Print(state)
+}
+
 func (o *SyncDict) Format(f fmt.State, verb rune) {
 	switch verb {
 	case 'v':

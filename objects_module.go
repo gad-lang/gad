@@ -95,13 +95,7 @@ func (m *Module) String() string {
 }
 
 func (m *Module) ToString() string {
-	var s string
-	if m.Spec.URL == "" {
-		s = m.Spec.Name
-	} else {
-		s = fmt.Sprintf("%s %q", m.Spec.Name, m.Spec.URL)
-	}
-	return ReprQuoteTyped("module", s)
+	return string(MustToStr(nil, m))
 }
 
 func (m *Module) Name() string {
@@ -217,7 +211,17 @@ func (m *Module) moduleScoped(_ string, value Object) Object {
 	return value
 }
 
+// Print writes the module: its text and its literal, the gad code that gets
+// it, `import("json")` (the entry module, which none gets, `‹module "(main)"›`); its repr, in detail, where it was loaded from and its
+// members: `‹module "json" at "…" {@data: {…}}›`.
 func (m *Module) Print(state *PrinterState) (err error) {
+	if !state.IsRepr {
+		if strings.HasPrefix(m.Name(), "(") {
+			// `(main)`, `(repl)`: no import gets it
+			return state.WriteString(repr.QuotePrefix + "module " + strconv.Quote(m.Name()) + repr.QuoteSufix)
+		}
+		return state.WriteString("import(" + strconv.Quote(m.Name()) + ")")
+	}
 	fmt.Fprintf(state, "%smodule %q", repr.QuotePrefix, m.Name())
 	if file := m.File(); len(file) > 0 {
 		fmt.Fprintf(state, " at %q", file)

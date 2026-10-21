@@ -262,7 +262,7 @@ func fmtToPrintArgs(offset int, c Call) []any {
 	size := c.Args.Length()
 	vargs := make([]any, 0, size-offset)
 	for i := offset; i < size; i++ {
-		vargs = append(vargs, c.Args.Get(i))
+		vargs = append(vargs, FmtArg(c.VM, c.Args.Get(i)))
 	}
 	return vargs
 }

@@ -85,10 +85,7 @@ func (o CalendarDate) ToString() string {
 // Print writes the date (Printabler); without it the printer's reflection
 // fallback would recurse on this named-uint Object.
 func (o CalendarDate) Print(s *PrinterState) error {
-	if s.IsRepr {
-		defer s.WrapRepr(o)()
-	}
-	return s.WriteString(o.ToString())
+	return s.literalOr(o, func() string { return calendarDateLiteral(o) }, o.ToString())
 }
 
 // MarshalJSON encodes the date as the JSON string "YYYY-MM-DD".

@@ -978,17 +978,50 @@ func (o *ClassInstance) UpdateIndexSetter(out StringIndexSetter) {
 	}
 }
 
+// Print writes the instance (issue #25): its text `P{x: 1}`; its literal,
+// the constructor's call `P(;x=1)` (gad code); its repr `‹P: {x: ‹int: 1›}›`.
+// Its fields in the order the class declares them (sorted by name when it
+// does not keep one), the nil and zero ones (falsy) only with the option
+// zeros; the class by its full name with typesAsFullNames.
 func (o *ClassInstance) Print(state *PrinterState) error {
-	if !state.IsRepr {
-		defer state.WrapRepr(o)()
-	}
+	var entries PrintStateDictEntries
 	if o.class.OrderedFields {
-		if state.IsRepr {
-			defer state.WrapRepr(o)()
+		entries = o.orderedEntries()
+	} else {
+		d := o.ToDict()
+		for k, v := range d {
+			entries = append(entries, &PrintStateDictEntry{k, v})
 		}
-		return state.PrintDictEntriesInOrder(o.orderedEntries())
+		entries.Sort(PrintStateOptionSortTypeAscending)
 	}
-	return o.ToDict().PrintObject(state, o)
+	if !state.options.IsZeros() {
+		kept := entries[:0:0]
+		for _, e := range entries {
+			if e.Value != nil && !e.Value.IsFalsy() {
+				kept = append(kept, e)
+			}
+		}
+		entries = kept
+	}
+	name := o.class.Name()
+	if state.options.IsTypesAsFullNames() {
+		name = o.class.FullName()
+	}
+	switch {
+	case state.IsRepr:
+		defer state.WrapReprString(name)()
+		return state.PrintDictEntriesInOrder(entries)
+	case state.IsLiteral():
+		state.WriteString(name)
+		kva := make(KeyValueArray, len(entries))
+		for i, e := range entries {
+			kva[i] = &KeyValue{K: Str(e.Name), V: e.Value}
+		}
+		return kva.Print(state)
+	default:
+		state.WriteString(name)
+		return state.PrintDictEntriesInOrder(entries)
+	}
 }
 
 func (o *ClassInstance) CallPrint(c Call) (err error) {
@@ -1002,15 +1035,7 @@ func (o *ClassInstance) CallPrint(c Call) (err error) {
 	if err = c.Args.Destructure(state); err != nil {
 		return
 	}
-
-	ps := state.Value.(*PrinterState)
-	if o.class.OrderedFields {
-		if ps.IsRepr {
-			defer ps.WrapRepr(o)()
-		}
-		return ps.PrintDictEntriesInOrder(o.orderedEntries())
-	}
-	return o.ToDict().PrintObject(ps, o)
+	return o.Print(state.Value.(*PrinterState))
 }
 
 // ClassInstanceMethod is a ClassMethod bound to a receiver instance. Calling it

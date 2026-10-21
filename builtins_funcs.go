@@ -753,7 +753,7 @@ func BuiltinPrintfFunc(c Call) (_ Object, err error) {
 		format, _ := c.Args.ShiftOk()
 		vargs := make([]any, 0, size-1)
 		for i := 0; i < size-1; i++ {
-			vargs = append(vargs, c.Args.Get(i))
+			vargs = append(vargs, FmtArg(c.VM, c.Args.Get(i)))
 		}
 		n, err = fmt.Fprintf(w, format.ToString(), vargs...)
 	}
@@ -1028,7 +1028,7 @@ func BuiltinSprintfFunc(c Call) (ret Object, err error) {
 		format, _ := c.Args.ShiftOk()
 		vargs := make([]any, 0, size-1)
 		for i := 0; i < size-1; i++ {
-			vargs = append(vargs, c.Args.Get(i))
+			vargs = append(vargs, FmtArg(c.VM, c.Args.Get(i)))
 		}
 		ret = Str(fmt.Sprintf(format.ToString(), vargs...))
 	}

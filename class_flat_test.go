@@ -43,8 +43,8 @@ func TestClassFlat(t *testing.T) {
 	// the fields themselves: a parent's, of its class
 	testExpectRun(t, src+`f := C.@flat; return [typeName(f[1].v), f[1].v.@name, len(f)]`, nil, Array{Str("ClassField"), Str("p1a"), Int(15)})
 	// an instance, in the same order
-	testExpectRun(t, src+`return str(C(; z="z", a=1, b=2, c=3))`, nil,
-		Str("‹class instance of ‹(main).C›: {z: \"z\", p1a: nil, p1b: nil, a: 1, ma: nil, mb: nil, s1: ‹builtin type ‹str› with 9 methods›, b: 2, p0: nil, p2: nil, mc: nil, s2: ‹builtin type ‹str› with 9 methods›, s3: ‹builtin type ‹str› with 9 methods›, c: 3, s4: ‹builtin type ‹str› with 9 methods›}›"))
+	testExpectRun(t, src+`return str(C(; z="z", a=1, b=2, c=3); zeros)`, nil,
+		Str("C{z: \"z\", p1a: nil, p1b: nil, a: 1, ma: nil, mb: nil, s1: ‹builtin type ‹str› with 9 methods›, b: 2, p0: nil, p2: nil, mc: nil, s2: ‹builtin type ‹str› with 9 methods›, s3: ‹builtin type ‹str› with 9 methods›, c: 3, s4: ‹builtin type ‹str› with 9 methods›}"))
 	// a field declared again: once, where first declared, the nearest's
 	testExpectRun(t, `
 		class P { a str; b str }

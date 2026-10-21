@@ -62,7 +62,7 @@ return [a, b, d, typeName(d.n), x, byID({"1": "a", "2": "b"}), c, e, types(s)]`,
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `[[2, 4], [1, 5], {n: 2u}, "uint", ints[6, 8], "b/kk", [99, 2], {new: 1}, "str,int"]`
+	want := `[[2, 4], [1, 5], {n: 2u}, "uint", ints(6, 8), "b/kk", [99, 2], {new: 1}, "str,int"]`
 	if got := ret.ToString(); got != want {
 		t.Fatalf("got  %s\nwant %s", got, want)
 	}

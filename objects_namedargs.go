@@ -238,18 +238,20 @@ func (o *KeyValue) Print(state *PrinterState) (err error) {
 	}
 
 	if prev == nil || escape(prev) {
+		// standalone (not a pair of a key-value array): `[a=1]`, its repr
+		// `‹keyValue: [a=‹int: 1›]›`
+		if state.IsRepr {
+			defer state.WrapRepr(o)()
+		}
 		open, close = []byte{'['}, []byte{']'}
 	}
 
 	state.Write(open)
 	defer state.Write(close)
 
-	switch t := o.K.(type) {
-	case Str:
-		state.PrintKey(t)
-	default:
-		Print(state, o.K)
-	}
+	// the key as a dict's: an identifier as it is, any other its literal
+	// (in a repr too: the value is what it details)
+	state.PrintKeySafe(true, o.K)
 
 	if o.V != Yes {
 		state.WriteString("=")

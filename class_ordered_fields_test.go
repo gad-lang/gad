@@ -17,8 +17,8 @@ func TestClassOrderedFields(t *testing.T) {
 		class D { *P; z = 3; a = 4 }
 		return [str(C(; a=5)), str(D())]`,
 		nil, Array{
-			Str("‹class instance of ‹(main).C›: {pz: 1, pa: 2, z: 3, a: 5}›"),
-			Str("‹class instance of ‹(main).D›: {pz: 1, pa: 2, z: 3, a: 4}›"),
+			Str("C{pz: 1, pa: 2, z: 3, a: 5}"),
+			Str("D{pz: 1, pa: 2, z: 3, a: 4}"),
 		})
 	testExpectRun(t, `[ordered] class C { a = 1 }; class D { a = 1 }; return [len(C.@meta), len(D.@meta)]`,
 		nil, Array{Int(1), Int(0)})
@@ -56,6 +56,6 @@ func TestClassInstanceWalkParents(t *testing.T) {
 		class G { g = 0 }
 		class P { *G; p = 1 }
 		class D { *P; d = 2 }
-		return str(D())`,
-		nil, Str("‹class instance of ‹(main).D›: {g: 0, p: 1, d: 2}›"))
+		return [str(D(); zeros), str(D()), str([D()]), repr(D())]`,
+		nil, Array{Str("D{g: 0, p: 1, d: 2}"), Str("D{p: 1, d: 2}"), Str("[D(;p=1, d=2)]"), Str("‹D: {p: ‹int: 1›, d: ‹int: 2›}›")})
 }

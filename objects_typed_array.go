@@ -450,7 +450,19 @@ func (o *TypedArray) ToString() string {
 	return o.ArrayType.TypeName + o.Items.ToString()
 }
 
+// Print writes the typed array: its text `ints[1, 2]`; its literal, the
+// constructor's call `ints(1, 2)` (gad code); its repr `‹ints: [‹int: 1›, …]›`.
 func (o *TypedArray) Print(state *PrinterState) error {
+	if len(o.Fields) == 0 {
+		if state.IsRepr {
+			return o.Items.PrintObject(state, o)
+		}
+		if name := o.ArrayType.TypeName; name != "" && state.IsLiteral() {
+			state.WriteString(name)
+			return state.PrintValues(len(o.Items), []byte{'('}, []byte{')'}, []byte{','},
+				func(i int) (Object, error) { return o.Items[i], nil })
+		}
+	}
 	if err := state.WriteString(o.ArrayType.TypeName); err != nil {
 		return err
 	}

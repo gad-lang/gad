@@ -53,10 +53,7 @@ func (o Duration) ToString() string { return time.Duration(o).String() }
 // Print writes the duration (Printabler); without it the printer's reflection
 // fallback would recurse on this named-int Object.
 func (o Duration) Print(s *PrinterState) error {
-	if s.IsRepr {
-		defer s.WrapRepr(o)()
-	}
-	return s.WriteString(o.ToString())
+	return s.literalOr(o, func() string { return durationLiteral(o) }, o.ToString())
 }
 
 // MarshalJSON encodes the duration as a JSON string, e.g. "1h30m0s".
