@@ -8,10 +8,10 @@ package gad
 // (those available without an import). `gaddoc api . samples/builtins.gad builtins`
 // renders it as the documented Gad API stub `samples/builtins.gad`.
 //
-// Documented here (the callable builtins): the type constructors (str/int/…),
-// the container/iteration/I/O builtins, the iterator/keyValue constructors
-// (iterator/zip/keyValue/keyValueArray), the type predicates (is*), and the meta
-// builtins (is/cast/wrap/implements/Class/…).
+// Documented here (the callable builtins): the container/iteration/I/O
+// builtins, zip, the type predicates (is*), and the meta builtins
+// (is/cast/wrap/implements/Class/…). The types (str/int/…/keyValueArray/
+// iterator) are documented each on its own page: samples/types/*.gad.
 //
 // Intentionally left out, by category:
 //   - Behavioural interfaces & the `number` union — value-types, not functions;
@@ -37,99 +37,10 @@ package gad
 //
 // ## Functions
 //
-// Type constructors — each named type is also a conversion function: it coerces
-// a value to that type, throwing when the value cannot be converted.
-//
-// str(v any) <str>
-// Converts a value to its str form (never fails).
-// Example:
-// ```gad
-// str(12)
-// = "12"
-// [str([1, "a"]), str(nil)]
-// = ["[1, \"a\"]", "nil"]
-// ```
-//
-// rawstr(v any) <rawstr>
-// Converts a value to a rawstr (an uninterpreted string).
-// Example:
-// ```gad
-// isRawStr(rawstr("a"))
-// = true
-// ```
-//
-// int(v any) <int>
-// Converts a str/number/char/bool to an int; throws otherwise.
-// Example:
-// ```gad
-// [int("42"), int(4.9), int('A'), int(true)]
-// = [42, 4, 65, 1]
-// ```
-//
-// uint(v any) <uint>
-// Converts a value to a uint; throws otherwise.
-// Example:
-// ```gad
-// uint(3)
-// = 3
-// ```
-//
-// float(v any) <float>
-// Converts a str/number to a float; throws otherwise.
-// Example:
-// ```gad
-// float("1.5")
-// = 1.5
-// ```
-//
-// decimal(v any) <decimal>
-// Converts a str/number to an arbitrary-precision decimal; throws otherwise.
-// Example:
-// ```gad
-// decimal("1.10")
-// = 1.1
-// ```
-//
-// char(v any) <char>
-// Converts an int code point or a single-character str to a char; throws
-// otherwise.
-// Example:
-// ```gad
-// char(65)
-// = 'A'
-// ```
-//
-// bool(v any) <bool>
-// Returns the truthiness of a value (never fails).
-// Example:
-// ```gad
-// [bool(1), bool(0), bool(""), bool("x")]
-// = [true, false, false, true]
-// ```
-//
-// bytes(v any) <bytes>
-// Converts a str to its bytes, or builds a bytes of the given int length.
-// Example:
-// ```gad
-// str(bytes("hi"))
-// = "hi"
-// ```
-//
-// array(*args) <array>
-// Collects its arguments into a new array.
-// Example:
-// ```gad
-// array(1, 2)
-// = [1, 2]
-// ```
-//
-// dict(o; **named) <dict>
-// Builds a dict from named arguments, or from a dict-like value `o`.
-// Example:
-// ```gad
-// [dict(; a=1), dict((;b=2))]
-// = [{a: 1}, {b: 2}]
-// ```
+// The types — str, rawstr, int, uint, float, decimal, char, bool, bytes,
+// array, dict, keyValue, keyValueArray, iterator — are documented each on its
+// own page, with its constructors, methods, operators and conversions:
+// samples/types (doc/samples/types).
 //
 // len(val any; check=no) <int>
 // Returns the number of elements of a value that has a length (array, dict,
@@ -666,15 +577,6 @@ package gad
 // = "a"
 // ```
 //
-// iterator(it iterable) <iterator>
-// Builds an iterator over any iterable value (the type constructor form of
-// `iterate`).
-// Example:
-// ```gad
-// collect(iterator([1, 2]))
-// = [1, 2]
-// ```
-//
 // zip(*iterables) <iterator>
 // Returns an iterator that chains the given iterables end to end: it yields
 // every element of the first, then of the second, and so on.
@@ -682,22 +584,4 @@ package gad
 // ```gad
 // collect(zip([1], [2, 3]))
 // = [1, 2, 3]
-// ```
-//
-// keyValue(key any, value any) <keyValue>
-// Builds a single key/value pair value. A dict takes one with `+`:
-// `d += keyValue(k, v)` sets that entry. `++` is for a sequence of entries.
-// Example:
-// ```gad
-// kv := keyValue("a", 1)
-// [kv.k, kv.v]
-// = ["a", 1]
-// ```
-//
-// keyValueArray(*pairs) <keyValueArray>
-// Builds an ordered key/value collection from `keyValue` pairs.
-// Example:
-// ```gad
-// str(keyValueArray(keyValue("a", 1), keyValue("b", 2)))
-// = "(;a=1, b=2)"
 // ```

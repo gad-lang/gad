@@ -58,9 +58,6 @@ The units the areas are given in.
 
 ```gad
 cm
-```
-
-```gad
 m
 ```
 

@@ -1,0 +1,36 @@
+/**
+# bytes
+
+A **bytes** is a mutable sequence of bytes. Its literals are `b"…"` (text)
+and `h"…"` (hex); a collection prints one as `bytes("…")`.
+
+## Constructors
+
+`bytes(v)` is the bytes of a str, a new bytes of an int length (zeros);
+`bytes(b1, b2, …)` of byte values.
+
+@snippet constructors
+
+## Operators
+
+`+` concatenates; a bytes indexes by byte (an int) and slices.
+
+@snippet operators
+
+## See also
+
+- [Strings, bytes and regexps](../strings_bytes_regex.md).
+
+@type bytes
+**/
+
+example constructors {
+    [str(bytes("hi")), len(bytes(3)), bytes(104, 105) == bytes("hi")]
+    = ["hi", 1, true]
+}
+
+example operators {
+    b := bytes("ab") + bytes("c")
+    [str(b), b[0], str(b[1:]), len(b)]
+    = ["abc", 97, "bc", 3]
+}

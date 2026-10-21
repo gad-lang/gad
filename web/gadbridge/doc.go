@@ -243,6 +243,8 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 		d.Prose = leadingRootBlock(src)
 	}
 
+	applyTypeDirectives(d)
+
 	var exports []DocSymbol
 	for _, stmt := range file.Stmts {
 		es, ok := stmt.(*gnode.ExportStmt)
@@ -290,6 +292,52 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 		d.Sections = append(d.Sections, DocSection{Title: "Public API", Symbols: exports})
 	}
 	return d, nil
+}
+
+// applyTypeDirectives turns each `@type NAME` line of the prose into the
+// symbol of the builtin type NAME: its members, discovered from the builtins
+// (gad.DescribeType) — constructors, methods, properties, operators,
+// conversions and overloads, each a group —, in a "Type" section.
+func applyTypeDirectives(d *DocData) {
+	if !strings.Contains(d.Prose, "@type ") {
+		return
+	}
+	var (
+		b    = gad.NewBuiltins()
+		keep []string
+		syms []DocSymbol
+	)
+	for _, line := range strings.Split(d.Prose, "\n") {
+		if f := strings.Fields(line); len(f) == 2 && f[0] == "@type" {
+			if sym, ok := typeDocSymbol(b, f[1]); ok {
+				syms = append(syms, sym)
+				continue
+			}
+		}
+		keep = append(keep, line)
+	}
+	if len(syms) == 0 {
+		return
+	}
+	d.Prose = strings.TrimSpace(strings.Join(keep, "\n"))
+	d.Sections = append([]DocSection{{Title: "Type", Symbols: syms}}, d.Sections...)
+}
+
+// typeDocSymbol is the builtin type name as a documented symbol.
+func typeDocSymbol(b *gad.Builtins, name string) (DocSymbol, bool) {
+	bt, ok := b.NameSet[name]
+	if !ok {
+		return DocSymbol{}, false
+	}
+	t, ok := b.Objects[bt].(gad.ObjectType)
+	if !ok {
+		return DocSymbol{}, false
+	}
+	sym := DocSymbol{Name: name, Signature: " type"}
+	for _, m := range gad.DescribeType(b, t) {
+		sym.Members = append(sym.Members, DocMember{Group: m.Group, Signature: m.Signature, Doc: m.Doc})
+	}
+	return sym, true
 }
 
 // leadingRootBlock returns the cleaned prose of a leading `/*** … ***/` root

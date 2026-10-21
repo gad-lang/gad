@@ -53,13 +53,28 @@ for sec in doc.sections {
         if s.doc {
             write("\n" + s.doc + "\n")
         }
-        // A type's members, grouped by kind, each with its metadata tag and doc.
+        // A type's members, grouped by kind, each with its metadata tag and doc;
+        // consecutive members with neither share one code block (a type's
+        // operators, its constructors).
         group := ""
+        plain := []
+        flush := func() {
+            if len(plain) > 0 {
+                write("\n```" + doc.lang + "\n" + strings.join(plain, "\n") + "\n```\n")
+                plain = []
+            }
+        }
         for m in s.members {
             if m.group != group {
+                flush()
                 group = m.group
                 write("\n#### " + group + "\n")
             }
+            if !m.doc && !m.meta {
+                plain += m.signature
+                continue
+            }
+            flush()
             code := m.signature
             if m.meta {
                 code = m.meta + "\n" + code
@@ -69,6 +84,7 @@ for sec in doc.sections {
                 write("\n" + m.doc + "\n")
             }
         }
+        flush()
         // A multi-signature function renders one fenced block + doc per overload.
         for o in s.overloads {
             write("\n```" + doc.lang + "\n" + s.name + o.signature + "\n```\n")

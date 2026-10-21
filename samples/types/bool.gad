@@ -1,0 +1,35 @@
+/**
+# bool
+
+A **bool** is `true` or `false`. Every value has a truthiness — what `if`,
+`!` and `bool(v)` see —: `false`, `nil`, `0`, `""`, an empty array or dict
+are falsy, the rest truthy.
+
+## Constructors
+
+`bool(v)` is the truthiness of any value; it never fails.
+
+@snippet constructors
+
+## Operators
+
+`!a` negates; `&&` and `||` short-circuit, giving one of their operands.
+
+@snippet operators
+
+## See also
+
+- `flag` (`yes`/`no`), the truth of a named option.
+
+@type bool
+**/
+
+example constructors {
+    [bool(1), bool(0), bool(""), bool("x"), bool([]), bool(nil)]
+    = [true, false, false, true, false, false]
+}
+
+example operators {
+    [!true, true && false, false || "x", nil || 0 || "z"]
+    = [false, false, "x", "z"]
+}

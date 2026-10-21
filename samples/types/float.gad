@@ -1,0 +1,36 @@
+/**
+# float
+
+A **float** is a 64-bit IEEE-754 floating-point number. Its literals have a
+point or an exponent (`1.5`, `2.0`, `1e20`); a collection prints a whole
+float with its point (`[2.0]`), told apart from an int.
+
+## Constructors
+
+`float(v)` converts a str, an int, a uint, a decimal.
+
+@snippet constructors
+
+## Operators
+
+The arithmetic (`+ - * / % **`), the unary `-a`/`+a`, the increment and the
+comparisons; an int operand is converted.
+
+@snippet operators
+
+## See also
+
+- [decimal](decimal.md), for exact (base-10) arithmetic.
+
+@type float
+**/
+
+example constructors {
+    [float("1.5"), float(2), float(3u), float(1.25d)]
+    = [1.5, 2.0, 3.0, 1.25]
+}
+
+example operators {
+    [1.5 + 1, 7.0 / 2, 2.0 ** 3, -1.5, 0.1 + 0.2 > 0.3]
+    = [2.5, 3.5, 8.0, -1.5, true]
+}

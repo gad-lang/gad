@@ -63,3 +63,4 @@
 - [modules](modules/README.md)
 - [stdlib](stdlib/README.md)
 - [testing](testing/README.md)
+- [types](types/README.md)

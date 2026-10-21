@@ -55,13 +55,16 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
 
                         @if s.members
                             div.members
+                                ~ group := ""
                                 @for m in s.members
+                                    @if m.group != group
+                                        h4.member-group {=m.group}
+                                        ~ group = m.group
                                     div.member[data-group=m.group]
                                         @if m.meta
                                             p.meta
                                                 code {=m.meta}
                                         p.signature
-                                            span.member-group {=m.group}
                                             code {=m.signature}
                                         @if m.doc
                                             div.doc {=m.docHTML}

@@ -1,0 +1,51 @@
+/**
+# keyValueArray
+
+A **keyValueArray** is an ordered list of key/value pairs — keys may repeat,
+the order is kept. Its literal is `(;a=1, b=2)`, the form named arguments
+take; a typed one (`type opts keyValueArray[str, int]`) checks its pairs.
+
+## Constructors
+
+`keyValueArray(*pairs)` of `keyValue`s, of `[k, v]` pairs, or of a dict.
+
+@snippet constructors
+
+## Methods
+
+`get(key)` is the value of the last pair of the key; `values(key)` all of
+them; `delete(key)` removes the pairs; `flag(key)` the truth of a flag
+(`debug`, in `(;debug)`); `sort()`/`sortReverse()` order the pairs by key —
+in place; `sort(true)` a sorted copy.
+
+@snippet methods
+
+## Operators
+
+`+` appends pairs (a new key-value array); `in` tests a key.
+
+@snippet operators
+
+## See also
+
+- [Key-value arrays](../key_value_array.md), [keyValue](keyValue.md).
+
+@type keyValueArray
+**/
+
+example constructors {
+    [keyValueArray(keyValue("a", 1), [b=2]), keyValueArray({c: 3})]
+    = [(;a=1, b=2), (;c=3)]
+}
+
+example methods {
+    o := (;b=2, a=3, a=1, debug)
+    [o.get("a"), o.values("a"), o.flag("debug"), o.sort(true), o.delete("b")]
+    = [1, [3, 1], true, (;a=1, a=3, b=2, debug), (;a=3, a=1, debug)]
+}
+
+example operators {
+    o := (;a=1) + (;b=2)
+    [o, "a" in o]
+    = [(;a=1, b=2), true]
+}

@@ -1,0 +1,31 @@
+/**
+# char
+
+A **char** is a Unicode code point. Its literals are `'a'`, `'\n'`,
+`'é'`; a collection prints them so (`['a']`).
+
+## Constructors
+
+`char(v)` converts an int (a code point) or a single-character str.
+
+@snippet constructors
+
+## Operators
+
+A char compares with a char, and adds an int (the next code points):
+`'a' + 1` is `'b'`.
+
+@snippet operators
+
+@type char
+**/
+
+example constructors {
+    [char(65), char("é"), int('A'), str('z')]
+    = ['A', 'é', 65, "z"]
+}
+
+example operators {
+    ['a' + 1, 'a' < 'b', 'z' - 1]
+    = ['b', true, 'y']
+}

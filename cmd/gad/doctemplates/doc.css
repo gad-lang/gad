@@ -117,4 +117,6 @@ mark { background: var(--sel); color: inherit; border-radius: 3px; }
 .gad-doc .meta code { font-size: .9em; }
 .gad-doc .members { margin: .5rem 0 0 1rem; }
 .gad-doc .member { margin: .5rem 0; }
-.gad-doc .member-group { display: inline-block; min-width: 6.5em; font-size: .75em; text-transform: uppercase; opacity: .6; }
+.gad-doc .member-group { margin: 1rem 0 .25rem; font-size: .8em; text-transform: uppercase; opacity: .7; }
+.gad-doc .member { margin: .15rem 0; }
+.gad-doc .member p.signature { margin: 0; }

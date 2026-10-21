@@ -39,6 +39,10 @@ func (o Char) UnOpDec(*VM) (Object, error) { return o - 1, nil }
 
 // --- Decimal ---
 
+// UnOpSub is `-d`: what a negative decimal literal (`-1.5d`) is.
+func (o Decimal) UnOpSub(*VM) (Object, error) { return Decimal(o.ToGo().Neg()), nil }
+func (o Decimal) UnOpAdd(*VM) (Object, error) { return o, nil }
+
 func (o Decimal) UnOpInc(*VM) (Object, error) {
 	return Decimal(o.ToGo().Add(DecimalFromInt(1).ToGo())), nil
 }

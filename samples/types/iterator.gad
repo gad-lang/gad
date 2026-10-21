@@ -1,0 +1,26 @@
+/**
+# iterator
+
+An **iterator** is a lazy sequence: it yields the entries (key, value) of an
+iterable as it is iterated — `for k, v in it`, `collect(it)` —, computing
+each on demand. `map`, `filter`, `keys`, `values`, `zip` give iterators.
+
+## Constructors
+
+`iterator(it)` iterates any iterable (an array, a dict, a str, a range, …):
+the type constructor form of `iterate`.
+
+@snippet constructors
+
+## See also
+
+- [Functional](../functional.md) (`map`, `filter`, `reduce`),
+  [comprehensions](../comprehensions.md).
+
+@type iterator
+**/
+
+example constructors {
+    [collect(iterator([1, 2])), collect(iterator({a: 1})), isIterator(iterator([]))]
+    = [[1, 2], [1], true]
+}

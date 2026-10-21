@@ -374,12 +374,14 @@ func (o *KeyValue) greater(tok token.Token, vm *VM, right Object) (Object, error
 	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
 }
 
+// IsLess orders pairs by key; pairs of the same key by value, when their
+// values compare (else they keep their order).
 func (o *KeyValue) IsLess(vm *VM, other *KeyValue) bool {
-	if o.K.ToString() < other.K.ToString() {
-		return true
+	if a, b := o.K.ToString(), other.K.ToString(); a != b {
+		return a < b
 	}
-	v, _ := BinaryOp(vm, token.Less, o.V, other.V)
-	return v == nil || !v.IsFalsy()
+	v, err := BinaryOp(vm, token.Less, o.V, other.V)
+	return err == nil && v != nil && !v.IsFalsy()
 }
 
 // CanIterate implements Object interface.
@@ -751,7 +753,7 @@ func (o KeyValueArray) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
 func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 	o = o.Normalized() // an array built in Go may hold resets
 	if less == nil {
-		sort.Slice(o, func(i, j int) bool {
+		sort.SliceStable(o, func(i, j int) bool {
 			return o[i].IsLess(vm, o[j])
 		})
 	} else {
@@ -776,8 +778,8 @@ func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 
 func (o KeyValueArray) SortReverse(vm *VM) (Object, error) {
 	o = o.Normalized() // an array built in Go may hold resets
-	sort.Slice(o, func(i, j int) bool {
-		return !o[i].IsLess(vm, o[j])
+	sort.SliceStable(o, func(i, j int) bool {
+		return o[j].IsLess(vm, o[i])
 	})
 	return o, nil
 }
