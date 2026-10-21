@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gad-lang/gad/cmd/internal/gaddoc"
+	"github.com/gad-lang/gad/internal/gaddoc"
 )
 
 // `gad gomodule` of samples/modules/gomodule/shapes.gad (issue #17): the

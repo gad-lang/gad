@@ -13,6 +13,6 @@
 // The command lives in cmd/internal/gaddoc, shared with `gad gomodule`.
 package main
 
-import "github.com/gad-lang/gad/cmd/internal/gaddoc"
+import "github.com/gad-lang/gad/internal/gaddoc"
 
 func main() { gaddoc.Main() }
