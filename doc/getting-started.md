@@ -315,7 +315,8 @@ gad ide --static web/app/dist samples            # equivalent, after a build
 ```
 
 To embed Gad in a Go program instead of running it from the CLI, see
-[Embedding in Go](embedding.md).
+[Embedding in Go](embedding.md); to write modules in Go — or ship a module
+written in Gad as a Go package —, [Go modules](go-modules.md).
 
 ## See also
 

@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// CallBuiltin calls the builtin t of the VM with args (and namedArgs, nil
+// for none): dispatched as a script's call is — the overloads registered on
+// it (`met len(…)`, a host's AddMethod), the host's own builtin when it
+// replaced gad's. Go code of a module calls the builtins so, never their Go
+// functions directly (doc/go-modules.md).
 func (vm *VM) CallBuiltin(t BuiltinType, namedArgs *NamedArgs, args ...Object) (Object, error) {
 	c := Call{VM: vm, Args: Args{args}}
 	if namedArgs != nil {
