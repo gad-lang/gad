@@ -18,6 +18,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	gadparser "github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
@@ -466,16 +467,55 @@ func trimBlankEdges(lines []string) []string {
 }
 
 // runAPIMode implements `gaddoc api <srcDir> <outFile> <module>`.
+// apiMu serializes the API calls: the module selected, the modules' data,
+// are package state.
+var apiMu sync.Mutex
+
 // API is the API stub (`gaddoc api`) of the module documented by the
 // gad:doc comments of the Go package in srcDir, and the warnings of its
 // emitter.
 func API(srcDir, module string) (string, []string, error) {
-	moduleFilter = module
-	dg, err := apiDocgroup(srcDir)
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, srcDir, nil, parser.ParseComments)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to parse in %q: %w", srcDir, err)
 	}
-	var sf *sampleFile
+	return apiOf(pkgs, module)
+}
+
+// APIFiles is API of the Go sources files (a file's name → its source) of a
+// package, in memory.
+func APIFiles(files map[string][]byte, module string) (string, []string, error) {
+	fset := token.NewFileSet()
+	pkgs := map[string]*ast.Package{}
+	for name, src := range files {
+		f, err := parser.ParseFile(fset, name, src, parser.ParseComments)
+		if err != nil {
+			return "", nil, err
+		}
+		pkg := pkgs[f.Name.Name]
+		if pkg == nil {
+			pkg = &ast.Package{Name: f.Name.Name, Files: map[string]*ast.File{}}
+			pkgs[f.Name.Name] = pkg
+		}
+		pkg.Files[name] = f
+	}
+	return apiOf(pkgs, module)
+}
+
+func apiOf(pkgs map[string]*ast.Package, module string) (string, []string, error) {
+	apiMu.Lock()
+	defer apiMu.Unlock()
+	moduleFilter = module
+	dg := &docgroup{}
+	dg.process(collectRawComments(pkgs))
+	if len(dg.errs) > 0 {
+		return "", nil, fmt.Errorf("%s", strings.Join(dg.errs, "\n"))
+	}
+	var (
+		sf  *sampleFile
+		err error
+	)
 	if dg.samplesPath != "" {
 		if sf, err = parseSampleFile(dg.samplesPath); err != nil {
 			return "", nil, fmt.Errorf("read samples %q: %w", dg.samplesPath, err)

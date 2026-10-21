@@ -1,7 +1,7 @@
 //go:build js && wasm
 
 // Command wasm compiles the Gad bridge to WebAssembly. It installs functions on
-// the JS global object — gadFormat, gadRun, gadDiagnose, gadDoc, the gadDebug*
+// the JS global object — gadFormat, gadGomodule, gadRun, gadDiagnose, gadDoc, the gadDebug*
 // stepping protocol and gadInspect — each returning a JSON string with the same
 // shape as the HTTP server's responses, so the React app can drive run, format,
 // diagnostics, documentation and a full debugger entirely in the browser, with
@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"syscall/js"
 
+	"github.com/gad-lang/gad/gomodule"
 	"github.com/gad-lang/gad/web/gadbridge"
 )
 
@@ -20,6 +21,20 @@ func main() {
 	// "gadTemplate"/"template", or "gad"/"" (the default, plain Gad).
 	js.Global().Set("gadFormat", jsonFuncN(func(args []js.Value) any {
 		return gadbridge.FormatSource(argStr(args, 0), argStr(args, 1))
+	}))
+	// gadGomodule(source, sourceType, requestJSON) — a module written in gad
+	// made a builtin module of a Go package (`gad gomodule`): sourceType as
+	// gadFormat's; requestJSON a gomodule.Request ({module, pkg, imports,
+	// files, generate}); a gomodule.Response ({ok, files, bytecode (base64),
+	// imports, warnings, error}).
+	js.Global().Set("gadGomodule", jsonFuncN(func(args []js.Value) any {
+		var req gomodule.Request
+		if s := argStr(args, 2); s != "" {
+			if err := json.Unmarshal([]byte(s), &req); err != nil {
+				return gomodule.Response{Error: "request: " + err.Error()}
+			}
+		}
+		return gomodule.MakeSource(argStr(args, 0), argStr(args, 1), req)
 	}))
 	// gadRun(source[, sourceType[, argsJSON[, tagEncode]]]) — sourceType
 	// "gadTemplate"/"gadx" compiles the respective dialect; empty/"gad" runs plain

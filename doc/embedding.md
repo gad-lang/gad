@@ -473,6 +473,26 @@ writes into the package directory:
 mm := shapes.AddTo(helper.NewModuleMap())
 ```
 
+**As an API.** The command is the package `github.com/gad-lang/gad/gomodule`,
+in memory — no file system —:
+
+```go
+r, err := gomodule.Make(src, gomodule.Options{
+	Module:     "shapes",
+	SourceType: "gad", // as the formatter takes it: "gad", "gadTemplate", "gadx"
+	Imports:    []string{"strings"},
+	Files:      map[string][]byte{"init.go": initGo}, // the hand-written Go files
+})
+// r.Bytecode, r.Go, r.Test, r.API, r.Imports, r.Warnings; r.Files() by name
+```
+
+Its default module map is `gomodule.BuiltinModules()` — gad's builtin modules
+that need no system (the command passes every one, `os` and `http` too).
+`gomodule.MakeSource(src, sourceType, gomodule.Request{…})` is the same as JSON
+says it, and gad's wasm installs it as `gadGomodule(source, sourceType,
+requestJSON)`, beside `gadFormat(source, sourceType)`: it answers a
+`gomodule.Response` (`{ok, files, bytecode (base64), imports, warnings, error}`).
+
 **The Go init.** A hand-written file of the package (never overwritten) may set
 `Init`: it runs once per import, in the VM that imports the module, **after** the
 gad part. Its `*gad.ModuleInitContext` gives the VM (`VM()`), the module's spec
