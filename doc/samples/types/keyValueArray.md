@@ -29,12 +29,14 @@ o := (;b=2, a=3, a=1, debug)
 
 ## Operators
 
-`+` appends pairs (a new key-value array); `in` tests a key.
+`+` appends pairs (a new key-value array); `in` tests a key. `<`, `<=`, `>`,
+`>=` order them as Python orders lists of `(key, value)` tuples: by the first
+pairs that differ — key, then value —, else the shorter first.
 
 ```gad
 o := (;a=1) + (;b=2)
-[o, "a" in o]
-= [(;a=1, b=2), true]
+[o, "a" in o, (;a=1, b=2) < (;a=1, b=3), (;a=1) < (;b=0), (;a=1) < (;a=1, b=0)]
+= [(;a=1, b=2), true, true, true, true]
 ```
 
 ## See also
@@ -83,7 +85,7 @@ example methods {
 
 example operators {
     o := (;a=1) + (;b=2)
-    [o, "a" in o]
-    = [(;a=1, b=2), true]
+    [o, "a" in o, (;a=1, b=2) < (;a=1, b=3), (;a=1) < (;b=0), (;a=1) < (;a=1, b=0)]
+    = [(;a=1, b=2), true, true, true, true]
 }
 ```

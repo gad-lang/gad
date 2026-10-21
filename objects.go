@@ -1523,21 +1523,35 @@ func (o Array) BinOpAdd(vm *VM, right Object) (_ Object, err error) {
 	return arr, nil
 }
 
-// An array orders after nil and is otherwise not comparable.
-func (o Array) BinOpLess(_ *VM, right Object) (Object, error) {
-	return binCmpAfterNil(token.Less, o, right)
+// Arrays compare as Python's lists: by their first items that differ (`==`),
+// with the operator; else the shorter (a prefix) first. An array orders after
+// nil.
+func (o Array) BinOpLess(vm *VM, right Object) (Object, error) {
+	return arrayCompare(vm, token.Less, o, right)
 }
 
-func (o Array) BinOpLessEq(_ *VM, right Object) (Object, error) {
-	return binCmpAfterNil(token.LessEq, o, right)
+func (o Array) BinOpLessEq(vm *VM, right Object) (Object, error) {
+	return arrayCompare(vm, token.LessEq, o, right)
 }
 
-func (o Array) BinOpGreater(_ *VM, right Object) (Object, error) {
-	return binCmpAfterNil(token.Greater, o, right)
+func (o Array) BinOpGreater(vm *VM, right Object) (Object, error) {
+	return arrayCompare(vm, token.Greater, o, right)
 }
 
-func (o Array) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
-	return binCmpAfterNil(token.GreaterEq, o, right)
+func (o Array) BinOpGreaterEq(vm *VM, right Object) (Object, error) {
+	return arrayCompare(vm, token.GreaterEq, o, right)
+}
+
+// arrayCompare is `o tok right` of an array: an array (a typed one's items)
+// compares as a sequence, nil orders first.
+func arrayCompare(vm *VM, tok token.Token, o Array, right Object) (Object, error) {
+	switch r := right.(type) {
+	case Array:
+		return compareSequences(vm, tok, o, r)
+	case *TypedArray:
+		return compareSequences(vm, tok, o, r.Items)
+	}
+	return binCmpAfterNil(tok, o, right)
 }
 
 func (o Array) AppendToArray(arr Array) Array {

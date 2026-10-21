@@ -734,20 +734,46 @@ func (o KeyValueArray) BinOpInc(vm *VM, right Object) (Object, error) {
 	return o.AppendObjects(vm, vals...)
 }
 
-func (o KeyValueArray) BinOpLess(_ *VM, right Object) (Object, error) {
-	return binCmpAfterNil(token.Less, o, right)
+// Key-value arrays compare as Python's lists of (key, value) tuples: by
+// their first pairs that differ, key then value; else the shorter first. A
+// key-value array orders after nil.
+func (o KeyValueArray) BinOpLess(vm *VM, right Object) (Object, error) {
+	return kvaCompare(vm, token.Less, o, right)
 }
 
-func (o KeyValueArray) BinOpLessEq(_ *VM, right Object) (Object, error) {
-	return binCmpAfterNil(token.LessEq, o, right)
+func (o KeyValueArray) BinOpLessEq(vm *VM, right Object) (Object, error) {
+	return kvaCompare(vm, token.LessEq, o, right)
 }
 
-func (o KeyValueArray) BinOpGreater(_ *VM, right Object) (Object, error) {
-	return binCmpAfterNil(token.Greater, o, right)
+func (o KeyValueArray) BinOpGreater(vm *VM, right Object) (Object, error) {
+	return kvaCompare(vm, token.Greater, o, right)
 }
 
-func (o KeyValueArray) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
-	return binCmpAfterNil(token.GreaterEq, o, right)
+func (o KeyValueArray) BinOpGreaterEq(vm *VM, right Object) (Object, error) {
+	return kvaCompare(vm, token.GreaterEq, o, right)
+}
+
+// kvaCompare is `o tok right` of a key-value array: another (a typed one's
+// pairs) compares as a sequence of [key, value] pairs, nil orders first.
+func kvaCompare(vm *VM, tok token.Token, o KeyValueArray, right Object) (Object, error) {
+	var r KeyValueArray
+	switch t := right.(type) {
+	case KeyValueArray:
+		r = t
+	case *TypedKeyValueArray:
+		r = t.Value
+	default:
+		return binCmpAfterNil(tok, o, right)
+	}
+	pairs := func(kva KeyValueArray) Array {
+		kva = kva.Normalized()
+		out := make(Array, len(kva))
+		for i, kv := range kva {
+			out[i] = Array{kv.K, kv.V}
+		}
+		return out
+	}
+	return compareSequences(vm, tok, pairs(o), pairs(r))
 }
 
 func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {

@@ -99,6 +99,31 @@ func (o *NilType) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
 	return False, nil
 }
 
+// compareSequences is `a tok b` of two sequences, as Python compares lists:
+// at the first index whose items differ (Equal), those items compared with
+// tok; when one is a prefix of the other, by their lengths.
+func compareSequences(vm *VM, tok token.Token, a, b Array) (Object, error) {
+	n := min(len(a), len(b))
+	for i := 0; i < n; i++ {
+		if a[i].Equal(b[i]) {
+			continue
+		}
+		return BinaryOp(vm, tok, a[i], b[i])
+	}
+	var r bool
+	switch tok {
+	case token.Less:
+		r = len(a) < len(b)
+	case token.LessEq:
+		r = len(a) <= len(b)
+	case token.Greater:
+		r = len(a) > len(b)
+	case token.GreaterEq:
+		r = len(a) >= len(b)
+	}
+	return Bool(r), nil
+}
+
 // binCmpAfterNil implements one comparison operator for a type that sorts after
 // nil and is otherwise not comparable: `< nil` / `<= nil` are false,
 // `> nil` / `>= nil` are true; any other operand is an unsupported-operand

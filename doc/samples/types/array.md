@@ -17,8 +17,10 @@ is `[1, "a", [2]]`; a typed array (`type ints []int`) checks its items (see
 ## Operators
 
 `+` appends an item (a new array: `a += v` grows `a`), `++` appends the
-values of an iterable; `in` tests an item; `==` compares item by item. An
-array indexes (`a[0]`, `a[-1]` from the end), slices (`a[1:]`) and is
+values of an iterable; `in` tests an item; `==` compares item by item.
+`<`, `<=`, `>`, `>=` order arrays as Python orders lists: by the first items
+that differ (compared with the operator; `[1, 2] < [1, 3]`), else the shorter
+first (`[1] < [1, 2]`); `nil` comes before any array. An array indexes (`a[0]`, `a[-1]` from the end), slices (`a[1:]`) and is
 iterated (`for i, v in a`).
 
 ```gad
@@ -27,6 +29,13 @@ a += 3
 a ++= [4, 5]
 [a, 2 in a, a[-1], a[1:3], [1, 2] == [1, 2]]
 = [[1, 2, 3, 4, 5], true, 5, [2, 3], true]
+```
+
+```gad
+[[1, 2] < [1, 3], [1] < [1, 2], [2] > [1, 9], ["a"] <= ["a"], nil < [1]]
+= [true, true, true, true, true]
+sort([[2], [1, 5], [], [1]])
+= [[], [1], [1, 5], [2]]
 ```
 
 ## See also
@@ -82,5 +91,12 @@ example operators {
     a ++= [4, 5]
     [a, 2 in a, a[-1], a[1:3], [1, 2] == [1, 2]]
     = [[1, 2, 3, 4, 5], true, 5, [2, 3], true]
+}
+
+example ordering {
+    [[1, 2] < [1, 3], [1] < [1, 2], [2] > [1, 9], ["a"] <= ["a"], nil < [1]]
+    = [true, true, true, true, true]
+    sort([[2], [1, 5], [], [1]])
+    = [[], [1], [1, 5], [2]]
 }
 ```
