@@ -21,13 +21,13 @@ block renders in source order alongside sibling HTML on the same level.
         <a href="/">Home</a>
 
         @if user
-            <a href="/account">{user.name}</a>
+            <a href="/account">{=user.name}</a>
         @else
             <a href="/login">Sign in</a>
 
         <ul class="items">
             @for item in items
-                <li class="item">{item}</li>
+                <li class="item">{=item}</li>
         </ul>
     </nav>
 ```

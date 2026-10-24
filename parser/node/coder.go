@@ -776,7 +776,9 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		i     int
 		sep   = sepNewline
 		inTag bool // currently between a `{%` and its `%}`
-		last  = len(stmt) - 1
+		// the last written is a block comment (`/** … **/`)
+		afterBlockComment bool
+		last              = len(stmt) - 1
 	)
 
 	emitLeadingSep := func() {
@@ -807,7 +809,11 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		if ctx.hasComments() {
 			var lastEnd source.Pos
 			for c := ctx.peekComment(); c != nil && c.Pos() < s.Pos(); c = ctx.peekComment() {
-				if i > 0 {
+				if i > 0 && sep == sepSpace && strings.Contains(c.Text, "\n") {
+					// a block comment (a `/** … **/` doc) opens its own line, even
+					// right after a `{%`
+					ctx.WriteString("\n")
+				} else if i > 0 {
 					emitLeadingSep()
 					if lastEnd != 0 && ctx.lineOf(c.Pos()) > ctx.lineOf(lastEnd-1)+1 {
 						ctx.WriteString("\n") // preserve the blank line between groups
@@ -815,6 +821,7 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 				}
 				ctx.WriteString(normalizeDocFence(c.Text))
 				ctx.commentIdx++
+				afterBlockComment = strings.Contains(c.Text, "\n")
 				lastEnd = c.End()
 				sep = sepNewline
 				i++
@@ -833,11 +840,17 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		// Leading separator. A `%}` terminator always hugs the preceding code
 		// with a single space so the whole `{% … %}` tag stays on one line.
 		if _, isEnd := s.(*CodeEndStmt); isEnd && !transpiling {
-			ctx.WriteString(" ")
+			if afterBlockComment {
+				// a `**/` ends its line
+				ctx.WriteString("\n")
+			} else {
+				ctx.WriteString(" ")
+			}
 		} else if i > 0 {
 			emitLeadingSep()
 		}
 		s.WriteCode(ctx)
+		afterBlockComment = false
 		i++
 
 		// Trailing comment(s) on the same source line as this statement stay

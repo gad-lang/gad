@@ -57,19 +57,19 @@ func TestFormatBlockComments(t *testing.T) {
 }`,
 		`d := {
 	// before k
-	k: 1 // k trail
+	k: 1, // k trail
 	// before j
 	j: 2
 }`,
 		`arr := [
 	// before 1
-	1 // one trail
+	1, // one trail
 	// before 2
 	2
 ]`,
 		`kv := (;
 	// before a
-	a=1 // a trail
+	a=1, // a trail
 	// before b
 	b=2
 )`,
@@ -152,4 +152,23 @@ func TestParseGenDeclNoProgress(t *testing.T) {
 	f := fs.AddFileData("decl", -1, src)
 	_, err = NewParserWithOptions(f, &ParserOptions{Mode: ParseComments}, nil).ParseFile()
 	require.Error(t, err)
+}
+
+// The formatter writes these as they read back: a contract closes its brace;
+// a `code … end` block is indented with the code around it (its `end` at the
+// line that opens it); a named parameter typed `<…>` keeps `> =` apart (`>>=`
+// is an operator).
+func TestFormatReadsBack(t *testing.T) {
+	for _, src := range []string{
+		"contract TField {\n\tmeta {\n\t\thint? str\n\t}\n}",
+		"f := func() {\n\tsrc := code\n\t\tfor x in [1, 2] {\n\t\t    println(x)\n\t\t}\n\tend\n}",
+		"export sort(o any; less <(a any, b any) <bool>> = nil) <any> => nil",
+	} {
+		fs := source.NewFileSet()
+		f := fs.AddFileData("fmt", -1, []byte(src))
+		file, err := NewParserWithOptions(f, &ParserOptions{Mode: ParseComments}, nil).ParseFile()
+		require.NoError(t, err, src)
+		out := Code(file.Stmts, CodeWithComments(f, file.Comments), CodeWithPrefix("\t"), CodeWithMinimalParens())
+		require.Equal(t, src, out)
+	}
 }

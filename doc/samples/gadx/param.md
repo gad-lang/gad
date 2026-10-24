@@ -28,7 +28,7 @@ values), @param values are the arguments passed when the template is invoked.
 
 @main
     <section class={theme}>
-        <h1>{title}</h1>
-        <p class="sub">{subtitle}</p>
+        <h1>{=title}</h1>
+        <p class="sub">{=subtitle}</p>
     </section>
 ```

@@ -375,7 +375,13 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	// Inside a literal-text block (@text / @p / @md) each line is emitted
 	// verbatim, with no `| ` prefix, and blank lines are preserved.
 	if ctx.raw {
-		for _, line := range strings.Split(text, "\n") {
+		if text == "" {
+			// a blank line of the block: the line between the statements
+			// around it writes it (else one more each time it is formatted)
+			return
+		}
+		// the break that ends the run is its last line's, written with it
+		for _, line := range strings.Split(strings.TrimSuffix(text, "\n"), "\n") {
 			if line == "" {
 				ctx.write("\n")
 			} else {
@@ -436,7 +442,9 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 		// element beside it; between lines the HTML rule collapses it anyway.
 		keepLead := i == 0 && line != strings.TrimLeft(line, " \t")
 		keepTail := i == len(lines)-1 && line != strings.TrimRight(line, " \t")
-		if keepLead || keepTail {
+		if _, plain := runPlainText(t.Stmts); plain && (keepLead || keepTail) {
+			// (only a plain run: quoted, a computed part `{= x }` would be
+			// its text)
 			// The whole line goes out as one interpolated literal, edges and
 			// all. Writing only the edges that way would split one text node
 			// into three: the page reads the same, but the lowered code does
@@ -899,11 +907,11 @@ func (c *GadxCodeWriteContext) inlineTagText(body gnode.Stmts, preserve bool) (s
 	// which carries the edges through the parse. A run with a computed part
 	// cannot be quoted whole, so it keeps its own line.
 	if runHasEdgeSpace(ts.Stmts) {
-		plain, ok := runPlainText(ts.Stmts)
-		if !ok {
-			return "", false
+		// (a run with a computed part cannot be quoted: quoted, `{= x }` would
+		// be its text; it goes out as written, its edges as any text's)
+		if plain, ok := runPlainText(ts.Stmts); ok {
+			return "{= " + strconv.Quote(plain) + " }", true
 		}
-		return "{= " + strconv.Quote(plain) + " }", true
 	}
 	// A leading `|`/`<`/`@`/`!`/`+`/`~` would be re-parsed as a directive rather
 	// than inline text, so keep those on their own `| ` line.

@@ -91,6 +91,7 @@ func (s *ContractExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 	if ctx.HasPrefix() {
 		writeBraceItems(ctx, len(items), func(i int) { items[i]() })
+		ctx.WriteString("}")
 		return
 	}
 	for i, it := range items {

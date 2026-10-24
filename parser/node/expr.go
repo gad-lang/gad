@@ -2799,7 +2799,7 @@ func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
 			if ctx.hasCommentInRange(e.Pos(), e.End()) {
 				// A comment inside the dict forbids collapsing it; keep each item's
 				// trailing comment attached.
-				ctx.WriteItemsWithComments(len(e.Elements), "", e.LBrace, e.RBrace,
+				ctx.WriteItemsWithComments(len(e.Elements), ",", e.LBrace, e.RBrace,
 					func(i int) Node { return e.Elements[i] }, write, done)
 				ctx.WritePrefix()
 				ctx.WriteSingleByte('}')
@@ -2854,7 +2854,7 @@ func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
 				// A comment inside the array forbids collapsing it; write one item
 				// per line and keep each item's trailing comment attached (closing
 				// mirrors the non-greedy branch below).
-				ctx.WriteItemsWithComments(len(e.Elements), "", e.LBrack, e.RBrack,
+				ctx.WriteItemsWithComments(len(e.Elements), ",", e.LBrack, e.RBrack,
 					func(i int) Node { return e.Elements[i] }, write,
 					func(newLine bool) {
 						if newLine {

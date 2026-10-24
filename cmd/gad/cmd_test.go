@@ -295,9 +295,9 @@ func TestFormatDocInGroupTrailing(t *testing.T) {
 func TestFormatKeepsInlineComments(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
 	cases := []struct{ name, src, want string }{
-		{"array", "x := [1, // one\n2, 3]\n", "1 // one"},
-		{"dict", "x := {a: 1, // aa\nb: 2}\n", "a: 1 // aa"},
-		{"block", "x := [1, /* c */ 2]\n", "1 /* c */"},
+		{"array", "x := [1, // one\n2, 3]\n", "1, // one"},
+		{"dict", "x := {a: 1, // aa\nb: 2}\n", "a: 1, // aa"},
+		{"block", "x := [1, /* c */ 2]\n", "1, /* c */"},
 	}
 	for _, c := range cases {
 		out, err := o.formatSource("d.gad", []byte(c.src), false)

@@ -863,7 +863,7 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 	if l := len(e.Elements); l > 0 && ctx.HasPrefix() && ctx.hasCommentInRange(e.LParen, e.RParen) {
 		// a comment inside forbids collapsing it: one pair per line, each
 		// with its comments
-		ctx.WriteItemsWithComments(l, "", e.LParen, e.RParen,
+		ctx.WriteItemsWithComments(l, ",", e.LParen, e.RParen,
 			func(i int) Node { return e.Elements[i] },
 			func(i int) { e.Elements[i].WriteCode(ctx) },
 			func(nl bool) {
@@ -1569,7 +1569,34 @@ func (e *CodeStrLit) String() string {
 }
 
 func (e *CodeStrLit) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.Literal)
+	if _, block := e.block(); !block {
+		ctx.WriteString(e.Literal)
+		return
+	} else if !ctx.HasPrefix() {
+		// its content, whatever the indentation it was written with: the
+		// body four spaces in
+		ctx.WriteString("code\n")
+		for _, line := range strings.Split(e.Value(), "\n") {
+			if strings.TrimRight(line, " \t") != "" {
+				ctx.WriteString("    " + line)
+			}
+			ctx.WriteString("\n")
+		}
+		ctx.WriteString("end")
+		return
+	}
+	// the block form, indented as the code around it: the closing `end` must
+	// be at the indentation of the line that opens it, the body one level in
+	// (its own indentation kept from there)
+	ctx.WriteString("code\n")
+	body := ctx.CurrentPrefix() + ctx.Prefix
+	for _, line := range strings.Split(e.Value(), "\n") {
+		if strings.TrimRight(line, " \t") != "" {
+			ctx.WriteString(body + line)
+		}
+		ctx.WriteString("\n")
+	}
+	ctx.WriteString(ctx.CurrentPrefix() + "end")
 }
 
 // unescapeHeredoc interprets the escape sequences in a non-raw heredoc body the
@@ -1622,7 +1649,7 @@ func (e *InterpolatedStringLit) Pos() source.Pos {
 }
 
 func (e *InterpolatedStringLit) End() source.Pos {
-	return e.Value.End() + 6
+	return e.Value.End()
 }
 
 func (e *InterpolatedStringLit) String() string {
