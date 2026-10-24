@@ -84,6 +84,33 @@ func TestFormatBlockComments(t *testing.T) {
 	a=1,
 	b // flag
 )`,
+		// the comments of a block that ends on its line are the statement's
+		`each(x, (k, v) => {
+	s += k
+}) // key`,
+		// a trial write (the width of a match) does not take them
+		`f := func(n) {
+	return match {
+		n == 0: "zero" // value arm
+		n > 0 {
+			// block arm
+			return "positive"
+		}
+		else: "negative"
+	}
+}`,
+		// declarations grouped, each with its comments
+		`f := func() {
+	var (
+		c = 1
+		d = 2 // c3
+		a = func() {
+			x() // c1
+		}
+	)
+
+	e := 3
+}`,
 		`r := match x {
 	// before 1
 	1: "a" // trail

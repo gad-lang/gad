@@ -201,7 +201,12 @@ func (n *FuncParams) items() []funcParamItem {
 		items = append(items, funcParamItem{named: true, write: func(ctx *CodeWriteContext) {
 			e.WriteCode(ctx)
 			if v != nil {
-				ctx.WriteString("=", v.String())
+				if strings.HasSuffix(e.String(), ">") {
+					// `less <(a, b) <bool>> = nil`: glued, `>>=` is an operator
+					ctx.WriteString(" = ", v.String())
+				} else {
+					ctx.WriteString("=", v.String())
+				}
 			}
 		}})
 	}

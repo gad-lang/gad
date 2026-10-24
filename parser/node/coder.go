@@ -168,10 +168,14 @@ type CodeWriteSkiper interface {
 }
 
 type CodeWriteContext struct {
-	Stack  []ast.Node
-	Depth  int
-	Prefix string
-	Flags  CodeWriteContextFlag
+	// stmtsEnd is the `}` of the block whose statements are being written:
+	// a trailing comment on a statement's line is its own only before it
+	// (`{ s += k } // after` is the comment of what holds the block).
+	stmtsEnd source.Pos
+	Stack    []ast.Node
+	Depth    int
+	Prefix   string
+	Flags    CodeWriteContextFlag
 	// MaxColumns is the line-width budget for the NEW_LINE_CALC mode (0 uses
 	// DefaultMaxColumns).
 	MaxColumns int
@@ -840,7 +844,8 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		// glued to it (` // ...`).
 		if ctx.hasComments() {
 			endLine := ctx.lineOf(s.End())
-			for c := ctx.peekComment(); c != nil && ctx.lineOf(c.Pos()) == endLine; c = ctx.peekComment() {
+			for c := ctx.peekComment(); c != nil && ctx.lineOf(c.Pos()) == endLine &&
+				(!ctx.stmtsEnd.IsValid() || c.Pos() < ctx.stmtsEnd); c = ctx.peekComment() {
 				ctx.WriteString(" ", c.Text)
 				ctx.commentIdx++
 			}
@@ -924,7 +929,10 @@ func (ctx *CodeWriteContext) measure(startCol int, do func()) (width int, multil
 	saved := ctx.CodeWriter
 	m := &cw{Writer: io.Discard, col: startCol, max: startCol}
 	ctx.CodeWriter = m
+	// a trial: the comments it writes or claims are still to be written
+	comments, commentIdx := append([]*ast.Comment(nil), ctx.comments...), ctx.commentIdx
 	do()
+	ctx.comments, ctx.commentIdx = comments, commentIdx
 	ctx.CodeWriter = saved
 	return m.max, m.multiline
 }

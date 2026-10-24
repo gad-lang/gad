@@ -207,7 +207,10 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.HasPrefix() {
 		ctx.WriteSemi()
 	}
+	was := ctx.stmtsEnd
+	ctx.stmtsEnd = s.RBrace.Pos
 	ctx.WriteStmts(s.Stmts...)
+	ctx.stmtsEnd = was
 	ctx.Depth--
 
 	if ctx.HasPrefix() {
