@@ -90,6 +90,14 @@ GoShape class
 A Shape whose label is its name in upper case (a class in Go: the module's
 Go init).
 
+#### Parents
+
+```gad
+*Shape
+```
+
+→ [Shape](#shape)
+
 #### Methods
 
 ```gad

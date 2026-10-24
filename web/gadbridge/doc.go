@@ -56,8 +56,11 @@ type DocSymbol struct {
 
 // DocMember is one member of a documented type declaration.
 type DocMember struct {
-	// Group is the member kind: "Fields", "Properties", "Constructors",
-	// "Methods", "Required" (an interface requirement) or "Variants".
+	// Group is the member kind, in the order the groups are written:
+	// "Parents" (`*Base`), "Mixins" (`use Mover`), "Fields", "Spreads"
+	// (`**Expr`, members given at run time), "Properties", "Constructors",
+	// "Methods", "Functions" (an interface's context functions), "Rest" (an
+	// interface's `**<name>`) or "Variants" (an enum's).
 	Group string `json:"group"`
 	// Signature is the member as source, e.g. `x int = 0`, `sum() <int>`.
 	Signature string `json:"signature"`
@@ -65,6 +68,10 @@ type DocMember struct {
 	Meta string `json:"meta,omitempty"`
 	// Doc is the member's doc comment, or "".
 	Doc string `json:"doc,omitempty"`
+	// Ref is the name of the declaration a parent or a mixin is (`*Base`,
+	// `use Mover`): a template links it to its section when the module
+	// declares it; "" otherwise.
+	Ref string `json:"ref,omitempty"`
 }
 
 // DocOverload is one signature of a multi-signature function.
@@ -119,6 +126,7 @@ func (d *DocData) GadDict() gad.Dict {
 					"signature": gad.Str(m.Signature),
 					"meta":      gad.Str(m.Meta),
 					"doc":       gad.Str(m.Doc),
+					"ref":       gad.Str(m.Ref),
 				})
 			}
 			syms = append(syms, gad.Dict{
@@ -480,15 +488,34 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 	}
 }
 
-// classDocMembers lists a class-like body's members (fields, properties,
-// constructors, methods) with their metadata tags and docs.
+// classDocMembers lists a class-like body's members — its parents (`*Base`),
+// mixins (`use Mover`), fields, spreads (`**Expr`), a mixin's `this`
+// requirements, properties, constructors and methods — with their metadata
+// tags and docs, in that order.
 func classDocMembers(e *gnode.TypeLitExpr) (ms []DocMember) {
+	for i, p := range e.Parents {
+		m := DocMember{Group: "Parents", Signature: "*" + p.String(), Ref: p.Type.String()}
+		if i == 0 {
+			m.Doc = gadDocText(e.ExtendsDoc)
+		}
+		ms = append(ms, m)
+	}
+	for i, u := range e.Use {
+		m := DocMember{Group: "Mixins", Signature: "use " + u.String(), Ref: u.String()}
+		if i == 0 {
+			m.Doc = gadDocText(e.UseDoc)
+		}
+		ms = append(ms, m)
+	}
 	for _, f := range e.Fields {
 		sig := f.Name.String()
 		if f.Value != nil {
 			sig += " = " + f.Value.String()
 		}
 		ms = append(ms, DocMember{Group: "Fields", Signature: sig, Meta: gnode.MetaCode(f.Meta), Doc: gadDocText(f.Doc)})
+	}
+	for _, sp := range e.Spreads {
+		ms = append(ms, DocMember{Group: "Spreads", Signature: "**" + sp.String()})
 	}
 	add := func(group string, members []*gnode.ClassMemberExpr) {
 		for _, m := range members {
@@ -507,6 +534,16 @@ func classDocMembers(e *gnode.TypeLitExpr) (ms []DocMember) {
 			}
 		}
 	}
+	if e.This != nil {
+		// a mixin's `this { … }`: what the class using it must have
+		for _, m := range interfaceDocMembers(e.This) {
+			m.Group = "This"
+			if m.Doc == "" && len(ms) > 0 && ms[len(ms)-1].Group != "This" {
+				m.Doc = gadDocText(e.ThisDoc)
+			}
+			ms = append(ms, m)
+		}
+	}
 	add("Properties", e.Props)
 	for _, fm := range e.New {
 		ms = append(ms, DocMember{Group: "Constructors",
@@ -516,18 +553,48 @@ func classDocMembers(e *gnode.TypeLitExpr) (ms []DocMember) {
 	return
 }
 
-// interfaceDocMembers lists an interface's requirements (fields, accessors,
-// methods) with their metadata tags and docs.
+// interfaceDocMembers lists an interface's members — the interfaces it
+// extends (`*Named`), its fields, spreads (`**Expr`), properties
+// (`get`/`set`/`prop`), methods, context functions and its rest capture
+// (`**<name>`) — with their metadata tags and docs.
 func interfaceDocMembers(e *gnode.InterfaceExpr) (ms []DocMember) {
-	for _, m := range e.Members {
+	for i, p := range e.Parents {
+		m := DocMember{Group: "Parents", Signature: "*" + p.String(), Ref: p.String()}
+		if i == 0 {
+			m.Doc = gadDocText(e.ExtendsDoc)
+		}
+		ms = append(ms, m)
+	}
+	member := func(group string, m *gnode.InterfaceMemberExpr) DocMember {
 		v := *m
 		v.Doc, v.Meta = nil, nil
-		ms = append(ms, DocMember{Group: "Required", Signature: v.String(), Meta: gnode.MetaCode(m.Meta), Doc: gadDocText(m.Doc)})
+		return DocMember{Group: group, Signature: v.String(), Meta: gnode.MetaCode(m.Meta), Doc: gadDocText(m.Doc)}
+	}
+	for _, m := range e.Members {
+		if m.Kind == gnode.IfaceField {
+			ms = append(ms, member("Fields", m))
+		}
+	}
+	for _, sp := range e.Spreads {
+		ms = append(ms, DocMember{Group: "Spreads", Signature: "**" + sp.String()})
+	}
+	for _, m := range e.Members {
+		if m.Kind != gnode.IfaceField {
+			ms = append(ms, member("Properties", m))
+		}
 	}
 	for _, m := range e.Methods {
 		v := *m
 		v.Doc, v.Meta = nil, nil
-		ms = append(ms, DocMember{Group: "Required", Signature: v.String(), Meta: gnode.MetaCode(m.Meta), Doc: gadDocText(m.Doc)})
+		ms = append(ms, DocMember{Group: "Methods", Signature: v.String(), Meta: gnode.MetaCode(m.Meta), Doc: gadDocText(m.Doc)})
+	}
+	for _, cf := range e.ContextFuncs {
+		v := *cf
+		v.Doc = nil
+		ms = append(ms, DocMember{Group: "Functions", Signature: v.String(), Doc: gadDocText(cf.Doc)})
+	}
+	if e.Rest != nil {
+		ms = append(ms, DocMember{Group: "Rest", Signature: "**<" + e.Rest.Name + ">", Doc: gadDocText(e.RestDoc)})
 	}
 	return
 }

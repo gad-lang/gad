@@ -161,7 +161,7 @@ export enum Color {
 
 	require.Equal(t, `[k=1]`, syms[1].Meta)
 	require.Equal(t, " interface []{…}", syms[1].Signature)
-	require.Equal(t, []DocMember{{Group: "Required", Signature: "x int", Meta: "[pk]", Doc: "x coord"}}, syms[1].Members)
+	require.Equal(t, []DocMember{{Group: "Fields", Signature: "x int", Meta: "[pk]", Doc: "x coord"}}, syms[1].Members)
 
 	require.Equal(t, `[c=1]`, syms[2].Meta)
 	require.Equal(t, []DocMember{{Group: "Variants", Signature: "Red", Meta: `[hex="f00"]`, Doc: "red"}}, syms[2].Members)
@@ -170,4 +170,52 @@ export enum Color {
 	for _, want := range []string{"[unit=\"m\"]", "#### Fields", "[db=(;col=\"lbl\")]\nlabel = \"none\"", "[route=\"/sum\"]\nsum()", "[hex=\"f00\"]\nRed"} {
 		require.Contains(t, md, want)
 	}
+}
+
+// A class's parents, mixins and spreads, a mixin's `this` and an interface's
+// parents, properties, methods and rest are documented, each in its group
+// (#28); a parent or a mixin names what it is (Ref).
+func TestDocClassStructure(t *testing.T) {
+	src := `
+/** named **/
+export interface Named { name str }
+/** with an id **/
+export interface Ident {
+	*Named
+	id int
+	get label str
+	label() <str>
+	**<rest>
+}
+/** moves **/
+export mixin Mover {
+	this { x int }
+	methods { move(dx) { this.x += dx } }
+}
+/** a base **/
+export class Base { name str }
+/** a point **/
+export class Point {
+	*Base
+	use Mover
+	y int
+	**{fields: {z: int}}
+	methods { describe() => "point" }
+}
+`
+	d, err := ExtractDoc(src, "gad")
+	require.NoError(t, err)
+	members := map[string][]string{}
+	for _, sec := range d.Sections {
+		for _, s := range sec.Symbols {
+			for _, m := range s.Members {
+				members[s.Name] = append(members[s.Name], m.Group+": "+m.Signature+" "+m.Ref)
+			}
+		}
+	}
+	require.Equal(t, []string{"Parents: *Named Named", "Fields: id int ", "Properties: get label str ",
+		"Methods: label() <str> ", "Rest: **<rest> "}, members["Ident"])
+	require.Equal(t, []string{"This: x int ", "Methods: move(dx) "}, members["Mover"])
+	require.Equal(t, []string{"Parents: *Base Base", "Mixins: use Mover Mover", "Fields: y int ",
+		"Spreads: **{fields: {z: int}} ", "Methods: describe() "}, members["Point"])
 }

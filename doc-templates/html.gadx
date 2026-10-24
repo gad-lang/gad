@@ -8,7 +8,7 @@ renders it. `doc` is:
       sections: [ { title: str,
         symbols: [ { name, signature, doc, meta: str, line, column: int,
                      overloads: [ { signature, doc } ],
-                     members: [ { group, signature, meta, doc } ] } ] } ] }
+                     members: [ { group, signature, meta, doc, ref } ] } ] } ] }
 
 Each symbol carries data-line / data-column attributes so an editor can jump to
 the source position. The full example source is rendered as a preformatted code
@@ -32,6 +32,12 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
 
         @if doc.prose
             div.prose {=doc.proseHTML}
+
+        // the names this page documents: a parent or a mixin among them links to it
+        ~ declared := {}
+        @for sec in doc.sections
+            @for s in sec.symbols
+                ~ declared[s.name] = true
 
         @for sec in doc.sections
             section.doc-section[id="section-" + sec.title]
@@ -66,6 +72,10 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
                                                 code {=m.meta}
                                         p.signature
                                             code {=m.signature}
+                                        @if m.ref && declared[m.ref]
+                                            p.ref
+                                                {= "→ " }
+                                                a[href="#symbol-" + m.ref] {=m.ref}
                                         @if m.doc
                                             div.doc {=m.docHTML}
 

@@ -8,10 +8,12 @@ Markdown to STDOUT. `doc` is:
       sections: [ { title: str,
         symbols: [ { name, signature, doc, meta: str, line, column: int,
                      overloads: [ { signature, doc } ],
-                     members: [ { group, signature, meta, doc } ] } ] } ] }
+                     members: [ { group, signature, meta, doc, ref } ] } ] } ] }
 
 `meta` is a declaration's `[k=v, …]` metadata tag (shown above its signature);
-`members` are a type's fields/properties/constructors/methods/requirements.
+`members` are a type's parents, mixins, fields, spreads, properties,
+constructors and methods (an interface's, its requirements), grouped; `ref` is
+the name a parent or a mixin is, linked to its section when declared here.
 
 `name`/`file`/`lang`/`source` are added by the CLI (the module base name, the
 source file name, its fence language and the full source). The rendered page
@@ -34,6 +36,14 @@ if !doc.proseHasTitle {
 
 if doc.prose {
     write("\n" + doc.prose + "\n")
+}
+
+// the names this page documents: a parent or a mixin among them links to it
+declared := {}
+for sec in doc.sections {
+    for s in sec.symbols {
+        declared[s.name] = true
+    }
 }
 
 for sec in doc.sections {
@@ -70,7 +80,8 @@ for sec in doc.sections {
                 group = m.group
                 write("\n#### " + group + "\n")
             }
-            if !m.doc && !m.meta {
+            link := m.ref && declared[m.ref]
+            if !m.doc && !m.meta && !link {
                 plain += m.signature
                 continue
             }
@@ -80,6 +91,9 @@ for sec in doc.sections {
                 code = m.meta + "\n" + code
             }
             write("\n```" + doc.lang + "\n" + code + "\n```\n")
+            if link {
+                write("\n→ [" + m.ref + "](#" + strings.toLower(m.ref) + ")\n")
+            }
             if m.doc {
                 write("\n" + m.doc + "\n")
             }
