@@ -35,6 +35,9 @@ type DocSection struct {
 // DocSymbol is one documented declaration.
 type DocSymbol struct {
 	Name string `json:"name"`
+	// Kind is what the declaration is, for a structure view: "class",
+	// "mixin", "interface", "enum", "type", "func" or "value" (see SymbolKind).
+	Kind string `json:"kind,omitempty"`
 	// Signature is the parenthesized parameter list / value suffix, or "".
 	Signature string `json:"signature,omitempty"`
 	// Doc is the attached doc comment text, or "".
@@ -131,6 +134,7 @@ func (d *DocData) GadDict() gad.Dict {
 			}
 			syms = append(syms, gad.Dict{
 				"name":      gad.Str(s.Name),
+				"kind":      gad.Str(SymbolKind(s)),
 				"signature": gad.Str(s.Signature),
 				"doc":       gad.Str(s.Doc),
 				"meta":      gad.Str(s.Meta),
@@ -143,6 +147,28 @@ func (d *DocData) GadDict() gad.Dict {
 		secs = append(secs, gad.Dict{"title": gad.Str(sec.Title), "symbols": syms})
 	}
 	return gad.Dict{"prose": gad.Str(d.Prose), "sections": secs}
+}
+
+// SymbolKind is what a documented declaration is — "class", "mixin",
+// "interface", "enum", "type", "func" or "value" —: its Kind, else read from
+// its signature (` class`, `(a int) <int>`, ` = 1`) and overloads.
+func SymbolKind(s DocSymbol) string {
+	if s.Kind != "" {
+		return s.Kind
+	}
+	if len(s.Overloads) > 0 {
+		return "func"
+	}
+	sig := strings.TrimSpace(s.Signature)
+	for _, k := range []string{"class", "mixin", "interface", "enum", "type", "contract"} {
+		if sig == k || strings.HasPrefix(sig, k+" ") || strings.HasSuffix(sig, " "+k) {
+			return k
+		}
+	}
+	if strings.HasPrefix(sig, "(") || strings.HasPrefix(sig, "[") {
+		return "func"
+	}
+	return "value"
 }
 
 // RenderMarkdown renders a DocData as clean Markdown: the prose, then a
@@ -441,10 +467,12 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 			kw = "type"
 		}
 		sym.Signature = " " + kw
+		sym.Kind = kw
 		sym.Meta = gnode.MetaCode(d.Meta)
 		sym.Members = classDocMembers(&d.TypeLitExpr)
 	case *gnode.InterfaceStmt:
 		sym.Signature = " interface"
+		sym.Kind = "interface"
 		// An array interface shows its shape: `interface []{…}` for a member body,
 		// `interface []<int | str>` for element types.
 		if d.ArrayDepth > 0 {
@@ -459,6 +487,7 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 		sym.Members = interfaceDocMembers(&d.InterfaceExpr)
 	case *gnode.EnumStmt:
 		sym.Signature = " enum"
+		sym.Kind = "enum"
 		sym.Meta = gnode.MetaCode(d.Meta)
 		for _, f := range d.Fields {
 			if f.Name == nil || f.Name.Name == "_" {
@@ -473,6 +502,7 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 		sig := *d
 		sig.Doc, sig.Meta, sig.Body, sig.NameExpr = nil, nil, nil, gnode.EIdent("", d.NameExpr.Pos())
 		sym.Signature = " " + strings.TrimSpace(strings.TrimPrefix(sig.String(), "type "))
+		sym.Kind = "type"
 		sym.Meta = gnode.MetaCode(d.Meta)
 		if d.Body != nil {
 			sym.Members = classDocMembers(d.Body)
@@ -481,6 +511,7 @@ func fillFromPrelude(sym *DocSymbol, es *gnode.ExportStmt) {
 		if _, val := declPreludeValue(d); val != nil {
 			if u, ok := val.(*gnode.TypeUnionExpr); ok {
 				sym.Signature = " " + u.String()
+				sym.Kind = "type"
 			} else {
 				sym.Signature = " = " + val.String()
 			}

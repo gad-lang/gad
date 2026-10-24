@@ -71,6 +71,33 @@ body.toc-hidden .sidebar { display: none; }
 .sidebar a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .sidebar a code { background: none; padding: 0; font-size: 12.5px; }
 .sidebar .empty { color: var(--muted); font-size: 12px; padding: 4px 8px; }
+/* STRUCTURE: the public API as a tree, a badge per kind (IDE-like). */
+.sidebar .structure details > summary { list-style: none; cursor: pointer; }
+.sidebar .structure details > summary::-webkit-details-marker { display: none; }
+.sidebar .structure details > summary::before {
+  content: "▸"; display: inline-block; width: 12px; color: var(--muted); font-size: 10px;
+}
+.sidebar .structure details[open] > summary::before { content: "▾"; }
+.sidebar .structure summary > a, .sidebar .structure .leaf > a { display: inline-block; max-width: calc(100% - 14px); vertical-align: middle; }
+.sidebar .structure .leaf { padding-left: 12px; }
+.sidebar .structure .children { padding-left: 18px; border-left: 1px solid var(--border); margin-left: 5px; }
+.sidebar .structure .member-group {
+  font-size: 10.5px; color: var(--muted); padding: 4px 8px 1px; text-transform: uppercase; letter-spacing: .03em;
+}
+.sidebar .structure a.member code { font-size: 12px; }
+.sidebar .kind {
+  display: inline-block; min-width: 15px; height: 15px; line-height: 15px; margin-right: 6px;
+  border-radius: 4px; text-align: center; font-size: 10px; font-weight: 700;
+  color: #fff; background: var(--muted); vertical-align: 1px;
+}
+.sidebar .kind-class { background: #2f81f7; }
+.sidebar .kind-mixin { background: #8250df; }
+.sidebar .kind-interface { background: #1a7f37; }
+.sidebar .kind-enum { background: #bf8700; }
+.sidebar .kind-type, .sidebar .kind-contract { background: #953800; }
+.sidebar .kind-func { background: #cf222e; }
+.sidebar .kind-value { background: #57606a; }
+.sidebar .kind[class*="kind-m-"] { background: none; color: var(--muted); border: 1px solid var(--border); }
 .content { flex: 1 1 auto; min-width: 0; padding: 20px 28px 80px; max-width: 900px; }
 h1 { font-size: 1.7em; margin: .2em 0 .6em; }
 h2 { font-size: 1.3em; margin: 1.6em 0 .5em; padding-bottom: .25em; border-bottom: 1px solid var(--border); }

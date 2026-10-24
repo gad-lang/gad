@@ -8,10 +8,58 @@
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
+  // The badge of a declaration's kind and of a member's group, as the
+  // Structure panel of an IDE shows them.
+  var KIND = { "class": "C", "mixin": "M", "interface": "I", "enum": "E", "type": "T",
+    "contract": "K", "func": "ƒ", "value": "V" };
+  var GROUP = { "Parents": "↑", "Mixins": "M", "Fields": "f", "Spreads": "*", "This": "t",
+    "Properties": "p", "Constructors": "n", "Methods": "m", "Functions": "ƒ", "Rest": "*",
+    "Variants": "e", "Required": "r" };
+  function badge(cls, letter, title) {
+    return "<span class='kind kind-" + cls + "' title='" + esc(title) + "'>" + esc(letter) + "</span>";
+  }
+
+  // STRUCTURE: the public API as a tree — each declaration with its kind,
+  // unfolding into its members by group (parents, fields, methods, …).
+  function structure() {
+    var api = null;
+    document.querySelectorAll(".doc-section").forEach(function (sec) {
+      var h2 = sec.querySelector("h2");
+      if (h2 && h2.textContent.trim() === "Public API") api = sec;
+    });
+    if (!api) return "";
+    var html = "<div class='group structure'><div class='title'>Structure</div>";
+    api.querySelectorAll(".symbol").forEach(function (sym) {
+      var name = sym.getAttribute("data-name") || "";
+      var kind = sym.getAttribute("data-kind") || "value";
+      var head = "<a href='#" + sym.id + "' data-target='" + sym.id + "'>" +
+        badge(kind, KIND[kind] || "?", kind) + "<code>" + esc(name) + "</code></a>";
+      var members = sym.querySelectorAll(".member");
+      if (!members.length) {
+        html += "<div class='leaf'>" + head + "</div>";
+        return;
+      }
+      html += "<details open><summary>" + head + "</summary><div class='children'>";
+      var group = "";
+      members.forEach(function (m) {
+        var g = m.getAttribute("data-group") || "";
+        if (g !== group) {
+          group = g;
+          html += "<div class='member-group'>" + esc(g) + "</div>";
+        }
+        var sig = m.getAttribute("data-signature") || "";
+        html += "<a class='member' href='#" + m.id + "' data-target='" + m.id + "' data-symbol='" + sym.id + "' title='" + esc(sig) + "'>" +
+          badge("m-" + g.toLowerCase(), GROUP[g] || "·", g) + "<code>" + esc(sig) + "</code></a>";
+      });
+      html += "</div></details>";
+    });
+    return html + "</div>";
+  }
+
   // Build the sidebar table of contents from the rendered sections.
   var toc = document.getElementById("toc");
   if (toc) {
-    var html = "";
+    var html = structure();
     document.querySelectorAll(".doc-section").forEach(function (sec) {
       var h2 = sec.querySelector("h2");
       var title = h2 ? h2.textContent.trim() : "";
@@ -71,7 +119,7 @@
         sec.classList.toggle("hidden", !secHit);
       });
       document.querySelectorAll("#toc a").forEach(function (a) {
-        var sym = document.getElementById(a.getAttribute("data-target"));
+        var sym = document.getElementById(a.getAttribute("data-symbol") || a.getAttribute("data-target"));
         a.style.display = (sym && sym.classList.contains("hidden")) ? "none" : "";
       });
       var nr = document.getElementById("no-results");

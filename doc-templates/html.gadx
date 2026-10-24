@@ -6,7 +6,7 @@ renders it. `doc` is:
 
     { name: str, file: str, lang: str, source: str, prose: str,
       sections: [ { title: str,
-        symbols: [ { name, signature, doc, meta: str, line, column: int,
+        symbols: [ { name, kind, signature, doc, meta: str, line, column: int,
                      overloads: [ { signature, doc } ],
                      members: [ { group, signature, meta, doc, ref } ] } ] } ] }
 
@@ -44,7 +44,7 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
                 h2 {=sec.title}
 
                 @for s in sec.symbols
-                    div.symbol[id="symbol-" + s.name, data-line=s.line, data-column=s.column, data-name=s.name]
+                    div.symbol[id="symbol-" + s.name, data-line=s.line, data-column=s.column, data-name=s.name, data-kind=s.kind]
                         h3
                             code {=s.name}
 
@@ -62,11 +62,11 @@ IDE sets that to match its own theme) and client-side syntax highlighting for th
                         @if s.members
                             div.members
                                 ~ group := ""
-                                @for m in s.members
+                                @for i, m in s.members
                                     @if m.group != group
                                         h4.member-group {=m.group}
                                         ~ group = m.group
-                                    div.member[data-group=m.group]
+                                    div.member[id="member-" + s.name + "-" + str(i), data-group=m.group, data-signature=m.signature]
                                         @if m.meta
                                             p.meta
                                                 code {=m.meta}

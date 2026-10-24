@@ -219,3 +219,27 @@ export class Point {
 	require.Equal(t, []string{"Parents: *Base Base", "Mixins: use Mover Mover", "Fields: y int ",
 		"Spreads: **{fields: {z: int}} ", "Methods: describe() "}, members["Point"])
 }
+
+// Each documented declaration says what it is (#29: the structure view).
+func TestDocSymbolKind(t *testing.T) {
+	src := `
+export interface I { x int }
+export mixin M { x int }
+export class C { x int }
+export enum E { a, b }
+export type T []int
+export func f(a int) <int> => a
+export func g { (a int) => a; (a str) => a }
+export v = 1
+`
+	d, err := ExtractDoc(src, "gad")
+	require.NoError(t, err)
+	kinds := map[string]string{}
+	for _, sec := range d.Sections {
+		for _, s := range sec.Symbols {
+			kinds[s.Name] = SymbolKind(s)
+		}
+	}
+	require.Equal(t, map[string]string{"I": "interface", "M": "mixin", "C": "class", "E": "enum",
+		"T": "type", "f": "func", "g": "func", "v": "value"}, kinds)
+}
