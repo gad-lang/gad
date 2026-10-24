@@ -70,8 +70,12 @@ func newTimeModule() StdModuleData {
 			"Type": TimeType,
 			// cdate is the calendar date value type (YYYYMMDD); a constructor.
 			"cdate": CalendarDateType,
-			// ctime is the zone-less calendar time value type; a constructor.
-			"ctime": CalendarTimeType,
+			// cdtime is the zone-less calendar date-time value type; a
+			// constructor.
+			"cdtime": CalendarDateTimeType,
+			// ctime is the zone-less time of day value type (00:00 to
+			// 23:59:59.999999999); a constructor.
+			"ctime": TimeOfDayType,
 			// Duration is the `duration` value type; callable as a constructor.
 			"Duration": DurationType,
 			// Location is the `Location` value type.
@@ -88,7 +92,19 @@ func newTimeModule() StdModuleData {
 			// ### Weekdays
 			//
 			// Weekdays
-			"Weekdays": newTimeWeekdaysEnum(),
+			"Weekdays": TimeWeekdaysEnum,
+			// gad:doc
+			// MonthSpans are the named counts of months of trunc/round's m:
+			// Bimester (2), Quarter (3), Semester (6).
+			"MonthSpans": TimeMonthSpansEnum,
+			// gad:doc
+			// HourSpans are the named counts of hours of trunc/round's h:
+			// QuarterDay (6), HalfDay (12).
+			"HourSpans": TimeHourSpansEnum,
+			// gad:doc
+			// MinuteSpans are the named counts of minutes of trunc/round's min:
+			// QuarterHour (15), HalfHour (30).
+			"MinuteSpans": TimeMinuteSpansEnum,
 
 			// gad:doc
 			// ### Layouts
@@ -342,11 +358,18 @@ func newTimeModule() StdModuleData {
 				}),
 			},
 			// gad:doc
-			// strToCalendarTime(s str) <ctime>
+			// strToCtime(s str) <ctime>
+			// Parses a time of day "HH:MM[:SS[.frac]]".
+			"strToCtime": &BuiltinFunction{
+				FuncName: "strToCtime",
+				Value:    timeStrToFunc(func(s string) (Object, error) { return strToTimeOfDay(s) }),
+			},
+			// gad:doc
+			// strToCdtime(s str) <cdtime>
 			// Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.
-			"strToCalendarTime": &BuiltinFunction{
-				FuncName: "strToCalendarTime",
-				Value:    timeStrToFunc(func(s string) (Object, error) { return strToCalendarTime(s) }),
+			"strToCdtime": &BuiltinFunction{
+				FuncName: "strToCdtime",
+				Value:    timeStrToFunc(func(s string) (Object, error) { return strToCalendarDateTime(s) }),
 			},
 			// gad:doc
 			// strToDuration(s str) <duration>
@@ -689,8 +712,11 @@ func init() {
 	registry.RegisterAnyConverter(reflect.TypeOf(CalendarDate(0)), func(in any) (any, bool) {
 		return uint(in.(CalendarDate)), true
 	})
-	registry.RegisterAnyConverter(reflect.TypeOf(CalendarTime(0)), func(in any) (any, bool) {
-		return uint64(in.(CalendarTime)), true
+	registry.RegisterAnyConverter(reflect.TypeOf(CalendarDateTime(0)), func(in any) (any, bool) {
+		return uint64(in.(CalendarDateTime)), true
+	})
+	registry.RegisterAnyConverter(reflect.TypeOf(TimeOfDay(0)), func(in any) (any, bool) {
+		return time.Duration(in.(TimeOfDay)), true
 	})
 	registry.RegisterObjectConverter(reflect.TypeFor[time.Time](), func(in any) (any, bool) {
 		return &Time{Value: in.(time.Time)}, true

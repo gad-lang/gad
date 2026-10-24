@@ -149,9 +149,9 @@ func IsPrimitive(obj Object) bool {
 	switch obj.(type) {
 	case *NilType, Decimal:
 		return true
-	case CalendarDate, CalendarTime, Duration, *Time:
+	case CalendarDate, CalendarDateTime, TimeOfDay, Duration, *Time:
 		// the time module's value types are primitives: CalendarDate,
-		// CalendarTime and Duration are already value-kind, *Time is listed
+		// CalendarDateTime and Duration are already value-kind, *Time is listed
 		// explicitly so the pointer wrapper is treated as an immutable value too.
 		return true
 	}

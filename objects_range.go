@@ -34,8 +34,10 @@ func (o *Range) effectiveStep() Object {
 		return Float(1)
 	case Decimal:
 		return DecimalFromInt(1)
-	case *Time, CalendarDate, CalendarTime:
+	case *Time, CalendarDate, CalendarDateTime:
 		return Duration(24 * time.Hour)
+	case TimeOfDay:
+		return Duration(time.Hour)
 	default: // Int, Uint, Char
 		return Int(1)
 	}
@@ -261,9 +263,13 @@ func rangeCmp(a, b Object) int {
 		if tb, ok := b.(CalendarDate); ok {
 			return cmpUint64(uint64(ta), uint64(tb)) // YYYYMMDD is monotonic
 		}
-	case CalendarTime:
-		if tb, ok := b.(CalendarTime); ok {
+	case CalendarDateTime:
+		if tb, ok := b.(CalendarDateTime); ok {
 			return cmpInt64(int64(ta), int64(tb)) // stored as UnixNano
+		}
+	case TimeOfDay:
+		if tb, ok := b.(TimeOfDay); ok {
+			return cmpUint64(uint64(ta), uint64(tb))
 		}
 	}
 	// Int, Char (and numeric fallbacks)
@@ -301,8 +307,11 @@ func rangeAdvance(v, step Object, asc bool) Object {
 		return Decimal(decimal.Decimal(t).Add(d))
 	case *Time:
 		return &Time{Value: t.Value.Add(time.Duration(sign) * time.Duration(rangeInt64(step)))}
-	case CalendarTime:
-		return CalendarTime(int64(t) + sign*rangeInt64(step))
+	case CalendarDateTime:
+		return CalendarDateTime(int64(t) + sign*rangeInt64(step))
+	case TimeOfDay:
+		// no wrap in a range: past midnight it ends (rangeReached)
+		return TimeOfDay(int64(t) + sign*rangeInt64(step))
 	case CalendarDate:
 		tm := t.Time(nil).Add(time.Duration(sign) * time.Duration(rangeInt64(step)))
 		return CalendarDateFromTime(tm)
@@ -342,5 +351,6 @@ func init() {
 		numeric(TInt), numeric(TUint), numeric(TChar),
 		numeric(TFloat), numeric(TDecimal))
 	BuiltinObjects.AddMethod(BuiltinRange,
-		temporal(TimeType), temporal(CalendarDateType), temporal(CalendarTimeType))
+		temporal(TimeType), temporal(CalendarDateType), temporal(CalendarDateTimeType),
+		temporal(TimeOfDayType))
 }

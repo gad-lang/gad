@@ -32,7 +32,7 @@ var (
 	TimeV1,
 	DurationV1,
 	CalendarDateV1,
-	CalendarTimeV1,
+	CalendarDateTimeV1,
 	EnumV1,
 	TypedIdentV1,
 	FuncHeaderObjectV1,
@@ -51,6 +51,7 @@ var (
 	KeyValueV1             EncDec
 	KeyValueArrayV1        EncDec
 	UUIDV1                 EncDec
+	TimeOfDayV1            EncDec
 )
 
 const (
@@ -80,7 +81,7 @@ const (
 	typeTime
 	typeDuration
 	typeCalendarDate
-	typeCalendarTime
+	typeCalendarDateTime
 	typeEnum
 	typeTypedIdent
 	typeFuncHeaderObject
@@ -97,6 +98,7 @@ const (
 	typePtrType
 	// (new types after the others: a type's number is in the bytecode)
 	typeUUID
+	typeTimeOfDay
 )
 
 const versionV1 byte = 1
@@ -132,7 +134,8 @@ func init() {
 	Register[gad.Time](typeTime, versionV1, &TimeV1)
 	Register[gad.Duration](typeDuration, versionV1, &DurationV1)
 	Register[gad.CalendarDate](typeCalendarDate, versionV1, &CalendarDateV1)
-	Register[gad.CalendarTime](typeCalendarTime, versionV1, &CalendarTimeV1)
+	Register[gad.CalendarDateTime](typeCalendarDateTime, versionV1, &CalendarDateTimeV1)
+	Register[gad.TimeOfDay](typeTimeOfDay, versionV1, &TimeOfDayV1)
 	Register[gad.Enum](typeEnum, versionV1, &EnumV1)
 	Register[gad.TypedIdent](typeTypedIdent, versionV1, &TypedIdentV1)
 	Register[gad.FuncHeaderObject](typeFuncHeaderObject, versionV1, &FuncHeaderObjectV1)

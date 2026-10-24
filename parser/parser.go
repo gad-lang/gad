@@ -1064,22 +1064,26 @@ func (p *Parser) ParseDurationLit() node.Expr {
 	return x
 }
 
-func (p *Parser) ParseDateTimeLit(suffix rune) node.Expr {
-	var kind node.DateTimeLitKind
-	switch suffix {
-	case 'D':
-		kind = node.CalendarDateLitKind
-	case 't':
-		kind = node.CalendarTimeLitKind
-	case 'U':
-		kind = node.UnixTimeLitKind
-	default:
-		kind = node.TimeLitKind
-	}
+func (p *Parser) ParseDateTimeLit(suffix string) node.Expr {
 	x := &node.DateTimeLit{
 		ValuePos: p.Token.Pos,
 		Body:     p.Token.Literal,
-		Kind:     kind,
+	}
+	switch suffix {
+	case "D":
+		x.Kind = node.CalendarDateLitKind
+	case "DT":
+		x.Kind = node.CalendarDateTimeLitKind
+	case "":
+		x.Kind, x.NoSuffix = node.CalendarDateTimeLitKind, true
+	case "U":
+		x.Kind = node.UnixTimeLitKind
+	default:
+		x.Kind = node.TimeLitKind
+		if strings.Contains(x.Body, ":") && !strings.ContainsAny(x.Body, "-T") {
+			// a clock: `10:30T`
+			x.Kind = node.TimeOfDayLitKind
+		}
 	}
 	p.Next()
 	return x
@@ -1179,7 +1183,7 @@ func (p *Parser) ParseLiteral() node.Expr {
 		return p.ParseDurationLit()
 	}
 	if suffix, ok := p.Token.GetOk(dateTimeLitKey); ok {
-		return p.ParseDateTimeLit(suffix.(rune))
+		return p.ParseDateTimeLit(suffix.(string))
 	}
 	switch p.Token.Token {
 	case token.Nil:

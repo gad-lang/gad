@@ -2103,19 +2103,23 @@ const (
 	CalendarDateLitKind DateTimeLitKind = iota
 	// TimeLitKind is a `2006-01-02T` time literal (midnight UTC, zoned).
 	TimeLitKind
-	// CalendarTimeLitKind is a `2006-01-02t` zone-less calendar-time literal.
-	CalendarTimeLitKind
+	// CalendarDateTimeLitKind is a zone-less calendar date-time literal:
+	// `2006-01-02DT` (midnight), `2006-01-02T15:04:05.5` (`DT` optional).
+	CalendarDateTimeLitKind
 	// UnixTimeLitKind is a unix-seconds literal with a `U` suffix.
 	UnixTimeLitKind
+	// TimeOfDayLitKind is a `15:04[:05[.999999999]]T` time-of-day (ctime)
+	// literal.
+	TimeOfDayLitKind
 )
 
-// Suffix returns the source suffix letter for the kind.
+// Suffix returns the source suffix for the kind.
 func (k DateTimeLitKind) Suffix() string {
 	switch k {
 	case CalendarDateLitKind:
 		return "D"
-	case CalendarTimeLitKind:
-		return "t"
+	case CalendarDateTimeLitKind:
+		return "DT"
 	case UnixTimeLitKind:
 		return "U"
 	default:
@@ -2123,16 +2127,20 @@ func (k DateTimeLitKind) Suffix() string {
 	}
 }
 
-// DateTimeLit is a digit-suffix date/time literal: `20260131D` (date),
-// `235955T` (time) or `1781609136U` (unix time). Body holds the numeric body
-// without the suffix letter; it folds to a date or time value at compile time.
+// DateTimeLit is a digit-suffix date/time literal: `2026-01-31D` (cdate),
+// `2026-01-31DT` / `2026-01-31T10:30` (cdtime), `2026-01-31T` (time),
+// `10:30T` (ctime) or `1781609136U` (unix time). Body holds the literal
+// without its suffix; it folds to a value at compile time.
 type DateTimeLit struct {
 	// ValuePos is the position of the first digit.
 	ValuePos source.Pos
-	// Body is the numeric literal without the suffix letter.
+	// Body is the literal without the suffix.
 	Body string
 	// Kind selects the date/time/unix interpretation.
 	Kind DateTimeLitKind
+	// NoSuffix is a date-time written without its optional `DT`
+	// (`2026-01-31T10:30`).
+	NoSuffix bool
 }
 
 func (e *DateTimeLit) ExprNode() {}
@@ -2140,12 +2148,17 @@ func (e *DateTimeLit) ExprNode() {}
 // Pos returns the position of the first digit.
 func (e *DateTimeLit) Pos() source.Pos { return e.ValuePos }
 
-// End returns the position immediately after the suffix letter.
+// End returns the position immediately after the suffix.
 func (e *DateTimeLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Body) + 1)
+	return source.Pos(int(e.ValuePos) + len(e.String()))
 }
 
-func (e *DateTimeLit) String() string { return e.Body + e.Kind.Suffix() }
+func (e *DateTimeLit) String() string {
+	if e.NoSuffix {
+		return e.Body
+	}
+	return e.Body + e.Kind.Suffix()
+}
 
 func (e *DateTimeLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())

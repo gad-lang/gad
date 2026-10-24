@@ -200,26 +200,17 @@ func (o Duration) CallName(name string, c Call) (Object, error) {
 		return Float(d.Minutes()), nil
 	case "hours":
 		return Float(d.Hours()), nil
-	case "round":
-		unit, err := truncateUnitArg(c)
+	case "trunc", "round":
+		// toward zero / to the nearest multiple of the unit (no year nor
+		// month: they have no fixed length)
+		u, err := timeUnitsArg(name, c, durationUnits)
 		if err != nil {
 			return Nil, err
 		}
-		rd, err := roundDurationUnit(d, unit)
-		if err != nil {
-			return Nil, err
+		if name == "round" {
+			return Duration(d.Round(u.duration())), nil
 		}
-		return Duration(rd), nil
-	case "trunc":
-		unit, err := truncateUnitArg(c)
-		if err != nil {
-			return Nil, err
-		}
-		td, err := truncateDurationUnit(d, unit)
-		if err != nil {
-			return Nil, err
-		}
-		return Duration(td), nil
+		return Duration(d.Truncate(u.duration())), nil
 	}
 	return Nil, ErrInvalidIndex.NewError(name)
 }

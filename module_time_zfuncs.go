@@ -2,8 +2,6 @@
 
 package gad
 
-import ()
-
 // FuncPTRO is a generated function to make CallableFunc.
 // Source: FuncPTRO(t *Time) (ret Object)
 func FuncPTRO(fn func(*Time) Object) CallableFunc {

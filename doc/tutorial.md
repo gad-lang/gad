@@ -520,7 +520,9 @@ raw 1                   // rawStr value "1"
 dur 1h30m               // duration value (Go duration string)
 2026-01-31D             // cdate value (YYYY-MM-DD)
 2026-01-31T             // time value at 00:00:00 UTC
-2026-01-31t             // ctime value (zone-less, nanosecond)
+2026-01-31DT            // cdtime value (zone-less date and time)
+2026-01-31T10:30        // cdtime value at 10:30 (DT optional)
+10:30:15.25T            // ctime value (time of day)
 1781609136U             // time value from unix seconds
 true || false           // bool values
 yes || no               // flag values
@@ -552,8 +554,9 @@ types](runtime-types.md) for more information.
 | nil              | [nil](#nil-values) value           | -                     |
 | compiledFunction | [function](#function-values) value | -                     |
 | duration         | time span                          | `time.Duration`       |
-| cdate     | calendar date (YYYYMMDD)           | `uint`                |
-| ctime     | zone-less wall clock (nanoseconds) | `uint64`              |
+| cdate            | calendar date (YYYYMMDD)           | `uint`                |
+| cdtime           | zone-less date and wall clock (ns) | `uint64`              |
+| ctime            | time of day, 00:00 to 23:59:59.999999999 (ns since midnight) | `uint64` |
 | time             | instant with location              | `time.Time`           |
 
 ### Date and Time Values
@@ -564,19 +567,24 @@ literal form and a string constructor:
 | Literal         | Type           | Meaning                                   |
 |:----------------|:---------------|:------------------------------------------|
 | `dur 1h30m`     | `duration`     | a Go duration string                      |
-| `2026-01-31D`   | `cdate` | a calendar date (also `20260131D`)        |
+| `2026-01-31D`   | `cdate`        | a calendar date (also `20260131D`)        |
+| `2026-01-31DT`  | `cdtime`       | a zone-less date and time, at midnight    |
+| `2026-01-31T10:30:15.5` | `cdtime` | that date at that clock (`DT` optional: `2026-01-31T10:30DT`) |
+| `10:30T`, `10:30:15.25T` | `ctime` | a time of day (the fraction: 1 to 9 digits) |
 | `2026-01-31T`   | `time`         | that date at `00:00:00` UTC               |
-| `2026-01-31t`   | `ctime` | zone-less wall clock (nanosecond)         |
 | `1781609136U`   | `time`         | unix seconds (optional `.fraction`)       |
 
 A digit-suffix literal must be glued to the number (a space breaks it), so
-`2026 - 1` is still subtraction and `0xABCD` is still a hex int. Date/time
-literals carry a calendar date only; time-of-day comes from the string parsers:
+`2026 - 1` is still subtraction and `0xABCD` is still a hex int. A `T` after a
+date is a `time`, after a clock a `ctime`; a date, `T` and a clock is a
+`cdtime`. A `time` literal holds a date only: a zoned time of day comes from
+the string parsers:
 
 ```gad
 time.strToTime("2026-01-31T23:59:55Z")      // RFC3339 -> time
 time.strToTime("2026-01-31 23:59:55")       // UTC (no zone)
-time.strToCalendarTime("2026-01-31 23:59:55.001")  // zone-less ctime
+time.strToCdtime("2026-01-31 23:59:55.001")  // zone-less cdtime
+time.strToCtime("23:59:55.001")             // ctime
 time.strToDate("2026-01-31")                // cdate
 time.strToDuration("1h30m")                 // duration
 time.strToLocation("-03:00")                // Location
@@ -584,17 +592,23 @@ time.strToLocation("-03:00")                // Location
 d := 2026-01-31D
 d.year(); d.month(); d.day()                // 2026, 1, 31
 
-t := 2026-01-31t
+t := 2026-01-31T10:30
 t.hour(); t.minute(); t.second(); t.ns()    // accessors
+t.date(); t.clock()                         // 2026-01-31D, 10:30T
+
+c := 10:30:15.25T
+c.hour(); c.ms(); c.duration()              // 10, 250, 10h30m15.25s
+time.ctime(10, 30); time.ctime(dur 90m)     // 10:30T, 01:30T
 ```
 
 #### Arithmetic
 
 `duration` supports `+ - * / %` and unary `-`; dividing two durations yields a
-`float` ratio. A `time`, `ctime` or `cdate` plus/minus a
+`float` ratio. A `time`, `cdtime`, `cdate` or `ctime` plus/minus a
 `duration` shifts it, and subtracting two of the same kind yields a `duration`.
 A `cdate ± duration` stays a `cdate` when the result lands on
-midnight, otherwise it becomes a `ctime`:
+midnight, otherwise it becomes a `cdtime`; a `ctime` is a clock: past midnight
+it wraps around; a `cdate + ctime` is a `cdtime`:
 
 ```gad
 dur 1h + dur 30m            // 1h30m0s
@@ -602,30 +616,52 @@ dur 1h / dur 30m            // 2.0   (ratio)
 -(dur 1h)                   // -1h0m0s
 
 2026-01-31T + dur 90m       // 2026-01-31 01:30:00 UTC
-2026-02-01t - 2026-01-31t   // 24h0m0s  (a duration)
+2026-02-01DT - 2026-01-31DT // 24h0m0s  (a duration)
 2025-01-01D + dur 24h       // 2025-01-02   (still a cdate)
-2025-01-01D + dur 1s        // 2025-01-01 00:00:01  (now a ctime)
+2025-01-01D + dur 1s        // 2025-01-01 00:00:01  (now a cdtime)
+23:00T + dur 2h             // 01:00:00  (a ctime wraps)
+2026-01-31D + 10:30T        // 2026-01-31 10:30:00  (a cdtime)
 ```
 
 #### Truncating and rounding
 
-`.trunc(unit)` lower-truncates a value to the start of a unit and `.round(unit)`
-rounds it to the nearest boundary (a tie rounds up). The unit is a char/string:
-the calendar units `'y'`, `'M'`, `'w'` (week, Monday), `'d'`, or the Go duration
-units `'h'`, `'m'`, `'s'`, `"ms"`, `"us"`, `"ns"`:
+`.trunc(; unit=n)` truncates a value to the start of a unit and
+`.round(; unit=n)` rounds it to the nearest start (a tie rounds up). The units
+are named arguments, the largest first: `y`, `m` (month), `w` (week), `d`, `h`,
+`min`, `s`, `ms`, `us`, `ns`. The largest one that is not falsy is the unit,
+so a condition picks it; its value is how many of it (a flag is one), counted
+from the start of the next larger unit: `m=3` from January (the quarter),
+`min=15` from the hour. Without a unit, the second (a `cdate`, the day). A
+`time` truncates on the clock of its zone.
 
 ```gad
 t := time.strToTime("2026-08-17T14:37:52.123Z")
-t.trunc('M')                // 2026-08-01 00:00:00 UTC
-t.trunc('h')                // 2026-08-17 14:00:00 UTC
-t.trunc("ms")               // 2026-08-17 14:37:52.123 UTC
-t.round('h')                // 2026-08-17 15:00:00 UTC  (52m rounds up)
-t.round('d')                // 2026-08-18 00:00:00 UTC
+t.trunc(; m)                // 2026-08-01 00:00:00 UTC
+t.trunc(; h)                // 2026-08-17 14:00:00 UTC
+t.trunc(; ms)               // 2026-08-17 14:37:52.123 UTC
+t.round(; h)                // 2026-08-17 15:00:00 UTC  (52m rounds up)
 
-(2026-08-17D).trunc('M')    // 2026-08-01 (cdate)
-(dur 1h37m52s).trunc('m')   // 1h37m0s   ('y'/'M' are rejected for durations)
-(dur 1h37m52s).round('m')   // 1h38m0s
+2026-08-17D.trunc(; m=3)    // 2026-07-01  (the quarter)
+10:47:31.5T.trunc(; min=15) // 10:45:00
+byDay := no
+2026-08-17T10:47.trunc(; d=byDay, h)   // 2026-08-17 10:00:00 (by the hour)
+(dur 1h37m52s).trunc(; min) // 1h37m0s   (y and m are no units of a duration)
 ```
+
+A count with a usual name is a member of an enum of `time`: `m` takes
+`time.MonthSpans` (`Bimester`, `Quarter`, `Semester`), `h` takes
+`time.HourSpans` (`QuarterDay`, `HalfDay`), `min` takes `time.MinuteSpans`
+(`QuarterHour`, `HalfHour`). A week starts on Monday; `w` takes the
+`time.Weekdays` member it starts on:
+
+```gad
+2026-08-17D.trunc(; m=time.MonthSpans.Quarter)     // 2026-07-01
+10:47T.trunc(; min=time.MinuteSpans.QuarterHour)   // 10:45:00
+2026-08-19D.trunc(; w=time.Weekdays.Sunday)        // 2026-08-16
+```
+
+Each type takes its units: a `cdate` `y`, `m`, `w`, `d`; a `ctime` `h` to `ns`;
+a `cdtime` and a `time` all of them; a `duration` `w` to `ns`.
 
 ### Error Values
 

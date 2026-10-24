@@ -124,8 +124,8 @@ example strToTime {
     = "2026-01-31"
 }
 
-example strToCalendarTime {
-    time.strToCalendarTime("2026-01-31 09:30:00.001").ns()
+example strToCdtime {
+    time.strToCdtime("2026-01-31 09:30:00.001").ns()
     = 1000000
 }
 
@@ -202,4 +202,7 @@ example isTime {
 }
 
 example round {
+}
+
+example strToCtime {
 }

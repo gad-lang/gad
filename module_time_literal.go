@@ -16,14 +16,18 @@ func calendarDateLiteral(o CalendarDate) string {
 	return o.ToString() + "D"
 }
 
-// calendarTimeLiteral is `YYYY-MM-DDt` at midnight, else
-// `time.strToCalendarTime("YYYY-MM-DD HH:MM:SS[.frac]")`.
-func calendarTimeLiteral(o CalendarTime) string {
+// calendarDateTimeLiteral is `YYYY-MM-DDDT` at midnight, else the date and
+// its clock, `YYYY-MM-DDTHH:MM[:SS[.frac]]`; out of the years 0 to 9999,
+// `time.strToCdtime("…")`.
+func calendarDateTimeLiteral(o CalendarDateTime) string {
 	w := o.wall()
-	if w.Hour() == 0 && w.Minute() == 0 && w.Second() == 0 && w.Nanosecond() == 0 && w.Year() >= 0 && w.Year() <= 9999 {
-		return w.Format("2006-01-02") + "t"
+	if w.Year() < 0 || w.Year() > 9999 {
+		return "time.strToCdtime(" + strconv.Quote(o.ToString()) + ")"
 	}
-	return "time.strToCalendarTime(" + strconv.Quote(o.ToString()) + ")"
+	if c := o.Clock(); c != 0 {
+		return w.Format("2006-01-02") + "T" + strings.TrimSuffix(c.literal(), "T")
+	}
+	return w.Format("2006-01-02") + "DT"
 }
 
 // durationLiteral is `dur 1h30m0s`.

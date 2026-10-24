@@ -24,8 +24,14 @@ func dateTimeLitObject(kind node.DateTimeLitKind, body string) (Object, error) {
 			return nil, err
 		}
 		return d, nil
-	case node.CalendarTimeLitKind:
-		t, err := strToCalendarTime(body)
+	case node.CalendarDateTimeLitKind:
+		t, err := strToCalendarDateTime(body)
+		if err != nil {
+			return nil, err
+		}
+		return t, nil
+	case node.TimeOfDayLitKind:
+		t, err := strToTimeOfDay(body)
 		if err != nil {
 			return nil, err
 		}
@@ -39,6 +45,10 @@ func dateTimeLitObject(kind node.DateTimeLitKind, body string) (Object, error) {
 	default:
 		// `T` literals carry a calendar date only; the value is that date at
 		// midnight UTC. Time-of-day comes from strToTime / time("RFC3339").
+		if strings.Contains(body, "T") {
+			return nil, fmt.Errorf("invalid time literal %sT: a time literal holds a date only "+
+				"(a date and a clock: %s, a cdtime; or time.strToTime(\"…\"))", body, body)
+		}
 		d, err := strToDate(body)
 		if err != nil {
 			return nil, err
@@ -113,7 +123,7 @@ func NewTimeFunc(c Call) (Object, error) {
 		return &Time{Value: t}, nil
 	case CalendarDate:
 		return &Time{Value: v.Time(time.UTC)}, nil
-	case CalendarTime:
+	case CalendarDateTime:
 		return &Time{Value: v.Time(time.UTC)}, nil
 	case Int:
 		return &Time{Value: time.Unix(int64(v), 0).UTC()}, nil

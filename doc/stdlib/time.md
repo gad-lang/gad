@@ -16,6 +16,15 @@ Type is a type of Time Value
 
 Weekdays
 
+MonthSpans are the named counts of months of trunc/round's m:
+Bimester (2), Quarter (3), Semester (6).
+
+HourSpans are the named counts of hours of trunc/round's h:
+QuarterDay (6), HalfDay (12).
+
+MinuteSpans are the named counts of minutes of trunc/round's min:
+QuarterHour (15), HalfHour (30).
+
 ### Layouts
 
 ANSIC
@@ -354,7 +363,15 @@ zone is present).
 ---
 
 ```gad ignore
-strToCalendarTime(s str) <ctime>
+strToCtime(s str) <ctime>
+```
+
+Parses a time of day "HH:MM[:SS[.frac]]".
+
+---
+
+```gad ignore
+strToCdtime(s str) <cdtime>
 ```
 
 Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.

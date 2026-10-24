@@ -51,14 +51,14 @@ func (o CalendarDate) UnOpDec(*VM) (Object, error) {
 	return o.addDuration(-24 * time.Hour), nil
 }
 
-// --- CalendarTime ---
+// --- CalendarDateTime ---
 
-func (o CalendarTime) UnOpInc(*VM) (Object, error) {
+func (o CalendarDateTime) UnOpInc(*VM) (Object, error) {
 	step := leastTimeStep(o.Hour(), o.Minute(), o.Second(), o.Nanosecond())
 	return o.shift(token.Add, int64(step))
 }
 
-func (o CalendarTime) UnOpDec(*VM) (Object, error) {
+func (o CalendarDateTime) UnOpDec(*VM) (Object, error) {
 	step := leastTimeStep(o.Hour(), o.Minute(), o.Second(), o.Nanosecond())
 	return o.shift(token.Sub, int64(step))
 }

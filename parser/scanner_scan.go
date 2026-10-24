@@ -41,9 +41,10 @@ func unescapeMixedText(s string, d *source.StartEndDelimiter) string {
 const bytesLitPrefixKey = "bytesLitPrefix"
 
 // dateTimeLitKey is the PToken data key set when the scanner recognises a
-// digit-suffix date/time literal (20260131D, 235955T, 1781609136U). Its value
-// is the suffix rune ('D', 'T' or 'U'); the token's Literal holds the numeric
-// body without the suffix.
+// digit-suffix date/time literal (2026-01-31D, 2026-01-31DT,
+// 2026-01-31T10:30, 2026-01-31T, 10:30T, 1781609136U). Its value is the suffix
+// ("D", "DT", "T", "U", or "" for a bare date-time); the token's Literal holds
+// the body without the suffix.
 const dateTimeLitKey = "dateTimeLit"
 
 // outputCheckMultiKey flags an OutputCheck token of the multi-line form
@@ -155,31 +156,75 @@ func (s *Scanner) scanDurationLit() (body string, span int, ok bool) {
 }
 
 // scanDateTimeLit looks ahead (without consuming) from the current position —
-// the first digit — for a digit-suffix date/time literal: a dashed date / unix
-// body followed by a D/T/U suffix letter that must not be the first rune of an
-// identifier (so `0xABCD` and `123Drive` are left alone). On success it returns
-// the body (the literal without the suffix), the suffix byte and the total byte
-// span of body+suffix; otherwise ok is false and the reader is untouched so the
-// caller falls back to plain number scanning.
-func (s *Scanner) scanDateTimeLit() (body string, suffix byte, span int, ok bool) {
+// the first digit — for a digit-suffix date/time literal: a body of digits,
+// `-`, `.` and `:` — a date, a clock, a unix time, or a date and a clock
+// joined by `T` (`2026-01-31T10:30`) — followed by a suffix: `D` (cdate), `DT`
+// (cdtime), `T` (a time, or a ctime when the body is a clock) or `U` (unix
+// time). A date and a clock joined by `T` need no suffix (a cdtime; `DT` is
+// optional). The suffix must not be the first rune of an identifier (so
+// `0xABCD` and `123Drive` are left alone). On success it returns the body,
+// the suffix ("" for a bare date-time) and the byte span of both; otherwise ok
+// is false and the reader is untouched so the caller falls back to plain
+// number scanning.
+func (s *Scanner) scanDateTimeLit() (body, suffix string, span int, ok bool) {
 	src := s.Src
 	i := s.Offset
 	j := i
-	for j < len(src) && isDateTimeBodyByte(src[j]) {
-		j++
+	for j < len(src) {
+		b := src[j]
+		if isDateTimeBodyByte(b) || b == ':' {
+			j++
+			continue
+		}
+		// the `T` between a date and a clock: 2026-01-31T10:30
+		if b == 'T' && j+1 < len(src) && src[j+1] >= '0' && src[j+1] <= '9' && isDateBody(src[i:j]) {
+			j++
+			continue
+		}
+		break
 	}
-	if j >= len(src) || j == i {
-		return "", 0, 0, false
+	// a `.` that ends the run is a selector's: 2026-01-31T10:30.clock()
+	for j > i && src[j-1] == '.' {
+		j--
 	}
-	switch src[j] {
-	case 'D', 'T', 't', 'U':
+	if j == i {
+		return "", "", 0, false
+	}
+	body = string(src[i:j])
+	switch {
+	case j+1 < len(src) && src[j] == 'D' && src[j+1] == 'T':
+		suffix = "DT"
+	case j < len(src) && (src[j] == 'D' || src[j] == 'T' || src[j] == 'U'):
+		suffix = string(src[j])
+	case strings.Contains(body, "T"):
+		// a date and a clock: a cdtime with no suffix
 	default:
-		return "", 0, 0, false
+		return "", "", 0, false
 	}
-	if j+1 < len(src) && runehelper.IsIdentifier(rune(src[j+1])) {
-		return "", 0, 0, false
+	end := j + len(suffix)
+	if end < len(src) && runehelper.IsIdentifier(rune(src[end])) {
+		return "", "", 0, false
 	}
-	return string(src[i:j]), src[j], j + 1 - i, true
+	return body, suffix, end - i, true
+}
+
+// isDateBody reports whether b is a date: YYYY-MM-DD or YYYYMMDD.
+func isDateBody(b []byte) bool {
+	digits := func(b []byte) bool {
+		for _, c := range b {
+			if c < '0' || c > '9' {
+				return false
+			}
+		}
+		return true
+	}
+	switch len(b) {
+	case 8:
+		return digits(b)
+	case 10:
+		return b[4] == '-' && b[7] == '-' && digits(b[:4]) && digits(b[5:7]) && digits(b[8:])
+	}
+	return false
 }
 
 // scanCodeStr scans a `code … end` code-string literal whose `code` keyword
@@ -513,8 +558,8 @@ do:
 		if body, suffix, span, ok := s.scanDateTimeLit(); ok {
 			t.Token = token.String
 			t.Literal = body
-			s.NextC(span) // consume the body and the suffix letter
-			t.Set(dateTimeLitKey, rune(suffix))
+			s.NextC(span) // consume the body and the suffix
+			t.Set(dateTimeLitKey, suffix)
 		} else {
 			t.Token, t.Literal = s.ScanNumber(false)
 		}

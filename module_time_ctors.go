@@ -19,11 +19,13 @@ func addTypeCtors(typ *BuiltinObjType, name string, ctor func(Call) (Object, err
 
 func init() {
 	addTypeCtors(TimeType, "time", NewTimeFunc,
-		TimeType, TStr, TRawStr, CalendarDateType, CalendarTimeType, TInt, TUint)
+		TimeType, TStr, TRawStr, CalendarDateType, CalendarDateTimeType, TInt, TUint)
 	addTypeCtors(CalendarDateType, "cdate", NewCalendarDateFunc,
-		CalendarDateType, CalendarTimeType, TimeType, TUint, TInt, TStr)
-	addTypeCtors(CalendarTimeType, "ctime", NewCalendarTimeFunc,
-		CalendarTimeType, TimeType, CalendarDateType, TUint, TInt, TStr)
+		CalendarDateType, CalendarDateTimeType, TimeType, TUint, TInt, TStr)
+	addTypeCtors(CalendarDateTimeType, "cdtime", NewCalendarDateTimeFunc,
+		CalendarDateTimeType, TimeType, CalendarDateType, TUint, TInt, TStr)
+	addTypeCtors(TimeOfDayType, "ctime", NewTimeOfDayFunc,
+		TimeOfDayType, DurationType, CalendarDateTimeType, TimeType, TStr, TRawStr)
 	addTypeCtors(DurationType, "duration", NewDurationFunc,
 		DurationType, TInt, TUint, TStr)
 	addTypeCtors(TimeLocationType, "Location", NewLocationFunc,

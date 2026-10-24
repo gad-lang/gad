@@ -315,8 +315,9 @@ func TestVMRange(t *testing.T) {
 func TestVMRangeRepr(t *testing.T) {
 	// repr(Range; indent) dumps the headers of every typed constructor method
 	// (one per element kind), tab-indented and sorted by parameter types.
-	want := "‹Range: ‹builtin type ‹Range› with 8 methods: [\n" +
+	want := "‹Range: ‹builtin type ‹Range› with 9 methods: [\n" +
 		"\t⨍(cdate, cdate) 🠆 ‹function Range(from cdate, to cdate; step)›,\n" +
+		"\t⨍(cdtime, cdtime) 🠆 ‹function Range(from cdtime, to cdtime; step)›,\n" +
 		"\t⨍(char, char) 🠆 ‹function Range(from char, to char; step)›,\n" +
 		"\t⨍(ctime, ctime) 🠆 ‹function Range(from ctime, to ctime; step)›,\n" +
 		"\t⨍(decimal, decimal) 🠆 ‹function Range(from decimal, to decimal; step)›,\n" +
@@ -345,9 +346,9 @@ func TestVMTimeModuleTypesRepr(t *testing.T) {
 		member string
 		want   Str
 	}{
-		{"Type", dump("time", "cdate", "ctime", "int", "rawstr", "str", "time", "uint")},
-		{"cdate", dump("cdate", "cdate", "ctime", "int", "str", "time", "uint")},
-		{"ctime", dump("ctime", "cdate", "ctime", "int", "str", "time", "uint")},
+		{"Type", dump("time", "cdate", "cdtime", "int", "rawstr", "str", "time", "uint")},
+		{"cdate", dump("cdate", "cdate", "cdtime", "int", "str", "time", "uint")},
+		{"cdtime", dump("cdtime", "cdate", "cdtime", "int", "str", "time", "uint")},
 		{"Duration", dump("duration", "duration", "int", "str", "uint")},
 		{"Location", dump("Location", "Location", "int", "rawstr", "str")},
 	} {
@@ -1470,72 +1471,143 @@ func TestVMTimeArithmetic(t *testing.T) {
 	testExpectRun(t, `return str(2026-01-01T - dur 1h)`,
 		nil, Str("2025-12-31 23:00:00 +0000 UTC"))
 
-	// ctime ± duration -> ctime; difference -> duration
-	testExpectRun(t, `return str(2026-01-31t + dur 25h)`, nil, Str("2026-02-01 01:00:00"))
-	testExpectRun(t, `return str(2026-02-01t - 2026-01-31t)`, nil, Str("24h0m0s"))
-	testExpectRun(t, `return str(2026-01-31t.add(dur 1h))`, nil, Str("2026-01-31 01:00:00"))
+	// cdtime ± duration -> cdtime; difference -> duration
+	testExpectRun(t, `return str(2026-01-31DT + dur 25h)`, nil, Str("2026-02-01 01:00:00"))
+	testExpectRun(t, `return str(2026-02-01DT - 2026-01-31DT)`, nil, Str("24h0m0s"))
+	testExpectRun(t, `return str(2026-01-31DT.add(dur 1h))`, nil, Str("2026-01-31 01:00:00"))
 
-	// cdate + duration: stays a date when day-aligned, else ctime
-	testExpectRun(t, `return typeName(2025-01-01D + dur 1s)`, nil, Str("ctime"))
+	// cdate + duration: stays a date when day-aligned, else cdtime
+	testExpectRun(t, `return typeName(2025-01-01D + dur 1s)`, nil, Str("cdtime"))
 	testExpectRun(t, `return str(2025-01-01D + dur 1s)`, nil, Str("2025-01-01 00:00:01"))
 	testExpectRun(t, `return typeName(2025-01-01D + dur 24h)`, nil, Str("cdate"))
 	testExpectRun(t, `return str(2025-01-01D + dur 24h)`, nil, Str("2025-01-02"))
 	testExpectRun(t, `return str(2025-02-01D - 2025-01-01D)`, nil, Str("744h0m0s"))
 
 	// cross-type conversions
-	testExpectRun(t, `return typeName(time.ctime(2026-01-31T))`, nil, Str("ctime"))
-	testExpectRun(t, `return typeName(time.cdate(2026-01-31t))`, nil, Str("cdate"))
-	testExpectRun(t, `return typeName(time.Type(2026-01-31t))`, nil, Str("time"))
+	testExpectRun(t, `return typeName(time.cdtime(2026-01-31T))`, nil, Str("cdtime"))
+	testExpectRun(t, `return typeName(time.cdate(2026-01-31DT))`, nil, Str("cdate"))
+	testExpectRun(t, `return typeName(time.Type(2026-01-31DT))`, nil, Str("time"))
 }
 
 func TestVMTimeTruncate(t *testing.T) {
-	// .trunc(unit) lower-truncates to a calendar ('y','M','w','d') or Go
-	// duration ('h','m','s','ms','us','ns') unit.
+	// .trunc(; unit=n) truncates to the start of the largest unit not falsy
+	// (#26): y, m, w, d, h, min, s, ms, us, ns; n of it counted from the start
+	// of the next larger unit.
 	const src = `time.strToTime("2026-08-17T14:37:52.123456789Z")` // 2026-08-17 is a Monday
-	testExpectRun(t, `return str(`+src+`.trunc('y'))`, nil, Str("2026-01-01 00:00:00 +0000 UTC"))
-	testExpectRun(t, `return str(`+src+`.trunc('M'))`, nil, Str("2026-08-01 00:00:00 +0000 UTC"))
-	testExpectRun(t, `return str(`+src+`.trunc('w'))`, nil, Str("2026-08-17 00:00:00 +0000 UTC"))
-	testExpectRun(t, `return str(`+src+`.trunc('d'))`, nil, Str("2026-08-17 00:00:00 +0000 UTC"))
-	testExpectRun(t, `return str(`+src+`.trunc('h'))`, nil, Str("2026-08-17 14:00:00 +0000 UTC"))
-	testExpectRun(t, `return str(`+src+`.trunc("ms"))`, nil, Str("2026-08-17 14:37:52.123 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc(; y))`, nil, Str("2026-01-01 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc(; m))`, nil, Str("2026-08-01 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc(; w))`, nil, Str("2026-08-17 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc(; d))`, nil, Str("2026-08-17 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc(; h))`, nil, Str("2026-08-17 14:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc(; ms))`, nil, Str("2026-08-17 14:37:52.123 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc())`, nil, Str("2026-08-17 14:37:52 +0000 UTC"))
 
-	// ctime and cdate keep their own types
-	testExpectRun(t, `return str(time.strToCalendarTime("2026-08-17 14:37:52.5").trunc('h'))`,
-		nil, Str("2026-08-17 14:00:00"))
-	testExpectRun(t, `return typeName((2026-08-17D).trunc('M'))`, nil, Str("cdate"))
-	testExpectRun(t, `return str((2026-08-17D).trunc('M'))`, nil, Str("2026-08-01"))
+	// counts and their enums
+	testExpectRun(t, `return 2026-08-17D.trunc(; m=3)`, nil, NewCalendarDate(2026, 7, 1))
+	testExpectRun(t, `return 2026-08-17D.trunc(; m=time.MonthSpans.Semester)`, nil, NewCalendarDate(2026, 7, 1))
+	testExpectRun(t, `return 2026-05-17D.trunc(; m=time.MonthSpans.Bimester)`, nil, NewCalendarDate(2026, 5, 1))
+	testExpectRun(t, `return 2026-08-17D.trunc(; y=10)`, nil, NewCalendarDate(2020, 1, 1))
+	testExpectRun(t, `return 10:47:31.5T.trunc(; min=15)`, nil, mustTimeOfDay(10, 45, 0, 0))
+	testExpectRun(t, `return 10:47T.trunc(; min=time.MinuteSpans.HalfHour)`, nil, mustTimeOfDay(10, 30, 0, 0))
+	testExpectRun(t, `return 17:47T.trunc(; h=time.HourSpans.QuarterDay)`, nil, mustTimeOfDay(12, 0, 0, 0))
+	// a week starts on Monday, or on the weekday given
+	testExpectRun(t, `return 2026-08-19D.trunc(; w)`, nil, NewCalendarDate(2026, 8, 17))
+	testExpectRun(t, `return 2026-08-19D.trunc(; w=time.Weekdays.Sunday)`, nil, NewCalendarDate(2026, 8, 16))
+	// the largest unit not falsy
+	testExpectRun(t, `byDay := no; return str(2026-08-17T10:47DT.trunc(; d=byDay, h=yes))`, nil, Str("2026-08-17 10:00:00"))
+	testExpectRun(t, `byDay := yes; return str(2026-08-17T10:47DT.trunc(; d=byDay, h=yes))`, nil, Str("2026-08-17 00:00:00"))
 
-	// durations truncate toward zero by a fixed unit
-	testExpectRun(t, `return str((dur 1h37m52s).trunc('m'))`, nil, Str("1h37m0s"))
-	testExpectRun(t, `return str((dur 200h).trunc('w'))`, nil, Str("168h0m0s"))
+	// each type keeps its own
+	testExpectRun(t, `return typeName(2026-08-17T14:37DT.trunc(; h))`, nil, Str("cdtime"))
+	testExpectRun(t, `return typeName(2026-08-17D.trunc(; m))`, nil, Str("cdate"))
+	testExpectRun(t, `return typeName(10:47T.trunc(; h))`, nil, Str("ctime"))
 
-	// invalid units error; 'y'/'M' are rejected for durations
-	expectErrHas(t, `return (dur 1h).trunc('z')`, newOpts(), "invalid truncate unit")
-	expectErrHas(t, `return (dur 1h).trunc('y')`, newOpts(), "invalid truncate unit")
+	// durations truncate toward zero by a fixed unit (a count of weeks too)
+	testExpectRun(t, `return str((dur 1h37m52s).trunc(; min))`, nil, Str("1h37m0s"))
+	testExpectRun(t, `return str((dur 200h).trunc(; w))`, nil, Str("168h0m0s"))
+	testExpectRun(t, `return str((dur 400h).trunc(; w=2))`, nil, Str("336h0m0s"))
 
-	// .round(unit) rounds to the nearest boundary (a tie rounds up)
+	// errors: a positional unit, a unit the type has not, a bad count, an
+	// enum of another unit
+	expectErrHas(t, `return (dur 1h).trunc('h')`, newOpts(), "the unit is a named argument")
+	expectErrHas(t, `return (dur 1h).trunc(; y)`, newOpts(), "y is not a unit of this type")
+	expectErrHas(t, `return 10:30T.trunc(; d)`, newOpts(), "d is not a unit of this type")
+	expectErrHas(t, `return 2026-01-01D.trunc(; h)`, newOpts(), "h is not a unit of this type")
+	expectErrHas(t, `return 2026-01-01D.trunc(; z)`, newOpts(), "z (the units are")
+	expectErrHas(t, `return 2026-01-01D.trunc(; m=-1)`, newOpts(), "m=-1 (a positive count)")
+	expectErrHas(t, `return 2026-01-01D.trunc(; w=2)`, newOpts(), "w=2 (a positive count)")
+	expectErrHas(t, `return 2026-01-01D.trunc(; m=time.MinuteSpans.HalfHour)`, newOpts(), "is not a member of time.MonthSpans")
+
+	// .round(; unit) rounds to the nearest start of the unit (a tie rounds up)
 	const rsrc = `time.strToTime("2026-08-17T14:37:52Z")`
-	testExpectRun(t, `return str(`+rsrc+`.round('h'))`, nil, Str("2026-08-17 15:00:00 +0000 UTC"))
-	testExpectRun(t, `return str(`+rsrc+`.round('d'))`, nil, Str("2026-08-18 00:00:00 +0000 UTC"))
-	testExpectRun(t, `return str(`+rsrc+`.round('M'))`, nil, Str("2026-09-01 00:00:00 +0000 UTC"))
-	testExpectRun(t, `return str((2026-08-17D).round('M'))`, nil, Str("2026-09-01"))
-	testExpectRun(t, `return str(time.strToCalendarTime("2026-08-17 14:37:52").round('m'))`,
-		nil, Str("2026-08-17 14:38:00"))
-	testExpectRun(t, `return str((dur 1h37m52s).round('m'))`, nil, Str("1h38m0s"))
-	testExpectRun(t, `return str((dur 1h37m52s).round('h'))`, nil, Str("2h0m0s"))
-	expectErrHas(t, `return (dur 1h).round('y')`, newOpts(), "invalid round unit")
+	testExpectRun(t, `return str(`+rsrc+`.round(; h))`, nil, Str("2026-08-17 15:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+rsrc+`.round(; d))`, nil, Str("2026-08-18 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+rsrc+`.round(; m))`, nil, Str("2026-09-01 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return 2026-08-17D.round(; m)`, nil, NewCalendarDate(2026, 9, 1))
+	testExpectRun(t, `return str(2026-08-17T14:37:52DT.round(; min))`, nil, Str("2026-08-17 14:38:00"))
+	testExpectRun(t, `return 10:47:31.5T.round(; min=15)`, nil, mustTimeOfDay(10, 45, 0, 0))
+	testExpectRun(t, `return 23:59T.round(; h)`, nil, mustTimeOfDay(0, 0, 0, 0))
+	testExpectRun(t, `return str((dur 1h37m52s).round(; min))`, nil, Str("1h38m0s"))
+	testExpectRun(t, `return str((dur 1h37m52s).round(; h))`, nil, Str("2h0m0s"))
+	expectErrHas(t, `return (dur 1h).round(; m)`, newOpts(), "m is not a unit of this type")
+}
+
+// ctime is a time of day (#26): `10:30T`, a clock's arithmetic.
+func TestVMTimeOfDay(t *testing.T) {
+	testExpectRun(t, `return [typeName(10:30T), str(10:30:15.25T), str([10:30:15.25T]), repr(10:30T)]`, nil,
+		Array{Str("ctime"), Str("10:30:15.25"), Str("[10:30:15.25T]"), Str("‹ctime: 10:30T›")})
+	// constructors
+	testExpectRun(t, `return [time.ctime(10, 30), time.ctime(10, 30, 15; ns=5), time.ctime(dur 90m),
+		time.ctime(2026-01-31T10:30), time.ctime("07:05:00.5"), time.strToCtime("23:59")]`, nil,
+		Array{mustTimeOfDay(10, 30, 0, 0), mustTimeOfDay(10, 30, 15, 5), mustTimeOfDay(1, 30, 0, 0),
+			mustTimeOfDay(10, 30, 0, 0), mustTimeOfDay(7, 5, 0, 500000000), mustTimeOfDay(23, 59, 0, 0)})
+	// a clock's arithmetic: past midnight it wraps
+	testExpectRun(t, `return [23:00T + dur 2h, 01:00T - dur 2h, 10:30T - 09:00T, 09:00T - 10:30T]`, nil,
+		Array{mustTimeOfDay(1, 0, 0, 0), mustTimeOfDay(23, 0, 0, 0), Duration(90 * time.Minute), Duration(-90 * time.Minute)})
+	// a date at a time of day
+	testExpectRun(t, `return [str(2026-01-31D + 10:30T), str(10:30T + 2026-01-31D), typeName(2026-01-31D + 10:30T)]`, nil,
+		Array{Str("2026-01-31 10:30:00"), Str("2026-01-31 10:30:00"), Str("cdtime")})
+	testExpectRun(t, `return 2026-01-31T10:30:15.5.clock()`, nil, mustTimeOfDay(10, 30, 15, 500000000))
+	// accessors, comparisons, a range
+	testExpectRun(t, `t := 10:30:15.123456789T; return [t.hour(), t.minute(), t.second(), t.ms(), t.us(), t.ns()]`, nil,
+		Array{Int(10), Int(30), Int(15), Int(123), Int(123456), Int(123456789)})
+	testExpectRun(t, `return [09:00T < 10:30T, 10:30T >= 10:30T, 10:30T == 10:30:00T]`, nil, Array{True, True, True})
+	testExpectRun(t, `return collect(08:00T..09:00T/dur 30m)`, nil,
+		Array{mustTimeOfDay(8, 0, 0, 0), mustTimeOfDay(8, 30, 0, 0), mustTimeOfDay(9, 0, 0, 0)})
+	// errors
+	expectCompileError(t, `return 24:00T`, "invalid time of day")
+	expectCompileError(t, `return 10:60T`, "invalid time of day")
+	expectErrHas(t, `return time.ctime(25, 0)`, newOpts(), "is not a time of day")
+	expectErrHas(t, `return time.ctime(dur 25h)`, newOpts(), "is not within a day")
+	expectCompileError(t, `return 2026-01-31T10:30T`, "a time literal holds a date only")
+}
+
+// cdtime's literal: `2026-01-31DT` at midnight, a date and a clock (its DT
+// optional).
+func TestVMCalendarDateTimeLiteral(t *testing.T) {
+	testExpectRun(t, `return [str(2026-01-31DT), str(2026-01-31T10:30), str(2026-01-31T10:30:15.5DT), str(20260131T10:30)]`, nil,
+		Array{Str("2026-01-31 00:00:00"), Str("2026-01-31 10:30:00"), Str("2026-01-31 10:30:15.5"), Str("2026-01-31 10:30:00")})
+	testExpectRun(t, `return str([2026-01-31DT, 2026-01-31T10:30:15.5])`, nil, Str("[2026-01-31DT, 2026-01-31T10:30:15.5]"))
+}
+
+func mustTimeOfDay(h, m, s, ns int) TimeOfDay {
+	t, ok := NewTimeOfDay(h, m, s, ns)
+	if !ok {
+		panic("bad time of day")
+	}
+	return t
 }
 
 func TestVMTimeMethods(t *testing.T) {
-	// addDate, weekday and format on cdate / ctime
+	// addDate, weekday and format on cdate / cdtime
 	testExpectRun(t, `return str((2026-08-17D).addDate(0, 0, 5))`, nil, Str("2026-08-22"))
 	testExpectRun(t, `return str((2026-08-17D).addDate(1, 1, 0))`, nil, Str("2027-09-17"))
 	testExpectRun(t, `return (2026-08-17D).weekday()`, nil, Int(1)) // Monday
 	testExpectRun(t, `return (2026-08-17D).format("Mon 02 Jan 2006")`, nil, Str("Mon 17 Aug 2026"))
 
-	testExpectRun(t, `return str(time.strToCalendarTime("2026-08-17 10:00:00").addDate(0, 1, 0))`,
+	testExpectRun(t, `return str(time.strToCdtime("2026-08-17 10:00:00").addDate(0, 1, 0))`,
 		nil, Str("2026-09-17 10:00:00"))
-	testExpectRun(t, `return time.strToCalendarTime("2026-08-17 14:37:00").format("15:04")`,
+	testExpectRun(t, `return time.strToCdtime("2026-08-17 14:37:00").format("15:04")`,
 		nil, Str("14:37"))
 }
 
@@ -1574,13 +1646,13 @@ func TestVMDateTimeLit(t *testing.T) {
 	testExpectRun(t, `return str(2026-01-31T)`, nil, Str("2026-01-31 00:00:00 +0000 UTC"))
 	testExpectRun(t, `return str(1781609136U)`, nil, Str("2026-06-16 11:25:36 +0000 UTC"))
 
-	// lowercase `t` is the zone-less ctime
-	testExpectRun(t, `return typeName(2026-01-31t)`, nil, Str("ctime"))
-	testExpectRun(t, `return str(2026-01-31t)`, nil, Str("2026-01-31 00:00:00"))
-	testExpectRun(t, `return 2026-01-31t.day()`, nil, Int(31))
-	testExpectRun(t, `return 2026-01-31t < 2026-02-01t`, nil, True)
-	// ctime stores nanoseconds (via the string parser / constructor)
-	testExpectRun(t, `return time.strToCalendarTime("2026-01-31 23:59:55.001").ns()`,
+	// lowercase `t` is the zone-less cdtime
+	testExpectRun(t, `return typeName(2026-01-31DT)`, nil, Str("cdtime"))
+	testExpectRun(t, `return str(2026-01-31DT)`, nil, Str("2026-01-31 00:00:00"))
+	testExpectRun(t, `return 2026-01-31DT.day()`, nil, Int(31))
+	testExpectRun(t, `return 2026-01-31DT < 2026-02-01DT`, nil, True)
+	// cdtime stores nanoseconds (via the string parser / constructor)
+	testExpectRun(t, `return time.strToCdtime("2026-01-31 23:59:55.001").ns()`,
 		nil, Int(1000000))
 
 	// the compact YYYYMMDD form is still accepted for dates

@@ -44,14 +44,16 @@ component.
 
 ```gad
 day := 2026-01-31D
-t := time.ctime("2026-01-31 08:05:00")
-t2 := time.ctime("2026-01-31 08:05:30")
+t := 2026-01-31T08:05
+t2 := 2026-01-31T08:05:30
+c := 23:00T
 [
     str(++day),     // one day
     str(++t),       // a minute (the seconds are 0)
     str(++t2),      // a second
+    str(++c),       // an hour; a ctime wraps past midnight
 ]
-= ["2026-02-01", "2026-01-31 08:06:00", "2026-01-31 08:05:31"]
+= ["2026-02-01", "2026-01-31 08:06:00", "2026-01-31 08:05:31", "00:00:00"]
 ```
 
 ## Custom operators
@@ -93,14 +95,16 @@ example unary_incdec {
 
 example unary_temporal {
     day := 2026-01-31D
-    t := time.ctime("2026-01-31 08:05:00")
-    t2 := time.ctime("2026-01-31 08:05:30")
+    t := 2026-01-31T08:05
+    t2 := 2026-01-31T08:05:30
+    c := 23:00T
     [
         str(++day),     // one day
         str(++t),       // a minute (the seconds are 0)
         str(++t2),      // a second
+        str(++c),       // an hour; a ctime wraps past midnight
     ]
-    = ["2026-02-01", "2026-01-31 08:06:00", "2026-01-31 08:05:31"]
+    = ["2026-02-01", "2026-01-31 08:06:00", "2026-01-31 08:05:31", "00:00:00"]
 }
 
 example unary_custom {

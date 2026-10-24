@@ -357,26 +357,18 @@ var MethodTable = map[string]func(*Time, *Call) (Object, error){
 		}
 		return TimeTruncate(o, d), nil
 	},
-	// trunc(unit char) lower-truncates to the start of a calendar unit
-	// (y, M, w, d, h, m, s, ms, us, ns).
+	// trunc(; y, m, w, d, h, min, s, ms, us, ns) truncates to the start of
+	// the largest unit not falsy, on the clock of its zone (#26).
 	"trunc": func(o *Time, c *Call) (Object, error) {
-		unit, err := truncateUnitArg(*c)
-		if err != nil {
-			return Nil, err
-		}
-		t, err := truncateTimeUnit(o.Value, unit)
+		t, err := truncRoundCall("trunc", *c, dateTimeUnits, o.Value)
 		if err != nil {
 			return Nil, err
 		}
 		return &Time{Value: t}, nil
 	},
-	// round(unit char) rounds to the nearest unit boundary (a tie rounds up).
+	// round(; …) rounds to the nearest start of the unit (a tie rounds up).
 	"round": func(o *Time, c *Call) (Object, error) {
-		unit, err := truncateUnitArg(*c)
-		if err != nil {
-			return Nil, err
-		}
-		t, err := roundTimeUnit(o.Value, unit)
+		t, err := truncRoundCall("round", *c, dateTimeUnits, o.Value)
 		if err != nil {
 			return Nil, err
 		}

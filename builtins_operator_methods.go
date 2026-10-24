@@ -200,7 +200,7 @@ func unaryOperatorMethod(name string, h CallableFunc, t ObjectType) *Function {
 func registerOperatorMethods() {
 	// Only types with a registered builtin-type key can be used as distinct
 	// method param types. The time-module types (time/duration/cdate/
-	// ctime) are NewBuiltinObjType values without such a key, so they are
+	// cdtime) are NewBuiltinObjType values without such a key, so they are
 	// left to the operator builtins' default handler.
 	binaryTypes := []ObjectType{
 		TInt, TUint, TFloat, TDecimal, TChar, TBool, TFlag,
@@ -217,7 +217,7 @@ func registerOperatorMethods() {
 		operatorMethod("selfAssignOp", operatorSelfAssignMethod, TArray))
 
 	// Expose the primitive types' UnOp implementations as typed methods of
-	// gad.unOp. The temporal types (time/duration/cdate/ctime)
+	// gad.unOp. The temporal types (time/duration/cdate/cdtime)
 	// have no builtin-type key, so their UnOp implementations are reached through
 	// the default handler (unOpObject) instead.
 	unaryTypes := []ObjectType{

@@ -29,12 +29,31 @@ func TestScanner_ScanDateTimeLit(t *testing.T) {
 
 	// digit-suffix date/time literals scan as a String whose literal is the
 	// dashed-date / unix body without the trailing D/T/t/U suffix.
-	tr.scanExpect(t, "2026-01-31D 2026-01-31T 2026-01-31t 1781609136U",
+	tr.scanExpect(t, "2026-01-31D 2026-01-31T 2026-01-31DT 1781609136U",
 		parser.DontInsertSemis, []scanResult{
 			{Token: token.String, Literal: "2026-01-31", Line: 1, Column: 1},
 			{Token: token.String, Literal: "2026-01-31", Line: 1, Column: 13},
 			{Token: token.String, Literal: "2026-01-31", Line: 1, Column: 25},
-			{Token: token.String, Literal: "1781609136", Line: 1, Column: 37},
+			{Token: token.String, Literal: "1781609136", Line: 1, Column: 38},
+		}...,
+	)
+
+	// a clock with T (a ctime), a date and a clock (a cdtime, its DT optional)
+	tr.scanExpect(t, "10:30T 10:30:15.25T 2026-01-31T10:30 2026-01-31T10:30:15.5DT",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.String, Literal: "10:30", Line: 1, Column: 1},
+			{Token: token.String, Literal: "10:30:15.25", Line: 1, Column: 8},
+			{Token: token.String, Literal: "2026-01-31T10:30", Line: 1, Column: 21},
+			{Token: token.String, Literal: "2026-01-31T10:30:15.5", Line: 1, Column: 38},
+		}...,
+	)
+
+	// a slice's `1:2` is no literal
+	tr.scanExpect(t, "1:2",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.Int, Literal: "1", Line: 1, Column: 1},
+			{Token: token.Colon, Literal: "", Line: 1, Column: 2},
+			{Token: token.Int, Literal: "2", Line: 1, Column: 3},
 		}...,
 	)
 

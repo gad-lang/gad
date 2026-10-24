@@ -25,8 +25,14 @@ func evalReturn(t *testing.T, src string) gad.Object {
 func TestPrintLiteralRoundTrip(t *testing.T) {
 	for _, c := range []struct{ src, literal string }{
 		{`2026-01-31D`, `2026-01-31D`},
-		{`2026-01-31t`, `2026-01-31t`},
-		{`time.strToCalendarTime("2026-01-31 10:30:00.5")`, `time.strToCalendarTime("2026-01-31 10:30:00.5")`},
+		{`2026-01-31DT`, `2026-01-31DT`},
+		{`time.strToCdtime("2026-01-31 10:30:00.5")`, `2026-01-31T10:30:00.5`},
+		{`2026-01-31T10:30DT`, `2026-01-31T10:30`},
+		{`20260131T10:30:01.000000001`, `2026-01-31T10:30:01.000000001`},
+		{`10:30T`, `10:30T`},
+		{`10:30:15.25T`, `10:30:15.25T`},
+		{`time.ctime(23, 59, 59; ns=999999999)`, `23:59:59.999999999T`},
+		{`time.strToCtime("00:00")`, `00:00T`},
 		{`dur 1h30m`, `dur 1h30m0s`},
 		{`dur -2s`, `dur -2s`},
 		{`2026-01-31T`, `2026-01-31T`},

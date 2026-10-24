@@ -19,7 +19,7 @@ import (
 var CalendarDateType = NewBuiltinObjType("cdate").WithNew(NewCalendarDateFunc)
 
 // NewCalendarDateFunc is the cdate(...) constructor: a cdate
-// pass-through, a ctime/time (its date part), an int/uint (YYYYMMDD) or
+// pass-through, a cdtime/time (its date part), an int/uint (YYYYMMDD) or
 // a string (see strToDate).
 func NewCalendarDateFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
@@ -28,7 +28,7 @@ func NewCalendarDateFunc(c Call) (Object, error) {
 	switch v := c.Args.Get(0).(type) {
 	case CalendarDate:
 		return v, nil
-	case CalendarTime:
+	case CalendarDateTime:
 		return v.Date(), nil
 	case *Time:
 		return CalendarDateFromTime(v.Value), nil
@@ -113,12 +113,16 @@ func (o CalendarDate) Equal(right Object) bool {
 // BinaryOp supports duration arithmetic, date difference and ordered
 // comparisons:
 //   - `cdate ± duration`  -> cdate when the result lands on
-//     midnight (a whole number of days), otherwise ctime
+//     midnight (a whole number of days), otherwise cdtime
+//   - `cdate + ctime` -> cdtime (that date at that time of day)
 //   - `cdate - cdate` -> duration
 //   - ordered comparisons        -> bool (the YYYYMMDD encoding is monotonic)
 func (o CalendarDate) BinOpAdd(_ *VM, right Object) (Object, error) {
-	if v, ok := right.(Duration); ok {
+	switch v := right.(type) {
+	case Duration:
 		return o.addDuration(time.Duration(v)), nil
+	case TimeOfDay:
+		return o.At(v), nil
 	}
 	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
 }
@@ -173,15 +177,20 @@ func calendarDateRHS(right Object) (CalendarDate, bool) {
 	return 0, false
 }
 
+// At is this date at the time of day t.
+func (o CalendarDate) At(t TimeOfDay) CalendarDateTime {
+	return CalendarDateTimeFromTime(o.Time(time.UTC).Add(t.Duration()))
+}
+
 // addDuration adds d to midnight of this date, returning a CalendarDate when the
-// result lands exactly on midnight (a whole number of days) and a CalendarTime
+// result lands exactly on midnight (a whole number of days) and a CalendarDateTime
 // otherwise (the duration carries a time-of-day part).
 func (o CalendarDate) addDuration(d time.Duration) Object {
 	t := o.Time(time.UTC).Add(d)
 	if t.Hour() == 0 && t.Minute() == 0 && t.Second() == 0 && t.Nanosecond() == 0 {
 		return CalendarDateFromTime(t)
 	}
-	return CalendarTimeFromTime(t)
+	return CalendarDateTimeFromTime(t)
 }
 
 // toUint64 reads an Int or Uint as a uint64.
@@ -218,22 +227,8 @@ func (o CalendarDate) CallName(name string, c Call) (Object, error) {
 			return Nil, err
 		}
 		return Str(o.Time(time.UTC).Format(layout)), nil
-	case "trunc":
-		unit, err := truncateUnitArg(c)
-		if err != nil {
-			return Nil, err
-		}
-		t, err := truncateTimeUnit(o.Time(time.UTC), unit)
-		if err != nil {
-			return Nil, err
-		}
-		return CalendarDateFromTime(t), nil
-	case "round":
-		unit, err := truncateUnitArg(c)
-		if err != nil {
-			return Nil, err
-		}
-		t, err := roundTimeUnit(o.Time(time.UTC), unit)
+	case "trunc", "round":
+		t, err := truncRoundCall(name, c, calendarDateUnits, o.Time(time.UTC))
 		if err != nil {
 			return Nil, err
 		}
