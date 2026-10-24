@@ -2215,7 +2215,7 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 		}
 
 		p.ExprLevel--
-		p.Expect(token.RBrace)
+		wm.RBrace = p.Expect(token.RBrace)
 		e = wm
 	default:
 		p.ErrorExpectToken(p.Token, token.LParen, token.LBrace)
@@ -4041,7 +4041,14 @@ func (p *Parser) ParseGenDecl(
 		lparen = p.Token.Pos
 		p.Next()
 		for i := 0; p.Token.Token != token.RParen && p.Token.Token != token.EOF; i++ { //nolint:predeclared
+			at := p.Token.Pos
 			list = append(list, fn(keyword, true, list, i))
+			if p.Token.Pos == at {
+				// a spec that reads nothing would be read again forever
+				// (growing the list until the memory runs out)
+				p.ErrorExpected(p.Token.Pos, keyword.String()+" spec")
+				break
+			}
 		}
 		rparen = p.Expect(token.RParen)
 		p.ExpectSemi()
@@ -4770,6 +4777,7 @@ func (p *Parser) ParseMatchExpr() node.Expr {
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
 		arm := &node.MatchArm{}
 		if p.Token.Token == token.Else {
+			arm.ElsePos = p.Token.Pos
 			p.Next()
 		} else {
 			// one or more conditions separated by `,`, collected until the arm

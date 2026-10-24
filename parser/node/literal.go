@@ -860,6 +860,21 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 		return
 	}
 	ctx.WriteString("(;")
+	if l := len(e.Elements); l > 0 && ctx.HasPrefix() && ctx.hasCommentInRange(e.LParen, e.RParen) {
+		// a comment inside forbids collapsing it: one pair per line, each
+		// with its comments
+		ctx.WriteItemsWithComments(l, "", e.LParen, e.RParen,
+			func(i int) Node { return e.Elements[i] },
+			func(i int) { e.Elements[i].WriteCode(ctx) },
+			func(nl bool) {
+				if nl {
+					ctx.WriteSecondLine()
+				}
+			})
+		ctx.WritePrefix()
+		ctx.WriteSingleByte(')')
+		return
+	}
 	if l := len(e.Elements); l > 0 {
 		if l == 1 || !ctx.HasPrefix() {
 			ctx.WriteSingleByte(' ')
@@ -1804,6 +1819,12 @@ func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) 
 			}
 		})
 
+	if n > 0 && ctx.HasPrefix() && c.LParen.IsValid() && ctx.hasCommentInRange(c.LParen, c.RParen) {
+		// a comment inside forbids collapsing them: one argument per line,
+		// each with its comments
+		c.writeCommented(ctx, lbrace, rbrace)
+		return
+	}
 	ctx.WriteString(lbrace)
 	if multiline && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
 		// greedy: pack args per line, no comma at a break, no extra indent.
@@ -1822,6 +1843,70 @@ func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) 
 	}
 	ctx.WriteString(rbrace)
 }
+
+// writeCommented writes the arguments one per line, each with the comments
+// above it and at the end of its line: the positional ones, `;`, the named.
+func (c *CallArgs) writeCommented(ctx *CodeWriteContext, lbrace, rbrace string) {
+	type item struct {
+		node  Node
+		write func()
+		named bool
+	}
+	var items []item
+	for _, v := range c.Args.Values {
+		v := v
+		items = append(items, item{node: v, write: func() { v.WriteCode(ctx) }})
+	}
+	if v := c.Args.Var; v != nil {
+		items = append(items, item{node: v, write: func() { v.WriteCode(ctx) }})
+	}
+	na := &c.NamedArgs
+	for i, name := range na.Names {
+		i := i
+		end := name.Expr().End()
+		if v := na.Values[i]; v != nil {
+			end = v.End()
+		}
+		items = append(items, item{
+			node:  posSpan{name.Expr().Pos(), end},
+			write: func() { na.writeItemCode(i, ctx) },
+			named: true,
+		})
+	}
+	ctx.WriteString(lbrace)
+	if items[0].named {
+		ctx.WriteString(";")
+	}
+	comments := ctx.claimBodyComments(len(items), c.LParen, c.RParen, func(i int) Node { return items[i].node })
+	ctx.Depth++
+	ctx.WriteSecondLine()
+	for i, it := range items {
+		ctx.WritePrefix()
+		comments[i].writeLead(ctx)
+		it.write()
+		if i+1 < len(items) {
+			if items[i+1].named && !it.named {
+				ctx.WriteString(";")
+			} else {
+				ctx.WriteString(",")
+			}
+		}
+		comments[i].writeTrail(ctx)
+		ctx.WriteSecondLine()
+	}
+	ctx.Depth--
+	ctx.WritePrefix()
+	ctx.WriteString(rbrace)
+}
+
+// posSpan is a span of the source as a node: what an item's comments are
+// found around.
+type posSpan struct{ from, to source.Pos }
+
+func (s posSpan) Pos() source.Pos               { return s.from }
+func (s posSpan) End() source.Pos               { return s.to }
+func (s posSpan) String() string                { return "" }
+func (s posSpan) WriteCode(_ *CodeWriteContext) {}
 
 // greedyItems flattens the positional and named call arguments into the
 // param-item form used by writeGreedyParams.

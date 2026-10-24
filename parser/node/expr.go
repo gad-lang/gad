@@ -2184,8 +2184,11 @@ func (e *FuncWithMethodsExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	ctx.WriteString("{")
+	comments := methodComments(ctx, e.Methods, e.LBrace, e.RBrace)
 	ctx.WriteItemsSep(ctx.HasPrefix(), len(e.Methods), "; ", "\n", func(i int) {
+		comments[i].writeLead(ctx)
 		e.Methods[i].WriteCode(ctx)
+		comments[i].writeTrail(ctx)
 	}, func(newLine bool) {
 		if newLine {
 			ctx.WriteSecondLine()
@@ -2796,8 +2799,8 @@ func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
 			if ctx.hasCommentInRange(e.Pos(), e.End()) {
 				// A comment inside the dict forbids collapsing it; keep each item's
 				// trailing comment attached.
-				ctx.WriteItemsWithComments(len(e.Elements), "",
-					func(i int) source.Pos { return e.Elements[i].End() }, write, done)
+				ctx.WriteItemsWithComments(len(e.Elements), "", e.LBrace, e.RBrace,
+					func(i int) Node { return e.Elements[i] }, write, done)
 				ctx.WritePrefix()
 				ctx.WriteSingleByte('}')
 				return
@@ -2851,8 +2854,8 @@ func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
 				// A comment inside the array forbids collapsing it; write one item
 				// per line and keep each item's trailing comment attached (closing
 				// mirrors the non-greedy branch below).
-				ctx.WriteItemsWithComments(len(e.Elements), "",
-					func(i int) source.Pos { return e.Elements[i].End() }, write,
+				ctx.WriteItemsWithComments(len(e.Elements), "", e.LBrack, e.RBrack,
+					func(i int) Node { return e.Elements[i] }, write,
 					func(newLine bool) {
 						if newLine {
 							ctx.WriteSecondLine()
@@ -3113,6 +3116,29 @@ type MatchArm struct {
 	Conds  []Expr     // conditions (OR); empty for the else arm
 	Result Expr       // `conds: result`
 	Body   *BlockStmt // `conds { body }`
+	// ElsePos is the position of the else arm's `else`.
+	ElsePos source.Pos
+	// orig is the arm of the source a sorted copy is of (orderedArms).
+	orig *MatchArm
+}
+
+// Pos is the position of the arm's first condition (its `else`).
+func (a *MatchArm) Pos() source.Pos {
+	if len(a.Conds) > 0 {
+		return a.Conds[0].Pos()
+	}
+	return a.ElsePos
+}
+
+// End is the position right after the arm's result or body.
+func (a *MatchArm) End() source.Pos {
+	if a.Body != nil {
+		return a.Body.End()
+	}
+	if a.Result != nil {
+		return a.Result.End()
+	}
+	return a.Pos()
 }
 
 // IsElse reports whether this arm is the default `else` arm.
@@ -3313,12 +3339,25 @@ func (e *MatchExpr) writeInline(ctx *CodeWriteContext) {
 // greedily.
 func (e *MatchExpr) writeWrapped(ctx *CodeWriteContext) {
 	arms := e.orderedArms()
+	// each arm's comments, claimed in the order written: they follow it
+	comments := map[*MatchArm]*itemComments{}
+	if e.LBrace.IsValid() && e.RBrace.IsValid() {
+		for i, ic := range ctx.claimBodyComments(len(e.Arms), e.LBrace, e.RBrace, func(i int) Node { return e.Arms[i] }) {
+			comments[e.Arms[i]] = ic
+		}
+	}
 	e.writeHeader(ctx)
 	ctx.WriteString("{")
 	ctx.Depth++
 	for _, a := range arms {
 		ctx.WriteSemi() // newline + prefix
+		ic := comments[a]
+		if a.orig != nil {
+			ic = comments[a.orig]
+		}
+		ic.writeLead(ctx)
 		a.writeWrapped(ctx)
+		ic.writeTrail(ctx)
 	}
 	ctx.Depth--
 	ctx.WriteSemi()
@@ -3326,7 +3365,8 @@ func (e *MatchExpr) writeWrapped(ctx *CodeWriteContext) {
 }
 
 func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
-	if e.wrap(ctx) {
+	if e.wrap(ctx) || ctx.HasPrefix() && e.LBrace.IsValid() && ctx.hasCommentInRange(e.LBrace, e.RBrace) {
+		// a comment inside forbids collapsing it
 		e.writeWrapped(ctx)
 		return
 	}
@@ -3352,7 +3392,7 @@ func (e *MatchExpr) orderedArms() []*MatchArm {
 		sort.SliceStable(conds, func(i, j int) bool {
 			return matchCondLess(conds[i], conds[j])
 		})
-		arms = append(arms, &MatchArm{Conds: conds, Result: a.Result, Body: a.Body})
+		arms = append(arms, &MatchArm{Conds: conds, Result: a.Result, Body: a.Body, ElsePos: a.ElsePos, orig: a})
 	}
 	sort.SliceStable(arms, func(i, j int) bool {
 		switch {

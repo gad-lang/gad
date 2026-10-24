@@ -611,7 +611,7 @@ func (s *TryStmt) String() string {
 }
 
 func (s *TryStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString("try")
+	ctx.WriteString("try ")
 	s.Body.WriteCode(ctx)
 
 	if s.Catch != nil {
@@ -653,7 +653,11 @@ func (s *CatchStmt) String() string {
 }
 
 func (s *CatchStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString("catch " + s.Ident.String())
+	ctx.WriteString("catch ")
+	if s.Ident != nil {
+		// `catch e { … }`; without a name, `catch { … }`
+		ctx.WriteString(s.Ident.Name + " ")
+	}
 	s.Body.WriteCode(ctx)
 }
 

@@ -101,6 +101,10 @@ type ClassMemberExpr struct {
 	Doc      *ast.CommentGroup // doc comment preceding the member; or nil
 	// Meta is the member's `[k=v, …]` metadata (or nil).
 	Meta *KeyValueArrayLit
+	// BodyPrev and BodyNext bound the member's comments in its `props`/
+	// `methods` block: the end of the member before it (or the block's `{`)
+	// and the start of the one after it (or the block's `}`).
+	BodyPrev, BodyNext source.Pos
 }
 
 func (e *ClassMemberExpr) ExprNode() {}
@@ -135,7 +139,7 @@ func (e *ClassMemberExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 	if e.Block {
 		ctx.WriteString(" {")
-		writeClassMethods(ctx, e.Methods)
+		writeClassMethods(ctx, e.Methods, e.LBrace, e.RBrace)
 		ctx.WriteString("}")
 		return
 	}
@@ -214,6 +218,10 @@ type TypeLitExpr struct {
 	PropsDoc *ast.CommentGroup
 	New      []*FuncMethod
 	NewDoc   *ast.CommentGroup
+	// NewLBrace and NewRBrace are the braces of `new { … }` (none for
+	// `new(…) …`); CallLBrace and CallRBrace, those of `call { … }`.
+	NewLBrace, NewRBrace   source.Pos
+	CallLBrace, CallRBrace source.Pos
 	// Call are a marker type's `call(…)` factory overloads (Static only); it is
 	// the analogue of `New` for a `type … { … }`, but the result is arbitrary (a
 	// factory), not an instance. Empty for classes and mixins.
@@ -410,7 +418,7 @@ func writeTypeLitBody(ctx *CodeWriteContext, e *TypeLitExpr) {
 		items = append(items, func() {
 			ctx.WriteLeadDoc(e.NewDoc)
 			ctx.WriteString("new {")
-			writeClassMethods(ctx, e.New)
+			writeClassMethods(ctx, e.New, e.NewLBrace, e.NewRBrace)
 			ctx.WriteString("}")
 		})
 	}
@@ -442,15 +450,48 @@ func writeBraceItems(ctx *CodeWriteContext, count int, do func(i int)) {
 	}
 }
 
-// writeClassMembers emits the entries of a `props {}` / `methods {}` block.
+// writeClassMembers emits the entries of a `props {}` / `methods {}` block,
+// each with its comments — above it, at the end of its line — wherever it is
+// put (they are sorted by name).
 func writeClassMembers(ctx *CodeWriteContext, members []*ClassMemberExpr) {
-	writeBraceItems(ctx, len(members), func(i int) { members[i].WriteCode(ctx) })
+	comments := make([]*itemComments, len(members))
+	// claimed in the order written
+	order := make([]int, len(members))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool { return members[order[a]].Pos() < members[order[b]].Pos() })
+	for _, i := range order {
+		m := members[i]
+		if m.BodyPrev.IsValid() {
+			comments[i] = ctx.claimItemComments(m.BodyPrev, m.Pos(), m.End(), m.BodyNext)
+		}
+	}
+	writeBraceItems(ctx, len(members), func(i int) {
+		comments[i].writeLead(ctx)
+		members[i].WriteCode(ctx)
+		comments[i].writeTrail(ctx)
+	})
 }
 
 // writeClassMethods emits the overloads of a brace-block member (`name { (…) …
 // }`) or the `new {}` block.
-func writeClassMethods(ctx *CodeWriteContext, methods []*FuncMethod) {
-	writeBraceItems(ctx, len(methods), func(i int) { methods[i].WriteCode(ctx) })
+func writeClassMethods(ctx *CodeWriteContext, methods []*FuncMethod, lbrace, rbrace source.Pos) {
+	comments := methodComments(ctx, methods, lbrace, rbrace)
+	writeBraceItems(ctx, len(methods), func(i int) {
+		comments[i].writeLead(ctx)
+		methods[i].WriteCode(ctx)
+		comments[i].writeTrail(ctx)
+	})
+}
+
+// methodComments claims the comments of each overload between the block's
+// braces (none when the block has none).
+func methodComments(ctx *CodeWriteContext, methods []*FuncMethod, lbrace, rbrace source.Pos) []*itemComments {
+	if !lbrace.IsValid() || !rbrace.IsValid() {
+		return make([]*itemComments, len(methods))
+	}
+	return ctx.claimBodyComments(len(methods), lbrace, rbrace, func(i int) Node { return methods[i] })
 }
 
 // classFieldName returns a field's name for ordering (empty when unnamed).

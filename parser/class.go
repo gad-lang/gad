@@ -267,7 +267,9 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 			if pk := p.Peek().Token; pk == token.LParen || pk == token.LBrace {
 				p.Next()
 				cls.NewDoc = doc
-				cls.New = append(cls.New, p.parseClassConstructors()...)
+				methods, lbrace, rbrace := p.parseClassConstructors()
+				cls.New = append(cls.New, methods...)
+				cls.NewLBrace, cls.NewRBrace = lbrace, rbrace
 				return
 			}
 		case "call":
@@ -277,7 +279,9 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 			if pk := p.Peek().Token; pk == token.LParen || pk == token.LBrace {
 				p.Next()
 				cls.CallDoc = doc
-				cls.Call = append(cls.Call, p.parseClassConstructors()...)
+				methods, lbrace, rbrace := p.parseClassConstructors()
+				cls.Call = append(cls.Call, methods...)
+				cls.CallLBrace, cls.CallRBrace = lbrace, rbrace
 				return
 			}
 		}
@@ -375,7 +379,7 @@ func (p *Parser) parseClassField() *node.ClassFieldExpr {
 
 // parseClassMemberBlock parses the entries of a `props {}` / `methods {}` block.
 func (p *Parser) parseClassMemberBlock() (members []*node.ClassMemberExpr) {
-	p.Expect(token.LBrace)
+	lbrace := p.Expect(token.LBrace)
 	p.ExprLevel++
 	for {
 		p.skipClassSeps()
@@ -389,7 +393,18 @@ func (p *Parser) parseClassMemberBlock() (members []*node.ClassMemberExpr) {
 		members = append(members, m)
 	}
 	p.ExprLevel--
-	p.Expect(token.RBrace)
+	rbrace := p.Expect(token.RBrace)
+	// where each member's comments are: between the one before it (the block's
+	// `{`) and the one after it (the block's `}`)
+	for i, m := range members {
+		m.BodyPrev, m.BodyNext = lbrace, rbrace
+		if i > 0 {
+			m.BodyPrev = members[i-1].End()
+		}
+		if i+1 < len(members) {
+			m.BodyNext = members[i+1].Pos()
+		}
+	}
 	return
 }
 
@@ -440,14 +455,14 @@ func (p *Parser) parseClassMember() *node.ClassMemberExpr {
 
 // parseClassConstructors parses the `new` clause: a single `new(params) body`
 // or a `new { (params) body … }` overload block.
-func (p *Parser) parseClassConstructors() (methods []*node.FuncMethod) {
+func (p *Parser) parseClassConstructors() (methods []*node.FuncMethod, lbrace, rbrace source.Pos) {
 	switch p.Token.Token {
 	case token.LParen:
 		if fm := p.parsePropMethod(); fm != nil {
 			methods = append(methods, fm)
 		}
 	case token.LBrace:
-		p.Expect(token.LBrace)
+		lbrace = p.Expect(token.LBrace)
 		p.ExprLevel++
 		for {
 			p.skipClassSeps()
@@ -461,7 +476,7 @@ func (p *Parser) parseClassConstructors() (methods []*node.FuncMethod) {
 			methods = append(methods, fm)
 		}
 		p.ExprLevel--
-		p.Expect(token.RBrace)
+		rbrace = p.Expect(token.RBrace)
 	}
 	return
 }

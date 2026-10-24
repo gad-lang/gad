@@ -410,6 +410,30 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 					ctx.claimEnumBodyDocs(ee)
 				}
 			}
+		case *ExportStmt:
+			// `export class|enum|interface …`: the body docs of the declaration
+			// (its lead doc is the export's, emitted by position)
+			switch d := t.Prelude.(type) {
+			case *TypeDeclStmt:
+				ctx.claimClassBodyDocs(&d.TypeLitExpr)
+			case *EnumStmt:
+				ctx.claimEnumBodyDocs(&d.EnumExpr)
+			case *InterfaceStmt:
+				ctx.claimInterfaceBodyDocs(&d.InterfaceExpr)
+			case *TypedArrayTypeStmt:
+				if d.ElemIface != nil {
+					ctx.claimInterfaceBodyDocs(d.ElemIface)
+				}
+				if d.Body != nil {
+					ctx.claimClassBodyDocs(d.Body)
+				}
+			}
+			switch v := t.ValueExpr.(type) {
+			case *TypeLitExpr:
+				ctx.claimClassBodyDocs(v)
+			case *EnumExpr:
+				ctx.claimEnumBodyDocs(v)
+			}
 		case *ExprStmt:
 			if ce, _ := t.Expr.(*TypeLitExpr); ce != nil {
 				ctx.claimClassBodyDocs(ce)
@@ -999,26 +1023,23 @@ func (ctx *CodeWriteContext) hasCommentInRange(start, end source.Pos) bool {
 }
 
 // WriteItemsWithComments is the multi-line item writer (WriteItemsSep's newLine
-// branch) that also emits each item's trailing same-line source comment right
-// after it, so inline comments survive formatting instead of being relocated.
-// endOf gives an item's end position (to match comments on the same source
-// line); done runs before the indent is popped, exactly like WriteItemsSep, so
+// branch) that keeps each item's comments with it: those above it, on their
+// own lines, and those at the end of its line, after it. lbrace and rbrace
+// bound the comments of the first and the last item; nodeOf gives an item's
+// node. done runs before the indent is popped, exactly like WriteItemsSep, so
 // callers reuse their own closing.
-func (ctx *CodeWriteContext) WriteItemsWithComments(count int, newLineSep string, endOf func(i int) source.Pos, do func(i int), done func(newLine bool)) {
+func (ctx *CodeWriteContext) WriteItemsWithComments(count int, newLineSep string, lbrace, rbrace source.Pos, nodeOf func(i int) Node, do func(i int), done func(newLine bool)) {
+	comments := ctx.claimBodyComments(count, lbrace, rbrace, nodeOf)
 	ctx.Depth++
 	ctx.WriteSecondLine()
 	for i := 0; i < count; i++ {
 		ctx.WritePrefix()
+		comments[i].writeLead(ctx)
 		do(i)
 		if i != count-1 {
 			ctx.WriteString(newLineSep)
 		}
-		if line := ctx.lineOf(endOf(i)); line > 0 {
-			for c := ctx.peekComment(); c != nil && ctx.lineOf(c.Pos()) == line; c = ctx.peekComment() {
-				ctx.WriteString(" ", normalizeDocFence(c.Text))
-				ctx.commentIdx++
-			}
-		}
+		comments[i].writeTrail(ctx)
 		if i != count-1 {
 			ctx.WriteSecondLine()
 		}
