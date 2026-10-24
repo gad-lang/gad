@@ -26,7 +26,7 @@ import (
 // source position ($slot792_0, $$slots792, $slot$d520$, slots.d520). The
 // position shifts when formatting changes offsets, so the digits are normalized
 // away before the semantic-equivalence comparison in GadxLowered.
-var gadxSyntheticID = regexp.MustCompile(`(\$slot\$d|\$\$slots|\$slot|slots\.d)\d+`)
+var gadxSyntheticID = regexp.MustCompile(`(\$slot\$d|\$\$slots|\$slot|slots\.d|\$frag)\d+`)
 
 // Severity classifies a diagnostic.
 type Severity string
@@ -225,6 +225,11 @@ func formatGadx(src string) FormatResult {
 // `class="a b c"`. An expression-valued class is not literal and is left alone.
 var gadxClassAttr = regexp.MustCompile(`class="([^"\\]*)"`)
 
+// gadxClassPair is two literal class attributes in a row (`class="a",
+// class="b"`): what one `class="a b"` means — the classes of an element
+// accumulate —, so the formatter may write them as one.
+var gadxClassPair = regexp.MustCompile(`class="([^"\\]*)",\s*class="([^"\\]*)"`)
+
 // sortClassNames rewrites one matched class attribute with its names in order.
 func sortClassNames(match string) string {
 	names := strings.Fields(match[len(`class="`) : len(match)-1])
@@ -239,8 +244,10 @@ func GadxLowered(src string) (string, bool) {
 	}
 	// Normalize benign, non-semantic artifacts of the lowering so a reformat that
 	// preserves meaning is not refused:
-	//   - position-derived synthetic slot names ($slotN / $$slotsN / slots.dN),
-	//     whose numbers shift with offsets;
+	//   - position-derived synthetic names ($slotN / $$slotsN / slots.dN /
+	//     $fragN), whose numbers shift with offsets;
+	//   - literal class attributes in a row (`class="a", class="b"`), one
+	//     class attribute (`class="a b"`): the classes accumulate;
 	//   - blank lines (empty statements from blank lines in the source).
 	//   - the order of the names in a literal `class="…"`, which the formatter
 	//     sorts: which classes an element carries is what the attribute means,
@@ -248,6 +255,13 @@ func GadxLowered(src string) (string, bool) {
 	//     order, never by the order of the attribute.
 	// Code content is left untouched, so a real change is never hidden.
 	normalized := gadxSyntheticID.ReplaceAllString(string(out), "${1}#")
+	for {
+		merged := gadxClassPair.ReplaceAllString(normalized, `class="$1 $2"`)
+		if merged == normalized {
+			break
+		}
+		normalized = merged
+	}
 	normalized = gadxClassAttr.ReplaceAllStringFunc(normalized, sortClassNames)
 	var b strings.Builder
 	for _, line := range strings.Split(normalized, "\n") {

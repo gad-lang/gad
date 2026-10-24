@@ -463,6 +463,72 @@ func (t *TextStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	}
 }
 
+// writeSourceRegion writes the node n as it is in the source — the lines from
+// where it starts to where it ends —, indented to the current depth (the
+// indentation inside it kept relative to its first line). It writes nothing
+// and is false when the source is not known or the node does not start and
+// end its lines (something else shares them).
+func (c *GadxCodeWriteContext) writeSourceRegion(n interface {
+	Pos() source.Pos
+	End() source.Pos
+}) bool {
+	if c.Src == nil || len(c.SrcLines) == 0 || !n.Pos().IsValid() || !n.End().IsValid() {
+		return false
+	}
+	sp, err1 := c.Src.Position(n.Pos())
+	ep, err2 := c.Src.Position(n.End() - 1)
+	if err1 != nil || err2 != nil || sp.Line < 1 || ep.Line > len(c.SrcLines) || ep.Line < sp.Line {
+		return false
+	}
+	first := c.SrcLines[sp.Line-1]
+	if sp.Column-1 > len(first) || strings.TrimSpace(first[:sp.Column-1]) != "" {
+		return false
+	}
+	last := c.SrcLines[ep.Line-1]
+	if ep.Column > len(last) {
+		return false
+	}
+	if rest := strings.TrimSpace(last[ep.Column:]); rest != "" {
+		// an element's end is its body's: its closing tag follows
+		if t, ok := n.(*TagStmt); !ok || rest != "</"+t.Name+">" {
+			return false
+		}
+		ep.Column = len(strings.TrimRight(last, " \t\r"))
+	}
+	base := first[:sp.Column-1]
+	for l := sp.Line - 1; l < ep.Line; l++ {
+		line := strings.TrimRight(c.SrcLines[l], " \t\r")
+		if l == ep.Line-1 {
+			line = strings.TrimRight(c.SrcLines[l][:ep.Column], " \t\r")
+		}
+		switch {
+		case strings.TrimSpace(line) == "":
+			c.write("\n")
+			continue
+		case strings.HasPrefix(line, base):
+			line = line[len(base):]
+		default:
+			line = strings.TrimLeft(line, " \t")
+		}
+		c.write(c.indent() + line + "\n")
+	}
+	return true
+}
+
+// computedRunWithEdges reports whether body is one text run with a computed
+// part and blank space at its edges.
+func computedRunWithEdges(body gnode.Stmts) bool {
+	if len(body) != 1 {
+		return false
+	}
+	ts, ok := body[0].(*TextStmt)
+	if !ok || !runHasEdgeSpace(ts.Stmts) {
+		return false
+	}
+	_, plain := runPlainText(ts.Stmts)
+	return !plain
+}
+
 // textLine returns the source line for a run's text. A run that is exactly one
 // interpolation is written bare — a line opening with `{=` reads back as that
 // value — which is what keeps a spacer line down to `{= " " }`. Everything else
@@ -559,9 +625,23 @@ func (t *MdBlockStmt) WriteGadx(ctx *GadxCodeWriteContext)   { ctx.writeRawBlock
 
 func (t *TagStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 	if t.Fragment {
-		// A `<>…</>` fragment has no wrapper element and pug-style gadx has no
-		// fragment token, so it transpiles back as its children at this level.
+		// A `<>…</>` fragment: the indentation form has no fragment, and its
+		// children written loose at this level lower to other code (no group
+		// of their own), so it stays the HTML region it is. Without its
+		// source, it transpiles back as its children at this level.
+		if ctx.writeSourceRegion(t) {
+			return
+		}
 		ctx.WriteStmts(t.Body)
+		return
+	}
+	if !IsRawText(t.Name) && !ctx.preserve && !IsPreserveWhitespace(t.Name) &&
+		computedRunWithEdges(t.Body) && ctx.writeSourceRegion(t) {
+		// A text with a computed part and blank space at its edges (`<a>
+		// {=title} </a>`): the indentation form cannot write that space —
+		// quoted, the value would be the text `{= title }` —, so the element
+		// stays the HTML it is. (A script, a style or a `<pre>` holds its
+		// whitespace as content and is written its own way.)
 		return
 	}
 	// Attributes merge into a single `[a=v, b=x]` group (canonical gadx); spread
