@@ -69,8 +69,7 @@ parse(script str|rawstr; type, name) <_ SourceFileObject>
 
 Parses Gad `script` and returns its parsed source object (an AST), without
 running it. `type` selects the dialect (see `SourceType`); `name` sets the
-reported file name.
-Example:
+reported file name. Example:
 ```gad
 typeName(gad.parse("a := 1"))
 = "SourceFileObject"
@@ -92,8 +91,7 @@ eval(source any; type) <any>
 
 Compiles and runs `source` — a source str (with an optional `type` dialect), a
 parsed source object, a statements object, or a single statement — and returns
-its result.
-Example:
+its result. Example:
 ```gad
 gad.eval("40 + 2")
 = 42
@@ -108,8 +106,7 @@ quote(s str; maxCols, fence) <str>
 ```
 
 Returns `s` as a Gad string literal (quoted and escaped). `maxCols` wraps long
-strings and `fence` picks the quoting style.
-Example:
+strings and `fence` picks the quoting style. Example:
 ```gad
 gad.quote("hi")
 = "\"hi\""
@@ -135,8 +132,8 @@ invoker(fn any, args array; **nargs) <ret callable>
 ```
 
 Returns a repeatable, pre-resolved call: it resolves `fn`'s overload for the
-parameter types held in `args` (the initial elements are the types) and binds
-it to that same array. Calling the result runs the resolved overload with the
+parameter types held in `args` (the initial elements are the types) and binds it
+to that same array. Calling the result runs the resolved overload with the
 array's current values, reusing the array and skipping type dispatch and
 validation. Mutate the array between calls to feed new values. `**nargs` are
 captured once and forwarded to every call. See samples/testing/invoker_test.gad.
@@ -158,9 +155,9 @@ transform(value any; **paths) <_ any>
 Rewrites a JSON-like `value` — nested dicts and arrays — by mapping yq-style
 path patterns to transformer functions. Each named arg is a `".path" = fn` rule:
 `fn` — a `<(node any) <any>>` — receives a matched node and returns its
-replacement. It is the imperative,
-path-driven sibling of the `:>` transforming cast — where `:>` coerces by an
-interface's declared shape, `transform` names exactly which nodes to rewrite.
+replacement. It is the imperative, path-driven sibling of the `:>` transforming
+cast — where `:>` coerces by an interface's declared shape, `transform` names
+exactly which nodes to rewrite.
 
 The rewrite is a single BOTTOM-UP pass: a node's children are transformed and
 spliced back in before the node's own matcher runs, so a container matcher sees
@@ -176,12 +173,11 @@ Path patterns (a path starts with `.`; `.` alone is the root):
 
 When two patterns match the same node the MOST SPECIFIC wins (a literal key or
 fixed index over a wildcard), independent of the order they were listed. A
-matcher's typed first param (`(d dict)`, `(n int)`) is ENFORCED — a node of the
-wrong type raises rather than being skipped: the path is the selector, the type a
-guard. A callback may be overloaded (`func f(n int) …; met f(s str) …`), and each
-node is dispatched to the overload for its own type. See
-samples/transform_mapped_test.gad.
-Example:
+matcher's typed first param (`(d dict)`, `(n int)`) is ENFORCED — a node of
+the wrong type raises rather than being skipped: the path is the selector, the
+type a guard. A callback may be overloaded (`func f(n int) …; met f(s str)
+…`), and each node is dispatched to the overload for its own type. See
+samples/transform_mapped_test.gad. Example:
 ```gad
 // bottom-up: the [x, y] pairs become Points first, then the root dict a Poly.
 class Poly { pts array }
@@ -205,25 +201,21 @@ gad.transform({a: 1, b: 2}; ".*" = (n int) => n + 100)
 /**
 Parses Gad `script` and returns its parsed source object (an AST), without
 running it. `type` selects the dialect (see `SourceType`); `name` sets the
-reported file name.
-Example:
+reported file name. Example:
 ```gad
 typeName(gad.parse("a := 1"))
 = "SourceFileObject"
 ```
 **/
-export parse(script str|rawstr; type, name) <_ SourceFileObject> => nil
+export parse(script str | rawstr; type, name) <_ SourceFileObject> => nil
 
-/**
-Like `parse`, but reads the Gad source from the file at `pth`.
-**/
+/// Like `parse`, but reads the Gad source from the file at `pth`.
 export parseFile(pth str) <_ SourceFileObject> => nil
 
 /**
 Compiles and runs `source` — a source str (with an optional `type` dialect), a
 parsed source object, a statements object, or a single statement — and returns
-its result.
-Example:
+its result. Example:
 ```gad
 gad.eval("40 + 2")
 = 42
@@ -235,8 +227,7 @@ export eval(source any; type) <any> => nil
 
 /**
 Returns `s` as a Gad string literal (quoted and escaped). `maxCols` wraps long
-strings and `fence` picks the quoting style.
-Example:
+strings and `fence` picks the quoting style. Example:
 ```gad
 gad.quote("hi")
 = "\"hi\""
@@ -256,8 +247,8 @@ export unquote(lit str) <str> => nil
 
 /**
 Returns a repeatable, pre-resolved call: it resolves `fn`'s overload for the
-parameter types held in `args` (the initial elements are the types) and binds
-it to that same array. Calling the result runs the resolved overload with the
+parameter types held in `args` (the initial elements are the types) and binds it
+to that same array. Calling the result runs the resolved overload with the
 array's current values, reusing the array and skipping type dispatch and
 validation. Mutate the array between calls to feed new values. `**nargs` are
 captured once and forwarded to every call. See samples/testing/invoker_test.gad.
@@ -276,9 +267,9 @@ export invoker(fn any, args array; **nargs) <ret callable> => nil
 Rewrites a JSON-like `value` — nested dicts and arrays — by mapping yq-style
 path patterns to transformer functions. Each named arg is a `".path" = fn` rule:
 `fn` — a `<(node any) <any>>` — receives a matched node and returns its
-replacement. It is the imperative,
-path-driven sibling of the `:>` transforming cast — where `:>` coerces by an
-interface's declared shape, `transform` names exactly which nodes to rewrite.
+replacement. It is the imperative, path-driven sibling of the `:>` transforming
+cast — where `:>` coerces by an interface's declared shape, `transform` names
+exactly which nodes to rewrite.
 
 The rewrite is a single BOTTOM-UP pass: a node's children are transformed and
 spliced back in before the node's own matcher runs, so a container matcher sees
@@ -294,12 +285,11 @@ Path patterns (a path starts with `.`; `.` alone is the root):
 
 When two patterns match the same node the MOST SPECIFIC wins (a literal key or
 fixed index over a wildcard), independent of the order they were listed. A
-matcher's typed first param (`(d dict)`, `(n int)`) is ENFORCED — a node of the
-wrong type raises rather than being skipped: the path is the selector, the type a
-guard. A callback may be overloaded (`func f(n int) …; met f(s str) …`), and each
-node is dispatched to the overload for its own type. See
-samples/transform_mapped_test.gad.
-Example:
+matcher's typed first param (`(d dict)`, `(n int)`) is ENFORCED — a node of
+the wrong type raises rather than being skipped: the path is the selector, the
+type a guard. A callback may be overloaded (`func f(n int) …; met f(s str)
+…`), and each node is dispatched to the overload for its own type. See
+samples/transform_mapped_test.gad. Example:
 ```gad
 // bottom-up: the [x, y] pairs become Points first, then the root dict a Poly.
 class Poly { pts array }

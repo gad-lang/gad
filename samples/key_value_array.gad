@@ -1,4 +1,4 @@
-/**
+/***
 # KeyValue Arrays
 
 `keyValue` (`[k = v]`) and `keyValueArray` (`(; … )`) are an ordered list of
@@ -110,7 +110,7 @@ spreads into a call's named arguments.
   `type NAME keyValueArray[…]` (named).
 
 @snippet kva_type
-**/
+***/
 
 example kv_pair {
     pair := [color = "red"]

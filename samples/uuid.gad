@@ -1,4 +1,4 @@
-/**
+/***
 # UUIDs (`uuid`)
 
 `uuid` is a type of its own — a builtin, with no namespace, as `str` is —:
@@ -32,7 +32,7 @@ interpolated one), bytes — runs as it is written, and so does a `uuid` of
 the code's own (a variable, a parameter) or of the application's.
 
 @snippet uuid_constant
-**/
+***/
 
 example uuid_basics {
     u := uuid("01A0A168-6707-748F-B487-C0AB78E25C11")

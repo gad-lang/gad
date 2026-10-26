@@ -1,4 +1,4 @@
-/**
+/***
 # Type Parameters (generic functions)
 
 A function signature may declare **type parameters** between the name (or `func`)
@@ -99,7 +99,7 @@ builtins are documented with them: `map[K, V, R](it iterable[K, V], callback
 A generic `meti` describes a generic method; a generic function satisfies it:
 
 @snippet meti
-**/
+***/
 
 example basics {
     // T is indexable, K is int|uint, V is a number; the return type reuses T.

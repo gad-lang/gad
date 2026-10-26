@@ -1,4 +1,4 @@
-/**
+/***
 # Metaprogramming: parse, eval and Gadx
 
 Gad can parse Gad (and Gadx) source into an AST value at run time, inspect or
@@ -48,7 +48,7 @@ opts := gad.CompileOptions{}
 opts.ModuleFile = "page.gadx" // a .gadx ModuleFile parses & lowers as Gadx
 cr, err := gad.Compile(st, []byte("p Hello {= name }"), opts)
 ```
-**/
+***/
 
 example parse_eval {
     fromString := gad.eval("return 6 * 7") // parse + eval a source string

@@ -1,4 +1,4 @@
-/**
+/***
 Attribute names, bare and quoted.
 
 A name is written as it stands while it holds only what a name is made of —
@@ -16,7 +16,7 @@ quoted name that reads whole on its own comes back bare.
 
 A name may also be computed, with `data-{key}=v` or a `**dict` spread; see
 [html](html.gadx).
-**/
+***/
 
 @param (; label="Name")
 

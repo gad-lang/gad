@@ -1,4 +1,4 @@
-/**
+/***
 # Functional Helpers
 
 Builtins that transform any **iterable** — arrays, dicts, strings, bytes,
@@ -63,7 +63,7 @@ for values, and each element flows through every stage before the next one
 starts.
 
 @snippet pipeline
-**/
+***/
 
 example map_filter {
     nums := [1, 2, 3, 4, 5]

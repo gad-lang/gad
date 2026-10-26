@@ -136,6 +136,13 @@ func (p *Parser) ParseFile() (_ *gadxnode.File, err error) {
 			file.Stmts = append(file.Stmts, stmt)
 		}
 	}
+	// A doc comment held at the end of the file (see pendingDoc) has nothing to
+	// attach to: keep it as a file-level comment — e.g. a trailing `/*** … ***/`
+	// root comment — instead of dropping it.
+	if p.pendingDoc != nil {
+		file.Stmts = append(file.Stmts, p.pendingDoc)
+		p.pendingDoc = nil
+	}
 
 	file.Comps = p.comps
 	return file, nil
@@ -363,6 +370,7 @@ func (p *Parser) parseComment() *gadxnode.CommentStmt {
 		Text:    text,
 		Block:   stringData(tok, "block", "") == "true",
 		Doc:     stringData(tok, "doc", "") == "true",
+		Root:    strings.HasPrefix(strings.TrimSpace(tok.Literal), "/***"),
 	}
 
 	if p.Token.Token == gadxtoken.Indent {

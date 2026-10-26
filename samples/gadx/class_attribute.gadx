@@ -1,4 +1,4 @@
-/**
+/***
 Class attribute forms.
 
 The `class` attribute accepts several shapes, all merged into a single
@@ -15,7 +15,7 @@ tag):
 
 Static `.token` classes and multiple `[class=…]` groups all accumulate:
 `div.base[class=["x"]][class={on: true}]` yields `class="base x on"`.
-**/
+***/
 
 ~~
 active := true

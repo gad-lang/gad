@@ -1,4 +1,4 @@
-/**
+/***
 # keyValueArray
 
 A **keyValueArray** is an ordered list of key/value pairs — keys may repeat,
@@ -33,7 +33,7 @@ pairs that differ — key, then value —, else the shorter first.
 - [Key-value arrays](../key_value_array.md), [keyValue](keyValue.md).
 
 @type keyValueArray
-**/
+***/
 
 example constructors {
     [keyValueArray(keyValue("a", 1), [b=2]), keyValueArray({c: 3})]

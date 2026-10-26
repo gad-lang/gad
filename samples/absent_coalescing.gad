@@ -1,4 +1,4 @@
-/**
+/***
 # Absent-Coalescing (`!?` / `!?=`)
 
 `!?` / `!?=` are the existence-based counterparts of the nullish `??` / `??=`:
@@ -39,7 +39,7 @@ In a `global (…)` declaration, `= v` fills a name when it is nil-or-absent and
 absent, so both apply.
 
 @snippet absent_global
-**/
+***/
 
 example absent_value {
     [

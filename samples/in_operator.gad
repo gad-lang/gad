@@ -1,4 +1,4 @@
-/**
+/***
 # Membership (`in` / `ain`)
 
 `A in B` tests membership and yields a bool — a **value** for arrays/bytes, a
@@ -36,7 +36,7 @@ empty array is vacuously true. `ain` falls back through `in`, so dict keys and
 string substrings work too.
 
 @snippet ain
-**/
+***/
 
 example in_containers {
     [

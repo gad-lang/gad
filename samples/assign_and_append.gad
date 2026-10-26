@@ -1,4 +1,4 @@
-/**
+/***
 # Assignment and Append
 
 Assignment lists, and the append operators for arrays and dicts.
@@ -27,7 +27,7 @@ sequence of entries. `d ++ keyValue(…)` is an error: `++` always spreads, and
 one entry is not a sequence of them.
 
 @snippet dict_append
-**/
+***/
 
 example assign_lists {
     x := 1, 2, 3            // one target: the list is an array

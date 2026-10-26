@@ -1,17 +1,5 @@
 # markdown
 
-## Components
-
-### main
-
-## Parameters
-
-### @param
-
-```gadx
-@param(; title="Gadx", tagline="fast, embeddable, typed")
-```
-
 @md — a Markdown block, lowered to gadx tags.
 
 Lines indented under `@md` are literal Markdown. At compile (and transpile)
@@ -39,6 +27,18 @@ Source positions of `{ … }` interpolations are preserved (in the AST and the
 bytecode source map), so runtime errors and debug stepping map back to this
 `.gadx` file. A literal brace in the Markdown text is written `\{` / `\}` (the
 same escape used by `@text` and interpolated strings).
+
+## Components
+
+### main
+
+## Parameters
+
+### @param
+
+```gadx
+@param(; title="Gadx", tagline="fast, embeddable, typed")
+```
 
 ## Example — `markdown.gadx`
 

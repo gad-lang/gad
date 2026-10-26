@@ -1,4 +1,4 @@
-/**
+/***
 # Item by item (`.op`) and the pipe (`|>`)
 
 A `.` right before an operator applies it **item by item** — Julia's broadcast —
@@ -50,7 +50,7 @@ order it runs. It binds tighter than the arithmetic operators — parenthesize
 an operation to pipe its result. `.|`, its older spelling, is still read.
 
 @snippet pipe
-**/
+***/
 
 example operands {
     a := [1, 2, 3]

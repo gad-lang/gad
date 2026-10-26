@@ -87,8 +87,8 @@ surface(; side number) <number>
 GoShape class
 ```
 
-A Shape whose label is its name in upper case (a class in Go: the module's
-Go init).
+A Shape whose label is its name in upper case (a class in Go: the module's Go
+init).
 
 #### Parents
 
@@ -109,47 +109,43 @@ the name, in upper case
 ## Example — `shapes.gad`
 
 ```gad
-/**
-The ratio of a circle's circumference to its diameter.
-**/
+/// The ratio of a circle's circumference to its diameter.
 export const PI = 3.141592653589793
 
-/**
-A shape, named.
-**/
+/// A shape, named.
 export class Shape {
-    name str = "?"
-    methods {
-        /** what the shape is **/
-        describe() => nil
-    }
+	name str = "?"
+	methods {
+		/// what the shape is
+		describe() => nil
+	}
 }
 
-/**
-The units the areas are given in.
-**/
-export enum Unit { cm; m }
+/// The units the areas are given in.
+export enum Unit {
+	cm
+	m
+}
 
-/**
-The area of a rectangle w by h.
-**/
+/// The area of a rectangle w by h.
 export area(w number, h number) <number> => nil
 
 export func surface {
-/// The area of a circle of radius r, or of a square of side s (by name).
-(r number) <number> => nil
-(; side number) <number> => nil
+	/// The area of a circle of radius r, or of a square of side s (by name).
+	(r number) <number> => nil
+
+	(; side number) <number> => nil
 }
 
 /**
-A Shape whose label is its name in upper case (a class in Go: the module's
-Go init).
+A Shape whose label is its name in upper case (a class in Go: the module's Go
+init).
 **/
 export class GoShape {
-    *Shape
-    methods {
-        /** the name, in upper case **/
-        label() <str> => nil
-    }
+	*Shape
+	methods {
+		/// the name, in upper case
+		label() <str> => nil
+	}
 }
 ```

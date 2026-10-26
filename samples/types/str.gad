@@ -1,4 +1,4 @@
-/**
+/***
 # str
 
 A **str** is a string of text: an immutable sequence of UTF-8 bytes, indexed
@@ -27,7 +27,7 @@ fails.
   module ([stdlib/strings](../stdlib/strings.md)).
 
 @type str
-**/
+***/
 
 example constructors {
     [str(12), str(1.5), str(true), str('a'), str(bytes("hi")), str([1, "a"]), str(nil)]

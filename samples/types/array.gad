@@ -1,4 +1,4 @@
-/**
+/***
 # array
 
 An **array** is an ordered, growable list of values of any types. Its literal
@@ -30,7 +30,7 @@ iterated (`for i, v in a`).
   [sized arrays](../sized_arrays.md).
 
 @type array
-**/
+***/
 
 example constructors {
     [array(1, 2), array(*"ab"), array()]

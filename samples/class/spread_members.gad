@@ -1,4 +1,4 @@
-/**
+/***
 # Members given at run time (`**Expr`)
 
 A class body item `**Expr` adds the members EXPR gives when the class is
@@ -47,7 +47,7 @@ A `nil` spread adds nothing; any other value that is not a dict or a key-value
 array is an error.
 
 @snippet spread_nil
-**/
+***/
 
 example spread_fields {
     defaults := {columns: 3, rows: 2}

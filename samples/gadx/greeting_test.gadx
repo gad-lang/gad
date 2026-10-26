@@ -1,4 +1,4 @@
-/**
+/***
 Gadx tests — `@test NAME`.
 
 `@test NAME` is the Gadx form of Gad's `test NAME { … }`: `gad test` discovers
@@ -19,7 +19,7 @@ Two ways to call the test context:
 To assert a component's HTML, render it with the `gadx.render(el)` builtin.
 
 Run these with:  gad test greeting_test.gadx
-**/
+***/
 
 @comp greeting(; name="world")
 	span Hello {= name }

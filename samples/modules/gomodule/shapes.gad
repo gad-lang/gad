@@ -1,4 +1,4 @@
-/**
+/***
 A module written in gad and shipped in Go: `gad gomodule` compiles it into the
 package `shapes/` (its `.gadb` embedded, its docs as `gad:doc` comments, its
 API stub `shapes/shapes.gad`), and a Go init of the package (`shapes/init.go`)
@@ -11,7 +11,7 @@ gad gomodule --out shapes shapes.gad     # or: go generate ./shapes
 
 A host registers it: `shapes.AddTo(mm)`; a program imports it by name:
 `import("shapes")`.
-**/
+***/
 
 const PI = 3.141592653589793
 

@@ -1,4 +1,4 @@
-/**
+/***
 # Array interfaces (`interface P [] { … }`)
 
 Writing one or more `[]` after the interface's name makes the
@@ -26,7 +26,7 @@ converts too. An array interface is also a parameter type, carries
 An empty array satisfies any array interface vacuously.
 
 Run it: `gad test samples/interface_arrays_test.gad`
-**/
+***/
 
 class Point { x int; y int }
 

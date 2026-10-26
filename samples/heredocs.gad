@@ -1,4 +1,4 @@
-/**
+/***
 # Heredocs and Code Strings
 
 Part of [Strings, bytes & regex](strings_bytes_regex.gad).
@@ -99,7 +99,7 @@ A `code … end` literal captures Gad source verbatim, in block or single-line
 form.
 
 @snippet code_strings
-**/
+***/
 
 
 example multiline_strings {

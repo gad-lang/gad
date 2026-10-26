@@ -1,4 +1,4 @@
-/**
+/***
 `*` — a single space between two elements.
 
 A tag and its text each own a line, and a line's edges are trimmed: whatever
@@ -19,7 +19,7 @@ sits beside a tag on the same line (`span {= " ⋅ " }`), where `*` is not read.
 
 `gad transpile page.html` writes both: `*` for the single spaces it finds
 between inline elements, `{= "…" }` where a run's edges have to survive.
-**/
+***/
 
 @main
 	p

@@ -1,4 +1,4 @@
-/**
+/***
 # Contracts (`contract NAME { … }`)
 
 A **contract** says two things of a type: what it is — its **target** — and
@@ -88,7 +88,7 @@ made by a function, written where a type goes (a param's).
 parents) and `C.metaIface(target)` (the interface of the meta of a target).
 
 @snippet reflection
-**/
+***/
 
 example declare {
     contract TField {

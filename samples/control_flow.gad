@@ -1,4 +1,4 @@
-/**
+/***
 # Control Flow
 
 `if`, `for`, `for … in` and the `match` expression. (Error handling —
@@ -82,7 +82,7 @@ parenthesize it (`match ({…}) { … }`).
 
 The formatter keeps a match inline while it fits and switches to one arm per line
 only when it overflows; see [Conventions](conventions.md).
-**/
+***/
 
 example match {
     // Subject-less `match { … }` (= `match true`): the first truthy arm wins; an arm

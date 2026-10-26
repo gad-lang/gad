@@ -1,4 +1,4 @@
-/**
+/***
 `@global` — ambient values the template reads.
 
 `@global` is the Gadx form of Gad's `global` declaration and accepts exactly the
@@ -24,7 +24,7 @@ Default operators (as in Gad):
 Order rule (as in Gad): entries WITH a default belong to the named section, so
 they come AFTER the plain positional names — `@global (url, active; title = v)`,
 not `@global (title = v, url, active)`.
-**/
+***/
 
 // a single global
 @global (siteName)

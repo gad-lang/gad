@@ -1,4 +1,4 @@
-/**
+/***
 # With
 
 `with` runs a resource's enter/exit hooks around a block, so cleanup always
@@ -55,7 +55,7 @@ whose `str(content)` is `"hello"`. It is the block-scoped, auto-closed form of t
 `obstart` … `obend` pair.
 
 @snippet capture
-**/
+***/
 
 example resource {
     /**

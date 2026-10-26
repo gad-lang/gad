@@ -48,24 +48,21 @@ func parseDocComment(g *ast.CommentGroup) (d docComment, ok bool) {
 	return docComment{}, false
 }
 
-// normalizeDocFence rewrites a three-star `/*** … ***/` root doc block to the
-// unified two-star `/** … **/` form (fences only, content untouched); any other
-// comment text (including a `/**` block or a `///` line) is returned unchanged.
-// The opener/closer are matched alone on their line, so a `***/` inside the prose
-// never triggers.
+// normalizeDocFence returns a comment's text as it is written out. A three-star
+// `/*** … ***/` is a ROOT comment — the file's own documentation, never a
+// statement's — and keeps its form (it used to be rewritten to `/** … **/`); see
+// isRootDoc for the blank lines kept around it.
 func normalizeDocFence(text string) string {
-	lines := strings.Split(text, "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "/***" {
-		return text
-	}
-	lines[0] = strings.Replace(lines[0], "/***", "/**", 1)
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "***/" {
-			lines[i] = strings.Replace(lines[i], "***/", "**/", 1)
-			break
-		}
-	}
-	return strings.Join(lines, "\n")
+	return text
+}
+
+// isRootDoc reports whether a comment is a `/*** … ***/` root comment (its
+// opening fence alone on the first line). A root comment is written with a blank
+// line before it (unless it opens the file) and after it, so it never reads as
+// a statement's lead doc.
+func isRootDoc(text string) bool {
+	first, _, _ := strings.Cut(text, "\n")
+	return strings.TrimSpace(first) == "/***"
 }
 
 // blockDocContent returns the inner text of a fenced block doc, dropping the
@@ -78,7 +75,39 @@ func blockDocContent(text, open, close string) string {
 		// a block closed by a plain `*/` (`/** text */`): the doc is the same
 		body = strings.TrimSuffix(body, "*/")
 	}
-	return strings.Trim(body, "\n")
+	return dedentLines(strings.Trim(body, "\n"))
+}
+
+// dedentLines removes the indentation common to the non-blank lines of text (a
+// doc block written inside a nested scope carries that scope's indentation), so
+// the lines kept verbatim — a fenced example — are not indented twice.
+func dedentLines(text string) string {
+	lines := strings.Split(text, "\n")
+	var common string
+	first := true
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		ind := l[:len(l)-len(strings.TrimLeft(l, " \t"))]
+		if first {
+			common, first = ind, false
+			continue
+		}
+		for !strings.HasPrefix(ind, common) {
+			common = common[:len(common)-1]
+		}
+	}
+	if common == "" {
+		return text
+	}
+	for i, l := range lines {
+		lines[i] = strings.TrimPrefix(l, common)
+		if strings.TrimSpace(lines[i]) == "" {
+			lines[i] = ""
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // renderDocLines renders d as the formatted doc lines (without the leading

@@ -1,17 +1,5 @@
 # text_blocks
 
-## Components
-
-### main
-
-## Parameters
-
-### @param
-
-```gadx
-@param(; name="Gad")
-```
-
 Text output forms — the ways to emit text inside a tag.
 
 Gadx has several text forms; they differ in how line breaks are handled:
@@ -32,6 +20,18 @@ Gadx has several text forms; they differ in how line breaks are handled:
 In text content, `{= expr }` **emits** the value; a bare `{ expr }` is a
 **control** statement (it runs but emits nothing). So text interpolation uses
 `{= … }`. `{= expr }` works in every form.
+
+## Components
+
+### main
+
+## Parameters
+
+### @param
+
+```gadx
+@param(; name="Gad")
+```
 
 ## Example — `text_blocks.gadx`
 

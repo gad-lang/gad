@@ -1,4 +1,4 @@
-/**
+/***
 # rawstr
 
 A **rawstr** is an uninterpreted string: what a `` `…` `` literal writes,
@@ -18,7 +18,7 @@ not be escaped again.
 @snippet operators
 
 @type rawstr
-**/
+***/
 
 example constructors {
     [rawstr("a"), typeName(rawstr(1)), len(`a\nb`), isRawStr(`x`)]

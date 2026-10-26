@@ -1,4 +1,4 @@
-/**
+/***
 html.gadx — HTML documentation template for `gad doc`.
 
 It receives the extracted documentation as `param (doc dict; fullPage=false)` and
@@ -21,7 +21,7 @@ complete, self-contained modern page: a searchable symbol sidebar, a light/dark
 theme (following `prefers-color-scheme`, or forced by `<html data-theme=…>` — the
 IDE sets that to match its own theme) and client-side syntax highlighting for the
 `gad` / `gadx` / `gadt` code fences.
-**/
+***/
 
 @param (doc dict; fullPage = false)
 

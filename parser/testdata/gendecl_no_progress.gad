@@ -1,4 +1,4 @@
-/**
+/***
 # Interfaces (`interface`)
 
 An `interface { … }` is a structural contract grouping typed fields,
@@ -179,7 +179,7 @@ signature CONFLICT is rejected — a name used as two different kinds
 overload with the same parameters but a different return type.
 
 @snippet iface_flat
-**/
+***/
 
 example iface_shape {
 	// A parent interface, spread into `Shape` with `*Base` below.

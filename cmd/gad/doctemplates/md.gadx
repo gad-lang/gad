@@ -1,4 +1,4 @@
-/**
+/***
 md.gadx — default Markdown documentation template for `gad doc`.
 
 It receives the extracted documentation as `param (doc dict)` and writes
@@ -24,7 +24,8 @@ This template is intentionally a plain script inside a `~~ … ~~` block: it
 writes Markdown directly with `write()`, no HTML involved. Because `write` is
 a core builtin (not gadx-only), the same body also works as a `.gad`/`.gadt`
 template.
-**/
+***/
+
 ~~
 param (doc dict)
 

@@ -1,4 +1,4 @@
-/**
+/***
 # Generic classes, interfaces and mixins
 
 A `class`, an `interface` or a `mixin` may declare **type parameters** after its
@@ -85,7 +85,7 @@ mixin that is not generic has none (an empty key-value array).
   importing a generic cannot instantiate it.
 - A generic whose instances need ever more instances (`class L[T] { next?
   L[L[T]] }`) stops with a compile error after 1000 of them.
-**/
+***/
 
 example aliases {
     // X is int and Y is float, unless P is given other types

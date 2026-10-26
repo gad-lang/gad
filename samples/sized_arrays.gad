@@ -1,4 +1,4 @@
-/**
+/***
 # Sized arrays (`[N]T`, `[A..B]T`)
 
 A level of an array type may have a **size**: how many items it holds.
@@ -114,7 +114,7 @@ written anywhere — a value, a parameter, a field — is `array`; `array(1, 2)`
 builds as it always did, and by its dimensions too.
 
 @snippet any_array
-**/
+***/
 
 example casts {
     pair := [1, 2] :: [2]int                 // exactly 2

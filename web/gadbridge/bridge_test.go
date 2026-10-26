@@ -297,14 +297,14 @@ func TestFormatSourceShebang(t *testing.T) {
 // TestFormatDetachedModuleDoc verifies the formatter round-trips the unified doc
 // convention: a detached `/** … **/` (module/section) doc keeps its blank-line
 // separation, an attached block collapses to `///`, and a three-star `/*** … ***/`
-// block is normalized to two stars.
+// root comment keeps its form.
 func TestFormatDetachedModuleDoc(t *testing.T) {
 	// Detached block: blank line preserved, stays a block.
 	if f := FormatSource("/**\nModule doc.\n**/\n\nconst x = 1\n", "gad"); f.Source != "/**\nModule doc.\n**/\n\nconst x = 1\n" {
 		t.Fatalf("detached block: %q", f.Source)
 	}
-	// Three-star normalized to two-star (and blank line kept).
-	if f := FormatSource("/***\nModule doc.\n***/\n\nconst x = 1\n", "gad"); f.Source != "/**\nModule doc.\n**/\n\nconst x = 1\n" {
+	// A three-star root comment stays a root comment (and the blank line is kept).
+	if f := FormatSource("/***\nModule doc.\n***/\n\nconst x = 1\n", "gad"); f.Source != "/***\nModule doc.\n***/\n\nconst x = 1\n" {
 		t.Fatalf("root normalize: %q", f.Source)
 	}
 	// Attached single-line block collapses to a `///` statement doc.

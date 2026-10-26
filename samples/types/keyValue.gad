@@ -1,4 +1,4 @@
-/**
+/***
 # keyValue
 
 A **keyValue** is one key/value pair. Its literal is `[a=1]` (the key a
@@ -21,7 +21,7 @@ name, a str, a number or a computed `[(expr)=v]`).
 - [Key-value arrays](../key_value_array.md), [dict](dict.md) (`d += kv`).
 
 @type keyValue
-**/
+***/
 
 example constructors {
     [keyValue("a", 1), [b=2], str(keyValue("c", yes))]

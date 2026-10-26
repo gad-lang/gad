@@ -331,7 +331,10 @@ type CommentStmt struct {
 	// Doc is true for a `/** … */` doc block comment. When it immediately
 	// precedes a @comp/@func the parser moves its text to the decl's Doc and
 	// drops the CommentStmt; otherwise it stays as a file-level comment.
-	Doc  bool
+	Doc bool
+	// Root is true for a `/*** … ***/` root comment: documentation of the file
+	// as a whole (see the doc-comment conventions), never a declaration's.
+	Root bool
 	Body gnode.Stmts
 }
 

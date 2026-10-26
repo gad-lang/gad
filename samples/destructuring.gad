@@ -1,4 +1,4 @@
-/**
+/***
 # Destructuring
 
 Bind several variables at once from arrays and named data. Gad has three
@@ -58,7 +58,7 @@ side takes a trailing `*rest` (a single star, like a variadic parameter
 of any value, use `(; … )` or `{ … }` on it.
 
 @snippet mixed_destructure
-**/
+***/
 
 
 example destructure_arrays {

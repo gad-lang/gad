@@ -1,4 +1,4 @@
-/**
+/***
 # Metadata (`[k=v, …]`)
 
 A doc-commentable declaration — and each of its members — may carry a **metadata
@@ -129,7 +129,7 @@ its own, its first byte at position 1) —, and an error points there too
 (`at metadata:1:8`). Pass the position of the text in its file to report an
 error, or to place a node, in that file. See also
 [Embedding](../embedding.md#parsing-metadata-from-go).
-**/
+***/
 
 example interface_meta {
     /// a user record

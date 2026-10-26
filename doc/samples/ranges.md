@@ -64,7 +64,7 @@ fits := func(v, T) { try { v :: T; return true } catch { return false } }
     fits({nights: 2026-03-01D .. 2026-03-05D}, Booking),
     fits({nights: 1 .. 4}, Booking),                       // ints, not dates
     fits({nights: 2026-03-01D .. 2026-03-05D, guests: 2 .. 4}, Booking),
-    Booking.fields[0].types[0].@elem == time.cdate,
+    [f for f in Booking.fields if f.name == "nights"][0].types[0].@elem == time.cdate,
 ]
 = [true, false, true, true]
 ```
@@ -111,7 +111,7 @@ example range_typed {
         fits({nights: 2026-03-01D .. 2026-03-05D}, Booking),
         fits({nights: 1 .. 4}, Booking),                       // ints, not dates
         fits({nights: 2026-03-01D .. 2026-03-05D, guests: 2 .. 4}, Booking),
-        Booking.fields[0].types[0].@elem == time.cdate,
+        [f for f in Booking.fields if f.name == "nights"][0].types[0].@elem == time.cdate,
     ]
     = [true, false, true, true]
 }

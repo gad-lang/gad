@@ -1,4 +1,4 @@
-/**
+/***
 # Class field defaults
 
 A class field default is evaluated in one of three ways, chosen by the compiler
@@ -22,7 +22,7 @@ call; a class with plain non-literal defaults gets an
 `initFields = () => (; name = expr, …)` named argument (see classFieldsExpr).
 
 Run it: `gad test samples/class`
-**/
+***/
 
 /**
 A literal default is shared; a plain non-literal default (`nextId()`) is computed

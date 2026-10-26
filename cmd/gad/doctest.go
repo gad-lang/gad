@@ -219,4 +219,3 @@ func exampleCompileOptions() gad.CompileOptions {
 		Checks: true,
 	}}
 }
-

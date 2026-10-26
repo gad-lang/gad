@@ -1,4 +1,4 @@
-/**
+/***
 # dict
 
 A **dict** maps str keys to values of any types. Its literal is
@@ -25,7 +25,7 @@ iterated (`for k, v in d`).
 - [Collections](../collections.md), [key-value arrays](../key_value_array.md).
 
 @type dict
-**/
+***/
 
 example constructors {
     [dict(; a=1), dict((;b=2)), dict({c: 3})]

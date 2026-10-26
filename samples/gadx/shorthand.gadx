@@ -1,4 +1,4 @@
-/**
+/***
 `#id` and `.class` — the shorthand forms.
 
 An id and a class are what a tag is usually named by, so they have a form
@@ -24,7 +24,7 @@ plain text:
 
 `gad transpile page.html` writes the shorthand wherever a page's `id` and
 `class` are plain text, which is nearly everywhere.
-**/
+***/
 
 @main
     div#main.card.shadow

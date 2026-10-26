@@ -1,4 +1,4 @@
-/**
+/***
 Variable assignments in a template body.
 
 `IDENT := EXPR` declares a template-local variable; `IDENT = EXPR` reassigns an
@@ -13,7 +13,7 @@ tag never has a bare `=` at that spot, and a name containing `-` stays a tag
 Like a `~` code line, the value may span several lines while its brackets
 (`()` / `[]` / `{}`) are unbalanced — a multi-line array, dict, call or
 comprehension.
-**/
+***/
 
 @main
 	// `:=` declares a local

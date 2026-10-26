@@ -1,4 +1,4 @@
-/**
+/***
 # Modules and Embedding
 
 A module exposes values via `export` and is imported with `import(...)`, which
@@ -55,7 +55,7 @@ sub-directory from a file — recurse with it to walk the whole tree (`var f; f 
 func …` binds the name for the recursive call).
 
 @snippet embed_walk
-**/
+***/
 
 example embed_file {
     greeting := embed("embed/greeting.txt")

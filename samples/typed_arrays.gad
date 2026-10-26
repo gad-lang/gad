@@ -1,4 +1,4 @@
-/**
+/***
 # Typed arrays (`type NAME []…`)
 
 `type NAME []ELEM` declares a **typed array type**: a named, first-class type
@@ -81,7 +81,7 @@ The item check is on by default. An embedding Go host can trust its data and
 skip it on a hot path with the run flag `gad.RunFlagSkipTypedArrayItemCheck`
 (`vm.RunOpts(&gad.RunOpts{Flags: gad.RunFlagSkipTypedArrayItemCheck})`), the
 same way `RunFlagSkipReceiverTypeCheck` skips the class `this` check.
-**/
+***/
 
 example declare {
     type numerics []<int|uint|float|decimal>   // items of a type union

@@ -1,4 +1,4 @@
-/**
+/***
 # Pointers (`&x`, `p.v`, `*T`)
 
 A **pointer** lets code read and write a value **where it lives** — a variable,
@@ -90,7 +90,7 @@ write the Go memory, so `&cfg.Port` in a script points into the Go struct. A Go
 type can be a pointer too: implement `gad.Pointer`, report `gad.TPtr` as its
 type, and answer `.v` with `gad.PtrIndexGet` / `gad.PtrIndexSet`; a type may also
 hand out its own pointers for members by implementing `gad.Addressable`.
-**/
+***/
 
 example ptr_basics {
     x := 10

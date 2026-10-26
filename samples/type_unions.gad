@@ -1,4 +1,4 @@
-/**
+/***
 # Type Unions and Behavioural Interfaces
 
 A **type** in Gad is a first-class value usable wherever a type is expected: a
@@ -53,7 +53,7 @@ class yields a **classInstance**. The two interfaces let a signature require one
 or the other.
 
 @snippet classes
-**/
+***/
 
 example unions {
     type number <int|uint|float|decimal> // named union (statement form)

@@ -1,4 +1,4 @@
-/**
+/***
 # Mapped transform (`gad.transform`)
 
 `gad.transform(value; ".path" = fn, …)` rewrites a JSON-like value — nested
@@ -35,7 +35,7 @@ the wrong type raises, it is not silently skipped — the path is the selector, 
 type is a guard.
 
 Run it: `gad test samples/transform_mapped_test.gad`
-**/
+***/
 
 class Points { pts array }
 class Point { x; y }

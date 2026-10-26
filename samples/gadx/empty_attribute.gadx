@@ -1,4 +1,4 @@
-/**
+/***
 Attributes that are present and empty.
 
 An attribute whose value is falsy is left out — that is what makes
@@ -16,7 +16,7 @@ falsy, which the attribute renderer writes as `name=""`:
   empty value there is present and empty.
 
 `gad fmt` writes it back as `@empty`, since a bare `""` would mean the opposite.
-**/
+***/
 
 @main
     label Filter

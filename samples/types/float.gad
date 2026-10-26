@@ -1,4 +1,4 @@
-/**
+/***
 # float
 
 A **float** is a 64-bit IEEE-754 floating-point number. Its literals have a
@@ -23,7 +23,7 @@ comparisons; an int operand is converted.
 - [decimal](decimal.md), for exact (base-10) arithmetic.
 
 @type float
-**/
+***/
 
 example constructors {
     [float("1.5"), float(2), float(3u), float(1.25d)]

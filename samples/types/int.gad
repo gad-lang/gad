@@ -1,4 +1,4 @@
-/**
+/***
 # int
 
 An **int** is a signed 64-bit integer. Its literals are decimal (`42`), hex
@@ -25,7 +25,7 @@ ints is an int (truncated); a float operand makes it a float.
   (`1 .. 10`).
 
 @type int
-**/
+***/
 
 example constructors {
     [int("42"), int(4.9), int('A'), int(true), int(3u), int(2.5d)]

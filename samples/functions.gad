@@ -1,4 +1,4 @@
-/**
+/***
 # Functions
 
 Functions are first-class values. A function literal is `func(params) { … }`,
@@ -132,7 +132,7 @@ A function answers `@`-prefixed reflection index keys (see also
 also exposes `fn.@methods` — its overload callers, each itself indexable.
 
 @snippet reflection
-**/
+***/
 
 example basics {
     sum := func(a, b) {

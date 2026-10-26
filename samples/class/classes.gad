@@ -1,4 +1,4 @@
-/**
+/***
 # Classes (the `Class(...)` builtin)
 
 Gad's class system is built on the `Class(name, define)` builtin. A class
@@ -58,7 +58,7 @@ and property setters alike.
 @snippet class_met_old
 
 @snippet class_met
-**/
+***/
 
 example class_define {
     Point := Class("Point", (cls, define) => define(;

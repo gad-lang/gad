@@ -1,4 +1,4 @@
-/**
+/***
 Boolean and flag attributes.
 
 Attribute *presence* is controlled by the flag type (`yes` / `no`), which is
@@ -14,7 +14,7 @@ separate from a boolean *value* (`true` / `false`):
 
 `no` is a **reset**, as in a [key-value array](../key_value_array.gad): it takes
 back what came before it — a spread too — and a later `x` gives it again.
-**/
+***/
 
 @main
     // valueless flag ≡ =yes → bare attribute, no value

@@ -1,4 +1,4 @@
-/**
+/***
 # Enums
 
 An `enum` is an ordered set of named integer constants, computed at compile
@@ -81,7 +81,7 @@ or an `obj :: Type` cast — dispatch and interface satisfaction enforce
 membership, so a value that is not one of the enum's members is rejected:
 
 @snippet as_types
-**/
+***/
 
 example define {
     /**

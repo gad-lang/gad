@@ -161,8 +161,7 @@ durationHours(d duration) <float>
 
 Returns the duration d as a floating point number of hours.
 
-sleep(d duration)
-Pauses the current goroutine for at least the duration.
+sleep(d duration) Pauses the current goroutine for at least the duration.
 
 ## Example
 
@@ -222,8 +221,8 @@ time.durationTruncate(time.parseDuration("1h17m30s"), time.Minute)
 fixedZone(name str, sec int) <Location>
 ```
 
-Returns a Location that always uses the given zone name and offset
-(seconds east of UTC).
+Returns a Location that always uses the given zone name and offset (seconds east
+of UTC).
 
 ## Example
 
@@ -299,9 +298,9 @@ Returns the duration until t.
 date(year int, month Months, day int, hour int, min int, sec int, nsec int, loc Location) <time>
 ```
 
-Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
-in the appropriate zone for that time in the given location. Zero values
-of optional arguments are used if not provided.
+Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds in the
+appropriate zone for that time in the given location. Zero values of optional
+arguments are used if not provided.
 
 ## Example
 
@@ -331,9 +330,9 @@ time.isTime(time.now())
 parse(layout str, value str, loc Location) <time>
 ```
 
-Parses a formatted string and returns the time value it represents.
-If location is not provided, ToInterface's `time.Parse` function is called
-otherwise `time.ParseInLocation` is called.
+Parses a formatted string and returns the time value it represents. If location
+is not provided, ToInterface's `time.Parse` function is called otherwise
+`time.ParseInLocation` is called.
 
 ## Example
 
@@ -363,8 +362,8 @@ time.strToDate("2026-01-31").year()
 strToTime(s str) <time>
 ```
 
-Parses an RFC3339 timestamp or "YYYY-MM-DD[ HH:MM:SS]" (UTC when no
-zone is present).
+Parses an RFC3339 timestamp or "YYYY-MM-DD[ HH:MM:SS]" (UTC when no zone is
+present).
 
 ## Example
 
@@ -432,9 +431,9 @@ time.isLocation(time.strToLocation("UTC"))
 unix(sec int, nsec int) <time>
 ```
 
-Returns the local time corresponding to the given Unix time,
-sec seconds and nsec nanoseconds since January 1, 1970 UTC.
-Zero values of optional arguments are used if not provided.
+Returns the local time corresponding to the given Unix time, sec seconds and
+nsec nanoseconds since January 1, 1970 UTC. Zero values of optional arguments
+are used if not provided.
 
 ## Example
 
@@ -451,8 +450,7 @@ time.format(time.unix(1000000000, 0).In(time.utc()), "2006-01-02")
 add(t time, d duration) <time>
 ```
 
-Deprecated: Use .Add method of time object.
-Returns the time of t+duration.
+Deprecated: Use .Add method of time object. Returns the time of t+duration.
 
 ## Example
 
@@ -467,8 +465,7 @@ time.format(time.add(time.strToTime("2026-01-31T09:00:00Z"), 24 * time.Hour), "2
 sub(t1 time, t2 time) <duration>
 ```
 
-Deprecated: Use .Sub method of time object.
-Returns the duration of t1-t2.
+Deprecated: Use .Sub method of time object. Returns the duration of t1-t2.
 
 ## Example
 
@@ -483,9 +480,8 @@ time.sub(time.strToTime("2026-02-01T09:00:00Z"), time.strToTime("2026-01-31T09:0
 addDate(t time, years int, months int, days int) <time>
 ```
 
-Deprecated: Use .AddDate method of time object.
-Returns the time corresponding to adding the given number of
-years, months, and days to t.
+Deprecated: Use .AddDate method of time object. Returns the time corresponding
+to adding the given number of years, months, and days to t.
 
 ## Example
 
@@ -500,8 +496,8 @@ time.format(time.addDate(time.strToTime("2026-01-31T09:00:00Z"), 1, 0, 0), "2006
 after(t1 time, t2 time) <bool>
 ```
 
-Deprecated: Use .After method of time object.
-Reports whether the time t1 is after t2.
+Deprecated: Use .After method of time object. Reports whether the time t1 is
+after t2.
 
 ## Example
 
@@ -516,8 +512,8 @@ time.after(time.strToTime("2026-02-01T00:00:00Z"), time.strToTime("2026-01-31T09
 before(t1 time, t2 time) <bool>
 ```
 
-Deprecated: Use .Before method of time object.
-Reports whether the time t1 is before t2.
+Deprecated: Use .Before method of time object. Reports whether the time t1 is
+before t2.
 
 ## Example
 
@@ -532,9 +528,8 @@ time.before(time.strToTime("2026-01-31T09:00:00Z"), time.strToTime("2026-02-01T0
 format(t time, layout str) <str>
 ```
 
-Deprecated: Use .Format method of time object.
-Returns a textual representation of the time value formatted according
-to layout.
+Deprecated: Use .Format method of time object. Returns a textual representation
+of the time value formatted according to layout.
 
 ## Example
 
@@ -549,9 +544,8 @@ time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02 15:04")
 appendFormat(t time, b bytes, layout str) <bytes>
 ```
 
-Deprecated: Use .AppendFormat method of time object.
-It is like `Format` but appends the textual representation to b and
-returns the extended buffer.
+Deprecated: Use .AppendFormat method of time object. It is like `Format` but
+appends the textual representation to b and returns the extended buffer.
 
 ## Example
 
@@ -566,9 +560,8 @@ str(time.appendFormat(time.strToTime("2026-01-31T09:00:00Z"), bytes(""), "2006")
 round(t time, d duration) <time>
 ```
 
-Deprecated: Use .Round method of time object.
-Round returns the result of rounding t to the nearest multiple of
-duration.
+Deprecated: Use .Round method of time object. Round returns the result of
+rounding t to the nearest multiple of duration.
 
 ### truncate
 
@@ -576,8 +569,8 @@ duration.
 truncate(t time, d duration) <time>
 ```
 
-Deprecated: Use .Truncate method of time object.
-Truncate returns the result of rounding t down to a multiple of duration.
+Deprecated: Use .Truncate method of time object. Truncate returns the result of
+rounding t down to a multiple of duration.
 
 ## Example
 
@@ -727,8 +720,7 @@ export durationMinutes(d duration) <float> => nil
 /**
 Returns the duration d as a floating point number of hours.
 
-sleep(d duration)
-Pauses the current goroutine for at least the duration.
+sleep(d duration) Pauses the current goroutine for at least the duration.
 
 ## Example
 
@@ -776,8 +768,8 @@ time.durationTruncate(time.parseDuration("1h17m30s"), time.Minute)
 export durationTruncate(d duration, m duration) <duration> => nil
 
 /**
-Returns a Location that always uses the given zone name and offset
-(seconds east of UTC).
+Returns a Location that always uses the given zone name and offset (seconds east
+of UTC).
 
 ## Example
 
@@ -824,20 +816,16 @@ time.isTime(time.time())
 **/
 export time() <time> => nil
 
-/**
-Returns the time elapsed since t.
-**/
+/// Returns the time elapsed since t.
 export since(t time) <duration> => nil
 
-/**
-Returns the duration until t.
-**/
+/// Returns the duration until t.
 export until(t time) <duration> => nil
 
 /**
-Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
-in the appropriate zone for that time in the given location. Zero values
-of optional arguments are used if not provided.
+Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds in the
+appropriate zone for that time in the given location. Zero values of optional
+arguments are used if not provided.
 
 ## Example
 
@@ -846,7 +834,10 @@ time.format(time.date(2026, 1, 31, 9, 0, 0, 0, time.utc()), "2006-01-02")
 = "2026-01-31"
 ```
 **/
-export date(year int, month Months, day int, hour int, min int, sec int, nsec int, loc Location) <time> => nil
+export date(
+	year int, month Months, day int, hour int, min int, sec int, nsec int
+	loc Location
+) <time> => nil
 
 /**
 Returns the current local time.
@@ -861,9 +852,9 @@ time.isTime(time.now())
 export now() <time> => nil
 
 /**
-Parses a formatted string and returns the time value it represents.
-If location is not provided, ToInterface's `time.Parse` function is called
-otherwise `time.ParseInLocation` is called.
+Parses a formatted string and returns the time value it represents. If location
+is not provided, ToInterface's `time.Parse` function is called otherwise
+`time.ParseInLocation` is called.
 
 ## Example
 
@@ -887,8 +878,8 @@ time.strToDate("2026-01-31").year()
 export strToDate(s str) <date> => nil
 
 /**
-Parses an RFC3339 timestamp or "YYYY-MM-DD[ HH:MM:SS]" (UTC when no
-zone is present).
+Parses an RFC3339 timestamp or "YYYY-MM-DD[ HH:MM:SS]" (UTC when no zone is
+present).
 
 ## Example
 
@@ -899,9 +890,7 @@ time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02")
 **/
 export strToTime(s str) <time> => nil
 
-/**
-Parses a time of day "HH:MM[:SS[.frac]]".
-**/
+/// Parses a time of day "HH:MM[:SS[.frac]]".
 export strToCtime(s str) <ctime> => nil
 
 /**
@@ -941,9 +930,9 @@ time.isLocation(time.strToLocation("UTC"))
 export strToLocation(s str) <Location> => nil
 
 /**
-Returns the local time corresponding to the given Unix time,
-sec seconds and nsec nanoseconds since January 1, 1970 UTC.
-Zero values of optional arguments are used if not provided.
+Returns the local time corresponding to the given Unix time, sec seconds and
+nsec nanoseconds since January 1, 1970 UTC. Zero values of optional arguments
+are used if not provided.
 
 ## Example
 
@@ -957,8 +946,7 @@ time.format(time.unix(1000000000, 0).In(time.utc()), "2006-01-02")
 export unix(sec int, nsec int) <time> => nil
 
 /**
-Deprecated: Use .Add method of time object.
-Returns the time of t+duration.
+Deprecated: Use .Add method of time object. Returns the time of t+duration.
 
 ## Example
 
@@ -970,8 +958,7 @@ time.format(time.add(time.strToTime("2026-01-31T09:00:00Z"), 24 * time.Hour), "2
 export add(t time, d duration) <time> => nil
 
 /**
-Deprecated: Use .Sub method of time object.
-Returns the duration of t1-t2.
+Deprecated: Use .Sub method of time object. Returns the duration of t1-t2.
 
 ## Example
 
@@ -983,9 +970,8 @@ time.sub(time.strToTime("2026-02-01T09:00:00Z"), time.strToTime("2026-01-31T09:0
 export sub(t1 time, t2 time) <duration> => nil
 
 /**
-Deprecated: Use .AddDate method of time object.
-Returns the time corresponding to adding the given number of
-years, months, and days to t.
+Deprecated: Use .AddDate method of time object. Returns the time corresponding
+to adding the given number of years, months, and days to t.
 
 ## Example
 
@@ -997,8 +983,8 @@ time.format(time.addDate(time.strToTime("2026-01-31T09:00:00Z"), 1, 0, 0), "2006
 export addDate(t time, years int, months int, days int) <time> => nil
 
 /**
-Deprecated: Use .After method of time object.
-Reports whether the time t1 is after t2.
+Deprecated: Use .After method of time object. Reports whether the time t1 is
+after t2.
 
 ## Example
 
@@ -1010,8 +996,8 @@ time.after(time.strToTime("2026-02-01T00:00:00Z"), time.strToTime("2026-01-31T09
 export after(t1 time, t2 time) <bool> => nil
 
 /**
-Deprecated: Use .Before method of time object.
-Reports whether the time t1 is before t2.
+Deprecated: Use .Before method of time object. Reports whether the time t1 is
+before t2.
 
 ## Example
 
@@ -1023,9 +1009,8 @@ time.before(time.strToTime("2026-01-31T09:00:00Z"), time.strToTime("2026-02-01T0
 export before(t1 time, t2 time) <bool> => nil
 
 /**
-Deprecated: Use .Format method of time object.
-Returns a textual representation of the time value formatted according
-to layout.
+Deprecated: Use .Format method of time object. Returns a textual representation
+of the time value formatted according to layout.
 
 ## Example
 
@@ -1037,9 +1022,8 @@ time.format(time.strToTime("2026-01-31T09:00:00Z"), "2006-01-02 15:04")
 export format(t time, layout str) <str> => nil
 
 /**
-Deprecated: Use .AppendFormat method of time object.
-It is like `Format` but appends the textual representation to b and
-returns the extended buffer.
+Deprecated: Use .AppendFormat method of time object. It is like `Format` but
+appends the textual representation to b and returns the extended buffer.
 
 ## Example
 
@@ -1051,15 +1035,14 @@ str(time.appendFormat(time.strToTime("2026-01-31T09:00:00Z"), bytes(""), "2006")
 export appendFormat(t time, b bytes, layout str) <bytes> => nil
 
 /**
-Deprecated: Use .Round method of time object.
-Round returns the result of rounding t to the nearest multiple of
-duration.
+Deprecated: Use .Round method of time object. Round returns the result of
+rounding t to the nearest multiple of duration.
 **/
 export round(t time, d duration) <time> => nil
 
 /**
-Deprecated: Use .Truncate method of time object.
-Truncate returns the result of rounding t down to a multiple of duration.
+Deprecated: Use .Truncate method of time object. Truncate returns the result of
+rounding t down to a multiple of duration.
 
 ## Example
 

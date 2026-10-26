@@ -1,4 +1,4 @@
-/**
+/***
 # Raw Arguments (argv)
 
 Raw argument passthrough with `param (*argv)`.
@@ -17,7 +17,7 @@ separates gad's own flags from your argv). Contrast `param (*args, sep=",")`,
 where `--sep` would be parsed as a named argument.
 
 See doc/getting-started.md (Raw argument passthrough) for details.
-**/
+***/
 
 param (*argv)
 

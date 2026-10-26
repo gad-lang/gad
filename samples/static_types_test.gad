@@ -1,4 +1,4 @@
-/**
+/***
 # Marker types (`type Name { … }`)
 
 A marker type declared with `type Name { … }` is a first-class type **with no
@@ -14,7 +14,7 @@ parameter type are rejected — to dispatch on the type value, use
 `const Name = type { … }`.
 
 Run it: `gad test samples/static_types_test.gad`
-**/
+***/
 
 /**
 Static fields and methods: a field is read as `Name.field`; a method runs with

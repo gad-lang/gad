@@ -1047,6 +1047,16 @@ func (c *HTMLCommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
 }
 
 func (c *CommentStmt) WriteGadx(ctx *GadxCodeWriteContext) {
+	// A `/*** … ***/` root comment — the file's documentation — keeps its
+	// three-star form, its fences on their own lines.
+	if c.Root {
+		ctx.WriteLine("/***")
+		for _, line := range strings.Split(c.Text, "\n") {
+			ctx.WriteLine(line)
+		}
+		ctx.WriteLine("***/")
+		return
+	}
 	if c.Block {
 		// A `/* … */` block comment (silent); a `/** … **/` doc comment (gad
 		// convention) when it carries doc.

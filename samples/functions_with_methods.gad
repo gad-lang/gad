@@ -1,4 +1,4 @@
-/**
+/***
 # Functions with Methods
 
 A function can hold several **methods** — overloads selected at call time by the
@@ -49,7 +49,7 @@ the method a call would dispatch to — selected by an example value or by a typ
 name — or `nil` when none matches.
 
 @snippet method_from_args
-**/
+***/
 
 example typed {
     /**

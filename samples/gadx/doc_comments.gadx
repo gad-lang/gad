@@ -1,11 +1,11 @@
-/**
+/***
 Single-line doc comments — `/// …`.
 
 A `///` line is a documentation comment: it attaches to the declaration on
 the next line (a `@comp`, `@func`, `@param`, `@var`, `@const` or `@enum`) and
 shows up in the generated docs / Public API. Consecutive `///` lines join into
 one multi-line description. It is the line-oriented analog of this `/** …
-**/
+***/
 
 | `
 block doc comment, so short notes read cleanly inline.

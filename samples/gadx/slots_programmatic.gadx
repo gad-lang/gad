@@ -1,4 +1,4 @@
-/**
+/***
 Passing slots programmatically from gad source.
 
 `@slot #name` / `+super` are sugar: a component compiles to a gad function
@@ -12,7 +12,7 @@ append content, and `return` it. The template sugar forwards super for you —
 a raw call passes it by hand, so `super(…)` must supply super's own super (an
 empty function) as its first argument. Append the component's own result with
 `$el += …`.
-**/
+***/
 
 @export comp box(; slots={})
 	div

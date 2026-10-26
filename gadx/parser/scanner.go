@@ -622,6 +622,11 @@ func (s *scanner) scanBlockComment() gadparser.PToken {
 	openLen := 2
 	if doc {
 		openLen = 3
+		// `/*** … ***/` — a root comment: drop its third opening star too, or
+		// it was left at the start of the text.
+		if strings.HasPrefix(s.buffer, "/***") && closeIdx >= 4 {
+			openLen = 4
+		}
 	}
 	inner := strings.TrimSpace(s.buffer[openLen:closeIdx])
 	if doc {

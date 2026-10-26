@@ -13,10 +13,9 @@ remaining conversion, meta and operator builtins are still being typed.
 len(val any; check)
 ```
 
-Returns the number of elements of a value that has a length (array, dict,
-str, bytes, …). With `check=yes`, a value that has no length raises
-`ErrNotLengther` instead of returning 0.
-Example:
+Returns the number of elements of a value that has a length (array, dict, str,
+bytes, …). With `check=yes`, a value that has no length raises
+`ErrNotLengther` instead of returning 0. Example:
 ```gad
 [len("abc"), len([1, 2]), len({a: 1})]
 = [3, 2, 1]
@@ -41,8 +40,7 @@ cap([1, 2]) >= 2
 typeName(o any) <str>
 ```
 
-Returns the type name of a value (e.g. "int", "array", "dict").
-Example:
+Returns the type name of a value (e.g. "int", "array", "dict"). Example:
 ```gad
 [typeName(1), typeName("a"), typeName([])]
 = ["int", "str", "array"]
@@ -54,8 +52,7 @@ Example:
 typeof(o any) <type>
 ```
 
-Returns the type object of a value.
-Example:
+Returns the type object of a value. Example:
 ```gad
 [typeof(1) == int, typeof([1]) === array]
 = [true, true]
@@ -68,8 +65,7 @@ chars(s str|bytes) <array>
 ```
 
 Returns the characters of a str/bytes as an array of `char`; throws for an
-unsupported value.
-Example:
+unsupported value. Example:
 ```gad
 chars("ab")
 = ['a', 'b']
@@ -112,8 +108,7 @@ repeat(o str|bytes|array, count int) <any>
 ```
 
 Returns a value (array/str/bytes) repeated `count` times; throws for an
-unsupported value.
-Example:
+unsupported value. Example:
 ```gad
 [repeat("ab", 2), repeat([1], 3)]
 = ["abab", [1, 1, 1]]
@@ -125,9 +120,8 @@ Example:
 contains(o iterable, val any) <bool>
 ```
 
-Reports whether a collection/str contains val (a dict key, an array element
-or a substring); throws for an unsupported value.
-Example:
+Reports whether a collection/str contains val (a dict key, an array element or a
+substring); throws for an unsupported value. Example:
 ```gad
 [contains([1, 2], 2), contains("hello", "ell"), contains({a: 1}, "a")]
 = [true, true, true]
@@ -152,8 +146,7 @@ repr("a")
 isNil(o any) <bool>
 ```
 
-Reports whether o is nil.
-Example:
+Reports whether o is nil. Example:
 ```gad
 [isNil(nil), isNil(0)]
 = [true, false]
@@ -165,8 +158,7 @@ Example:
 isInt(o any) <bool>
 ```
 
-Reports whether o is an int.
-Example:
+Reports whether o is an int. Example:
 ```gad
 [isInt(1), isInt(1u)]
 = [true, false]
@@ -178,8 +170,7 @@ Example:
 isUint(o any) <bool>
 ```
 
-Reports whether o is a uint.
-Example:
+Reports whether o is a uint. Example:
 ```gad
 [isUint(1u), isUint(1)]
 = [true, false]
@@ -191,8 +182,7 @@ Example:
 isFloat(o any) <bool>
 ```
 
-Reports whether o is a float.
-Example:
+Reports whether o is a float. Example:
 ```gad
 [isFloat(1.0), isFloat(1)]
 = [true, false]
@@ -204,8 +194,7 @@ Example:
 isChar(o any) <bool>
 ```
 
-Reports whether o is a char.
-Example:
+Reports whether o is a char. Example:
 ```gad
 [isChar('a'), isChar("a")]
 = [true, false]
@@ -217,8 +206,7 @@ Example:
 isBool(o any) <bool>
 ```
 
-Reports whether o is a bool.
-Example:
+Reports whether o is a bool. Example:
 ```gad
 [isBool(true), isBool(1)]
 = [true, false]
@@ -230,8 +218,7 @@ Example:
 isStr(o any) <bool>
 ```
 
-Reports whether o is a str.
-Example:
+Reports whether o is a str. Example:
 ```gad
 [isStr("a"), isStr(`a`)]
 = [true, false]
@@ -243,8 +230,7 @@ Example:
 isRawStr(o any) <bool>
 ```
 
-Reports whether o is a rawStr.
-Example:
+Reports whether o is a rawStr. Example:
 ```gad
 [isRawStr(`a`), isRawStr("a")]
 = [true, false]
@@ -256,8 +242,7 @@ Example:
 isBytes(o any) <bool>
 ```
 
-Reports whether o is a bytes value.
-Example:
+Reports whether o is a bytes value. Example:
 ```gad
 [isBytes(bytes("a")), isBytes("a")]
 = [true, false]
@@ -269,8 +254,7 @@ Example:
 isArray(o any) <bool>
 ```
 
-Reports whether o is an array.
-Example:
+Reports whether o is an array. Example:
 ```gad
 [isArray([]), isArray({})]
 = [true, false]
@@ -282,8 +266,7 @@ Example:
 isDict(o any) <bool>
 ```
 
-Reports whether o is a dict.
-Example:
+Reports whether o is a dict. Example:
 ```gad
 [isDict({}), isDict([])]
 = [true, false]
@@ -295,8 +278,7 @@ Example:
 isSyncDict(o any) <bool>
 ```
 
-Reports whether o is a syncDict.
-Example:
+Reports whether o is a syncDict. Example:
 ```gad
 [isSyncDict(syncDict({})), isSyncDict({})]
 = [true, false]
@@ -308,8 +290,7 @@ Example:
 isFunction(o any) <bool>
 ```
 
-Reports whether o is a function value.
-Example:
+Reports whether o is a function value. Example:
 ```gad
 [isFunction(len), isFunction(() => 1), isFunction(1)]
 = [true, true, false]
@@ -321,8 +302,7 @@ Example:
 isCallable(o any) <bool>
 ```
 
-Reports whether o can be called.
-Example:
+Reports whether o can be called. Example:
 ```gad
 [isCallable(len), isCallable(int), isCallable(1)]
 = [true, true, false]
@@ -334,8 +314,7 @@ Example:
 isIterable(o any) <bool>
 ```
 
-Reports whether o can be iterated.
-Example:
+Reports whether o can be iterated. Example:
 ```gad
 [isIterable([]), isIterable("a"), isIterable(1)]
 = [true, true, false]
@@ -347,8 +326,7 @@ Example:
 isIterator(o any) <bool>
 ```
 
-Reports whether o is an iterator.
-Example:
+Reports whether o is an iterator. Example:
 ```gad
 [isIterator(iterate([])), isIterator([])]
 = [true, false]
@@ -360,8 +338,7 @@ Example:
 isError(o any) <bool>
 ```
 
-Reports whether o is an error value.
-Example:
+Reports whether o is an error value. Example:
 ```gad
 [isError(error("x")), isError("x")]
 = [true, false]
@@ -373,10 +350,9 @@ Example:
 filter[K, V](it iterable[K, V], callback <(v V, k K, it iterable[K, V]) <bool>>) <iterator[K, V]>
 ```
 
-Returns a lazy iterator over the elements of iterable for which callback
-returns a truthy value. The callback is called as `callback(value, key,
-iterable)` (key: the index or dict key).
-Example:
+Returns a lazy iterator over the elements of iterable for which callback returns
+a truthy value. The callback is called as `callback(value, key, iterable)` (key:
+the index or dict key). Example:
 ```gad
 collect(filter([1, 2, 3], (v) => v > 1))
 = [2, 3]
@@ -390,11 +366,10 @@ collect(filter({a: 1, b: 2}, (v, k) => k == "b"))
 map[K, V, R](it iterable[K, V], callback <(v V, k K) <R>>; update=no, nokey=no) <iterator[K, R]>
 ```
 
-Returns a lazy iterator applying callback to each element of iterable, called
-as `callback(value, key)`; `nokey=yes` passes only the value. `update=yes`
-also writes each result back into the collection — as the iterator is
-consumed (e.g. by `collect`), since it is lazy.
-Example:
+Returns a lazy iterator applying callback to each element of iterable, called as
+`callback(value, key)`; `nokey=yes` passes only the value. `update=yes` also
+writes each result back into the collection — as the iterator is consumed
+(e.g. by `collect`), since it is lazy. Example:
 ```gad
 collect(map([1, 2], (v) => v * 10))
 = [10, 20]
@@ -410,10 +385,9 @@ collect(map([1, 2], func(*a) => len(a); nokey))
 each[K, V](it iterable[K, V], callback <(k K, v V)>) <iterable[K, V]>
 ```
 
-Calls callback for every element of iterable (for its side effects) and
-returns the iterable. The callback is called as `callback(key, value)` — key
-first, unlike map/filter.
-Example:
+Calls callback for every element of iterable (for its side effects) and returns
+the iterable. The callback is called as `callback(key, value)` — key first,
+unlike map/filter. Example:
 ```gad
 each({a: 1}, (k, v) => println(k, v))
 <<< a 1
@@ -425,10 +399,9 @@ each({a: 1}, (k, v) => println(k, v))
 reduce[K, V, A](it iterable[K, V], callback <(acc A, v V, k K) <A>>, initial A) <A>
 ```
 
-Folds the elements of iterable with callback into a single value, starting
-from initial (or the first element when initial is omitted). The callback is
-called as `callback(accumulator, value, key)` and returns the next
-accumulator.
+Folds the elements of iterable with callback into a single value, starting from
+initial (or the first element when initial is omitted). The callback is called
+as `callback(accumulator, value, key)` and returns the next accumulator.
 Example:
 ```gad
 reduce([1, 2, 3], (acc, v) => acc + v, 10)
@@ -443,8 +416,7 @@ reduce([1, 2, 3], (acc, v) => acc * v)   // the first element the initial
 keys(it iterable) <iterator>
 ```
 
-Returns a lazy iterator over the keys of a value.
-Example:
+Returns a lazy iterator over the keys of a value. Example:
 ```gad
 collect(keys({a: 1}))
 = ["a"]
@@ -456,8 +428,7 @@ collect(keys({a: 1}))
 values(it iterable) <iterator>
 ```
 
-Returns a lazy iterator over the values of a value.
-Example:
+Returns a lazy iterator over the values of a value. Example:
 ```gad
 collect(values({a: 1}))
 = [1]
@@ -469,8 +440,7 @@ collect(values({a: 1}))
 items(it iterable) <iterator>
 ```
 
-Returns a lazy iterator over the key/value items of a value.
-Example:
+Returns a lazy iterator over the key/value items of a value. Example:
 ```gad
 collect(items({a: 1}))
 = [[a=1]]
@@ -482,8 +452,7 @@ collect(items({a: 1}))
 iterate(it iterable) <iterator>
 ```
 
-Returns an iterator over a value.
-Example:
+Returns an iterator over a value. Example:
 ```gad
 collect(iterate([1, 2]))
 = [1, 2]
@@ -496,8 +465,7 @@ enumerate(it iterable) <iterator>
 ```
 
 Returns a lazy iterator yielding each element paired with its index, as a
-key-value `[(index)=value]` (read `.k` / `.v`).
-Example:
+key-value `[(index)=value]` (read `.k` / `.v`). Example:
 ```gad
 [kv.k for kv in collect(enumerate(["a", "b"]))]
 = [0, 1]
@@ -509,8 +477,7 @@ Example:
 collect(it iterable) <array>
 ```
 
-Consumes an iterator or iterable into an array.
-Example:
+Consumes an iterator or iterable into an array. Example:
 ```gad
 collect(map([1, 2], (v) => v + 1))
 = [2, 3]
@@ -523,8 +490,7 @@ toArray(*its) <array>
 ```
 
 Concatenates its arguments into one array: an array contributes its elements,
-any other iterable its entries as key-value pairs `[(key)=value]`.
-Example:
+any other iterable its entries as key-value pairs `[(key)=value]`. Example:
 ```gad
 toArray([1], [2, 3])
 = [1, 2, 3]
@@ -537,8 +503,7 @@ sort(o any; less <(a any, b any) <bool>>=nil) <any>
 ```
 
 Returns the collection sorted ascending; `less` is an optional comparator
-function `less(a, b) <bool>`.
-Example:
+function `less(a, b) <bool>`. Example:
 ```gad
 sort([3, 1, 2])
 = [1, 2, 3]
@@ -565,8 +530,7 @@ sortReverse([1, 3, 2])
 print(*args) <int>
 ```
 
-Writes its arguments to standard output and returns the number of bytes
-written.
+Writes its arguments to standard output and returns the number of bytes written.
 Example:
 ```gad
 print("a", 1)
@@ -594,8 +558,7 @@ printf("%d!", 5)
 println(*args) <int>
 ```
 
-Writes its arguments and a trailing newline to standard output.
-Example:
+Writes its arguments and a trailing newline to standard output. Example:
 ```gad
 println("hi", 1)
 = 5
@@ -608,8 +571,7 @@ println("hi", 1)
 sprintf(format str, *args) <str>
 ```
 
-Returns format applied to args as a str.
-Example:
+Returns format applied to args as a str. Example:
 ```gad
 sprintf("%s=%d", "n", 42)
 = "n=42"
@@ -622,8 +584,7 @@ is(type any, *values) <bool>
 ```
 
 Reports whether every value is of `type`. `type` may be a single type or an
-array of types, in which case a value matches when it is any of them.
-Example:
+array of types, in which case a value matches when it is any of them. Example:
 ```gad
 [is(int, 1, 2), is(int, 1, "a"), is([int, str], 1, "a")]
 = [true, false, true]
@@ -635,9 +596,8 @@ Example:
 implements(fn callable, mi) <bool>
 ```
 
-Reports whether the callable `fn` provides every function header required by
-the method interface `mi` (a `meti { … }` value).
-Example:
+Reports whether the callable `fn` provides every function header required by the
+method interface `mi` (a `meti { … }` value). Example:
 ```gad
 implements(func(x int) => x, meti { (x int) })
 = true
@@ -649,9 +609,8 @@ implements(func(x int) => x, meti { (x int) })
 wrap(caller callable, *args; **named) <function>
 ```
 
-Returns a new function that calls `caller` with `args`/`named` prepended —
-a partial application. Calling the wrapper appends its own arguments.
-Example:
+Returns a new function that calls `caller` with `args`/`named` prepended — a
+partial application. Calling the wrapper appends its own arguments. Example:
 ```gad
 add := func(a, b) => a + b
 inc := wrap(add, 1)
@@ -668,8 +627,7 @@ cast(toType type, obj any) <any>
 Casts `obj` (an object that supports casting — a class instance or a reflected
 Go value) to the object type `toType`, throwing when incompatible. For the
 general checked cast that also accepts interfaces and unions, use the `::`
-operator.
-Example:
+operator. Example:
 ```gad
 // a host value or a class instance; anything else throws
 r := func() { try { return cast(str, 1) } catch { return "not castable" } }
@@ -684,8 +642,7 @@ userData(o any) <any>
 ```
 
 Returns the host-attached user data of a value that carries it (a Go value
-implementing UserDataStorage); throws otherwise.
-Example:
+implementing UserDataStorage); throws otherwise. Example:
 ```gad
 // a host value carrying user data; anything else throws
 r := func() { try { return userData(1) } catch { return "no user data" } }
@@ -700,8 +657,7 @@ stdio(which any) <any>
 ```
 
 Returns a standard stream of the running VM selected by `which` — "IN"/"OUT"/
-"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`.
-Example:
+"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`. Example:
 ```gad
 typeName(stdio("OUT"))
 = "writer"
@@ -713,11 +669,10 @@ typeName(stdio("OUT"))
 Class(name str, define <(cls classType, define callable) <any>>) <classType>
 ```
 
-Creates a class named `name`; `define` builds its fields, methods and
-properties (see the Classes chapter). Also written with the `class` keyword.
-It returns a `classType`; calling that class type — `classType(…)` — yields a
-`classInstance`.
-Example:
+Creates a class named `name`; `define` builds its fields, methods and properties
+(see the Classes chapter). Also written with the `class` keyword. It returns a
+`classType`; calling that class type — `classType(…)` — yields a
+`classInstance`. Example:
 ```gad
 P := Class("P", (cls, define) => define(; fields = (; x = (= 1))))
 P().x
@@ -731,8 +686,7 @@ addMethod(target callable, *methods) <any>
 ```
 
 Attaches typed method overloads to a callable or type, so the VM dispatches on
-argument types. Returns the target.
-Example:
+argument types. Returns the target. Example:
 ```gad
 kind := func { (x int) => "int" }
 addMethod(kind, func(x str) => "str")
@@ -746,9 +700,8 @@ kind("a")
 obstart() <buffer>
 ```
 
-Starts capturing standard output into a fresh buffer, which it returns.
-Nested calls stack.
-Example:
+Starts capturing standard output into a fresh buffer, which it returns. Nested
+calls stack. Example:
 ```gad
 obstart()
 print("hidden")
@@ -763,8 +716,7 @@ obend() <buffer>
 ```
 
 Stops the most recent output capture and returns its buffer (the captured
-output).
-Example:
+output). Example:
 ```gad
 obstart()
 println("a")
@@ -778,8 +730,7 @@ str(obend())
 read(r readable) <bytes>
 ```
 
-Reads all remaining bytes from a `readable` value.
-Example:
+Reads all remaining bytes from a `readable` value. Example:
 ```gad
 str(read(buffer("xy")))
 = "xy"
@@ -807,8 +758,7 @@ str(w)
 close(o)
 ```
 
-Closes a closable value (e.g. a reader/writer).
-Example:
+Closes a closable value (e.g. a reader/writer). Example:
 ```gad
 w := buffer()
 close(w)
@@ -822,8 +772,7 @@ isError(w)
 flush(w writable)
 ```
 
-Flushes any buffered output of a `writable`.
-Example:
+Flushes any buffered output of a `writable`. Example:
 ```gad
 w := buffer()
 write(w, "a")
@@ -838,9 +787,8 @@ str(w)
 zip(*iterables) <iterator>
 ```
 
-Returns an iterator that chains the given iterables end to end: it yields
-every element of the first, then of the second, and so on.
-Example:
+Returns an iterator that chains the given iterables end to end: it yields every
+element of the first, then of the second, and so on. Example:
 ```gad
 collect(zip([1], [2, 3]))
 = [1, 2, 3]
@@ -850,10 +798,9 @@ collect(zip([1], [2, 3]))
 
 ````gad
 /**
-Returns the number of elements of a value that has a length (array, dict,
-str, bytes, …). With `check=yes`, a value that has no length raises
-`ErrNotLengther` instead of returning 0.
-Example:
+Returns the number of elements of a value that has a length (array, dict, str,
+bytes, …). With `check=yes`, a value that has no length raises
+`ErrNotLengther` instead of returning 0. Example:
 ```gad
 [len("abc"), len([1, 2]), len({a: 1})]
 = [3, 2, 1]
@@ -872,8 +819,7 @@ cap([1, 2]) >= 2
 export cap(o any) <int> => nil
 
 /**
-Returns the type name of a value (e.g. "int", "array", "dict").
-Example:
+Returns the type name of a value (e.g. "int", "array", "dict"). Example:
 ```gad
 [typeName(1), typeName("a"), typeName([])]
 = ["int", "str", "array"]
@@ -882,8 +828,7 @@ Example:
 export typeName(o any) <str> => nil
 
 /**
-Returns the type object of a value.
-Example:
+Returns the type object of a value. Example:
 ```gad
 [typeof(1) == int, typeof([1]) === array]
 = [true, true]
@@ -893,14 +838,13 @@ export typeof(o any) <type> => nil
 
 /**
 Returns the characters of a str/bytes as an array of `char`; throws for an
-unsupported value.
-Example:
+unsupported value. Example:
 ```gad
 chars("ab")
 = ['a', 'b']
 ```
 **/
-export chars(s str|bytes) <array> => nil
+export chars(s str | bytes) <array> => nil
 
 /**
 Returns a shallow copy of a value (a new array/dict with the same elements).
@@ -928,19 +872,17 @@ export dcopy(o any) <any> => nil
 
 /**
 Returns a value (array/str/bytes) repeated `count` times; throws for an
-unsupported value.
-Example:
+unsupported value. Example:
 ```gad
 [repeat("ab", 2), repeat([1], 3)]
 = ["abab", [1, 1, 1]]
 ```
 **/
-export repeat(o str|bytes|array, count int) <any> => nil
+export repeat(o str | bytes | array, count int) <any> => nil
 
 /**
-Reports whether a collection/str contains val (a dict key, an array element
-or a substring); throws for an unsupported value.
-Example:
+Reports whether a collection/str contains val (a dict key, an array element or a
+substring); throws for an unsupported value. Example:
 ```gad
 [contains([1, 2], 2), contains("hello", "ell"), contains({a: 1}, "a")]
 = [true, true, true]
@@ -959,8 +901,7 @@ repr("a")
 export repr(o any; indent=no) <str> => nil
 
 /**
-Reports whether o is nil.
-Example:
+Reports whether o is nil. Example:
 ```gad
 [isNil(nil), isNil(0)]
 = [true, false]
@@ -969,8 +910,7 @@ Example:
 export isNil(o any) <bool> => nil
 
 /**
-Reports whether o is an int.
-Example:
+Reports whether o is an int. Example:
 ```gad
 [isInt(1), isInt(1u)]
 = [true, false]
@@ -979,8 +919,7 @@ Example:
 export isInt(o any) <bool> => nil
 
 /**
-Reports whether o is a uint.
-Example:
+Reports whether o is a uint. Example:
 ```gad
 [isUint(1u), isUint(1)]
 = [true, false]
@@ -989,8 +928,7 @@ Example:
 export isUint(o any) <bool> => nil
 
 /**
-Reports whether o is a float.
-Example:
+Reports whether o is a float. Example:
 ```gad
 [isFloat(1.0), isFloat(1)]
 = [true, false]
@@ -999,8 +937,7 @@ Example:
 export isFloat(o any) <bool> => nil
 
 /**
-Reports whether o is a char.
-Example:
+Reports whether o is a char. Example:
 ```gad
 [isChar('a'), isChar("a")]
 = [true, false]
@@ -1009,8 +946,7 @@ Example:
 export isChar(o any) <bool> => nil
 
 /**
-Reports whether o is a bool.
-Example:
+Reports whether o is a bool. Example:
 ```gad
 [isBool(true), isBool(1)]
 = [true, false]
@@ -1019,8 +955,7 @@ Example:
 export isBool(o any) <bool> => nil
 
 /**
-Reports whether o is a str.
-Example:
+Reports whether o is a str. Example:
 ```gad
 [isStr("a"), isStr(`a`)]
 = [true, false]
@@ -1029,8 +964,7 @@ Example:
 export isStr(o any) <bool> => nil
 
 /**
-Reports whether o is a rawStr.
-Example:
+Reports whether o is a rawStr. Example:
 ```gad
 [isRawStr(`a`), isRawStr("a")]
 = [true, false]
@@ -1039,8 +973,7 @@ Example:
 export isRawStr(o any) <bool> => nil
 
 /**
-Reports whether o is a bytes value.
-Example:
+Reports whether o is a bytes value. Example:
 ```gad
 [isBytes(bytes("a")), isBytes("a")]
 = [true, false]
@@ -1049,8 +982,7 @@ Example:
 export isBytes(o any) <bool> => nil
 
 /**
-Reports whether o is an array.
-Example:
+Reports whether o is an array. Example:
 ```gad
 [isArray([]), isArray({})]
 = [true, false]
@@ -1059,8 +991,7 @@ Example:
 export isArray(o any) <bool> => nil
 
 /**
-Reports whether o is a dict.
-Example:
+Reports whether o is a dict. Example:
 ```gad
 [isDict({}), isDict([])]
 = [true, false]
@@ -1069,8 +1000,7 @@ Example:
 export isDict(o any) <bool> => nil
 
 /**
-Reports whether o is a syncDict.
-Example:
+Reports whether o is a syncDict. Example:
 ```gad
 [isSyncDict(syncDict({})), isSyncDict({})]
 = [true, false]
@@ -1079,8 +1009,7 @@ Example:
 export isSyncDict(o any) <bool> => nil
 
 /**
-Reports whether o is a function value.
-Example:
+Reports whether o is a function value. Example:
 ```gad
 [isFunction(len), isFunction(() => 1), isFunction(1)]
 = [true, true, false]
@@ -1089,8 +1018,7 @@ Example:
 export isFunction(o any) <bool> => nil
 
 /**
-Reports whether o can be called.
-Example:
+Reports whether o can be called. Example:
 ```gad
 [isCallable(len), isCallable(int), isCallable(1)]
 = [true, true, false]
@@ -1099,8 +1027,7 @@ Example:
 export isCallable(o any) <bool> => nil
 
 /**
-Reports whether o can be iterated.
-Example:
+Reports whether o can be iterated. Example:
 ```gad
 [isIterable([]), isIterable("a"), isIterable(1)]
 = [true, true, false]
@@ -1109,8 +1036,7 @@ Example:
 export isIterable(o any) <bool> => nil
 
 /**
-Reports whether o is an iterator.
-Example:
+Reports whether o is an iterator. Example:
 ```gad
 [isIterator(iterate([])), isIterator([])]
 = [true, false]
@@ -1119,8 +1045,7 @@ Example:
 export isIterator(o any) <bool> => nil
 
 /**
-Reports whether o is an error value.
-Example:
+Reports whether o is an error value. Example:
 ```gad
 [isError(error("x")), isError("x")]
 = [true, false]
@@ -1129,10 +1054,9 @@ Example:
 export isError(o any) <bool> => nil
 
 /**
-Returns a lazy iterator over the elements of iterable for which callback
-returns a truthy value. The callback is called as `callback(value, key,
-iterable)` (key: the index or dict key).
-Example:
+Returns a lazy iterator over the elements of iterable for which callback returns
+a truthy value. The callback is called as `callback(value, key, iterable)` (key:
+the index or dict key). Example:
 ```gad
 collect(filter([1, 2, 3], (v) => v > 1))
 = [2, 3]
@@ -1140,14 +1064,15 @@ collect(filter({a: 1, b: 2}, (v, k) => k == "b"))
 = [2]
 ```
 **/
-export filter[K, V](it iterable[K, V], callback <(v V, k K, it iterable[K, V]) <bool>>) <iterator[K, V]> => nil
+export filter[K, V](
+	it iterable[K, V], callback <(v V, k K, it iterable[K, V]) <bool>>
+) <iterator[K, V]> => nil
 
 /**
-Returns a lazy iterator applying callback to each element of iterable, called
-as `callback(value, key)`; `nokey=yes` passes only the value. `update=yes`
-also writes each result back into the collection — as the iterator is
-consumed (e.g. by `collect`), since it is lazy.
-Example:
+Returns a lazy iterator applying callback to each element of iterable, called as
+`callback(value, key)`; `nokey=yes` passes only the value. `update=yes` also
+writes each result back into the collection — as the iterator is consumed
+(e.g. by `collect`), since it is lazy. Example:
 ```gad
 collect(map([1, 2], (v) => v * 10))
 = [10, 20]
@@ -1157,13 +1082,14 @@ collect(map([1, 2], func(*a) => len(a); nokey))
 = [1, 1]
 ```
 **/
-export map[K, V, R](it iterable[K, V], callback <(v V, k K) <R>>; update=no, nokey=no) <iterator[K, R]> => nil
+export map[K, V, R](
+	it iterable[K, V], callback <(v V, k K) <R>>; update=no, nokey=no
+) <iterator[K, R]> => nil
 
 /**
-Calls callback for every element of iterable (for its side effects) and
-returns the iterable. The callback is called as `callback(key, value)` — key
-first, unlike map/filter.
-Example:
+Calls callback for every element of iterable (for its side effects) and returns
+the iterable. The callback is called as `callback(key, value)` — key first,
+unlike map/filter. Example:
 ```gad
 each({a: 1}, (k, v) => println(k, v))
 <<< a 1
@@ -1172,10 +1098,9 @@ each({a: 1}, (k, v) => println(k, v))
 export each[K, V](it iterable[K, V], callback <(k K, v V)>) <iterable[K, V]> => nil
 
 /**
-Folds the elements of iterable with callback into a single value, starting
-from initial (or the first element when initial is omitted). The callback is
-called as `callback(accumulator, value, key)` and returns the next
-accumulator.
+Folds the elements of iterable with callback into a single value, starting from
+initial (or the first element when initial is omitted). The callback is called
+as `callback(accumulator, value, key)` and returns the next accumulator.
 Example:
 ```gad
 reduce([1, 2, 3], (acc, v) => acc + v, 10)
@@ -1184,11 +1109,12 @@ reduce([1, 2, 3], (acc, v) => acc * v)   // the first element the initial
 = 6
 ```
 **/
-export reduce[K, V, A](it iterable[K, V], callback <(acc A, v V, k K) <A>>, initial A) <A> => nil
+export reduce[K, V, A](
+	it iterable[K, V], callback <(acc A, v V, k K) <A>>, initial A
+) <A> => nil
 
 /**
-Returns a lazy iterator over the keys of a value.
-Example:
+Returns a lazy iterator over the keys of a value. Example:
 ```gad
 collect(keys({a: 1}))
 = ["a"]
@@ -1197,8 +1123,7 @@ collect(keys({a: 1}))
 export keys(it iterable) <iterator> => nil
 
 /**
-Returns a lazy iterator over the values of a value.
-Example:
+Returns a lazy iterator over the values of a value. Example:
 ```gad
 collect(values({a: 1}))
 = [1]
@@ -1207,8 +1132,7 @@ collect(values({a: 1}))
 export values(it iterable) <iterator> => nil
 
 /**
-Returns a lazy iterator over the key/value items of a value.
-Example:
+Returns a lazy iterator over the key/value items of a value. Example:
 ```gad
 collect(items({a: 1}))
 = [[a=1]]
@@ -1217,8 +1141,7 @@ collect(items({a: 1}))
 export items(it iterable) <iterator> => nil
 
 /**
-Returns an iterator over a value.
-Example:
+Returns an iterator over a value. Example:
 ```gad
 collect(iterate([1, 2]))
 = [1, 2]
@@ -1228,8 +1151,7 @@ export iterate(it iterable) <iterator> => nil
 
 /**
 Returns a lazy iterator yielding each element paired with its index, as a
-key-value `[(index)=value]` (read `.k` / `.v`).
-Example:
+key-value `[(index)=value]` (read `.k` / `.v`). Example:
 ```gad
 [kv.k for kv in collect(enumerate(["a", "b"]))]
 = [0, 1]
@@ -1238,8 +1160,7 @@ Example:
 export enumerate(it iterable) <iterator> => nil
 
 /**
-Consumes an iterator or iterable into an array.
-Example:
+Consumes an iterator or iterable into an array. Example:
 ```gad
 collect(map([1, 2], (v) => v + 1))
 = [2, 3]
@@ -1249,8 +1170,7 @@ export collect(it iterable) <array> => nil
 
 /**
 Concatenates its arguments into one array: an array contributes its elements,
-any other iterable its entries as key-value pairs `[(key)=value]`.
-Example:
+any other iterable its entries as key-value pairs `[(key)=value]`. Example:
 ```gad
 toArray([1], [2, 3])
 = [1, 2, 3]
@@ -1260,8 +1180,7 @@ export toArray(*its) <array> => nil
 
 /**
 Returns the collection sorted ascending; `less` is an optional comparator
-function `less(a, b) <bool>`.
-Example:
+function `less(a, b) <bool>`. Example:
 ```gad
 sort([3, 1, 2])
 = [1, 2, 3]
@@ -1282,8 +1201,7 @@ sortReverse([1, 3, 2])
 export sortReverse(o any; less <(a any, b any) <bool>> = nil) <any> => nil
 
 /**
-Writes its arguments to standard output and returns the number of bytes
-written.
+Writes its arguments to standard output and returns the number of bytes written.
 Example:
 ```gad
 print("a", 1)
@@ -1305,8 +1223,7 @@ printf("%d!", 5)
 export printf(format str, *args) <int> => nil
 
 /**
-Writes its arguments and a trailing newline to standard output.
-Example:
+Writes its arguments and a trailing newline to standard output. Example:
 ```gad
 println("hi", 1)
 = 5
@@ -1316,8 +1233,7 @@ println("hi", 1)
 export println(*args) <int> => nil
 
 /**
-Returns format applied to args as a str.
-Example:
+Returns format applied to args as a str. Example:
 ```gad
 sprintf("%s=%d", "n", 42)
 = "n=42"
@@ -1327,8 +1243,7 @@ export sprintf(format str, *args) <str> => nil
 
 /**
 Reports whether every value is of `type`. `type` may be a single type or an
-array of types, in which case a value matches when it is any of them.
-Example:
+array of types, in which case a value matches when it is any of them. Example:
 ```gad
 [is(int, 1, 2), is(int, 1, "a"), is([int, str], 1, "a")]
 = [true, false, true]
@@ -1337,9 +1252,8 @@ Example:
 export is(type any, *values) <bool> => nil
 
 /**
-Reports whether the callable `fn` provides every function header required by
-the method interface `mi` (a `meti { … }` value).
-Example:
+Reports whether the callable `fn` provides every function header required by the
+method interface `mi` (a `meti { … }` value). Example:
 ```gad
 implements(func(x int) => x, meti { (x int) })
 = true
@@ -1348,9 +1262,8 @@ implements(func(x int) => x, meti { (x int) })
 export implements(fn callable, mi) <bool> => nil
 
 /**
-Returns a new function that calls `caller` with `args`/`named` prepended —
-a partial application. Calling the wrapper appends its own arguments.
-Example:
+Returns a new function that calls `caller` with `args`/`named` prepended — a
+partial application. Calling the wrapper appends its own arguments. Example:
 ```gad
 add := func(a, b) => a + b
 inc := wrap(add, 1)
@@ -1364,8 +1277,7 @@ export wrap(caller callable, *args; **named) <function> => nil
 Casts `obj` (an object that supports casting — a class instance or a reflected
 Go value) to the object type `toType`, throwing when incompatible. For the
 general checked cast that also accepts interfaces and unions, use the `::`
-operator.
-Example:
+operator. Example:
 ```gad
 // a host value or a class instance; anything else throws
 r := func() { try { return cast(str, 1) } catch { return "not castable" } }
@@ -1377,8 +1289,7 @@ export cast(toType type, obj any) <any> => nil
 
 /**
 Returns the host-attached user data of a value that carries it (a Go value
-implementing UserDataStorage); throws otherwise.
-Example:
+implementing UserDataStorage); throws otherwise. Example:
 ```gad
 // a host value carrying user data; anything else throws
 r := func() { try { return userData(1) } catch { return "no user data" } }
@@ -1390,8 +1301,7 @@ export userData(o any) <any> => nil
 
 /**
 Returns a standard stream of the running VM selected by `which` — "IN"/"OUT"/
-"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`.
-Example:
+"ERR" or 0/1/2. "IN" is a `readable`; "OUT" and "ERR" are `writable`. Example:
 ```gad
 typeName(stdio("OUT"))
 = "writer"
@@ -1400,11 +1310,10 @@ typeName(stdio("OUT"))
 export stdio(which any) <any> => nil
 
 /**
-Creates a class named `name`; `define` builds its fields, methods and
-properties (see the Classes chapter). Also written with the `class` keyword.
-It returns a `classType`; calling that class type — `classType(…)` — yields a
-`classInstance`.
-Example:
+Creates a class named `name`; `define` builds its fields, methods and properties
+(see the Classes chapter). Also written with the `class` keyword. It returns a
+`classType`; calling that class type — `classType(…)` — yields a
+`classInstance`. Example:
 ```gad
 P := Class("P", (cls, define) => define(; fields = (; x = (= 1))))
 P().x
@@ -1415,8 +1324,7 @@ export Class(name str, define <(cls classType, define callable) <any>>) <classTy
 
 /**
 Attaches typed method overloads to a callable or type, so the VM dispatches on
-argument types. Returns the target.
-Example:
+argument types. Returns the target. Example:
 ```gad
 kind := func { (x int) => "int" }
 addMethod(kind, func(x str) => "str")
@@ -1427,9 +1335,8 @@ kind("a")
 export addMethod(target callable, *methods) <any> => nil
 
 /**
-Starts capturing standard output into a fresh buffer, which it returns.
-Nested calls stack.
-Example:
+Starts capturing standard output into a fresh buffer, which it returns. Nested
+calls stack. Example:
 ```gad
 obstart()
 print("hidden")
@@ -1441,8 +1348,7 @@ export obstart() <buffer> => nil
 
 /**
 Stops the most recent output capture and returns its buffer (the captured
-output).
-Example:
+output). Example:
 ```gad
 obstart()
 println("a")
@@ -1453,8 +1359,7 @@ str(obend())
 export obend() <buffer> => nil
 
 /**
-Reads all remaining bytes from a `readable` value.
-Example:
+Reads all remaining bytes from a `readable` value. Example:
 ```gad
 str(read(buffer("xy")))
 = "xy"
@@ -1476,8 +1381,7 @@ str(w)
 export write(w writable, *data) <int> => nil
 
 /**
-Closes a closable value (e.g. a reader/writer).
-Example:
+Closes a closable value (e.g. a reader/writer). Example:
 ```gad
 w := buffer()
 close(w)
@@ -1488,8 +1392,7 @@ isError(w)
 export close(o) => nil
 
 /**
-Flushes any buffered output of a `writable`.
-Example:
+Flushes any buffered output of a `writable`. Example:
 ```gad
 w := buffer()
 write(w, "a")
@@ -1501,9 +1404,8 @@ str(w)
 export flush(w writable) => nil
 
 /**
-Returns an iterator that chains the given iterables end to end: it yields
-every element of the first, then of the second, and so on.
-Example:
+Returns an iterator that chains the given iterables end to end: it yields every
+element of the first, then of the second, and so on. Example:
 ```gad
 collect(zip([1], [2, 3]))
 = [1, 2, 3]

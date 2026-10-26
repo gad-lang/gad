@@ -1,4 +1,4 @@
-/**
+/***
 # uint
 
 A **uint** is an unsigned 64-bit integer. Its literals end in `u` (`2u`,
@@ -18,7 +18,7 @@ a uint with a uint is a uint.
 @snippet operators
 
 @type uint
-**/
+***/
 
 example constructors {
     [uint(3), uint("7"), uint('A'), uint(2.9), typeName(uint(1))]

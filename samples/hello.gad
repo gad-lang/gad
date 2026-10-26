@@ -1,4 +1,4 @@
-/**
+/***
 # Hello, Gad
 
 The basics: printing, variables and string templates.
@@ -11,7 +11,7 @@ string (`{expr}` is replaced by the value). `:=` declares a variable and `=`
 reassigns an existing binding.
 
 @snippet hello
-**/
+***/
 
 example hello {
     name := "Gad"

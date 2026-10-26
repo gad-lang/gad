@@ -1,4 +1,4 @@
-/**
+/***
 @p — a paragraph block.
 
 Lines indented under `@p` are grouped into `<p>` elements. A run of
@@ -9,7 +9,8 @@ tags — but `{= expr }` interpolation is still available.
 
 `@p` is a shortcut for prose: instead of writing an explicit `p` tag per
 paragraph, write the paragraphs separated by blank lines.
-**/
+***/
+
 @param (; author="the Gadx team")
 
 @main

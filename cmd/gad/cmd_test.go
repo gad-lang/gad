@@ -196,9 +196,10 @@ func TestFormatPreservesDocBlockComments(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, want := range []string{
-		"/**\na block doc\nspanning lines\n**/",
-		// The three-star root form is normalized to the unified two-star block.
-		"/**\na root block doc\n**/",
+		// A short attached block collapses to a `///` line.
+		"/// a block doc spanning lines\nx := 1\n",
+		// A root comment keeps its three stars and gets a blank line around it.
+		"\n\n/***\na root block doc\n***/\n\ny := 2\n",
 	} {
 		require.Contains(t, out, want)
 	}

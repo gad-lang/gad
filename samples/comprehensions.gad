@@ -1,4 +1,4 @@
-/**
+/***
 # Comprehensions
 
 Python-like comprehensions build a collection from an iterable. Part of the
@@ -27,7 +27,7 @@ as a comprehension, not a multi-line array/dict literal, because `for` can never
 be an element.
 
 @snippet multiline
-**/
+***/
 
 example array {
     evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]

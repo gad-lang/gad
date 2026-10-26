@@ -1,4 +1,4 @@
-/**
+/***
 # char
 
 A **char** is a Unicode code point. Its literals are `'a'`, `'\n'`,
@@ -18,7 +18,7 @@ A char compares with a char, and adds an int (the next code points):
 @snippet operators
 
 @type char
-**/
+***/
 
 example constructors {
     [char(65), char("é"), int('A'), str('z')]

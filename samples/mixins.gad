@@ -1,4 +1,4 @@
-/**
+/***
 # Mixins (`mixin`)
 
 A **mixin** is a reusable bundle of members — fields, properties and methods —
@@ -112,7 +112,7 @@ A `*` parent spread takes a mixin or an **array of mixins** (flattened, nesting
 allowed), written inline or held in a variable: `*[A, B]`, `*parents`.
 
 @snippet mixin_parents
-**/
+***/
 
 example mixin_use {
     mixin Counter {

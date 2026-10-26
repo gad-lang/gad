@@ -1,4 +1,4 @@
-/**
+/***
 # The `class` keyword
 
 The `class` keyword is a readable block syntax that lowers to the
@@ -85,7 +85,7 @@ class or an `[alias=class]` pair is an error (the old `[A, "alias"]` pair is not
 a spec — write `[alias=A]`).
 
 @snippet class_parents
-**/
+***/
 
 example class_point {
     /**

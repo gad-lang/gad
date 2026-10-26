@@ -1,4 +1,4 @@
-/**
+/***
 # Anonymous classes as field types (`a class { … }`)
 
 A class field may be typed by a class declared right where the field is:
@@ -35,7 +35,7 @@ generated name, `#N`, as an anonymous function does.
 ## An anonymous outermost class
 
 @snippet inline_anonymous
-**/
+***/
 
 example inline_nest {
     class Options {

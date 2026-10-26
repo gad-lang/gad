@@ -199,7 +199,7 @@ func TestFormatDocClosedByStarSlash(t *testing.T) {
 // `///`'s —; a blank line in the source (a doc detached) stays.
 func TestFormatDocMetaExport(t *testing.T) {
 	src := "/// Doc of A.\n[ordered]\nexport class A {\n\tx? bool\n}\n\n" +
-		"/**\nDoc of B.\n**/\n[label=\"B\"]\nexport class B {\n\ty? bool\n}\n\n" +
+		"/// Doc of B.\n[label=\"B\"]\nexport class B {\n\ty? bool\n}\n\n" +
 		"/// Detached.\n\n[ordered]\nexport class C {\n\tz? bool\n}\n"
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
 	out, err := o.formatSource("x.gad", []byte(src), false)

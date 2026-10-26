@@ -54,17 +54,21 @@ interface Shape {
 	}
 }
 
-bounds := [f for f in Shape.fields if f.name == "bounds"][0]
+// members are looked up by name: `gad fmt` writes them in the canonical
+// order (see the conventions), not necessarily the declared one
+named := func(members, name) => [m for m in members if m.name == name][0]
+names := func(members) => sort([m.name for m in members])
+bounds := named(Shape.fields, "bounds")
 [
     Shape.name,
-    [f.name for f in Shape.fields],
-    Shape.fields[0].types[0] == int,
-    [p.name for p in Shape.props],
-    [m.name for m in Shape.methods],
-    len(Shape.methods[2].headers),                   // from's signatures
-    [typeName(bounds.types[0]), [f.name for f in bounds.types[0].fields]],
+    names(Shape.fields),
+    named(Shape.fields, "id").types[0] == int,
+    names(Shape.props),
+    names(Shape.methods),
+    len(named(Shape.methods, "from").headers),       // from's signatures
+    [typeName(bounds.types[0]), names(bounds.types[0].fields)],
 ]
-= ["Shape", ["id", "label", "bounds", "corners"], true, ["area", "scale", "title"], ["draw", "resize", "from"], 2, ["Interface", ["w", "h"]]]
+= ["Shape", ["bounds", "corners", "id", "label"], true, ["area", "scale", "title"], ["draw", "from", "resize"], 2, ["Interface", ["h", "w"]]]
 ```
 
 ## Structural satisfaction
@@ -441,17 +445,21 @@ example iface_shape {
     	}
     }
 
-    bounds := [f for f in Shape.fields if f.name == "bounds"][0]
+    // members are looked up by name: `gad fmt` writes them in the canonical
+    // order (see the conventions), not necessarily the declared one
+    named := func(members, name) => [m for m in members if m.name == name][0]
+    names := func(members) => sort([m.name for m in members])
+    bounds := named(Shape.fields, "bounds")
     [
         Shape.name,
-        [f.name for f in Shape.fields],
-        Shape.fields[0].types[0] == int,
-        [p.name for p in Shape.props],
-        [m.name for m in Shape.methods],
-        len(Shape.methods[2].headers),                   // from's signatures
-        [typeName(bounds.types[0]), [f.name for f in bounds.types[0].fields]],
+        names(Shape.fields),
+        named(Shape.fields, "id").types[0] == int,
+        names(Shape.props),
+        names(Shape.methods),
+        len(named(Shape.methods, "from").headers),       // from's signatures
+        [typeName(bounds.types[0]), names(bounds.types[0].fields)],
     ]
-    = ["Shape", ["id", "label", "bounds", "corners"], true, ["area", "scale", "title"], ["draw", "resize", "from"], 2, ["Interface", ["w", "h"]]]
+    = ["Shape", ["bounds", "corners", "id", "label"], true, ["area", "scale", "title"], ["draw", "from", "resize"], 2, ["Interface", ["h", "w"]]]
 }
 
 example nested_fields {

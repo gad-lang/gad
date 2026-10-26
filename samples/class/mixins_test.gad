@@ -1,4 +1,4 @@
-/**
+/***
 # Mixins
 
 A **mixin** is a reusable bundle of members — fields, properties and methods —
@@ -67,7 +67,7 @@ edited (from its members, `this { … }` block and parents) and in a later
 `met MyMixin.method(this)` — see the `met` test below.
 
 Run it: `gad test samples/class`
-**/
+***/
 
 /**
 `use` pulls a mixin's field, property and method into the class as its own. A

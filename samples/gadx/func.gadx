@@ -1,4 +1,4 @@
-/**
+/***
 `@func` sample — a template function: what it returns, how to call it, and
 where its slots come from.
 
@@ -16,7 +16,7 @@ Where slots surprise people is that they come from the *call*, not from the
 file: a helper invoked with `+helper` is called with none, so its defaults
 render even when the caller filled a slot of that name on the surrounding
 component — see `with_slot` below.
-**/
+***/
 
 @func badge(text)
 	span[class="badge"] {= text }

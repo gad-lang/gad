@@ -1,4 +1,4 @@
-/**
+/***
 # The class value — introspection & member access
 
 A `class` value (the thing `class Name { … }` binds, or the `Class(...)` builtin
@@ -49,7 +49,7 @@ Each `@`-attribute is a dict/array; iterate `k, v` to read the member names
 ### Members by name, attribute vs item
 
 @snippet class_type_members
-**/
+***/
 
 example class_type_defs {
     /**

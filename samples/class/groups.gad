@@ -1,4 +1,4 @@
-/**
+/***
 # Groups (`{ … }` in a body)
 
 A block written where a member goes — `{ … }` — is a **group**: fields kept
@@ -94,7 +94,7 @@ satisfies it when its `$N` does — a nullable one may be nil. The interface
 lists them in `groups` (as it does `fields`, with no `@`).
 
 @snippet groups_interface
-**/
+***/
 
 example groups_basic {
     class Contact {

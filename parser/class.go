@@ -3,6 +3,7 @@ package parser
 import (
 	"strconv"
 
+	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
@@ -266,8 +267,8 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 		case "new":
 			if pk := p.Peek().Token; pk == token.LParen || pk == token.LBrace {
 				p.Next()
-				cls.NewDoc = doc
 				methods, lbrace, rbrace := p.parseClassConstructors()
+				shortFormDoc(&cls.NewDoc, doc, pk, methods)
 				cls.New = append(cls.New, methods...)
 				cls.NewLBrace, cls.NewRBrace = lbrace, rbrace
 				return
@@ -278,8 +279,8 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 			// `call` field/name is unaffected.
 			if pk := p.Peek().Token; pk == token.LParen || pk == token.LBrace {
 				p.Next()
-				cls.CallDoc = doc
 				methods, lbrace, rbrace := p.parseClassConstructors()
+				shortFormDoc(&cls.CallDoc, doc, pk, methods)
 				cls.Call = append(cls.Call, methods...)
 				cls.CallLBrace, cls.CallRBrace = lbrace, rbrace
 				return
@@ -301,6 +302,20 @@ func (p *Parser) parseClassBodyItem(cls *node.TypeLitExpr) {
 		cls.Fields = append(cls.Fields, f)
 		cls.Order = append(cls.Order, node.ClassBodyItem{Kind: node.ClassBodyField, Index: len(cls.Fields) - 1})
 	}
+}
+
+// shortFormDoc places the doc of a `new`/`call` entry: the short form
+// `new(n int) { … }` declares ONE overload, so its doc is that overload's (each
+// short form keeps its own); the group form `new { … }` documents the group.
+func shortFormDoc(groupDoc **ast.CommentGroup, doc *ast.CommentGroup, pk token.Token, methods []*node.FuncMethod) {
+	if doc == nil {
+		return
+	}
+	if pk == token.LParen && len(methods) == 1 && methods[0].Doc == nil {
+		methods[0].Doc = doc
+		return
+	}
+	*groupDoc = doc
 }
 
 // isGroupStart says the current token opens a group of a body: `{`, or `?`

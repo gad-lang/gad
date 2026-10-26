@@ -69,9 +69,8 @@ strings.count("banana", "a")
 equalFold(s str, t str) <bool>
 ```
 
-EqualFold reports whether s and t, interpreted as UTF-8 strings,
-are equal under Unicode case-folding, which is a more general form of
-case-insensitivity.
+EqualFold reports whether s and t, interpreted as UTF-8 strings, are equal under
+Unicode case-folding, which is a more general form of case-insensitivity.
 
 ## Example
 
@@ -86,9 +85,9 @@ strings.equalFold("Go", "GO")
 fields(s str) <array>
 ```
 
-Splits the string s around each instance of one or more consecutive white
-space characters, returning an array of substrings of s or an empty array
-if s contains only white space.
+Splits the string s around each instance of one or more consecutive white space
+characters, returning an array of substrings of s or an empty array if s
+contains only white space.
 
 ## Example
 
@@ -103,9 +102,9 @@ strings.fields("  a b   c ")
 fieldsFunc(s str, f) <array>
 ```
 
-Splits the string s at each run of Unicode code points c satisfying f(c),
-and returns an array of slices of s. If all code points in s satisfy
-f(c) or the string is empty, an empty array is returned.
+Splits the string s at each run of Unicode code points c satisfying f(c), and
+returns an array of slices of s. If all code points in s satisfy f(c) or the
+string is empty, an empty array is returned.
 
 ## Example
 
@@ -150,8 +149,8 @@ strings.hasSuffix("gopher", "her")
 index(s str, substr str) <int>
 ```
 
-Returns the index of the first instance of substr in s, or -1 if substr
-is not present in s.
+Returns the index of the first instance of substr in s, or -1 if substr is not
+present in s.
 
 ## Example
 
@@ -166,8 +165,8 @@ strings.index("chicken", "ken")
 indexAny(s str, chars str) <int>
 ```
 
-Returns the index of the first instance of any char from chars in s, or
--1 if no char from chars is present in s.
+Returns the index of the first instance of any char from chars in s, or -1 if no
+char from chars is present in s.
 
 ## Example
 
@@ -182,8 +181,8 @@ strings.indexAny("golang", "ln")
 indexByte(s str, c char|int) <int>
 ```
 
-Returns the index of the first byte value of c in s, or -1 if byte value
-of c is not present in s. c's integer value must be between 0 and 255.
+Returns the index of the first byte value of c in s, or -1 if byte value of c is
+not present in s. c's integer value must be between 0 and 255.
 
 ## Example
 
@@ -198,8 +197,8 @@ strings.indexByte("golang", "g"[0])
 indexChar(s str, c char) <int>
 ```
 
-Returns the index of the first instance of the char c, or -1 if char is
-not present in s.
+Returns the index of the first instance of the char c, or -1 if char is not
+present in s.
 
 ## Example
 
@@ -214,8 +213,8 @@ strings.indexChar("golang", "a"[0])
 indexFunc(s str, f) <int>
 ```
 
-Returns the index into s of the first Unicode code point satisfying f(c),
-or -1 if none do.
+Returns the index into s of the first Unicode code point satisfying f(c), or -1
+if none do.
 
 ## Example
 
@@ -230,9 +229,8 @@ strings.indexFunc("go123", func(c) => c >= "0"[0] && c <= "9"[0])
 join(arr array, sep str) <str>
 ```
 
-Concatenates the string values of array arr elements to create a
-single string. The separator string sep is placed between elements in the
-resulting string.
+Concatenates the string values of array arr elements to create a single string.
+The separator string sep is placed between elements in the resulting string.
 
 ## Example
 
@@ -247,10 +245,9 @@ strings.join(["a", "b", "c"], "-")
 joinAnd(arr array, sep, lastSep str) <str>
 ```
 
-Concatenates the string values of array arr elements to create a
-single string. The separator string sep is placed between elements
-and lastSep is placed between non last and last elements in the
-resulting string.
+Concatenates the string values of array arr elements to create a single string.
+The separator string sep is placed between elements and lastSep is placed
+between non last and last elements in the resulting string.
 
 ## Example
 
@@ -265,8 +262,8 @@ strings.joinAnd(["a", "b", "c"], ", ", " and ")
 lastIndex(s str, substr str) <int>
 ```
 
-Returns the index of the last instance of substr in s, or -1 if substr
-is not present in s.
+Returns the index of the last instance of substr in s, or -1 if substr is not
+present in s.
 
 ## Example
 
@@ -281,8 +278,8 @@ strings.lastIndex("go gopher", "go")
 lastIndexAny(s str, chars str) <int>
 ```
 
-Returns the index of the last instance of any char from chars in s, or
--1 if no char from chars is present in s.
+Returns the index of the last instance of any char from chars in s, or -1 if no
+char from chars is present in s.
 
 ## Example
 
@@ -297,8 +294,8 @@ strings.lastIndexAny("golang", "ln")
 lastIndexByte(s str, c char|int) <int>
 ```
 
-Returns the index of byte value of the last instance of c in s, or -1
-if c is not present in s. c's integer value must be between 0 and 255.
+Returns the index of byte value of the last instance of c in s, or -1 if c is
+not present in s. c's integer value must be between 0 and 255.
 
 ## Example
 
@@ -313,8 +310,8 @@ strings.lastIndexByte("golang", "g"[0])
 lastIndexFunc(s str, f) <int>
 ```
 
-Returns the index into s of the last Unicode code point satisfying f(c),
-or -1 if none do.
+Returns the index into s of the last Unicode code point satisfying f(c), or -1
+if none do.
 
 ## Example
 
@@ -329,9 +326,9 @@ strings.lastIndexFunc("1a2b", func(c) => c >= "0"[0] && c <= "9"[0])
 dict(f, s str) <str>
 ```
 
-Returns a copy of the string s with all its characters modified
-according to the mapping function f. If f returns a negative value, the
-character is dropped from the string with no replacement.
+Returns a copy of the string s with all its characters modified according to the
+mapping function f. If f returns a negative value, the character is dropped from
+the string with no replacement.
 
 ### padLeft
 
@@ -339,9 +336,9 @@ character is dropped from the string with no replacement.
 padLeft(s str, padLen int, padWith any) <str>
 ```
 
-Returns a string that is padded on the left with the string `padWith` until
-the `padLen` length is reached. If padWith is not given, a white space is
-used as default padding.
+Returns a string that is padded on the left with the string `padWith` until the
+`padLen` length is reached. If padWith is not given, a white space is used as
+default padding.
 
 ## Example
 
@@ -356,9 +353,9 @@ strings.padLeft("7", 3, "0")
 padRight(s str, padLen int, padWith any) <str>
 ```
 
-Returns a string that is padded on the right with the string `padWith` until
-the `padLen` length is reached. If padWith is not given, a white space is
-used as default padding.
+Returns a string that is padded on the right with the string `padWith` until the
+`padLen` length is reached. If padWith is not given, a white space is used as
+default padding.
 
 ## Example
 
@@ -391,9 +388,8 @@ strings.repeat("ab", 3)
 replace(s str, old str, new str, n int) <str>
 ```
 
-Returns a copy of the string s with the first n non-overlapping instances
-of old replaced by new. If n is not provided or -1, it replaces all
-instances.
+Returns a copy of the string s with the first n non-overlapping instances of old
+replaced by new. If n is not provided or -1, it replaces all instances.
 
 ## Example
 
@@ -408,8 +404,8 @@ strings.replace("oink oink", "k", "ky", 2)
 split(s str, sep str, n int) <array>
 ```
 
-Splits s into substrings separated by sep and returns an array of
-the substrings between those separators.
+Splits s into substrings separated by sep and returns an array of the substrings
+between those separators.
 
 n determines the number of substrings to return:
 
@@ -430,8 +426,8 @@ strings.split("a,b,c", ",", -1)
 splitAfter(s str, sep str, n int) <array>
 ```
 
-Slices s into substrings after each instance of sep and returns an array
-of those substrings.
+Slices s into substrings after each instance of sep and returns an array of
+those substrings.
 
 n determines the number of substrings to return:
 
@@ -452,8 +448,8 @@ strings.splitAfter("a,b,c", ",", -1)
 title(s str) <str>
 ```
 
-Deprecated: Returns a copy of the string s with all Unicode letters that
-begin words mapped to their Unicode title case.
+Deprecated: Returns a copy of the string s with all Unicode letters that begin
+words mapped to their Unicode title case.
 
 ## Example
 
@@ -483,8 +479,8 @@ strings.toLower("Go")
 toTitle(s str) <str>
 ```
 
-Returns a copy of the string s with all Unicode letters mapped to their
-Unicode title case.
+Returns a copy of the string s with all Unicode letters mapped to their Unicode
+title case.
 
 ## Example
 
@@ -514,8 +510,8 @@ strings.toUpper("go")
 toValidUTF8(s str, replacement str) <str>
 ```
 
-Returns a copy of the string s with each run of invalid UTF-8 byte
-sequences replaced by the replacement string, which may be empty.
+Returns a copy of the string s with each run of invalid UTF-8 byte sequences
+replaced by the replacement string, which may be empty.
 
 ## Example
 
@@ -530,8 +526,8 @@ strings.toValidUTF8("abc", "?")
 trim(s str, cutset str) <str>
 ```
 
-Returns a slice of the string s with all leading and trailing Unicode
-code points contained in cutset removed.
+Returns a slice of the string s with all leading and trailing Unicode code
+points contained in cutset removed.
 
 ## Example
 
@@ -546,8 +542,8 @@ strings.trim("xxhixx", "x")
 trimFunc(s str, f) <str>
 ```
 
-Returns a slice of the string s with all leading and trailing Unicode
-code points satisfying f removed.
+Returns a slice of the string s with all leading and trailing Unicode code
+points satisfying f removed.
 
 ## Example
 
@@ -562,8 +558,8 @@ strings.trimFunc("12hi34", func(c) => c >= "0"[0] && c <= "9"[0])
 trimLeft(s str, cutset str) <str>
 ```
 
-Returns a slice of the string s with all leading Unicode code points
-contained in cutset removed.
+Returns a slice of the string s with all leading Unicode code points contained
+in cutset removed.
 
 ## Example
 
@@ -578,8 +574,8 @@ strings.trimLeft("xxhi", "x")
 trimLeftFunc(s str, f) <str>
 ```
 
-Returns a slice of the string s with all leading Unicode code points
-c satisfying f(c) removed.
+Returns a slice of the string s with all leading Unicode code points c
+satisfying f(c) removed.
 
 ## Example
 
@@ -594,8 +590,8 @@ strings.trimLeftFunc("12hi", func(c) => c >= "0"[0] && c <= "9"[0])
 trimPrefix(s str, prefix str) <str>
 ```
 
-Returns s without the provided leading prefix string. If s doesn't start
-with prefix, s is returned unchanged.
+Returns s without the provided leading prefix string. If s doesn't start with
+prefix, s is returned unchanged.
 
 ## Example
 
@@ -610,8 +606,8 @@ strings.trimPrefix("gopher", "go")
 trimRight(s str, cutset str) <str>
 ```
 
-Returns a slice of the string s with all trailing Unicode code points
-contained in cutset removed.
+Returns a slice of the string s with all trailing Unicode code points contained
+in cutset removed.
 
 ## Example
 
@@ -626,8 +622,8 @@ strings.trimRight("hixx", "x")
 trimRightFunc(s str, f) <str>
 ```
 
-Returns a slice of the string s with all trailing Unicode code points
-c satisfying f(c) removed.
+Returns a slice of the string s with all trailing Unicode code points c
+satisfying f(c) removed.
 
 ## Example
 
@@ -642,8 +638,8 @@ strings.trimRightFunc("hi12", func(c) => c >= "0"[0] && c <= "9"[0])
 trimSpace(s str) <str>
 ```
 
-Returns a slice of the string s, with all leading and trailing white
-space removed, as defined by Unicode.
+Returns a slice of the string s, with all leading and trailing white space
+removed, as defined by Unicode.
 
 ## Example
 
@@ -658,8 +654,8 @@ strings.trimSpace("  hi  ")
 trimSuffix(s str, suffix str) <str>
 ```
 
-Returns s without the provided trailing suffix string. If s doesn't end
-with suffix, s is returned unchanged.
+Returns s without the provided trailing suffix string. If s doesn't end with
+suffix, s is returned unchanged.
 
 ## Example
 
@@ -689,8 +685,8 @@ strings.trunc("hello world", 8)
 slitWords(s str|rawstr) <array>
 ```
 
-Split words by spaces using regex `\s+`.
-If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
+Split words by spaces using regex `\s+`. If s is rawstr, returns Array of
+Rawstr, otherwise, Array of Str.
 
 ## Example
 
@@ -767,9 +763,8 @@ strings.count("banana", "a")
 export count(s str, substr str) <int> => nil
 
 /**
-EqualFold reports whether s and t, interpreted as UTF-8 strings,
-are equal under Unicode case-folding, which is a more general form of
-case-insensitivity.
+EqualFold reports whether s and t, interpreted as UTF-8 strings, are equal under
+Unicode case-folding, which is a more general form of case-insensitivity.
 
 ## Example
 
@@ -781,9 +776,9 @@ strings.equalFold("Go", "GO")
 export equalFold(s str, t str) <bool> => nil
 
 /**
-Splits the string s around each instance of one or more consecutive white
-space characters, returning an array of substrings of s or an empty array
-if s contains only white space.
+Splits the string s around each instance of one or more consecutive white space
+characters, returning an array of substrings of s or an empty array if s
+contains only white space.
 
 ## Example
 
@@ -795,9 +790,9 @@ strings.fields("  a b   c ")
 export fields(s str) <array> => nil
 
 /**
-Splits the string s at each run of Unicode code points c satisfying f(c),
-and returns an array of slices of s. If all code points in s satisfy
-f(c) or the string is empty, an empty array is returned.
+Splits the string s at each run of Unicode code points c satisfying f(c), and
+returns an array of slices of s. If all code points in s satisfy f(c) or the
+string is empty, an empty array is returned.
 
 ## Example
 
@@ -833,8 +828,8 @@ strings.hasSuffix("gopher", "her")
 export hasSuffix(s str, suffix str) <bool> => nil
 
 /**
-Returns the index of the first instance of substr in s, or -1 if substr
-is not present in s.
+Returns the index of the first instance of substr in s, or -1 if substr is not
+present in s.
 
 ## Example
 
@@ -846,8 +841,8 @@ strings.index("chicken", "ken")
 export index(s str, substr str) <int> => nil
 
 /**
-Returns the index of the first instance of any char from chars in s, or
--1 if no char from chars is present in s.
+Returns the index of the first instance of any char from chars in s, or -1 if no
+char from chars is present in s.
 
 ## Example
 
@@ -859,8 +854,8 @@ strings.indexAny("golang", "ln")
 export indexAny(s str, chars str) <int> => nil
 
 /**
-Returns the index of the first byte value of c in s, or -1 if byte value
-of c is not present in s. c's integer value must be between 0 and 255.
+Returns the index of the first byte value of c in s, or -1 if byte value of c is
+not present in s. c's integer value must be between 0 and 255.
 
 ## Example
 
@@ -869,11 +864,11 @@ strings.indexByte("golang", "g"[0])
 = 0
 ```
 **/
-export indexByte(s str, c char|int) <int> => nil
+export indexByte(s str, c char | int) <int> => nil
 
 /**
-Returns the index of the first instance of the char c, or -1 if char is
-not present in s.
+Returns the index of the first instance of the char c, or -1 if char is not
+present in s.
 
 ## Example
 
@@ -885,8 +880,8 @@ strings.indexChar("golang", "a"[0])
 export indexChar(s str, c char) <int> => nil
 
 /**
-Returns the index into s of the first Unicode code point satisfying f(c),
-or -1 if none do.
+Returns the index into s of the first Unicode code point satisfying f(c), or -1
+if none do.
 
 ## Example
 
@@ -898,9 +893,8 @@ strings.indexFunc("go123", func(c) => c >= "0"[0] && c <= "9"[0])
 export indexFunc(s str, f) <int> => nil
 
 /**
-Concatenates the string values of array arr elements to create a
-single string. The separator string sep is placed between elements in the
-resulting string.
+Concatenates the string values of array arr elements to create a single string.
+The separator string sep is placed between elements in the resulting string.
 
 ## Example
 
@@ -912,10 +906,9 @@ strings.join(["a", "b", "c"], "-")
 export join(arr array, sep str) <str> => nil
 
 /**
-Concatenates the string values of array arr elements to create a
-single string. The separator string sep is placed between elements
-and lastSep is placed between non last and last elements in the
-resulting string.
+Concatenates the string values of array arr elements to create a single string.
+The separator string sep is placed between elements and lastSep is placed
+between non last and last elements in the resulting string.
 
 ## Example
 
@@ -927,8 +920,8 @@ strings.joinAnd(["a", "b", "c"], ", ", " and ")
 export joinAnd(arr array, sep, lastSep str) <str> => nil
 
 /**
-Returns the index of the last instance of substr in s, or -1 if substr
-is not present in s.
+Returns the index of the last instance of substr in s, or -1 if substr is not
+present in s.
 
 ## Example
 
@@ -940,8 +933,8 @@ strings.lastIndex("go gopher", "go")
 export lastIndex(s str, substr str) <int> => nil
 
 /**
-Returns the index of the last instance of any char from chars in s, or
--1 if no char from chars is present in s.
+Returns the index of the last instance of any char from chars in s, or -1 if no
+char from chars is present in s.
 
 ## Example
 
@@ -953,8 +946,8 @@ strings.lastIndexAny("golang", "ln")
 export lastIndexAny(s str, chars str) <int> => nil
 
 /**
-Returns the index of byte value of the last instance of c in s, or -1
-if c is not present in s. c's integer value must be between 0 and 255.
+Returns the index of byte value of the last instance of c in s, or -1 if c is
+not present in s. c's integer value must be between 0 and 255.
 
 ## Example
 
@@ -963,11 +956,11 @@ strings.lastIndexByte("golang", "g"[0])
 = 5
 ```
 **/
-export lastIndexByte(s str, c char|int) <int> => nil
+export lastIndexByte(s str, c char | int) <int> => nil
 
 /**
-Returns the index into s of the last Unicode code point satisfying f(c),
-or -1 if none do.
+Returns the index into s of the last Unicode code point satisfying f(c), or -1
+if none do.
 
 ## Example
 
@@ -979,16 +972,16 @@ strings.lastIndexFunc("1a2b", func(c) => c >= "0"[0] && c <= "9"[0])
 export lastIndexFunc(s str, f) <int> => nil
 
 /**
-Returns a copy of the string s with all its characters modified
-according to the mapping function f. If f returns a negative value, the
-character is dropped from the string with no replacement.
+Returns a copy of the string s with all its characters modified according to the
+mapping function f. If f returns a negative value, the character is dropped from
+the string with no replacement.
 **/
 export dict(f, s str) <str> => nil
 
 /**
-Returns a string that is padded on the left with the string `padWith` until
-the `padLen` length is reached. If padWith is not given, a white space is
-used as default padding.
+Returns a string that is padded on the left with the string `padWith` until the
+`padLen` length is reached. If padWith is not given, a white space is used as
+default padding.
 
 ## Example
 
@@ -1000,9 +993,9 @@ strings.padLeft("7", 3, "0")
 export padLeft(s str, padLen int, padWith any) <str> => nil
 
 /**
-Returns a string that is padded on the right with the string `padWith` until
-the `padLen` length is reached. If padWith is not given, a white space is
-used as default padding.
+Returns a string that is padded on the right with the string `padWith` until the
+`padLen` length is reached. If padWith is not given, a white space is used as
+default padding.
 
 ## Example
 
@@ -1029,9 +1022,8 @@ strings.repeat("ab", 3)
 export repeat(s str, count int) <str> => nil
 
 /**
-Returns a copy of the string s with the first n non-overlapping instances
-of old replaced by new. If n is not provided or -1, it replaces all
-instances.
+Returns a copy of the string s with the first n non-overlapping instances of old
+replaced by new. If n is not provided or -1, it replaces all instances.
 
 ## Example
 
@@ -1043,8 +1035,8 @@ strings.replace("oink oink", "k", "ky", 2)
 export replace(s str, old str, new str, n int) <str> => nil
 
 /**
-Splits s into substrings separated by sep and returns an array of
-the substrings between those separators.
+Splits s into substrings separated by sep and returns an array of the substrings
+between those separators.
 
 n determines the number of substrings to return:
 
@@ -1062,8 +1054,8 @@ strings.split("a,b,c", ",", -1)
 export split(s str, sep str, n int) <array> => nil
 
 /**
-Slices s into substrings after each instance of sep and returns an array
-of those substrings.
+Slices s into substrings after each instance of sep and returns an array of
+those substrings.
 
 n determines the number of substrings to return:
 
@@ -1081,8 +1073,8 @@ strings.splitAfter("a,b,c", ",", -1)
 export splitAfter(s str, sep str, n int) <array> => nil
 
 /**
-Deprecated: Returns a copy of the string s with all Unicode letters that
-begin words mapped to their Unicode title case.
+Deprecated: Returns a copy of the string s with all Unicode letters that begin
+words mapped to their Unicode title case.
 
 ## Example
 
@@ -1106,8 +1098,8 @@ strings.toLower("Go")
 export toLower(s str) <str> => nil
 
 /**
-Returns a copy of the string s with all Unicode letters mapped to their
-Unicode title case.
+Returns a copy of the string s with all Unicode letters mapped to their Unicode
+title case.
 
 ## Example
 
@@ -1131,8 +1123,8 @@ strings.toUpper("go")
 export toUpper(s str) <str> => nil
 
 /**
-Returns a copy of the string s with each run of invalid UTF-8 byte
-sequences replaced by the replacement string, which may be empty.
+Returns a copy of the string s with each run of invalid UTF-8 byte sequences
+replaced by the replacement string, which may be empty.
 
 ## Example
 
@@ -1144,8 +1136,8 @@ strings.toValidUTF8("abc", "?")
 export toValidUTF8(s str, replacement str) <str> => nil
 
 /**
-Returns a slice of the string s with all leading and trailing Unicode
-code points contained in cutset removed.
+Returns a slice of the string s with all leading and trailing Unicode code
+points contained in cutset removed.
 
 ## Example
 
@@ -1157,8 +1149,8 @@ strings.trim("xxhixx", "x")
 export trim(s str, cutset str) <str> => nil
 
 /**
-Returns a slice of the string s with all leading and trailing Unicode
-code points satisfying f removed.
+Returns a slice of the string s with all leading and trailing Unicode code
+points satisfying f removed.
 
 ## Example
 
@@ -1170,8 +1162,8 @@ strings.trimFunc("12hi34", func(c) => c >= "0"[0] && c <= "9"[0])
 export trimFunc(s str, f) <str> => nil
 
 /**
-Returns a slice of the string s with all leading Unicode code points
-contained in cutset removed.
+Returns a slice of the string s with all leading Unicode code points contained
+in cutset removed.
 
 ## Example
 
@@ -1183,8 +1175,8 @@ strings.trimLeft("xxhi", "x")
 export trimLeft(s str, cutset str) <str> => nil
 
 /**
-Returns a slice of the string s with all leading Unicode code points
-c satisfying f(c) removed.
+Returns a slice of the string s with all leading Unicode code points c
+satisfying f(c) removed.
 
 ## Example
 
@@ -1196,8 +1188,8 @@ strings.trimLeftFunc("12hi", func(c) => c >= "0"[0] && c <= "9"[0])
 export trimLeftFunc(s str, f) <str> => nil
 
 /**
-Returns s without the provided leading prefix string. If s doesn't start
-with prefix, s is returned unchanged.
+Returns s without the provided leading prefix string. If s doesn't start with
+prefix, s is returned unchanged.
 
 ## Example
 
@@ -1209,8 +1201,8 @@ strings.trimPrefix("gopher", "go")
 export trimPrefix(s str, prefix str) <str> => nil
 
 /**
-Returns a slice of the string s with all trailing Unicode code points
-contained in cutset removed.
+Returns a slice of the string s with all trailing Unicode code points contained
+in cutset removed.
 
 ## Example
 
@@ -1222,8 +1214,8 @@ strings.trimRight("hixx", "x")
 export trimRight(s str, cutset str) <str> => nil
 
 /**
-Returns a slice of the string s with all trailing Unicode code points
-c satisfying f(c) removed.
+Returns a slice of the string s with all trailing Unicode code points c
+satisfying f(c) removed.
 
 ## Example
 
@@ -1235,8 +1227,8 @@ strings.trimRightFunc("hi12", func(c) => c >= "0"[0] && c <= "9"[0])
 export trimRightFunc(s str, f) <str> => nil
 
 /**
-Returns a slice of the string s, with all leading and trailing white
-space removed, as defined by Unicode.
+Returns a slice of the string s, with all leading and trailing white space
+removed, as defined by Unicode.
 
 ## Example
 
@@ -1248,8 +1240,8 @@ strings.trimSpace("  hi  ")
 export trimSpace(s str) <str> => nil
 
 /**
-Returns s without the provided trailing suffix string. If s doesn't end
-with suffix, s is returned unchanged.
+Returns s without the provided trailing suffix string. If s doesn't end with
+suffix, s is returned unchanged.
 
 ## Example
 
@@ -1273,8 +1265,8 @@ strings.trunc("hello world", 8)
 export trunc(s str, maxLen int; emph="...") <str> => nil
 
 /**
-Split words by spaces using regex `\s+`.
-If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
+Split words by spaces using regex `\s+`. If s is rawstr, returns Array of
+Rawstr, otherwise, Array of Str.
 
 ## Example
 
@@ -1283,7 +1275,7 @@ strings.slitWords("foo bar baz")
 = ["foo", "bar", "baz"]
 ```
 **/
-export slitWords(s str|rawstr) <array> => nil
+export slitWords(s str | rawstr) <array> => nil
 
 /**
 Truncate words in s to maxLen concatenated with emph. If atlimit is Falsy,
@@ -1296,5 +1288,5 @@ strings.truncWords("one two three", 10)
 = "one two..."
 ```
 **/
-export truncWords(s str|rawstr, max int; emph="...", atlimit=false) <_ str|rawstr> => nil
+export truncWords(s str | rawstr, max int; emph="...", atlimit=false) <_ str | rawstr> => nil
 ````

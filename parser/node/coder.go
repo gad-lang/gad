@@ -50,12 +50,24 @@ type cw struct {
 	// the widest column reached; multiline records whether a newline was seen.
 	col, max  int
 	multiline bool
+	// trailingNL counts the newlines at the end of the output so far (spaces
+	// and tabs between them ignored): 2+ means it ends with a blank line.
+	trailingNL int
 }
 
 // Write tracks the cursor column so the NEW_LINE_CALC formatter can measure how
 // wide a construct renders.
 func (w *cw) Write(p []byte) (n int, err error) {
 	n, err = w.Writer.Write(p)
+	for _, b := range p {
+		switch b {
+		case '\n':
+			w.trailingNL++
+		case ' ', '\t', '\r':
+		default:
+			w.trailingNL = 0
+		}
+	}
 	s := string(p)
 	for {
 		i := strings.IndexByte(s, '\n')
@@ -321,6 +333,75 @@ func (ctx *CodeWriteContext) wroteAny() bool {
 	return false
 }
 
+// writePositionalComment writes a comment the position machinery emits (one not
+// claimed by a node). A `/** … **/` block doc is written like a claimed one —
+// re-indented to the current prefix, its Markdown reflowed — so the output does
+// not depend on whether the doc happens to be claimed (a doc claimed only once
+// its statement was merged into a declaration group made formatting unstable).
+// A root comment and any other comment are written as they are.
+//
+// A DETACHED block doc (a blank line, or nothing, after it) documents a module or
+// section and always stays a `/** … **/`: it is only re-indented, its lines kept.
+func (ctx *CodeWriteContext) writePositionalComment(c *ast.Comment, root, detached bool) {
+	switch {
+	case root || !strings.HasPrefix(c.Text, "/**"):
+		ctx.WriteString(normalizeDocFence(c.Text))
+	case detached:
+		ctx.writeReindented(c.Text)
+	default:
+		ctx.writeDocComment(&ast.CommentGroup{List: []*ast.Comment{c}})
+	}
+}
+
+// writeReindented writes a multi-line comment with its lines re-indented to the
+// current prefix (their common indentation removed), so a block written inside a
+// nested scope lines up with the code around it.
+func (ctx *CodeWriteContext) writeReindented(text string) {
+	lines := strings.Split(text, "\n")
+	common := -1
+	for _, l := range lines[1:] {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		n := len(l) - len(strings.TrimLeft(l, " \t"))
+		if common < 0 || n < common {
+			common = n
+		}
+	}
+	prefix := ctx.CurrentPrefix()
+	for i, l := range lines {
+		if i == 0 {
+			ctx.WriteString(l)
+			continue
+		}
+		if common > 0 && len(l) >= common {
+			l = l[common:]
+		}
+		if strings.TrimSpace(l) == "" {
+			ctx.WriteString("\n")
+			continue
+		}
+		ctx.WriteString("\n", prefix, l)
+	}
+}
+
+// nextCommentAfter returns the comment after the current one (the one at
+// commentIdx), or nil.
+func (ctx *CodeWriteContext) nextCommentAfter() *ast.Comment {
+	if ctx.commentIdx+1 < len(ctx.comments) {
+		return ctx.comments[ctx.commentIdx+1]
+	}
+	return nil
+}
+
+// endsWithBlankLine reports whether the output so far ends with a blank line.
+func (ctx *CodeWriteContext) endsWithBlankLine() bool {
+	if c, ok := ctx.CodeWriter.(*cw); ok {
+		return c.trailingNL >= 2
+	}
+	return false
+}
+
 // markMultiline flags the active NEW_LINE_CALC measurement (if one is running) as
 // multi-line. Emit points for line comments (`//` / `///`) call it: a line
 // comment ends its line, so a construct that contains one must never be collapsed
@@ -334,14 +415,36 @@ func (ctx *CodeWriteContext) markMultiline() {
 // flushRemainingComments writes any comments not yet emitted, each on its own
 // line. Used at the very end of the top-level statement list for file-trailing
 // comments (and comment-only files).
+//
+// Formatting, a blank line of the source before a comment is kept, and a root
+// comment (`/*** … ***/`) is set apart by a blank line before and after it.
 func (ctx *CodeWriteContext) flushRemainingComments() {
+	lastRoot := false
 	for c := ctx.peekComment(); c != nil; c = ctx.peekComment() {
+		root := isRootDoc(c.Text)
 		if ctx.wroteAny() {
 			ctx.WriteSemi()
+			if ctx.HasPrefix() && (root || lastRoot || ctx.blankLineBefore(c.Pos())) && !ctx.endsWithBlankLine() {
+				ctx.WriteString("\n")
+			}
 		}
 		ctx.WriteString(c.Text)
+		lastRoot = root
 		ctx.commentIdx++
 	}
+}
+
+// blankLineBefore reports whether the source line just above pos is blank.
+func (ctx *CodeWriteContext) blankLineBefore(pos source.Pos) bool {
+	if ctx.srcFile == nil || ctx.srcFile.Data == nil {
+		return false
+	}
+	line := ctx.lineOf(pos)
+	if line < 2 {
+		return false
+	}
+	b, err := ctx.srcFile.Data.LineData(line - 1)
+	return err == nil && strings.TrimSpace(string(b)) == ""
 }
 
 // claimLeadDocs records the lead doc comments attached to top-level decl/func
@@ -459,6 +562,18 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 	ctx.comments = filtered
 }
 
+// claimNestedLeadDocs applies claimLeadDocs to the statements of every block
+// nested in n, so the docs of nested declarations are emitted by their own
+// nodes like the top-level ones.
+func (ctx *CodeWriteContext) claimNestedLeadDocs(n ast.Node) {
+	Walk(n, func(x ast.Node) bool {
+		if b, ok := x.(*BlockStmt); ok && b != nil {
+			ctx.claimLeadDocs(b.Stmts)
+		}
+		return true
+	})
+}
+
 // claimClassBodyDocs claims the doc comments of a class body — fields, the
 // `props`/`new`/`methods` group keywords, the property/method entries and their
 // accessor/overload methods — so each is emitted in place by its own node
@@ -476,6 +591,10 @@ func (ctx *CodeWriteContext) claimClassBodyDocs(e *TypeLitExpr) {
 	}
 	ctx.claimDoc(e.NewDoc)
 	for _, fm := range e.New {
+		ctx.claimDoc(fm.Doc)
+	}
+	ctx.claimDoc(e.CallDoc)
+	for _, fm := range e.Call {
 		ctx.claimDoc(fm.Doc)
 	}
 	ctx.claimDoc(e.MethodsDoc)
@@ -586,6 +705,10 @@ func (ctx *CodeWriteContext) writeDocComment(g *ast.CommentGroup) {
 	prefix := ctx.CurrentPrefix()
 	for i, line := range ctx.docLines(g) {
 		if i > 0 {
+			if line == "" {
+				ctx.WriteString("\n") // no trailing indentation on a blank line
+				continue
+			}
 			ctx.WriteString("\n", prefix)
 		}
 		ctx.WriteString(line)
@@ -778,7 +901,10 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		inTag bool // currently between a `{%` and its `%}`
 		// the last written is a block comment (`/** … **/`)
 		afterBlockComment bool
-		last              = len(stmt) - 1
+		// checkedBlock: the last block statement had a check under it (the blank
+		// line after the block goes after its checks)
+		checkedBlock bool
+		last         = len(stmt) - 1
 	)
 
 	emitLeadingSep := func() {
@@ -807,22 +933,36 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		// between a doc comment and the next comment/statement is preserved, so a
 		// DETACHED (module/section) doc stays detached after formatting.
 		if ctx.hasComments() {
-			var lastEnd source.Pos
+			var (
+				lastEnd  source.Pos
+				lastRoot bool // the last comment written is a `/*** … ***/` root comment
+			)
 			for c := ctx.peekComment(); c != nil && c.Pos() < s.Pos(); c = ctx.peekComment() {
+				root := isRootDoc(c.Text)
 				if i > 0 && sep == sepSpace && strings.Contains(c.Text, "\n") {
 					// a block comment (a `/** … **/` doc) opens its own line, even
 					// right after a `{%`
 					ctx.WriteString("\n")
 				} else if i > 0 {
 					emitLeadingSep()
-					if lastEnd != 0 && ctx.lineOf(c.Pos()) > ctx.lineOf(lastEnd-1)+1 {
-						ctx.WriteString("\n") // preserve the blank line between groups
+					// preserve the blank line between groups — and always keep one
+					// around a root comment, which stands apart from the code
+					if (lastEnd != 0 && ctx.lineOf(c.Pos()) > ctx.lineOf(lastEnd-1)+1) ||
+						((root || lastRoot) && !ctx.endsWithBlankLine()) {
+						ctx.WriteString("\n")
 					}
 				}
-				ctx.WriteString(normalizeDocFence(c.Text))
+				// detached: a blank line (or nothing) between it and what follows
+				next := stmtStart(s)
+				if n := ctx.nextCommentAfter(); n != nil && n.Pos() < s.Pos() {
+					next = n.Pos()
+				}
+				detached := ctx.lineOf(next) > ctx.lineOf(c.End()-1)+1
+				ctx.writePositionalComment(c, root, detached)
 				ctx.commentIdx++
 				afterBlockComment = strings.Contains(c.Text, "\n")
 				lastEnd = c.End()
+				lastRoot = root
 				sep = sepNewline
 				i++
 			}
@@ -832,7 +972,7 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			// (measured from where the statement begins: its metadata block,
 			// when one is written above it — `/// doc`, `[ordered]`, `export
 			// class` is one piece, no gap after the doc)
-			if lastEnd != 0 && ctx.lineOf(stmtStart(s)) > ctx.lineOf(lastEnd-1)+1 {
+			if lastEnd != 0 && (lastRoot || ctx.lineOf(stmtStart(s)) > ctx.lineOf(lastEnd-1)+1) {
 				ctx.WriteString("\n")
 			}
 		}
@@ -883,16 +1023,29 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 				// separator.
 				sep = sepGlue
 			}
-		case *ExprStmt, *ValueCheckStmt, *OutputCheckStmt:
+		case *ValueCheckStmt, *OutputCheckStmt:
 			sep = sepNewline
+			// the blank line a block statement is followed by comes after the
+			// check(s) under it (`example … {}` `<<< … >>>`, then a blank line)
+			if checkedBlock && x < last && !isCheckStmt(stmt[x+1]) {
+				checkedBlock = false
+				if ctx.HasPrefix() && !inTag {
+					ctx.WriteString("\n")
+				}
+			}
+		case *ExprStmt:
+			sep = sepNewline
+			checkedBlock = false
 		default:
 			sep = sepNewline
+			checkedBlock = false
 			// a run of `@import`s is one block
 			if x < last && importDirective(s) != nil && importDirective(stmt[x+1]) != nil {
 				break
 			}
 			// a check stays under the statement it checks (issue #22)
 			if x < last && isCheckStmt(stmt[x+1]) {
+				checkedBlock = true
 				break
 			}
 			// Separate block/declaration statements from the next with a blank
@@ -1118,6 +1271,13 @@ func CodeW(w io.Writer, n Coder, opt ...CodeOption) {
 	if ctx.srcFile != nil {
 		if stmts, ok := n.(Stmts); ok {
 			ctx.claimLeadDocs(stmts)
+			// Nested blocks too — function bodies, `example` bodies, if/for
+			// branches: without the claim their docs travel by position, and a
+			// node the formatter restructures (a meti collapsed to one line, a
+			// `new` overload regrouped) left a doc in the wrong place.
+			for _, st := range stmts {
+				ctx.claimNestedLeadDocs(st)
+			}
 		}
 	}
 	n.WriteCode(ctx)

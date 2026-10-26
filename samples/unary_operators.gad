@@ -1,4 +1,4 @@
-/**
+/***
 # Unary Operators
 
 `!` (logical NOT on any value's truthiness), `-` (negation), `+` (identity), `^`
@@ -35,7 +35,7 @@ A type customises a unary operator with `met gad.unOpX(…)`; the `gad.unOp…`
 builtins are also callable directly.
 
 @snippet unary_custom
-**/
+***/
 
 example unary_values {
     [

@@ -1,4 +1,4 @@
-/**
+/***
 Dynamic (interpolated) slot names.
 
 A simple slot name is a bare identifier (`@slot header`). A dynamic name is
@@ -9,7 +9,7 @@ render time and used as the `slots[…]` key:
 
 Here each row of `list` declares its own slot `item[{i}]`, so a caller can
 override an individual row by its computed name.
-**/
+***/
 
 @comp list(items; slots={})
 	@for i, it in items

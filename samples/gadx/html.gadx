@@ -1,4 +1,4 @@
-/**
+/***
 Inline HTML regions.
 
 A line starting with `<` is parsed as inline HTML: it runs from the opening
@@ -17,7 +17,7 @@ Block-level gadx statements (`@if`, `@for`, `@match`, `+comp`, `~code`) may
 be interleaved inside an HTML region by indentation: the directive and its
 more-indented body render as children of the enclosing element. See
 html_control_flow.gadx.
-**/
+***/
 
 @global (url, active; title = "The Link")
 

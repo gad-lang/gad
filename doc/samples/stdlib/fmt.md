@@ -45,9 +45,8 @@ print(*any) <int>
 ```
 
 Formats using the default formats for its operands and writes to standard
-output. Spaces are added between operands when neither is a str.
-It returns the number of bytes written and any encountered write error
-throws a runtime error.
+output. Spaces are added between operands when neither is a str. It returns the
+number of bytes written and any encountered write error throws a runtime error.
 
 ## Example
 
@@ -65,9 +64,9 @@ fmt.print("a", 1)
 printf(format str, *any) <int>
 ```
 
-Formats according to a format specifier and writes to standard output.
-It returns the number of bytes written and any encountered write error
-throws a runtime error.
+Formats according to a format specifier and writes to standard output. It
+returns the number of bytes written and any encountered write error throws a
+runtime error.
 
 ## Example
 
@@ -84,9 +83,9 @@ println(*any) <int>
 ```
 
 Formats using the default formats for its operands and writes to standard
-output. Spaces are always added between operands and a newline
-is appended. It returns the number of bytes written and any encountered
-write error throws a runtime error.
+output. Spaces are always added between operands and a newline is appended. It
+returns the number of bytes written and any encountered write error throws a
+runtime error.
 
 ## Example
 
@@ -102,9 +101,8 @@ fmt.println("hi", 1)
 sprint(*any) <str>
 ```
 
-Formats using the default formats for its operands and returns the
-resulting str. Spaces are added between operands when neither is a
-str.
+Formats using the default formats for its operands and returns the resulting
+str. Spaces are added between operands when neither is a str.
 
 ## Example
 
@@ -134,9 +132,8 @@ fmt.sprintf("%s=%d", "n", 42)
 sprintln(*any) <str>
 ```
 
-Formats using the default formats for its operands and returns the
-resulting str. Spaces are always added between operands and a newline
-is appended.
+Formats using the default formats for its operands and returns the resulting
+str. Spaces are always added between operands and a newline is appended.
 
 ## Example
 
@@ -153,8 +150,8 @@ sscan(str str, *scanArg) <int>
 
 Scans the argument str, storing successive space-separated values into
 successive scanArg arguments. Newlines count as space. If no error is
-encountered, it returns the number of items successfully scanned. If that
-is less than the number of arguments, a scan error is thrown.
+encountered, it returns the number of items successfully scanned. If that is
+less than the number of arguments, a scan error is thrown.
 
 ## Example
 
@@ -170,9 +167,9 @@ sscanf(str str, format str, *scanArg) <int>
 ```
 
 Scans the argument str, storing successive space-separated values into
-successive scanArg arguments as determined by the format. It returns the
-number of items successfully parsed, and throws on a scan error.
-Newlines in the input must match newlines in the format.
+successive scanArg arguments as determined by the format. It returns the number
+of items successfully parsed, and throws on a scan error. Newlines in the input
+must match newlines in the format.
 
 ## Example
 
@@ -188,14 +185,11 @@ fmt.sscanf("42 hi", "%d %s", fmt.scanArg("int"), fmt.scanArg("str"))
 scanArg(typeName str) <scanArg>
 ```
 
-Returns a `scanArg` object to scan a value of given type name in scan
-functions.
-Supported type names are `"str", "int", "uint", "float", "char",
-"bool", "bytes"`.
-It throws a runtime error if type name is not supported.
-Alternatively, `str, int, uint, float, char, bool, bytes` builtin
-functions can be provided to get the type name from the BuiltinFunction's
-Literal field.
+Returns a `scanArg` object to scan a value of given type name in scan functions.
+Supported type names are `"str", "int", "uint", "float", "char", "bool",
+"bytes"`. It throws a runtime error if type name is not supported.
+Alternatively, `str, int, uint, float, char, bool, bytes` builtin functions can
+be provided to get the type name from the BuiltinFunction's Literal field.
 
 ## Example
 
@@ -210,9 +204,8 @@ typeName(fmt.scanArg("int"))
 ````gad
 /**
 Formats using the default formats for its operands and writes to standard
-output. Spaces are added between operands when neither is a str.
-It returns the number of bytes written and any encountered write error
-throws a runtime error.
+output. Spaces are added between operands when neither is a str. It returns the
+number of bytes written and any encountered write error throws a runtime error.
 
 ## Example
 
@@ -227,9 +220,9 @@ fmt.print("a", 1)
 export print(*any) <int> => nil
 
 /**
-Formats according to a format specifier and writes to standard output.
-It returns the number of bytes written and any encountered write error
-throws a runtime error.
+Formats according to a format specifier and writes to standard output. It
+returns the number of bytes written and any encountered write error throws a
+runtime error.
 
 ## Example
 
@@ -243,9 +236,9 @@ export printf(format str, *any) <int> => nil
 
 /**
 Formats using the default formats for its operands and writes to standard
-output. Spaces are always added between operands and a newline
-is appended. It returns the number of bytes written and any encountered
-write error throws a runtime error.
+output. Spaces are always added between operands and a newline is appended. It
+returns the number of bytes written and any encountered write error throws a
+runtime error.
 
 ## Example
 
@@ -258,9 +251,8 @@ fmt.println("hi", 1)
 export println(*any) <int> => nil
 
 /**
-Formats using the default formats for its operands and returns the
-resulting str. Spaces are added between operands when neither is a
-str.
+Formats using the default formats for its operands and returns the resulting
+str. Spaces are added between operands when neither is a str.
 
 ## Example
 
@@ -284,9 +276,8 @@ fmt.sprintf("%s=%d", "n", 42)
 export sprintf(format str, *any) <str> => nil
 
 /**
-Formats using the default formats for its operands and returns the
-resulting str. Spaces are always added between operands and a newline
-is appended.
+Formats using the default formats for its operands and returns the resulting
+str. Spaces are always added between operands and a newline is appended.
 
 ## Example
 
@@ -300,8 +291,8 @@ export sprintln(*any) <str> => nil
 /**
 Scans the argument str, storing successive space-separated values into
 successive scanArg arguments. Newlines count as space. If no error is
-encountered, it returns the number of items successfully scanned. If that
-is less than the number of arguments, a scan error is thrown.
+encountered, it returns the number of items successfully scanned. If that is
+less than the number of arguments, a scan error is thrown.
 
 ## Example
 
@@ -314,9 +305,9 @@ export sscan(str str, *scanArg) <int> => nil
 
 /**
 Scans the argument str, storing successive space-separated values into
-successive scanArg arguments as determined by the format. It returns the
-number of items successfully parsed, and throws on a scan error.
-Newlines in the input must match newlines in the format.
+successive scanArg arguments as determined by the format. It returns the number
+of items successfully parsed, and throws on a scan error. Newlines in the input
+must match newlines in the format.
 
 ## Example
 
@@ -329,14 +320,11 @@ fmt.sscanf("42 hi", "%d %s", fmt.scanArg("int"), fmt.scanArg("str"))
 export sscanf(str str, format str, *scanArg) <int> => nil
 
 /**
-Returns a `scanArg` object to scan a value of given type name in scan
-functions.
-Supported type names are `"str", "int", "uint", "float", "char",
-"bool", "bytes"`.
-It throws a runtime error if type name is not supported.
-Alternatively, `str, int, uint, float, char, bool, bytes` builtin
-functions can be provided to get the type name from the BuiltinFunction's
-Literal field.
+Returns a `scanArg` object to scan a value of given type name in scan functions.
+Supported type names are `"str", "int", "uint", "float", "char", "bool",
+"bytes"`. It throws a runtime error if type name is not supported.
+Alternatively, `str, int, uint, float, char, bool, bytes` builtin functions can
+be provided to get the type name from the BuiltinFunction's Literal field.
 
 ## Example
 

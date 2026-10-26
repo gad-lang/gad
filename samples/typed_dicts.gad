@@ -1,4 +1,4 @@
-/**
+/***
 # Typed dicts (`DictType[K, V]`, `type NAME dict[K, V]`)
 
 A dict's keys are strings and its values anything. A **typed dict** says
@@ -47,7 +47,7 @@ An enum as K: a key is a member's name; the constructor takes the member or its
 name, `::>` its value too.
 
 @snippet enum_keys
-**/
+***/
 
 example generic {
     D := DictType[str, int]

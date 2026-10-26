@@ -1,4 +1,4 @@
-/**
+/***
 # Ranges (`..`)
 
 `from .. to` builds an inclusive, iterable `Range` (sugar for the `Range(from,
@@ -32,7 +32,7 @@ the same as `Range[type <int|float>]`). It reflects the type of its bounds as
 `@elem`.
 
 @snippet range_typed
-**/
+***/
 
 example range_basic {
     [
@@ -73,7 +73,7 @@ example range_typed {
         fits({nights: 2026-03-01D .. 2026-03-05D}, Booking),
         fits({nights: 1 .. 4}, Booking),                       // ints, not dates
         fits({nights: 2026-03-01D .. 2026-03-05D, guests: 2 .. 4}, Booking),
-        Booking.fields[0].types[0].@elem == time.cdate,
+        [f for f in Booking.fields if f.name == "nights"][0].types[0].@elem == time.cdate,
     ]
     = [true, false, true, true]
 }

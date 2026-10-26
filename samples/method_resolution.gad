@@ -1,4 +1,4 @@
-/**
+/***
 # Method Resolution
 
 How a call chooses a method.
@@ -63,7 +63,7 @@ kinds above — plain types, subclasses and structural `met<…>` — chains
 left-to-right (`obj::T1::T2`) and binds tighter than `+`.
 
 @snippet dispatch_assign
-**/
+***/
 
 example dispatch_arity {
     func area {

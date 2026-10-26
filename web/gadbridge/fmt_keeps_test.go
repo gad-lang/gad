@@ -64,7 +64,7 @@ export func opts(post) {
 	for _, want := range []string{
 		"@global Context\n",
 		"@import \"models\" as models\n@import { main: form_layout } from \"form/layout.gadx\"\n",
-		"~~\n/**\nWhat a post tells.\n**/\nexport func opts(post) {",
+		"~~\n/// What a post tells.\nexport func opts(post) {",
 		"    a := post.A\n\n    // the b of it\n    b := post.B\n",
 		"/// The layouts.\n@const (L = { a: 1 })\n",
 		"@comp item\n    p x\n\n    p y\n",

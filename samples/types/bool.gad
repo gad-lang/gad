@@ -1,4 +1,4 @@
-/**
+/***
 # bool
 
 A **bool** is `true` or `false`. Every value has a truthiness — what `if`,
@@ -22,7 +22,7 @@ are falsy, the rest truthy.
 - `flag` (`yes`/`no`), the truth of a named option.
 
 @type bool
-**/
+***/
 
 example constructors {
     [bool(1), bool(0), bool(""), bool("x"), bool([]), bool(nil)]

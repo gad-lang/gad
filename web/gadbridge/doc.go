@@ -236,6 +236,44 @@ func writeDocMembers(b *strings.Builder, members []DocMember) {
 
 // --- Gad ---
 
+// laterRootComments returns the cleaned text of the `/*** … ***/` root comments
+// after the leading one (skip): those at FILE level — not inside a statement —
+// and detached from the code below (a blank line, or no statement, after them),
+// in file order.
+func laterRootComments(f *source.File, stmts gnode.Stmts, groups []*ast.CommentGroup, skip *ast.CommentGroup) (out []string) {
+	for _, g := range groups {
+		if g == skip || len(g.List) == 0 || !isRootComment(g.List[0].Text) {
+			continue
+		}
+		pos, end := g.Pos(), g.End()
+		inside, nextLine := false, -1
+		for _, st := range stmts {
+			if st.Pos() <= pos && pos < st.End() {
+				inside = true
+				break
+			}
+			if st.Pos() >= end {
+				nextLine = source.MustFilePosition(f, st.Pos()).Line
+				break
+			}
+		}
+		if inside {
+			continue
+		}
+		if endLine := source.MustFilePosition(f, end-1).Line; nextLine < 0 || nextLine > endLine+1 {
+			out = append(out, cleanDoc(g.List[0].Text))
+		}
+	}
+	return
+}
+
+// isRootComment reports a `/*** … ***/` root comment (its fence alone on the
+// first line).
+func isRootComment(text string) bool {
+	first, _, _ := strings.Cut(text, "\n")
+	return strings.TrimSpace(first) == "/***"
+}
+
 func gadDocData(src []byte, sourceType string) (*DocData, error) {
 	fs := source.NewFileSet()
 	f := fs.AddFileData("buffer", -1, src)
@@ -261,6 +299,7 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 	if len(file.Stmts) > 0 {
 		firstStmtLine = source.MustFilePosition(f, file.Stmts[0].Pos()).Line
 	}
+	var leading *ast.CommentGroup
 	for _, g := range file.Comments {
 		if len(g.List) == 0 || !strings.HasPrefix(g.List[0].Text, "/**") {
 			continue
@@ -268,8 +307,19 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 		endLine := source.MustFilePosition(f, g.End()-1).Line
 		if firstStmtLine < 0 || firstStmtLine > endLine+1 { // blank line / no stmt after
 			d.Prose = cleanDoc(g.List[0].Text)
+			leading = g
 		}
-		break // only the leading block is considered for the module doc
+		break // only the leading block opens the module doc
+	}
+	// Further root comments along the module (`/*** … ***/` at file level, set
+	// apart from the code that follows by a blank line) give the context of the
+	// code after them: merged into the module doc in file order.
+	if more := laterRootComments(f, file.Stmts, file.Comments, leading); len(more) > 0 {
+		parts := append([]string(nil), more...)
+		if d.Prose != "" {
+			parts = append([]string{d.Prose}, parts...)
+		}
+		d.Prose = strings.Join(parts, "\n\n")
 	}
 	// In mixed/template mode the leading doc block is literal text (not a comment),
 	// so recover the module prose directly from the source.
@@ -752,14 +802,28 @@ func gadxParams(raw string) string {
 }
 
 func gadxLeadProse(file *gadxnode.File) string {
+	var (
+		parts   []string
+		leading = true // still in the comments that open the file
+	)
 	for _, stmt := range file.Stmts {
 		c, ok := stmt.(*gadxnode.CommentStmt)
 		if !ok {
-			return ""
+			leading = false
+			continue
 		}
-		if text := strings.TrimSpace(c.Text); text != "" {
-			return text
+		text := strings.TrimSpace(c.Text)
+		if text == "" {
+			continue
+		}
+		switch {
+		case leading && len(parts) == 0:
+			parts = append(parts, text) // the module's opening doc
+		case !leading && c.Root:
+			// a root comment along the file: the context of the code after it,
+			// merged into the module doc in file order
+			parts = append(parts, text)
 		}
 	}
-	return ""
+	return strings.Join(parts, "\n\n")
 }

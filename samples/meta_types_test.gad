@@ -1,4 +1,4 @@
-/**
+/***
 # Meta types (`type<X>`)
 
 A `type<X>` parameter matches a **type value** — the class `X` itself — rather
@@ -41,7 +41,7 @@ Mind the space. In a **parameter** position `type<X>` is this meta type. At an
 only where a parameter type is written.
 
 Run it: `gad test samples/meta_types_test.gad`
-**/
+***/
 
 class Rect { w = 0; h = 0 }
 class Point { x = 0; y = 0 }

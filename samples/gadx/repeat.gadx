@@ -1,4 +1,4 @@
-/**
+/***
 `(N)` — the same tag, written N times.
 
 `(N)` closes a tag's head: after the name, the shorthands and the attributes,
@@ -22,7 +22,7 @@ is folded into one `(N)`. It compares what they *write*, so two subtrees fold
 only when they are the same down to the last attribute, and only up to the
 number of copies the lowering writes out — past that a `(N)` is a loop, and
 folding would change the template rather than only how it is written.
-**/
+***/
 
 @param (; stars=4)
 

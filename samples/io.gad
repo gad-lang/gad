@@ -1,4 +1,4 @@
-/**
+/***
 # Output and Standard Streams
 
 Printing, formatting, capturing output and the standard streams. Part of the
@@ -32,7 +32,7 @@ returns the byte count; `flush(w)` pushes out buffered output and `close(o)`
 closes a closable reader/writer.
 
 @snippet streams
-**/
+***/
 
 example printing {
     n := println("total:", 3, [1, 2])     // "total: 3 [1, 2]\n" — 16 bytes

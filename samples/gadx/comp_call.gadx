@@ -1,4 +1,4 @@
-/**
+/***
 `+` sample — the three ways to say which component to render.
 
 `+name` names it. `+a.b.c` reaches it through a value. `+(expr)` renders
@@ -7,7 +7,7 @@ than written: a fallback, a branch, an entry looked up in configuration.
 
 All three take arguments the same way, and all three accept a call block with
 `@slot #name` — the head only decides *which* component runs.
-**/
+***/
 
 @comp plain(label)
 	p plain: {= label }

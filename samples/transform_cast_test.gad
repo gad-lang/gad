@@ -1,4 +1,4 @@
-/**
+/***
 # The transforming cast `:>`
 
 Three casts, by how much they may change a value:
@@ -39,7 +39,7 @@ enum takes its member the same way. A field of another type is **checked**, not
 converted: `{x: "1"} :> P` with `x int` fails (`::>` would convert it).
 
 Run it: `gad test samples/transform_cast_test.gad`
-**/
+***/
 
 class Point { x int; y int }
 class Rect { a Point; b Point }

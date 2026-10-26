@@ -1,17 +1,5 @@
 # text
 
-## Components
-
-### main
-
-## Parameters
-
-### @param
-
-```gadx
-@param(; name="world")
-```
-
 @text — a literal-text block.
 
 Every line indented under `@text` is emitted verbatim, with no tag or
@@ -25,6 +13,18 @@ diagnostics point at the right column.
 
 Use `@text` for preformatted content (license headers, ASCII art, embedded
 config, `<pre>` bodies) where you want the text as-is.
+
+## Components
+
+### main
+
+## Parameters
+
+### @param
+
+```gadx
+@param(; name="world")
+```
 
 ## Example — `text.gadx`
 

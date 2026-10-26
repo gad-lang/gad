@@ -1,4 +1,4 @@
-/**
+/***
 # Typed class fields
 
 A class field may declare the type(s) it accepts — `x int`, `v int|str`, a class
@@ -66,7 +66,7 @@ The `name? T` marker works the same way on an **interface** field: a value whose
 member is `nil` (or absent) still satisfies the interface.
 
 @snippet field_nullable
-**/
+***/
 
 example field_class {
     class Point { x int; y int }

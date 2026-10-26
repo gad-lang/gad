@@ -1,6 +1,5 @@
 # include
 
-*
 `@include` — compile source file(s) inline (the Gadx form of Gad's `include`).
 
 `@include` reads another file and compiles its statements INLINE into the

@@ -1,4 +1,4 @@
-/**
+/***
 # iterator
 
 An **iterator** is a lazy sequence: it yields the entries (key, value) of an
@@ -18,7 +18,7 @@ the type constructor form of `iterate`.
   [comprehensions](../comprehensions.md).
 
 @type iterator
-**/
+***/
 
 example constructors {
     [collect(iterator([1, 2])), collect(iterator({a: 1})), isIterator(iterator([]))]

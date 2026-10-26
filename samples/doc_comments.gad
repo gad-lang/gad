@@ -1,4 +1,4 @@
-/**
+/***
 # Doc Comments
 
 A **doc comment** documents the identifier, declaration, or
@@ -117,7 +117,7 @@ definitions — here `double` from `snippet_steps` — without showing them (and
 may declare a name again: each opens its own scope):
 
 @snippet snippet_uses
-**/
+***/
 
 example forms {
     /// the service listen address (SINGLE form, on its own line)

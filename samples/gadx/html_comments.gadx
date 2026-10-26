@@ -1,4 +1,4 @@
-/**
+/***
 Comments and declarations in inline HTML.
 
 An inline HTML region may carry the markup a real document does, and Gadx reads
@@ -18,7 +18,7 @@ each for what it is rather than as an element:
 A `gad transpile page.html` writes a `.gadx` whose `@main` renders the page,
 applying these rules: the doctype becomes `!!! 5`, HTML entities become the
 characters they name, and a `{` outside a script or a stylesheet is escaped.
-**/
+***/
 
 @main
     !!! 5

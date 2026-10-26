@@ -1,4 +1,4 @@
-/**
+/***
 Script and stylesheet content.
 
 A `<script>` or a `<style>` holds text, not markup, and Gadx reads it as such:
@@ -28,7 +28,7 @@ inside a script or a stylesheet — an inline JSON payload, a shell snippet, a
 license header. Its body is written out as given, minus the indentation the
 block itself introduces: the indentation *inside* the block is content and is
 kept, so a nested rule stays nested.
-**/
+***/
 
 ~ accent := "#c94"
 ~ maxWidth := 960

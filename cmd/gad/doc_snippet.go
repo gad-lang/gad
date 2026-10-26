@@ -210,7 +210,21 @@ func snippetRef(line string) (string, bool) {
 // the leading `/** … **/` module doc block dropped (it is already rendered as
 // the page prose).
 func exampleSource(src []byte) string {
-	return strings.TrimLeft(dropLeadingModuleDoc(string(src)), "\n")
+	return strings.TrimLeft(dropLeadingModuleDoc(dropGeneratedHeader(string(src))), "\n")
+}
+
+// reGeneratedHeader matches the line that marks a generated file (Go's
+// convention, written by gaddoc.GeneratedHeader).
+var reGeneratedHeader = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
+
+// dropGeneratedHeader removes a leading generated-file marker line (and the
+// blank lines after it): a note for whoever edits the file, not documentation.
+func dropGeneratedHeader(s string) string {
+	first, rest, _ := strings.Cut(s, "\n")
+	if !reGeneratedHeader.MatchString(strings.TrimSpace(first)) {
+		return s
+	}
+	return strings.TrimLeft(rest, "\n")
 }
 
 // dropLeadingModuleDoc removes a leading `/*** … ***/` block (and the blank lines

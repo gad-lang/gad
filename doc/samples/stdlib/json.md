@@ -71,8 +71,7 @@ str(json.IndentCount(bytes(`{"a":1}`), "", "  "))
 RawMessage(v bytes) <rawMessage>
 ```
 
-Returns a wrapped bytes to provide raw encoded JSON value to Marshal
-functions.
+Returns a wrapped bytes to provide raw encoded JSON value to Marshal functions.
 
 ## Example
 
@@ -123,8 +122,7 @@ NoQuote(v any) <encoderOptions>
 ```
 
 Returns a wrapped object to provide Marshal functions not to quote while
-encoding.
-This can be used not to quote all array or map items.
+encoding. This can be used not to quote all array or map items.
 
 ## Example
 
@@ -141,8 +139,8 @@ str(json.Marshal(json.NoQuote(42)))
 NoEscape(v any) <encoderOptions>
 ```
 
-Returns a wrapped object to provide Marshal functions not to escape html
-while encoding.
+Returns a wrapped object to provide Marshal functions not to escape html while
+encoding.
 
 ## Example
 
@@ -159,10 +157,10 @@ str(json.Marshal(json.NoEscape("a<b>c")))
 Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any>
 ```
 
-if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to true
-if floatsAsDecimal is true, parses float values as decimal
-if intAsDecimal is true, parses int values as decimal
-Unmarshal parses the JSON-encoded p and returns the result or error.
+if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to
+true if floatsAsDecimal is true, parses float values as decimal if intAsDecimal
+is true, parses int values as decimal Unmarshal parses the JSON-encoded p and
+returns the result or error.
 
 ## Example
 
@@ -245,8 +243,7 @@ str(json.IndentCount(bytes(`{"a":1}`), "", "  "))
 export IndentCount(src bytes, prefix str, indent str) <bytes> => nil
 
 /**
-Returns a wrapped bytes to provide raw encoded JSON value to Marshal
-functions.
+Returns a wrapped bytes to provide raw encoded JSON value to Marshal functions.
 
 ## Example
 
@@ -288,8 +285,7 @@ export Quote(v any) <encoderOptions> => nil
 
 /**
 Returns a wrapped object to provide Marshal functions not to quote while
-encoding.
-This can be used not to quote all array or map items.
+encoding. This can be used not to quote all array or map items.
 
 ## Example
 
@@ -303,8 +299,8 @@ str(json.Marshal(json.NoQuote(42)))
 export NoQuote(v any) <encoderOptions> => nil
 
 /**
-Returns a wrapped object to provide Marshal functions not to escape html
-while encoding.
+Returns a wrapped object to provide Marshal functions not to escape html while
+encoding.
 
 ## Example
 
@@ -318,10 +314,10 @@ str(json.Marshal(json.NoEscape("a<b>c")))
 export NoEscape(v any) <encoderOptions> => nil
 
 /**
-if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to true
-if floatsAsDecimal is true, parses float values as decimal
-if intAsDecimal is true, parses int values as decimal
-Unmarshal parses the JSON-encoded p and returns the result or error.
+if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to
+true if floatsAsDecimal is true, parses float values as decimal if intAsDecimal
+is true, parses int values as decimal Unmarshal parses the JSON-encoded p and
+returns the result or error.
 
 ## Example
 
@@ -334,7 +330,9 @@ json.Unmarshal(`[1,1.5,true,"x"]`)
 = [1, 1.5, true, "x"]
 ```
 **/
-export Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any> => nil
+export Unmarshal(
+	p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false
+) <any> => nil
 
 /**
 Reports whether p is a valid JSON encoding.

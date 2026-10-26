@@ -422,6 +422,17 @@ func writeTypeLitBody(ctx *CodeWriteContext, e *TypeLitExpr) {
 			ctx.WriteString("}")
 		})
 	}
+	// A marker type's `call { … }` factory overloads, written like `new`. (They
+	// used to be left out, so formatting `type Id { call(…) => … }` deleted
+	// them.)
+	if len(e.Call) > 0 {
+		items = append(items, func() {
+			ctx.WriteLeadDoc(e.CallDoc)
+			ctx.WriteString("call {")
+			writeClassMethods(ctx, e.Call, e.CallLBrace, e.CallRBrace)
+			ctx.WriteString("}")
+		})
+	}
 	if len(e.Methods) > 0 {
 		methods := sortedClassMembers(e.Methods)
 		items = append(items, func() {
