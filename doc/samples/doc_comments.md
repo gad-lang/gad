@@ -23,8 +23,13 @@ line is not a block.
 **File- and section-level docs use the same `/** … **/` form**, distinguished
 only by context: a block **directly above** a statement documents that statement,
 while a block **followed by a blank line (or at the end of the file)** documents
-the **module/section** — like this header. (The older three-star `/*** … ***/`
-root block is still accepted but deprecated; `gad fmt` rewrites it to `/** … **/`.)
+the **module/section** — like this header. A three-star `/*** … ***/` is a
+**root comment**: the file's own documentation, never a statement's, kept in that
+form. Every module opens with one that briefly describes it; further ones along
+the module give the context of the code that follows each. All are at file
+level, separated from the statements around them by blank lines, and the
+documentation merges them in file order. See [Conventions](conventions.md) (Doc
+comments).
 
 ````gad
 /// the service listen address (SINGLE form, on its own line)

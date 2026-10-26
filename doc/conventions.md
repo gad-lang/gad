@@ -382,20 +382,80 @@ regular `//` and `/* */` comments: a doc comment is *attached* to an AST node's
 | `INLINE`     | `IDENT /// text` (no value)   | `var pi /// the pi value`                 |
 | `INLINE_VALUE` | `IDENT = EXPR /// text`     | `const pi = 3.14 /// the pi value`        |
 | `BLOCK`      | `/**` … `**/` fenced block    | `/**`<br>`the pi value`<br>`**/`          |
-| `ROOT_BLOCK` | `/***` … `***/` fenced block  | `/***`<br>`module overview`<br>`***/`     |
+| `ROOT_BLOCK` | `/***` … `***/` fenced block  | `/***`<br>`module overview`<br>`***/` (file level only) |
 
 ### Attachment rules
 
-- A `SINGLE`/`BLOCK`/`ROOT_BLOCK` doc on the line **directly above** a target is its
+- A `SINGLE`/`BLOCK` doc on the line **directly above** a target is its
   *lead* doc and links to that target. Inside a `const (...)`/`var (...)` group it
   links to the following **spec/ident** (`ValueSpec.Doc`); at statement level it
   links to the `GenDecl`/`FuncExpr`.
-- A **blank line** between the doc and the next statement **detaches** it (a
-  standalone `ROOT_BLOCK` documents the module/section, not the next statement).
+- A **blank line** between the doc and the next statement **detaches** it: a
+  detached `BLOCK` documents the module/section, not the next statement.
+- A `ROOT_BLOCK` never documents a statement (see below).
 - `INLINE`/`INLINE_VALUE` docs trail the target on the **same line** and link to its
   ident; they apply only when there is no lead doc.
 - A doc trailing a multi-ident value-less spec (`f, g /// ...`) is invalid and is a
   parser error.
+
+### Choosing the form
+
+- A doc that fits on **one line** is written as a `SINGLE` `///`, not a
+  `/** … **/` block: a short block is simplified to `///`. This holds at every
+  level — declarations, class/interface members, methods, enum items — and the
+  formatter applies it to an **attached** block on its own.
+
+  ```gad ignore
+  /** what the shape is **/      // short: simplify …
+  describe() => "shape " + this.name
+
+  /// what the shape is          // … to a single line
+  describe() => "shape " + this.name
+  ```
+
+- Keep a `BLOCK` for a doc that needs **more than one line** — several sentences,
+  lists, tables, code fences — and for a **detached** block (a blank line after
+  it), which documents the module or section and always stays a `/** … **/`.
+- Simplifying never moves a doc: the `///` stays on the line directly above its
+  target (with any `[k=v]` metadata block between them), so it stays attached.
+
+### Root comments (`/*** … ***/`)
+
+A `ROOT_BLOCK` is the **file's** comment — the documentation of the module or
+partial as a whole — never a statement's. It keeps its three-star form: the
+formatter does not turn it into a `/** … **/` block, nor simplify it to `///`,
+however short it is.
+
+Every module **opens with a root comment** that describes it **briefly** — what
+the module is and what it is for, in a few lines. Further root comments may
+follow **along the module**, each giving the context of the source code that
+follows it (one per part of a long file, say). They are all at **file level**
+(never inside a block), and the documentation generator **merges** them, in file
+order, into the module's documentation.
+
+- **No statement right before it**: it is the first thing in the file (after
+  a shebang or a `# gad: …` directive, if any), or a **blank line** separates it
+  from the statement above.
+- **No statement right after it**: a **blank line** follows it (or nothing,
+  ending the file), so it can never read as the lead doc of the next statement.
+
+```gad ignore
+/***
+# Config
+
+The application settings.
+***/
+
+appName := "Gadapp"
+
+/***
+## Limits
+
+The bounds the server enforces.
+***/
+
+maxUsers := 100
+```
 
 ### Format rules (applied by `WriteCode`)
 
