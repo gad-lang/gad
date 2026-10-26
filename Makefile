@@ -59,6 +59,11 @@ goreleaser-setup: web-build
 # compile and package the .vsix, then move it into ./dist.
 .PHONY: build-vscode-plugin
 build-vscode-plugin:
+	# The previous build regenerated the grammar into the gad-textmate checkout;
+	# restore that generated file (only it) so the submodule update can check
+	# out the recorded commit instead of aborting on the local change. Ignored
+	# on a fresh clone, where the submodule is not checked out yet.
+	-git -C plugins/ide/vscode-gad/gad-textmate checkout -- syntaxes/gad.tmLanguage.json 2>/dev/null
 	git submodule update --init --recursive plugins/ide/vscode-gad
 	go run ./cmd/update-vscode-plugin -w
 	cd plugins/ide/vscode-gad && bun install --frozen-lockfile && bun run package

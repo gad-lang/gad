@@ -2,6 +2,7 @@ package pluginsync
 
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 )
 
@@ -36,14 +37,16 @@ type tmGrammar struct {
 // keywords (e.g. defer_ok) win over their prefixes.
 func wordRegex(words []string) string {
 	sorted := append([]string(nil), words...)
-	// longest first
-	for i := 0; i < len(sorted); i++ {
-		for j := i + 1; j < len(sorted); j++ {
-			if len(sorted[j]) > len(sorted[i]) {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
+	// Longest first (so a longer word wins over its prefix), then alphabetical:
+	// a total order, so the generated grammar is identical on every run — the
+	// words come from a map, and an order varying between runs left the
+	// gad-textmate submodule dirty after each build.
+	sort.Slice(sorted, func(i, j int) bool {
+		if len(sorted[i]) != len(sorted[j]) {
+			return len(sorted[i]) > len(sorted[j])
 		}
-	}
+		return sorted[i] < sorted[j]
+	})
 	return `\b(?:` + strings.Join(sorted, "|") + `)\b`
 }
 
