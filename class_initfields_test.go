@@ -80,3 +80,51 @@ func TestClassComputedExprStillPerField(t *testing.T) {
 		c1 := C(); c2 := C()
 		return [c1.x, c1.y, c1.seq, c2.seq]`, nil, Array{Int(1), Int(101), Int(0), Int(1)})
 }
+
+// TestClassEnumMemberDefault verifies that a field defaulting to a member of an
+// enum the module declares (`state E = E.Send`) has a static default: the
+// member is its ClassField.Value — what reflection and the forms read —, the
+// same immutable member for every instance; an optional field given nil
+// explicitly is nil, not its default; a selector of something that is not an
+// enum stays computed per instance.
+func TestClassEnumMemberDefault(t *testing.T) {
+	testExpectRun(t, `
+		enum E { Draft; Send }
+		class C { state E = E.Send; other? E = E.Draft }
+		return [C().state.@name, C().other.@name, C(;other=nil).other, C(;state=E.Draft).state.@name]`,
+		nil, Array{Str("Send"), Str("Draft"), Nil, Str("Draft")})
+
+	// in a class declared inside a function, the enum of the module
+	testExpectRun(t, `
+		enum E { Draft; Send }
+		f := func() { class C { s E = E.Send }; return C().s.@name }
+		return f()`, nil, Str("Send"))
+
+	src := `enum E { Draft; Send }
+class C {
+    state E = E.Send
+    other? E = E.Draft
+    d = {a: 1}.a
+}
+return C`
+	st := NewSymbolTable(NewBuiltins().NameSet)
+	res, err := Compile(st, []byte(src), CompileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err := NewVM(NewBuiltins().Build(), res.Bytecode).Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := ret.(*Class).RawFields()
+	for i, want := range []string{"Send", "Draft"} {
+		ev, ok := fields[i].Value.(*EnumValue)
+		if !ok || ev.Name != want {
+			t.Errorf("%s: Value %#v, want the member %s", fields[i].Name, fields[i].Value, want)
+		}
+	}
+	// a dict's key is no enum member: computed per instance, no static value
+	if fields[2].Value != nil && fields[2].Value != Nil {
+		t.Errorf("d: Value %#v, want none (computed)", fields[2].Value)
+	}
+}

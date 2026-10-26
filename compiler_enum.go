@@ -12,7 +12,7 @@ func (c *Compiler) compileEnumStmt(nd *node.EnumStmt) error {
 	if name == nil {
 		return c.Errorf(nd, "enum statement requires a name identifier")
 	}
-	return c.Compile(&node.DeclStmt{
+	if err := c.Compile(&node.DeclStmt{
 		Decl: &node.GenDecl{
 			Tok: token.Const,
 			Specs: []node.Spec{
@@ -22,7 +22,59 @@ func (c *Compiler) compileEnumStmt(nd *node.EnumStmt) error {
 				},
 			},
 		},
-	})
+	}); err != nil {
+		return err
+	}
+	// the const holds the enum built at compile time (compileEnumExpr): a
+	// selector of one of its members is a constant (enumMember)
+	if sym := c.symbolTable.lookup(name.Name); sym != nil {
+		if enum, ok := c.constantEnum(); ok {
+			if c.enums == nil {
+				c.enums = map[*Symbol]*Enum{}
+			}
+			c.enums[sym] = enum
+		}
+	}
+	return nil
+}
+
+// constantEnum is the enum compileEnumExpr added last to the constants.
+func (c *Compiler) constantEnum() (*Enum, bool) {
+	for i := len(c.constants) - 1; i >= 0; i-- {
+		if e, ok := c.constants[i].(*Enum); ok {
+			return e, true
+		}
+	}
+	return nil, false
+}
+
+// enumMember is the member `Enum.Member` names when Enum is a const an
+// `enum` statement bound — here or in an enclosing compiler —, and Member one
+// of its members: a value fixed at compile time; false otherwise.
+func (c *Compiler) enumMember(e node.Expr) (*EnumValue, bool) {
+	sel, ok := e.(*node.SelectorExpr)
+	if !ok {
+		return nil, false
+	}
+	id, ok := sel.X.(*node.IdentExpr)
+	if !ok {
+		return nil, false
+	}
+	member, ok := sel.Sel.(*node.StrLit)
+	if !ok {
+		return nil, false
+	}
+	sym := c.symbolTable.lookup(id.Name)
+	if sym == nil {
+		return nil, false
+	}
+	for cc := c; cc != nil; cc = cc.parent {
+		if enum := cc.enums[sym]; enum != nil {
+			v, ok := enum.Values[member.Value()]
+			return v, ok
+		}
+	}
+	return nil, false
 }
 
 // compileEnumExpr builds the enum value at compile time and pushes it as a

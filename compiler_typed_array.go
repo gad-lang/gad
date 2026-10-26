@@ -20,7 +20,7 @@ func (c *Compiler) typedArrayDefineExpr(body *node.TypeLitExpr) (node.Expr, erro
 
 	var inner node.CallExprNamedArgs
 	if len(body.Fields) > 0 {
-		fieldsExpr, initFieldsExpr := classFieldsExpr(body)
+		fieldsExpr, initFieldsExpr := c.classFieldsExpr(body)
 		inner.AppendS("fields", fieldsExpr)
 		if initFieldsExpr != nil {
 			inner.AppendS("initFields", initFieldsExpr)

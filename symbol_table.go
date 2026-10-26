@@ -283,6 +283,18 @@ func (st *SymbolTable) find(name string, scopes ...SymbolScope) (*Symbol, bool) 
 	return nil, false
 }
 
+// lookup is the symbol name is bound to in st or an enclosing table, as it
+// was defined there — Resolve without its side effects (no free symbol
+// defined, no builtin stored); nil when none.
+func (st *SymbolTable) lookup(name string) *Symbol {
+	for t := st; t != nil; t = t.parent {
+		if symbol, ok := t.store[name]; ok {
+			return symbol
+		}
+	}
+	return nil
+}
+
 // Resolve resolves a symbol with a given name.
 func (st *SymbolTable) Resolve(name string) (symbol *Symbol, ok bool) {
 	symbol, ok = st.store[name]

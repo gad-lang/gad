@@ -6,6 +6,10 @@ from the default expression:
 
 - **Literal** (`x = 2`, `s = "hi"`, `ok = true`) — a scalar constant, stored
   once and shared by every instance. Cheap and immutable, so sharing is safe.
+  A **member of an enum the module declares** (`state State = State.Send`) is
+  one too: the member is fixed at compile time and immutable, so it is the
+  field's static default — `Class.field`'s value, what reflection and the forms
+  built from a class read as its default.
 - **`(= expr)` lazy default** (`seq = (= n++)`) — a
   [ComputedExpr](../functions.gad) re-evaluated **per field, per instance**: each
   field with a `(=)` default is its own function call on construction.
@@ -15,7 +19,9 @@ from the default expression:
   fields). This is why a composite default like `[1, 2]` is a fresh, independent
   value in every instance — never one shared object.
 
-An explicitly passed field value always wins over its computed default.
+An explicitly passed field value always wins over its computed default — `nil`
+too: an optional field (`x? T = …`) given `nil` is `nil`, not its default; only
+a field not given at all takes it.
 
 The compiler lowers a class to a `Class("Name", (cls, define) => define(; …))`
 call; a class with plain non-literal defaults gets an
@@ -99,4 +105,26 @@ test "mixed defaults and override" {
 
     // A passed value wins over the computed default.
     t.equal(7, C(; y = 7).y)
+}
+
+/**
+A member of an enum the module declares is a static default: the same
+immutable member in every instance. An optional field given `nil` is `nil` —
+the caller asked for no value —; one not given takes its default.
+**/
+test "enum member default" {
+    enum State {
+        Draft
+        Send
+    }
+
+    class Message {
+        state State = State.Send
+        previous? State = State.Draft
+    }
+
+    t.equal("Send", Message().state.@name)
+    t.equal("Draft", Message(; state = State.Draft).state.@name)
+    t.equal("Draft", Message().previous.@name)
+    t.equal(nil, Message(; previous = nil).previous)
 }

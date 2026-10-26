@@ -100,7 +100,7 @@ func (c *Compiler) classCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 		inner.AppendS("mixins", &node.ArrayExpr{Elements: nd.Use})
 	}
 	if len(nd.Fields) > 0 {
-		fieldsExpr, initFieldsExpr := classFieldsExpr(nd)
+		fieldsExpr, initFieldsExpr := c.classFieldsExpr(nd)
 		inner.AppendS("fields", fieldsExpr)
 		if initFieldsExpr != nil {
 			inner.AppendS("initFields", initFieldsExpr)
@@ -340,7 +340,7 @@ func (c *Compiler) mixinCallExpr(nd *node.TypeLitExpr) (*node.CallExpr, error) {
 		inner.AppendS("this", node.EIdent(thisName, pos))
 	}
 	if len(nd.Fields) > 0 {
-		fieldsExpr, initFieldsExpr := classFieldsExpr(nd)
+		fieldsExpr, initFieldsExpr := c.classFieldsExpr(nd)
 		inner.AppendS("fields", fieldsExpr)
 		if initFieldsExpr != nil {
 			inner.AppendS("initFields", initFieldsExpr)
@@ -430,7 +430,7 @@ func classExtendsExpr(nd *node.TypeLitExpr) node.Expr {
 // evaluated a single time at class-definition and shared across instances, so it
 // is moved into initFields and re-evaluated per construction. Such a field is
 // emitted with no inline value (a flag), so it has no shared static default.
-func classFieldsExpr(nd *node.TypeLitExpr) (fields node.Expr, initFields node.Expr) {
+func (c *Compiler) classFieldsExpr(nd *node.TypeLitExpr) (fields node.Expr, initFields node.Expr) {
 	elems := make(node.Exprs, len(nd.Fields))
 	var inits node.Exprs
 	for i, f := range nd.Fields {
@@ -439,7 +439,7 @@ func classFieldsExpr(nd *node.TypeLitExpr) (fields node.Expr, initFields node.Ex
 			key = f.Name.Ident
 		}
 		value := f.Value
-		if value != nil && !isStaticFieldDefault(value) {
+		if value != nil && !isStaticFieldDefault(value) && !c.isEnumMember(value) {
 			inits = append(inits, &node.KeyValueLit{Key: f.Name.Ident, Value: value})
 			value = nil // emit the field as a flag: no shared static default
 		}
@@ -475,6 +475,14 @@ func classFieldsExpr(nd *node.TypeLitExpr) (fields node.Expr, initFields node.Ex
 // `fields=(; …)` array: a scalar literal (shared, evaluated once) or a `(= expr)`
 // ComputedExpr (evaluated per field per instance). Every other expression is a
 // per-instance default that must move into initFields (see classFieldsExpr).
+// isEnumMember reports whether e is `Enum.Member` of an enum the module
+// declared (enumMember): an immutable value, shared as a literal is — so the
+// field's default is static (ClassField.Value), what reflection reads.
+func (c *Compiler) isEnumMember(e node.Expr) bool {
+	_, ok := c.enumMember(e)
+	return ok
+}
+
 func isStaticFieldDefault(e node.Expr) bool {
 	switch e.(type) {
 	case *node.IntLit, *node.UintLit, *node.FloatLit, *node.DecimalLit,

@@ -107,6 +107,9 @@ type (
 		methodInterfaceIndex uint
 		interfaceIndex       uint
 		enumIndex            uint
+		// enums are the symbols an `enum` statement of this compiler bound,
+		// with their enum (enumOf): `Enum.Member` is then a constant.
+		enums map[*Symbol]*Enum
 		// warnings collects non-fatal compiler diagnostics. Forks funnel into the
 		// root compiler (see warnf), so the root holds every module's warnings.
 		warnings []*CompilerWarning
