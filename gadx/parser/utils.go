@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	gadparser "github.com/gad-lang/gad/parser"
@@ -109,48 +110,33 @@ func parseCallArgsString(s string) (args *node.CallArgs, err error) {
 
 // parseCallArgsStringAt parses the arguments of a call, s, which begins at
 // base in the original source: each argument keeps its own position there
-// (noBase: positions local to s).
+// (noBase: positions local to s). They are gad's — parsed as gad parses a
+// call, `_(` s `)` —: after `;` a name alone is a flag (`; useVuetify`, on),
+// and named arguments may be separated by new lines, as in gad.
 func parseCallArgsStringAt(s string, base source.Pos) (args *node.CallArgs, err error) {
-	lead := len(s) - len(strings.TrimLeft(s, " \t\r\n"))
-	s = strings.TrimSpace(s)
 	args = &node.CallArgs{}
-	if s == "" {
+	if strings.TrimSpace(s) == "" {
 		return args, nil
 	}
-	// at is the position of the byte i of s
-	at := func(i int) source.Pos {
-		if base == noBase {
-			return noBase
-		}
-		return base + source.Pos(lead+i)
+	const head = "_("
+	at := noBase
+	if base != noBase && int(base)-len(head) >= 1 {
+		at = base - source.Pos(len(head))
 	}
-	cur := 0
-	for _, raw := range splitTopLevelArgs(s) {
-		// the parts are s's, in order: find each where the last one ended
-		off := cur
-		if i := strings.Index(s[cur:], raw); i >= 0 {
-			off = cur + i
-		}
-		cur = off + len(raw)
-
-		part := strings.TrimSpace(raw)
-		if part == "" {
-			continue
-		}
-		off += len(raw) - len(strings.TrimLeft(raw, " \t\r\n"))
-		if strings.HasPrefix(part, "**") {
-			name := strings.TrimSpace(part[2:])
-			args.NamedArgs.Append(&node.NamedArgExpr{Ident: node.EIdent(name, at(off)), Var: true}, nil)
-			continue
-		}
-		if idx := topLevelAssignIndex(part); idx >= 0 {
-			name := strings.TrimSpace(part[:idx])
-			args.NamedArgs.AppendS(name, parseExprStr(part[idx+1:], at(off+idx+1)))
-			continue
-		}
-		args.Args.Values = append(args.Args.Values, parseExprStr(part, at(off)))
+	stmts, err := parseGadAt(head+s+")", at, false)
+	if err != nil {
+		return nil, err
 	}
-	return args, nil
+	if len(stmts) == 1 {
+		if es, ok := stmts[0].(*node.ExprStmt); ok {
+			if call, ok := es.Expr.(*node.CallExpr); ok {
+				*args = call.CallArgs
+				args.LParen, args.RParen = source.NoPos, source.NoPos
+				return args, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("not the arguments of a call: %q", s)
 }
 
 func parseFuncParamsString(s string) (params *node.FuncParams, err error) {
