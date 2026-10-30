@@ -3062,8 +3062,24 @@ func (c *Compiler) compileStructuralTypeExpr(nd node.Expr) error {
 // compiled to the value it names (a named type resolves to its ObjectType; an
 // `interface`/`meti` literal to its structural value), then OpMakeTypeUnion pops
 // them and builds a *TypeUnion at run time.
+//
+// A member `*X` — one target, not enveloped — may spread an array of types
+// into the union (`type <A | *arr | B>`): it compiles to TypeUnionSpread(X,
+// *X), which is X's types when X is an array at run time, else the pointer
+// type *X, as written anywhere else.
 func (c *Compiler) compileTypeUnionExpr(nd *node.TypeUnionExpr) error {
 	for _, t := range nd.Types {
+		if target := typeUnionSpreadTarget(t.Expr); target != nil {
+			c.emit(t, OpGetBuiltin, int(BuiltinTypeUnionSpread))
+			if err := c.Compile(target); err != nil {
+				return err
+			}
+			if err := c.Compile(t.Expr); err != nil {
+				return err
+			}
+			c.emit(t, OpCall, 2, 0)
+			continue
+		}
 		if err := c.Compile(t.Expr); err != nil {
 			return err
 		}
@@ -3078,6 +3094,22 @@ func (c *Compiler) compileTypeUnionExpr(nd *node.TypeUnionExpr) error {
 		return nil
 	}
 	c.emit(nd, OpMakeTypeUnion, len(nd.Types))
+	return nil
+}
+
+// typeUnionSpreadTarget is X of a union member `*X` that may spread an array
+// (compileTypeUnionExpr): one target, not enveloped, a name or a selector or
+// an index of one — a value an array may be in; nil for any other member
+// (`*<A|B>`, `*[]int`, a plain type).
+func typeUnionSpreadTarget(e node.Expr) node.Expr {
+	pt, ok := e.(*node.PtrTypeExpr)
+	if !ok || pt.Enveloped || len(pt.Types) != 1 {
+		return nil
+	}
+	switch x := pt.Types[0].Expr.(type) {
+	case *node.IdentExpr, *node.SelectorExpr, *node.IndexExpr:
+		return x
+	}
 	return nil
 }
 

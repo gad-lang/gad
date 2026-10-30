@@ -345,6 +345,12 @@ const (
 	// `sortKeys` printing option (#25). Appended after every earlier builtin,
 	// so existing builtin indexes do not shift.
 	BuiltinSortOrder
+	// BuiltinTypeUnionSpread is `TypeUnionSpread(value, ptrType)`, what a
+	// member `*X` of a type union (`type <A | *arr>`) compiles to
+	// (TypeUnionSpreadFunc): X's types when it is an array, else the pointer
+	// type. Appended after every earlier builtin, so existing builtin indexes
+	// do not shift.
+	BuiltinTypeUnionSpread
 
 	BuiltinEnd_
 )
@@ -397,6 +403,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"InterfaceTypeParams":    BuiltinInterfaceTypeParams,
 	"InterfaceTypes":         BuiltinInterfaceTypes,
 	"TypeCells":              BuiltinTypeCells,
+	"TypeUnionSpread":        BuiltinTypeUnionSpread,
 	"Contract":               BuiltinContract,
 	"StaticType":             BuiltinNewStaticType,
 	"TypedArrayType":         BuiltinNewTypedArrayType,
@@ -972,6 +979,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinTypeCells: &BuiltinFunction{
 		FuncName:              "TypeCells",
 		Value:                 TypeCellsFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinTypeUnionSpread: &BuiltinFunction{
+		FuncName:              "TypeUnionSpread",
+		Value:                 TypeUnionSpreadFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinContract: &BuiltinFunction{

@@ -34,6 +34,44 @@ label := func(v str|number) => isStr(v) ? "text" : "num"
 = [3, 3.5, 5, "x", 1, "text", "num"]
 ```
 
+## Spreading an array of types: `*arr`
+
+The members of a union may come from a list known only at run time — the
+classes the modules of a glob import export, those a plugin brings. In a
+`type <…>` (and a `type NAME <…>`), a member `*X` whose value is an **array of
+types** spreads them into the union, in their order, mixed with the members
+written beside it:
+
+- `type <*layouts>` — the union of the array's types;
+- `type Choice <Default | *layouts | Other | *more>` — written members and
+  arrays together;
+- `*obj.list`, `*obj["list"]` — the array by a selector or an index;
+- an array within the array is spread in turn, and an empty one adds nothing.
+
+Everywhere else `*T` is a **pointer type**, and in a union it still is when X
+is a type: `type <*int>` is the union of the pointer type `*int` (a pointer's
+target is a type, never an array, so the two never meet). `*<A|B>` and `*[]T`
+are always pointer types.
+
+```gad
+class Default {}
+class PostList {}
+class Index {}
+// what a directory of modules gave: known only at run time
+layouts := [PostList, [Index]]
+type Layout <Default | *layouts>
+accepts := func(v) { try { v :: Layout; return true } catch { return false } }
+plugins := {extra: [str]}
+[
+    str(Layout),
+    accepts(Index()),
+    accepts(1),
+    str(type <*plugins.extra | int>),
+    str(type <*int>),                 // X a type: the pointer type
+]
+= ["Default|PostList|Index", true, false, "str|int", "*int"]
+```
+
 ## Behavioural interfaces
 
 The builtin interfaces match values by the behaviour they provide, not by a
@@ -93,6 +131,25 @@ example unions {
     label := func(v str|number) => isStr(v) ? "text" : "num"
     [addOne(2), addOne(2.5), pick(5), pick("x"), 1 :: number, label("hi"), label(3)]
     = [3, 3.5, 5, "x", 1, "text", "num"]
+}
+
+example unions_spread {
+    class Default {}
+    class PostList {}
+    class Index {}
+    // what a directory of modules gave: known only at run time
+    layouts := [PostList, [Index]]
+    type Layout <Default | *layouts>
+    accepts := func(v) { try { v :: Layout; return true } catch { return false } }
+    plugins := {extra: [str]}
+    [
+        str(Layout),
+        accepts(Index()),
+        accepts(1),
+        str(type <*plugins.extra | int>),
+        str(type <*int>),                 // X a type: the pointer type
+    ]
+    = ["Default|PostList|Index", true, false, "str|int", "*int"]
 }
 
 example interfaces {

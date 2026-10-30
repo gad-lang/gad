@@ -147,3 +147,36 @@ func typeDisplayName(t Object) string {
 	}
 	return t.ToString()
 }
+
+// TypeUnionSpreadFunc is the `TypeUnionSpread(value, ptrType)` builtin a
+// member `*X` of a type union (`type <A | *arr | B>`, `type T <*arr>`)
+// compiles to. In a union, `*X` is ambiguous only in writing: X an ARRAY of
+// types spreads them into the union — the union of what a list holds, known at
+// run time (the modules a glob import found, the classes a plugin brings) —,
+// while X a type keeps `*X` the pointer type it is everywhere else (ptrType,
+// compiled as ever). A pointer's target is a type, never an array value, so
+// the two never meet. An array's members are taken as the union's own: a
+// union among them is flattened, as NewTypeUnion does, and an array among
+// them spread in turn.
+func TypeUnionSpreadFunc(c Call) (Object, error) {
+	if err := c.Args.CheckLen(2); err != nil {
+		return nil, err
+	}
+	arr, ok := c.Args.Get(0).(Array)
+	if !ok {
+		return c.Args.Get(1), nil
+	}
+	return NewTypeUnion(spreadTypes(nil, arr)...), nil
+}
+
+// spreadTypes appends the types of arr to out, an array among them spread.
+func spreadTypes(out []Object, arr Array) []Object {
+	for _, t := range arr {
+		if inner, ok := t.(Array); ok {
+			out = spreadTypes(out, inner)
+		} else {
+			out = append(out, t)
+		}
+	}
+	return out
+}

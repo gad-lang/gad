@@ -192,6 +192,45 @@ func TestTypeUnionSyntax(t *testing.T) {
 	testExpectRun(t, `type := 5; return type + 1`, nil, Int(6))
 }
 
+// TestTypeUnionSpread checks a member `*X` of a type union: X an array of
+// types spreads them into the union — alone (`type <*arr>`), mixed with other
+// members and arrays (`type <B | *arr | C | *other>`), in the declaration form,
+// by a selector or an index, an array within it spread in turn —, while X a
+// type keeps `*X` a pointer type, and `*X` out of a union is a pointer type as
+// ever.
+func TestTypeUnionSpread(t *testing.T) {
+	const classes = `class A {}; class B {}; class C {}
+		arr := [A, B]
+		accepts := func(u, v) { try { v :: u; return true } catch { return false } }
+		`
+	testExpectRun(t, classes+`return str(type <*arr>)`, nil, Str("A|B"))
+	testExpectRun(t, classes+`other := [str, [int]]
+		u := type <C | *arr | float | *other>
+		return [str(u), len(u.@types)]`, nil, Array{Str("C|A|B|float|str|int"), Int(6)})
+	testExpectRun(t, classes+`type Named <*arr | C>
+		return [str(Named), accepts(Named, A()), accepts(Named, C()), accepts(Named, 1)]`,
+		nil, Array{Str("A|B|C"), True, True, False})
+	testExpectRun(t, classes+`h := {list: [A]}
+		return [str(type <*h.list | B>), str(type <*h["list"]>)]`, nil, Array{Str("A|B"), Str("A")})
+	// an empty array adds nothing
+	testExpectRun(t, classes+`none := []
+		return str(type <C | *none>)`, nil, Str("C"))
+	// the union is checked as a written one: a parameter typed by it
+	testExpectRun(t, classes+`u := type <*arr>
+		f := func(v u) => typeName(v)
+		g := func() { try { f(1); return "accepted" } catch { return "rejected" } }
+		return [f(B()), g()]`, nil, Array{Str("B"), Str("rejected")})
+	// X a type: `*X` stays a pointer type, in a union and out of one
+	testExpectRun(t, `u := type <*int>
+		return [str(u), typeName(u.@types[0])]`, nil, Array{Str("*int"), Str("ptr")})
+	testExpectRun(t, `class A {}
+		cls := A
+		return str(type <*cls | str>)`, nil, Str("*cls|str"))
+	testExpectRun(t, `f := func(v *int) => v.v
+		x := 3
+		return f(&x)`, nil, Int(3))
+}
+
 // TestParamTypeFromEnclosingLocal covers a parameter type that names a local of
 // an enclosing scope: the type must be captured into the function's closure so it
 // resolves correctly even when the function runs in a different frame (regression
