@@ -281,7 +281,9 @@ type SourceFiles interface {
 
 A template that imports such a module recompiles when one of its files
 changes, or — for a directory — when a file is added to it, taken from it,
-renamed or written, at any depth. Use `SourceFiles` for a module the
+renamed or written, at any depth. A path not there yet is watched as a
+directory: it appearing — a directory, or a file — recompiles too. Use
+`SourceFiles` for a module the
 application builds from a directory of its own (it reads the files itself, so
 the template's compilation never sees them), e.g. a configuration made of one
 module per file:

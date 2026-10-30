@@ -133,3 +133,41 @@ func TestRenderGlobImportRecompilesOnNewFile(t *testing.T) {
 		t.Fatalf("a module taken from the glob's directory, not recompiled: %q", out)
 	}
 }
+
+// A SourceFiles path not there yet: the template recompiles when it appears.
+func TestRenderRecompilesOnSourceFilesDirCreated(t *testing.T) {
+	dir, other := t.TempDir(), t.TempDir()
+	base := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	cfg := filepath.Join(other, "cfg")
+	tpl := filepath.Join(dir, "page.gadx")
+	writeFileWithMtime(t, tpl, `@import "cfg" as cfg
+@main
+    p {= str(cfg.names) }`, base)
+
+	r := newTestRender(t, dir)
+	r.ModuleMapFunc = func(mm *gad.ModuleMap) *gad.ModuleMap {
+		return mm.Add("cfg", &maybeDirModule{dirModule{dir: cfg}})
+	}
+	out, err := renderString(r, tpl, gad.Dict{})
+	if err != nil || !strings.Contains(out, "[]") {
+		t.Fatalf("first: %q %v", out, err)
+	}
+	if err := os.Mkdir(cfg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFileWithMtime(t, filepath.Join(cfg, "a.gad"), `1`, time.Now())
+	if out = rerender(t, r, tpl); !strings.Contains(out, "a.gad=1") {
+		t.Fatalf("the directory created, not recompiled: %q", out)
+	}
+}
+
+// maybeDirModule is a dirModule whose directory may not be there: none, no
+// names.
+type maybeDirModule struct{ dirModule }
+
+func (m *maybeDirModule) Import(ctx context.Context, spec *gad.ModuleSpec) (any, string, error) {
+	if _, err := os.Stat(m.dir); os.IsNotExist(err) {
+		return gad.SourceCode{Data: []byte("export names = []"), Kind: gad.SourceKindGad}, m.dir, nil
+	}
+	return m.dirModule.Import(ctx, spec)
+}

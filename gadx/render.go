@@ -94,7 +94,9 @@ func (t *trackedImport) Import(ctx context.Context, module *gad.ModuleSpec) (any
 		if abs, err := filepath.Abs(p); err == nil {
 			p = abs
 		}
-		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+		// a directory — or a path not there yet: depended on as one, so
+		// that it appearing (a directory, or a file) recompiles
+		if fi, err := os.Stat(p); err != nil || fi.IsDir() {
 			t.tr.dir(p, -1)
 		} else {
 			t.tr.files[p] = struct{}{}
@@ -531,11 +533,14 @@ type dirState struct {
 // dirSignature is the listing of dir down to depth (-1: all of it) — each
 // entry's path, size and modification time —, and the newest of those times
 // (dir's own among them). A missing dir is the empty signature: one created
-// later differs.
+// later differs; a file there is its own size and time.
 func dirSignature(dir string, depth int) (string, time.Time) {
 	fi, err := os.Stat(dir)
-	if err != nil || !fi.IsDir() {
+	if err != nil {
 		return "", time.Time{}
+	}
+	if !fi.IsDir() {
+		return fmt.Sprintf("\x00file\x00%d\x00%d", fi.Size(), fi.ModTime().UnixNano()), fi.ModTime()
 	}
 	var (
 		sb     strings.Builder
