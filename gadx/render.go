@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,16 +25,31 @@ type templateCacheEntry struct {
 	// reset when the template recompiles (its bytecode changes).
 	ifaceCache *gad.InterfaceSatCache
 	files      map[string]time.Time
+	// dirs are the directories the template depends on by their listing (a
+	// glob's, a SourceFiles module's), each with its signature when compiled
+	dirs       map[string]dirState
 	changedAt  time.Time
 	compiledAt time.Time
 }
 
 type trackingReader struct {
 	files map[string]struct{}
+	// dirs are the directories depended on by their listing, with how deep
+	// (gad.GlobDepth: -1 all the way down)
+	dirs map[string]int
 }
 
 func newTrackingReader() *trackingReader {
-	return &trackingReader{files: make(map[string]struct{})}
+	return &trackingReader{files: make(map[string]struct{}), dirs: make(map[string]int)}
+}
+
+// dir records the directory dir as depended on to depth: the deepest asked
+// wins.
+func (r *trackingReader) dir(dir string, depth int) {
+	if old, ok := r.dirs[dir]; ok && (old < 0 || (depth >= 0 && depth <= old)) {
+		return
+	}
+	r.dirs[dir] = depth
 }
 
 func (r *trackingReader) Read(path string) ([]byte, string, error) {
@@ -53,20 +69,37 @@ type SourceFile interface {
 	SourceFile() string
 }
 
-// trackedImport is a SourceFile whose import records its file as one the
-// template depends on.
+// SourceFiles is a module an application adds to the templates' module map
+// (Render.ModuleMapFunc) that is made of several files — a directory of
+// modules it loads itself, say —: SourceFiles are their paths. A path that is
+// a directory is depended on by its whole tree — a file added, taken, renamed
+// or written in it —; any other, as a SourceFile's. A template that imports
+// the module recompiles when one of them changes. The paths are asked each
+// time a template importing it compiles.
+type SourceFiles interface {
+	gad.Importable
+	SourceFiles() []string
+}
+
+// trackedImport is a SourceFile (or SourceFiles) whose import records its
+// files as ones the template depends on.
 type trackedImport struct {
 	gad.Importable
-	file string
-	tr   *trackingReader
+	files func() []string
+	tr    *trackingReader
 }
 
 func (t *trackedImport) Import(ctx context.Context, module *gad.ModuleSpec) (any, string, error) {
-	p := t.file
-	if abs, err := filepath.Abs(p); err == nil {
-		p = abs
+	for _, p := range t.files() {
+		if abs, err := filepath.Abs(p); err == nil {
+			p = abs
+		}
+		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+			t.tr.dir(p, -1)
+		} else {
+			t.tr.files[p] = struct{}{}
+		}
 	}
-	t.tr.files[p] = struct{}{}
 	return t.Importable.Import(ctx, module)
 }
 
@@ -232,7 +265,14 @@ func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error 
 	}
 	if entry != nil {
 		lastTime = entry.compiledAt
-		if changedFiles, newest := changedPaths(entry.files, base); len(changedFiles) > 0 {
+		changedFiles, newest := changedPaths(entry.files, base)
+		if changedDirs, dnewest := changedDirPaths(entry.dirs, base); len(changedDirs) > 0 {
+			changedFiles = append(changedFiles, changedDirs...)
+			if dnewest.After(newest) {
+				newest = dnewest
+			}
+		}
+		if len(changedFiles) > 0 {
 			changed = changedFiles
 
 			// The delay exists to avoid compiling a file still being written,
@@ -360,22 +400,31 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		TranspilePath: r.TranspilePath,
 		Inspect:       r.Inspect,
 		Fallback:      r.Fallback,
+		// a glob depends on its directory's listing
+		OnGlob: tr.dir,
 	})
 
 	if r.ModuleMapFunc != nil {
 		mm = r.ModuleMapFunc(mm)
 		// A module the application adds from a file of its own (a SourceFile)
-		// is tracked as the templates' files are, once a template imports it:
-		// a change to it recompiles.
+		// or from several (SourceFiles) is tracked as the templates' files
+		// are, once a template imports it: a change to it recompiles.
 		// (in a copy: the map given may outlive this compilation)
 		var tracked *gad.ModuleMap
 		for name, im := range mm.Importers() {
-			if sf, ok := im.(SourceFile); ok {
-				if tracked == nil {
-					tracked = mm.Copy()
-				}
-				tracked.Add(name, &trackedImport{Importable: im, file: sf.SourceFile(), tr: tr})
+			var files func() []string
+			switch sf := im.(type) {
+			case SourceFiles:
+				files = sf.SourceFiles
+			case SourceFile:
+				files = func() []string { return []string{sf.SourceFile()} }
+			default:
+				continue
 			}
+			if tracked == nil {
+				tracked = mm.Copy()
+			}
+			tracked.Add(name, &trackedImport{Importable: im, files: files, tr: tr})
 		}
 		if tracked != nil {
 			mm = tracked
@@ -432,11 +481,18 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		}
 	}
 
+	dirs := make(map[string]dirState, len(tr.dirs))
+	for d, depth := range tr.dirs {
+		sig, _ := dirSignature(d, depth)
+		dirs[d] = dirState{depth: depth, sig: sig}
+	}
+
 	return &templateCacheEntry{
 		bc:         bc,
 		builtins:   r.cachedBuiltins,
 		ifaceCache: gad.NewInterfaceSatCache(),
 		files:      files,
+		dirs:       dirs,
 	}, nil
 }
 
@@ -460,6 +516,67 @@ func changedPaths(files map[string]time.Time, base string) (out []string, newest
 			if err == nil && fi != nil && fi.ModTime().After(newest) {
 				newest = fi.ModTime()
 			}
+		}
+	}
+	return out, newest
+}
+
+// dirState is a directory a template depends on by its listing: how deep
+// (gad.GlobDepth) and its signature when the template compiled.
+type dirState struct {
+	depth int
+	sig   string
+}
+
+// dirSignature is the listing of dir down to depth (-1: all of it) — each
+// entry's path, size and modification time —, and the newest of those times
+// (dir's own among them). A missing dir is the empty signature: one created
+// later differs.
+func dirSignature(dir string, depth int) (string, time.Time) {
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		return "", time.Time{}
+	}
+	var (
+		sb     strings.Builder
+		newest = fi.ModTime()
+	)
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, werr error) error {
+		if werr != nil || p == dir {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, p)
+		if d.IsDir() && depth >= 0 && strings.Count(filepath.ToSlash(rel), "/")+1 >= depth {
+			return filepath.SkipDir
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		if info.ModTime().After(newest) {
+			newest = info.ModTime()
+		}
+		fmt.Fprintf(&sb, "%s\x00%d\x00%d\n", filepath.ToSlash(rel), info.Size(), info.ModTime().UnixNano())
+		return nil
+	})
+	return sb.String(), newest
+}
+
+// changedDirPaths lists the directories whose listing is no longer the one
+// recorded, and the newest time in them (changedPaths' delay anchor).
+func changedDirPaths(dirs map[string]dirState, base string) (out []string, newest time.Time) {
+	for d, st := range dirs {
+		sig, n := dirSignature(d, st.depth)
+		if sig == st.sig {
+			continue
+		}
+		rel, err := filepath.Rel(base, d)
+		if err != nil {
+			rel = d
+		}
+		out = append(out, filepath.ToSlash(rel)+"/")
+		if n.After(newest) {
+			newest = n
 		}
 	}
 	return out, newest

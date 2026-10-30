@@ -254,6 +254,50 @@ r.OnRender(func(first bool, mainFile string, files []string, lastTime time.Time,
 - This debounce prevents recompilation during rapid file-save sequences.
 - If recompilation fails, the old bytecode remains in the cache and continues
   to be served. Callbacks still fire with the error.
+- A **glob import** (`import("parts/*.gad")`, `import("layouts/*.gadx")::dict`)
+  depends on its directory's listing, down to the pattern's depth (`**`: the
+  whole tree): a module added to it, taken from it, renamed or written
+  recompiles the template — not only a change to the files it read. In
+  `files` a directory is reported with a trailing `/`.
+
+### Modules of the application: `SourceFile` and `SourceFiles`
+
+A module the application adds to the templates' module map (`ModuleMapFunc`)
+is tracked like the templates' own files when it says what it is made of:
+
+```go
+// one file
+type SourceFile interface {
+    gad.Importable
+    SourceFile() string
+}
+
+// several: files, and directories depended on by their whole tree
+type SourceFiles interface {
+    gad.Importable
+    SourceFiles() []string
+}
+```
+
+A template that imports such a module recompiles when one of its files
+changes, or — for a directory — when a file is added to it, taken from it,
+renamed or written, at any depth. Use `SourceFiles` for a module the
+application builds from a directory of its own (it reads the files itself, so
+the template's compilation never sees them), e.g. a configuration made of one
+module per file:
+
+```go
+type configDir struct{ dir string }
+
+func (m *configDir) SourceFiles() []string { return []string{m.dir} }
+func (m *configDir) Import(ctx context.Context, _ *gad.ModuleSpec) (any, string, error) {
+    // … build the module from the files of m.dir
+}
+
+r.ModuleMapFunc = func(mm *gad.ModuleMap) *gad.ModuleMap {
+    return mm.Add("config", &configDir{dir: "config"})
+}
+```
 
 ## Transpile
 

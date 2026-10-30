@@ -78,7 +78,14 @@ type FileImporter struct {
 	// wins, file by file: an application overrides what a library embeds
 	// by writing its own. It needs a Root (or WorkDir) to be relative to.
 	Fallback fs.FS
-	name     string
+	// OnGlob, when set, is told the directory each glob pattern is expanded
+	// in (its static base, absolute, on disk or not) and how deep the
+	// pattern reaches (gad.GlobDepth: -1 for `**`): what a program that
+	// caches the compiled module watches, so that a file added to it, or
+	// taken from it, compiles the module again — a glob depends on the
+	// listing, not only on the files it read.
+	OnGlob func(dir string, depth int)
+	name   string
 }
 
 // InspectFunc looks at a source a compilation reads: srcPath is its path, file
@@ -313,6 +320,10 @@ func (m *FileImporter) Glob() ([]gad.GlobMatch, error) {
 		}
 	}
 
+	if m.OnGlob != nil {
+		m.OnGlob(baseDir, gad.GlobDepth(glob))
+	}
+
 	onDisk := true
 	info, err := os.Stat(baseDir)
 	switch {
@@ -496,6 +507,7 @@ func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 		TranspilePath: m.TranspilePath,
 		Inspect:       m.Inspect,
 		Fallback:      m.Fallback,
+		OnGlob:        m.OnGlob,
 		WriteBytecode: m.WriteBytecode,
 		ModuleMap:     m.ModuleMap,
 		Builtins:      m.Builtins,
