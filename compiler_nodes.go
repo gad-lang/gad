@@ -50,22 +50,17 @@ func (c *Compiler) compileIfStmt(nd *node.IfStmt) error {
 	jumpPos1 := -1
 	var skipElse bool
 	if v, ok := nd.Cond.(node.BoolExpr); !ok {
-		op := OpJumpFalsy
-		if v, ok := simplifyExpr(nd.Cond).(*node.UnaryExpr); ok && v.Token.Is(token.Null, token.NotNull) {
-			if err := c.Compile(v.Expr); err != nil {
-				return err
-			}
-
-			op = OpJumpNotNil
-			if v.Token == token.NotNull {
-				op = OpJumpNil
-			}
-		} else if err := c.Compile(nd.Cond); err != nil {
+		// `x == nil` / `x != nil` compile as any condition (OpIsNil /
+		// OpNotIsNil, then OpJumpFalsy, which pops it): OpJumpNotNil and
+		// OpJumpNil are `??`'s, and leave the value on the stack on one of
+		// their ways — a value too many after the if, and in a loop one more
+		// each turn.
+		if err := c.Compile(nd.Cond); err != nil {
 			return err
 		}
 
 		// first jump placeholder
-		jumpPos1 = c.emit(nd, op, 0)
+		jumpPos1 = c.emit(nd, OpJumpFalsy, 0)
 		if err := c.Compile(nd.Body); err != nil {
 			return err
 		}
@@ -4598,22 +4593,15 @@ func (c *Compiler) compileCondExpr(nd *node.CondExpr) error {
 		return c.Compile(nd.False)
 	}
 
-	op := OpJumpFalsy
-	if v, ok := simplifyExpr(nd.Cond).(*node.UnaryExpr); ok && v.Token.Is(token.Null, token.NotNull) {
-		if err := c.Compile(v.Expr); err != nil {
-			return err
-		}
-
-		op = OpJumpNotNil
-		if v.Token == token.NotNull {
-			op = OpJumpNil
-		}
-	} else if err := c.Compile(nd.Cond); err != nil {
+	// `x == nil ? a : b` as any condition (see compileIfStmt): `??`'s jumps
+	// leave the value on the stack, and an operation around the conditional
+	// took it (`1 + (x == nil ? 1 : x)` was 1 + x + x).
+	if err := c.Compile(nd.Cond); err != nil {
 		return err
 	}
 
 	// first jump placeholder
-	jumpPos1 := c.emit(nd, op, 0)
+	jumpPos1 := c.emit(nd, OpJumpFalsy, 0)
 	if err := c.Compile(nd.True); err != nil {
 		return err
 	}
