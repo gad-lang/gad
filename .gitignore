@@ -49,3 +49,4 @@
 
 # skip generated doc of samples
 /samples/doc
+/samples/.gad/ide.yaml

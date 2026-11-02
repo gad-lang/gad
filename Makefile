@@ -276,6 +276,15 @@ test-md:
 	go run ./cmd/gad test README.md doc doc/stdlib gadx/README.md gadx/docs
 
 .PHONY: test
+# test-windows runs the CI's Windows job — make web-build test build-cli
+# generate-all — on the working tree, in a local VirtualBox VM of Windows
+# Server 2022 (its evaluation): the download, the VM, the installation and the
+# tools the first time, each step done skipped after (scripts/windows-vm,
+# README.md there). WINVM_TARGETS chooses the targets.
+.PHONY: test-windows
+test-windows:
+	bash scripts/windows-vm/winvm.sh all
+
 test: version generate lint
 	go test -count=1 -cover ./...
 	go test -count=1 -race -coverpkg=./... ./...
