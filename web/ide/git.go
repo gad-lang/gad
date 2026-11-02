@@ -33,6 +33,7 @@ import (
 //
 //	GET  git/changes                  {"files": [summary]}
 //	GET  git/diff?path&from           a change's diff ({path, from, old, new, binary})
+//	GET  git/root                     the workspace's folder in the repository
 //	POST git/save {path, content}     the file written
 //	POST git/commit/new {message, paths}  the files changed of paths (of the
 //	                                  workspace; none: all of it) added and
@@ -1125,6 +1126,14 @@ func (s *Server) serveGit(w http.ResponseWriter, r *http.Request) {
 		default:
 			writeJSON(w, map[string]any{"hash": hash, "subject": subject})
 		}
+	case "git/root":
+		// the workspace's folder in the repository ("" its root)
+		p, err := s.gitPrefix(ctx)
+		if err != nil {
+			fail(err)
+			return
+		}
+		writeJSON(w, map[string]any{"root": strings.TrimSuffix(p, "/")})
 	case "git/branches":
 		bs, err := s.GitBranches(ctx)
 		if err != nil {

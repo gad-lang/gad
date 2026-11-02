@@ -489,3 +489,10 @@ func TestGitCommitNew(t *testing.T) {
 		t.Fatalf("nothing: %d %s", w.Code, w.Body)
 	}
 }
+
+func TestGitRoot(t *testing.T) {
+	_, h := gitRepo(t)
+	if r := decode[map[string]string](t, do(t, h, "GET", "/api/ide/git/root", nil)); r["root"] != "src" {
+		t.Fatalf("root = %v", r)
+	}
+}
