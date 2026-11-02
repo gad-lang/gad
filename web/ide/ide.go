@@ -185,6 +185,8 @@ func (s *Server) handleWorkspace(w http.ResponseWriter, r *http.Request) {
 		// a repository in it — the workspace's, a folder's —: the Changes and
 		// Git panels (git.go), each on the repository of the file open
 		"git": len(s.GitRepos(r.Context())) > 0,
+		// the Changes panel commits (git/commit/new)
+		"gitCommit": true,
 	})
 }
 

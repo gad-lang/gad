@@ -34,6 +34,11 @@ import (
 //	GET  git/changes                  {"files": [summary]}
 //	GET  git/diff?path&from           a change's diff ({path, from, old, new, binary})
 //	POST git/save {path, content}     the file written
+//	POST git/commit/new {message, paths}  the files changed of paths (of the
+//	                                  workspace; none: all of it) added and
+//	                                  committed — {hash, subject}; the author
+//	                                  the header X-Git-Author ("Name <email>"),
+//	                                  else the repository's
 //	GET  git/branches                 {"branches": [{name, hash, remote, current, subject}], "default": name}
 //	GET  git/log?ref&skip&limit[&path]  {"commits": [{hash, parents, author, email, date, subject, refs}]}
 //	                                  — of a file (path): its history, renames followed, each
@@ -192,6 +197,72 @@ func (s *Server) gitServer(repo string) (*Server, error) {
 	sub := *s
 	sub.Root = dir
 	return &sub, nil
+}
+
+var (
+	errCommitMessage   = errors.New("a commit needs a message")
+	errNothingToCommit = errors.New("nothing to commit")
+	authorRe           = regexp.MustCompile(`^\s*([^<>]+?)\s*<([^<>\s]+)>\s*$`)
+)
+
+// GitCommitNew commits the files changed of paths (of the workspace; none:
+// all of it) — added first, new ones too, deleted ones gone — with message;
+// author, "Name <email>", when given (the committer too), else the
+// repository's. It answers the commit's short hash and subject.
+func (s *Server) GitCommitNew(ctx context.Context, message string, paths []string, author string) (string, string, error) {
+	if strings.TrimSpace(message) == "" {
+		return "", "", errCommitMessage
+	}
+	if _, err := s.gitPrefix(ctx); err != nil {
+		return "", "", err
+	}
+	spec := []string{"."}
+	if len(paths) > 0 {
+		spec = spec[:0]
+		for _, p := range paths {
+			c, err := gitPath(p)
+			if err != nil {
+				return "", "", err
+			}
+			spec = append(spec, c)
+		}
+	}
+	if _, err := s.gitCmd(ctx, append([]string{"add", "-A", "--"}, spec...)...); err != nil {
+		return "", "", err
+	}
+	// only these paths: what else was staged stays staged
+	if out, err := s.gitCmd(ctx, append([]string{"diff", "--cached", "--name-only", "--"}, spec...)...); err == nil && strings.TrimSpace(string(out)) == "" {
+		return "", "", errNothingToCommit
+	}
+	env := []string{}
+	if m := authorRe.FindStringSubmatch(author); m != nil {
+		env = append(env, "GIT_AUTHOR_NAME="+m[1], "GIT_AUTHOR_EMAIL="+m[2], "GIT_COMMITTER_NAME="+m[1], "GIT_COMMITTER_EMAIL="+m[2])
+	}
+	args := append([]string{"commit", "-q", "-m", message, "--"}, spec...)
+	if _, err := s.gitCmdEnv(ctx, env, args...); err != nil {
+		return "", "", err
+	}
+	out, err := s.gitCmd(ctx, "log", "-1", "--format=%h%x00%s")
+	if err != nil {
+		return "", "", err
+	}
+	hash, subject, _ := strings.Cut(strings.TrimSpace(string(out)), "\x00")
+	return hash, subject, nil
+}
+
+// gitCmdEnv is gitCmd with more of the environment (env).
+func (s *Server) gitCmdEnv(ctx context.Context, env []string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = s.Root
+	cmd.Env = append(gitEnv(), env...)
+	var out, errb bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	if err := cmd.Run(); err != nil {
+		return out.Bytes(), fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(errb.String()))
+	}
+	return out.Bytes(), nil
 }
 
 // gitPrefix is the workspace's folder in the repository ("" at its root,
@@ -966,7 +1037,7 @@ func (s *Server) serveGit(w http.ResponseWriter, r *http.Request) {
 	op := strings.TrimPrefix(r.URL.Path, "/api/ide/")
 	ctx := r.Context()
 	q := r.URL.Query()
-	if op == "git/save" {
+	if op == "git/save" || op == "git/commit/new" {
 		if r.Method != http.MethodPost {
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
@@ -1036,6 +1107,24 @@ func (s *Server) serveGit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, map[string]any{"saved": true})
+	case "git/commit/new":
+		var req struct {
+			Message string   `json:"message"`
+			Paths   []string `json:"paths"`
+		}
+		if err := decodeBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		hash, subject, err := s.GitCommitNew(ctx, req.Message, req.Paths, r.Header.Get("X-Git-Author"))
+		switch {
+		case errors.Is(err, errCommitMessage), errors.Is(err, errNothingToCommit), errors.Is(err, errOutsideRoot):
+			writeError(w, http.StatusBadRequest, err.Error())
+		case err != nil:
+			fail(err)
+		default:
+			writeJSON(w, map[string]any{"hash": hash, "subject": subject})
+		}
 	case "git/branches":
 		bs, err := s.GitBranches(ctx)
 		if err != nil {

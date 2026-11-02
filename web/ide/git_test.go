@@ -1,7 +1,10 @@
 package ide
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -410,5 +413,79 @@ func TestGitNestedRepos(t *testing.T) {
 	// no repo, the workspace's: not one
 	if code := do(t, h, "GET", "/api/ide/git/changes", nil).Code; code == http.StatusOK {
 		t.Error("the changes of a workspace in no repository")
+	}
+}
+
+func TestGitCommitNew(t *testing.T) {
+	repo, h := gitRepo(t)
+	if ws := decode[map[string]any](t, do(t, h, "GET", "/api/ide/workspace", nil)); ws["gitCommit"] != true {
+		t.Fatalf("workspace gitCommit = %v", ws["gitCommit"])
+	}
+	os.Rename(filepath.Join(repo, "src/old.gad"), filepath.Join(repo, "src/new.gad"))
+	os.WriteFile(filepath.Join(repo, "src/a.gad"), []byte("x := 11\n"), 0o644)
+	os.WriteFile(filepath.Join(repo, "src/b.gad"), []byte("b\n"), 0o644)
+	os.WriteFile(filepath.Join(repo, "README"), []byte("out\n"), 0o644)
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repo
+		cmd.Env = gitEnv()
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+
+	if w := do(t, h, "GET", "/api/ide/git/commit/new", nil); w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET: %d", w.Code)
+	}
+	if w := do(t, h, "POST", "/api/ide/git/commit/new", map[string]any{"message": " "}); w.Code != http.StatusBadRequest {
+		t.Fatalf("no message: %d %s", w.Code, w.Body)
+	}
+	for _, p := range []string{"../README", ".git/config"} {
+		if w := do(t, h, "POST", "/api/ide/git/commit/new", map[string]any{"message": "m", "paths": []string{p}}); w.Code != http.StatusBadRequest {
+			t.Fatalf("path %s: %d %s", p, w.Code, w.Body)
+		}
+	}
+
+	// the chosen: the rename (both of its sides) and b.gad; a.gad stays changed
+	body, _ := json.Marshal(map[string]any{"message": "rename and b", "paths": []string{"new.gad", "old.gad", "b.gad"}})
+	req := httptest.NewRequest("POST", "/api/ide/git/commit/new", bytes.NewReader(body))
+	req.Header.Set("X-Git-Author", "Bob Builder <bob@example.com>")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("commit: %d %s", w.Code, w.Body)
+	}
+	c := decode[struct{ Hash, Subject string }](t, w)
+	if c.Hash == "" || c.Subject != "rename and b" {
+		t.Fatalf("commit = %+v", c)
+	}
+	if got := git("log", "-1", "--format=%an <%ae>|%cn|%s"); got != "Bob Builder <bob@example.com>|Bob Builder|rename and b" {
+		t.Fatalf("log = %q", got)
+	}
+	if got := git("show", "--name-status", "--format=", "HEAD"); !strings.Contains(got, "src/b.gad") ||
+		!strings.Contains(got, "src/new.gad") || !strings.Contains(got, "src/old.gad") || strings.Contains(got, "a.gad") {
+		t.Fatalf("committed = %q", got)
+	}
+	if got := git("status", "--porcelain"); got != "M README\n M src/a.gad" {
+		t.Fatalf("status = %q", got)
+	}
+
+	// none chosen: all of the workspace — never out of it (README); the
+	// repository's author
+	if w := do(t, h, "POST", "/api/ide/git/commit/new", map[string]any{"message": "all"}); w.Code != 200 {
+		t.Fatalf("commit all: %d %s", w.Code, w.Body)
+	}
+	if got := git("log", "-1", "--format=%an|%s"); !strings.HasSuffix(got, "|all") {
+		t.Fatalf("log = %q", got)
+	}
+	if got := git("status", "--porcelain"); got != "M README" {
+		t.Fatalf("status = %q", got)
+	}
+	if w := do(t, h, "POST", "/api/ide/git/commit/new", map[string]any{"message": "again"}); w.Code != http.StatusBadRequest ||
+		!strings.Contains(w.Body.String(), "nothing to commit") {
+		t.Fatalf("nothing: %d %s", w.Code, w.Body)
 	}
 }
