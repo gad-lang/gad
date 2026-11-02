@@ -34,6 +34,7 @@ import (
 //	GET  git/changes                  {"files": [summary]}
 //	GET  git/diff?path&from           a change's diff ({path, from, old, new, binary})
 //	GET  git/root                     the workspace's folder in the repository
+//	…    git/stash…                   the stashes (stash.go)
 //	POST git/save {path, content}     the file written
 //	POST git/commit/new {message, paths}  the files changed of paths (of the
 //	                                  workspace; none: all of it) added and
@@ -235,12 +236,8 @@ func (s *Server) GitCommitNew(ctx context.Context, message string, paths []strin
 	if out, err := s.gitCmd(ctx, append([]string{"diff", "--cached", "--name-only", "--"}, spec...)...); err == nil && strings.TrimSpace(string(out)) == "" {
 		return "", "", errNothingToCommit
 	}
-	env := []string{}
-	if m := authorRe.FindStringSubmatch(author); m != nil {
-		env = append(env, "GIT_AUTHOR_NAME="+m[1], "GIT_AUTHOR_EMAIL="+m[2], "GIT_COMMITTER_NAME="+m[1], "GIT_COMMITTER_EMAIL="+m[2])
-	}
 	args := append([]string{"commit", "-q", "-m", message, "--"}, spec...)
-	if _, err := s.gitCmdEnv(ctx, env, args...); err != nil {
+	if _, err := s.gitCmdEnv(ctx, authorEnv(author), args...); err != nil {
 		return "", "", err
 	}
 	out, err := s.gitCmd(ctx, "log", "-1", "--format=%h%x00%s")
@@ -1038,6 +1035,10 @@ func (s *Server) serveGit(w http.ResponseWriter, r *http.Request) {
 	op := strings.TrimPrefix(r.URL.Path, "/api/ide/")
 	ctx := r.Context()
 	q := r.URL.Query()
+	if op == "git/stashes" || strings.HasPrefix(op, "git/stash/") || op == "git/stash" {
+		s.serveStash(w, r, op)
+		return
+	}
 	if op == "git/save" || op == "git/commit/new" {
 		if r.Method != http.MethodPost {
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
