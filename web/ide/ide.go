@@ -182,8 +182,9 @@ func (s *Server) handleWorkspace(w http.ResponseWriter, r *http.Request) {
 		"name":     filepath.Base(s.Root),
 		"openFile": s.OpenFile,
 		"compute":  compute,
-		// in a git repository: the Changes and Git panels (git.go)
-		"git": s.GitRepo(r.Context()),
+		// a repository in it — the workspace's, a folder's —: the Changes and
+		// Git panels (git.go), each on the repository of the file open
+		"git": len(s.GitRepos(r.Context())) > 0,
 	})
 }
 

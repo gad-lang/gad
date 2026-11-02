@@ -340,3 +340,75 @@ func TestGitLogFiltersAuthorsBlame(t *testing.T) {
 		t.Errorf("blame out of the workspace: %d", w.Code)
 	}
 }
+
+// A workspace in no repository with folders that are one: git on (the
+// panels), the repositories listed, each route on the one asked (repo) —
+// its paths of its folder —, a folder that is not one refused.
+func TestGitNestedRepos(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	root := t.TempDir()
+	git := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(gitEnv(), "GIT_AUTHOR_NAME=Ann", "GIT_AUTHOR_EMAIL=ann@example.com",
+			"GIT_COMMITTER_NAME=Ann", "GIT_COMMITTER_EMAIL=ann@example.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	for _, r := range []string{"a", "b/c"} {
+		dir := filepath.Join(root, filepath.FromSlash(r))
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		git(dir, "init", "-q", "-b", "main")
+		if err := os.WriteFile(filepath.Join(dir, "f.txt"), []byte("one\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		git(dir, "add", ".")
+		git(dir, "commit", "-q", "-m", "first of "+r)
+	}
+	// a change in b/c only
+	if err := os.WriteFile(filepath.Join(root, "b", "c", "f.txt"), []byte("two\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.MkdirAll(filepath.Join(root, "node_modules", "x", ".git"), 0o755)
+	s, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := s.Handler()
+	if ws := decode[map[string]any](t, do(t, h, "GET", "/api/ide/workspace", nil)); ws["git"] != true {
+		t.Fatalf("workspace git = %v", ws["git"])
+	}
+	repos := decode[map[string][]string](t, do(t, h, "GET", "/api/ide/git/repos", nil))["repos"]
+	if strings.Join(repos, ",") != "a,b/c" {
+		t.Fatalf("repos: %v", repos)
+	}
+	changes := func(repo string) string {
+		files := decode[map[string][]GitFile](t, do(t, h, "GET", "/api/ide/git/changes?repo="+repo, nil))["files"]
+		var out []string
+		for _, f := range files {
+			out = append(out, f.Status+" "+f.Path)
+		}
+		return strings.Join(out, ",")
+	}
+	if got := changes("b/c"); got != "M f.txt" {
+		t.Errorf("changes of b/c: %q", got)
+	}
+	if got := changes("a"); got != "" {
+		t.Errorf("changes of a: %q", got)
+	}
+	for _, bad := range []string{"b", "../x", "nope"} {
+		if code := do(t, h, "GET", "/api/ide/git/changes?repo="+bad, nil).Code; code != http.StatusBadRequest {
+			t.Errorf("repo %q: %d", bad, code)
+		}
+	}
+	// no repo, the workspace's: not one
+	if code := do(t, h, "GET", "/api/ide/git/changes", nil).Code; code == http.StatusOK {
+		t.Error("the changes of a workspace in no repository")
+	}
+}

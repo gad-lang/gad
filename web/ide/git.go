@@ -23,6 +23,14 @@ import (
 // git is the binary; paths are the workspace's, Root possibly a folder of
 // the repository (only its files are shown).
 //
+//	GET  git/repos                    {"repos": [path]}: the repositories of the
+//	                                  workspace — "" when it is in one, and its
+//	                                  folders that are one (nested, submodules)
+//
+// Every route takes repo, a folder of the workspace that is a repository
+// (one of git/repos): the route on it — its paths are of that folder —;
+// none, the workspace's.
+//
 //	GET  git/changes                  {"files": [summary]}
 //	GET  git/diff?path&from           a change's diff ({path, from, old, new, binary})
 //	POST git/save {path, content}     the file written
@@ -128,6 +136,62 @@ func gitEnv() (env []string) {
 func (s *Server) GitRepo(ctx context.Context) bool {
 	out, err := s.gitCmd(ctx, "rev-parse", "--is-inside-work-tree")
 	return err == nil && strings.TrimSpace(string(out)) == "true"
+}
+
+// reposDepth and reposMax bound the search of the repositories in the
+// workspace (GitRepos): how deep, how many.
+const (
+	reposDepth = 6
+	reposMax   = 100
+)
+
+// reposSkip are the folders not searched for repositories.
+var reposSkip = map[string]bool{".git": true, "node_modules": true, "vendor": true, ".cache": true}
+
+// GitRepos are the repositories of the workspace: "" when the workspace is in
+// one, then its folders that are one ("sub", "lib/x": a nested repository, a
+// submodule), by their path — at most reposMax, reposDepth deep.
+func (s *Server) GitRepos(ctx context.Context) []string {
+	var repos []string
+	if s.GitRepo(ctx) {
+		repos = append(repos, "")
+	}
+	_ = filepath.WalkDir(s.Root, func(p string, d os.DirEntry, err error) error {
+		if err != nil || !d.IsDir() || p == s.Root {
+			return nil
+		}
+		rel, _ := filepath.Rel(s.Root, p)
+		if reposSkip[d.Name()] || strings.Count(rel, string(filepath.Separator)) >= reposDepth || len(repos) >= reposMax {
+			return filepath.SkipDir
+		}
+		if _, err := os.Lstat(filepath.Join(p, ".git")); err == nil {
+			repos = append(repos, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	return repos
+}
+
+// gitServer is the server of the repository repo of the workspace: its
+// folder as the root of the routes ("" the workspace's own).
+func (s *Server) gitServer(repo string) (*Server, error) {
+	if repo == "" {
+		return s, nil
+	}
+	p, err := gitPath(repo)
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Join(s.Root, filepath.FromSlash(p))
+	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+		return nil, errOutsideRoot
+	}
+	if _, err := os.Lstat(filepath.Join(dir, ".git")); err != nil {
+		return nil, errNoGit
+	}
+	sub := *s
+	sub.Root = dir
+	return &sub, nil
 }
 
 // gitPrefix is the workspace's folder in the repository ("" at its root,
@@ -921,6 +985,19 @@ func (s *Server) serveGit(w http.ResponseWriter, r *http.Request) {
 		return p, true
 	}
 	fail := func(err error) { writeError(w, http.StatusInternalServerError, err.Error()) }
+	if op == "git/repos" {
+		writeJSON(w, map[string]any{"repos": s.GitRepos(ctx)})
+		return
+	}
+	// the repository asked (repo): the routes on its folder
+	if repo := q.Get("repo"); repo != "" {
+		sub, err := s.gitServer(repo)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid repo")
+			return
+		}
+		s = sub
+	}
 	switch op {
 	case "git/changes":
 		files, err := s.GitChanges(ctx)
